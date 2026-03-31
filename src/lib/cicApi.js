@@ -1,5 +1,5 @@
 const CIC_BASE = 'https://api.cassanova.com'
-const FO_BASE = 'https://fo-services.cassanova.com'
+const PROXY_BASE = '/api/report'
 
 export async function getToken(apiKey) {
   const res = await fetch(CIC_BASE + '/apikey/token', {
@@ -28,51 +28,46 @@ export async function getSalesPoints(token) {
   return Array.isArray(d.salesPoint) ? d.salesPoint : Array.isArray(d) ? d : []
 }
 
-// Usa fo-services per i report (stessa API usata dal frontend ufficiale CiC)
-async function foGet(token, path, params = {}) {
-  const url = new URL(FO_BASE + path)
-  Object.entries(params).forEach(([k, v]) => {
-    if (v != null) url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : v)
+// Chiamata ai report tramite proxy Vercel (bypassa CORS e usa cookie di sessione)
+async function foReport(cicSessionToken, endpoint, params = {}) {
+  const qs = new URLSearchParams({ endpoint, ...params }).toString()
+  const res = await fetch(`${PROXY_BASE}?${qs}`, {
+    headers: { 'x-cic-token': cicSessionToken }
   })
-  const res = await fetch(url.toString(), {
-    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
-  })
-  if (!res.ok) throw new Error('FO API ' + res.status + ': ' + path)
+  if (!res.ok) throw new Error('Report API ' + res.status + ': ' + endpoint)
   return res.json()
 }
 
-export async function getReportData(token, { from, to, idsSalesPoint }) {
-  const filter = {
+export async function getReportData(apiToken, { from, to, idsSalesPoint }, cicSessionToken) {
+  if (!cicSessionToken) throw new Error('SESSION_MISSING')
+
+  const filter = JSON.stringify({
     referenceDatetimeFrom: from + 'T00:00:00.000',
     referenceDatetimeTo:   to   + 'T23:59:59.999',
-    refund: false,
-    idSharedBillReasonIsNull: true,
-    periodLocked: true,
-    idSalesPointIsNull: !idsSalesPoint?.length,
+    refund: false, idSharedBillReasonIsNull: true,
+    periodLocked: true, idSalesPointIsNull: !idsSalesPoint?.length,
     idSalesPoint: idsSalesPoint?.length ? idsSalesPoint[0] : null,
-    idSalesPointLocked: false,
-    idDevice: null, idDeviceLocked: false
-  }
+    idSalesPointLocked: false, idDevice: null, idDeviceLocked: false
+  })
 
   const [deptData, catData, taxData] = await Promise.all([
-    foGet(token, '/sold-by-department', { filter: JSON.stringify(filter), start: 0, limit: 100, sorts: JSON.stringify({ profit: -1 }) }),
-    foGet(token, '/sold-by-category',   { filter: JSON.stringify(filter), start: 0, limit: 100, sorts: JSON.stringify({ profit: -1 }) }),
-    foGet(token, '/sold-by-tax',        { filter: JSON.stringify(filter), start: 0, limit: 50 }),
+    foReport(cicSessionToken, 'sold-by-department', { filter, start: 0, limit: 100, sorts: JSON.stringify({ profit: -1 }) }),
+    foReport(cicSessionToken, 'sold-by-category',   { filter, start: 0, limit: 100, sorts: JSON.stringify({ profit: -1 }) }),
+    foReport(cicSessionToken, 'sold-by-tax',        { filter, start: 0, limit: 50 }),
   ])
 
-  const depts = Array.isArray(deptData) ? deptData : (deptData.data || deptData.records || [])
-  const cats  = Array.isArray(catData)  ? catData  : (catData.data  || catData.records  || [])
-  const taxes = Array.isArray(taxData)  ? taxData  : (taxData.data  || taxData.records  || [])
+  const depts = Array.isArray(deptData?.records) ? deptData.records : []
+  const cats  = Array.isArray(catData?.records)  ? catData.records  : []
+  const taxes = Array.isArray(taxData?.records)  ? taxData.records  : []
 
   const totale    = depts.reduce((s, d) => s + (d.profit || 0), 0)
   const scontrini = depts.reduce((s, d) => s + (d.billCount || 0), 0)
 
   return {
-    totale,
-    scontrini,
+    totale, scontrini,
     medio: scontrini > 0 ? totale / scontrini : 0,
-    depts: depts.map(d => ({ department: d.department || { description: d.departmentDescription || 'Reparto' }, profit: d.profit || 0, billCount: d.billCount || 0 })),
-    cats:  cats.map(c  => ({ category:   c.category   || { description: c.categoryDescription   || 'Categoria' }, totalSold: c.profit || c.totalSold || 0 })),
-    taxes: taxes.map(t => ({ tax: t.tax || { rate: t.taxRate }, taxable: t.taxable || 0, tax_amount: t.taxAmount || t.tax_amount || 0 }))
+    depts: depts.map(d => ({ department: d.department || { description: 'Reparto' }, profit: d.profit || 0 })),
+    cats:  cats.map(c  => ({ category: c.category   || { description: 'Categoria' }, totalSold: c.profit || 0 })),
+    taxes: taxes.map(t => ({ tax: { rate: t.taxPercent || t.tax?.rate || '?' }, taxable: t.taxable || 0, tax_amount: t.tax || 0 }))
   }
 }
