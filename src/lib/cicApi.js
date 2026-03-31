@@ -23,8 +23,10 @@ async function cicGet(token, path, params = {}) {
   return res.json()
 }
 
+// Endpoint corretto: /salespoint (singolare)
 export async function getSalesPoints(token) {
-  return (await cicGet(token, '/salespoints', { start: 0, limit: 50 })).salesPoints || []
+  const data = await cicGet(token, '/salespoint', { hasActiveLicense: true })
+  return data.salesPoints || data.records || data || []
 }
 
 export async function getSoldByDepartment(token, { from, to, idsSalesPoint }) {
