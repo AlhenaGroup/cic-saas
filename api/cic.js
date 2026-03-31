@@ -1,11 +1,6 @@
 
-const CIC_BASE    = 'https://api.cassanova.com';
-const FO_BASE     = 'https://fo-services.cassanova.com';
-const FO_LOGIN    = 'https://fo.cassanova.com';
-
-// Cache sessione in memoria (dura finché il processo Vercel è alive)
-let sessionCache = null;
-let sessionExpiry = 0;
+const CIC_BASE = 'https://api.cassanova.com';
+const FO_BASE  = 'https://fo-services.cassanova.com';
 
 async function getToken(apiKey) {
   const res = await fetch(CIC_BASE + '/apikey/token', {
@@ -36,81 +31,19 @@ async function cicGet(token, path, params = {}) {
   return JSON.parse(body);
 }
 
-// Login a fo.cassanova.com e ottieni cookie di sessione
-async function getFoSession(username, password) {
-  const now = Date.now();
-  if (sessionCache && now < sessionExpiry) return sessionCache;
-
-  // Step 1: GET login page per ottenere CSRF token se necessario
-  const loginPageRes = await fetch(FO_LOGIN + '/', {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CIC-Dashboard/1.0)' },
-    redirect: 'follow'
-  });
-  
-  // Raccoglie i cookie dalla login page
-  const cookies = [];
-  const setCookieHeader = loginPageRes.headers.get('set-cookie');
-  if (setCookieHeader) {
-    setCookieHeader.split(',').forEach(c => {
-      const name = c.trim().split(';')[0];
-      if (name) cookies.push(name);
-    });
-  }
-
-  // Step 2: POST login
-  const loginRes = await fetch(FO_LOGIN + '/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Cookie': cookies.join('; '),
-      'User-Agent': 'Mozilla/5.0 (compatible; CIC-Dashboard/1.0)',
-      'Referer': FO_LOGIN + '/',
-      'Origin': FO_LOGIN
-    },
-    body: new URLSearchParams({ username, password }),
-    redirect: 'manual'
-  });
-
-  // Raccoglie tutti i cookie di sessione
-  const sessionCookies = [];
-  const rawCookies = loginRes.headers.raw?.()?.['set-cookie'] || [];
-  if (Array.isArray(rawCookies)) {
-    rawCookies.forEach(c => {
-      const name = c.split(';')[0].trim();
-      if (name) sessionCookies.push(name);
-    });
-  }
-
-  // Prova anche con getSetCookie se disponibile
-  try {
-    const sc = loginRes.headers.getSetCookie?.() || [];
-    sc.forEach(c => {
-      const name = c.split(';')[0].trim();
-      if (name && !sessionCookies.includes(name)) sessionCookies.push(name);
-    });
-  } catch(e) {}
-
-  const cookieStr = [...cookies, ...sessionCookies].join('; ');
-  console.log('[SESSION] login status:', loginRes.status, 'cookies:', cookieStr.substring(0, 100));
-
-  sessionCache = cookieStr;
-  sessionExpiry = now + 30 * 60 * 1000; // 30 minuti
-  return cookieStr;
-}
-
-// Chiama fo-services con sessione
-async function foGet(cookieStr, path, params = {}) {
+async function foGet(sessionCookie, path, params = {}) {
   const url = new URL(FO_BASE + path);
   Object.entries(params).forEach(([k, v]) => {
     if (v != null) url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
   });
   const res = await fetch(url.toString(), {
     headers: {
-      'Cookie': cookieStr,
-      'Accept': 'application/json',
+      'Cookie': sessionCookie,
+      'Accept': 'application/json, text/plain, */*',
       'Accept-Language': 'it',
-      'User-Agent': 'Mozilla/5.0 (compatible; CIC-Dashboard/1.0)',
-      'Referer': 'https://fo.cassanova.com/'
+      'Referer': 'https://fo.cassanova.com/',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'cn-datetime': new Date().toISOString()
     }
   });
   const body = await res.text();
@@ -118,15 +51,14 @@ async function foGet(cookieStr, path, params = {}) {
   return JSON.parse(body);
 }
 
-// Crea il filtro fo-services
-function buildFilter(from, to, idSalesPoint = null) {
+function buildFilter(from, to, idSalesPoint) {
   return JSON.stringify({
     referenceDatetimeFrom: from + 'T00:00:00.000',
     referenceDatetimeTo:   to   + 'T23:59:59.999',
     refund: false, idSharedBillReasonIsNull: true,
     periodLocked: true,
-    idSalesPointIsNull: idSalesPoint === null,
-    idSalesPoint: idSalesPoint,
+    idSalesPointIsNull: idSalesPoint == null,
+    idSalesPoint: idSalesPoint || null,
     idSalesPointLocked: false,
     idDevice: null, idDeviceLocked: false
   });
@@ -139,54 +71,88 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { apiKey, action, params, username, password } = req.body || {};
+  const { apiKey, action, params, sessionCookie } = req.body || {};
   if (!apiKey) return res.status(400).json({ error: 'apiKey required' });
+
+  const p = params || {};
+  const from = p.from || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const to   = p.to   || new Date().toISOString().split('T')[0];
 
   try {
     const token = await getToken(apiKey);
-    let data;
 
     switch (action) {
-      case 'salespoints':
-        data = await cicGet(token, '/salespoint', { hasActiveLicense: true });
-        return res.status(200).json(data);
-
-      case 'receipts': {
-        const p = params || {};
-        const from = toUnix(p.from || p.datetimeFrom || '2026-01-01');
-        const to   = toUnix(p.to   || p.datetimeTo   || new Date().toISOString().split('T')[0]);
-        data = await cicGet(token, '/documents/receipts', { start: 0, limit: p.limit || 100, datetimeFrom: from, datetimeTo: to, ...(p.idsSalesPoint && { idsSalesPoint: p.idsSalesPoint }) });
+      case 'salespoints': {
+        const data = await cicGet(token, '/salespoint', { hasActiveLicense: true });
         return res.status(200).json(data);
       }
 
-      // Endpoint fo-services — richiedono sessione browser
+      case 'receipts': {
+        const fromU = toUnix(p.from || p.datetimeFrom || from);
+        const toU   = toUnix(p.to   || p.datetimeTo   || to);
+        const data  = await cicGet(token, '/documents/receipts', {
+          start: 0, limit: p.limit || 100,
+          datetimeFrom: fromU, datetimeTo: toU,
+          ...(p.idsSalesPoint && { idsSalesPoint: p.idsSalesPoint })
+        });
+        return res.status(200).json(data);
+      }
+
+      // fo-services endpoints — usano il cookie di sessione passato dal browser
       case 'sold-by-department':
       case 'sold-by-category':
       case 'sold-by-tax':
       case 'sold-trend-by-day':
       case 'sold-trend-by-hour': {
-        if (!username || !password) return res.status(400).json({ error: 'username and password required for fo-services' });
-        const cookieStr = await getFoSession(username, password);
-        const p = params || {};
-        const from = p.from || new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
-        const to   = p.to   || new Date().toISOString().split('T')[0];
-        const filter = buildFilter(from, to, p.idSalesPoint || null);
-        const path = '/' + action;
-        const queryParams = { start: 0, limit: p.limit || 200, filter, ...(action.includes('department') || action.includes('category') ? { sorts: JSON.stringify({ profit: -1 }) } : {}) };
-        if (action === 'sold-trend-by-day') queryParams.referenceDate = true;
-        data = await foGet(cookieStr, path, queryParams);
+        if (!sessionCookie) {
+          return res.status(400).json({ error: 'sessionCookie required for fo-services', needsSession: true });
+        }
+        const filter = buildFilter(from, to, p.idSalesPoint);
+        const foParams = { start: 0, limit: p.limit || 200, filter };
+
+        if (action === 'sold-by-department' || action === 'sold-by-category') {
+          foParams.sorts = JSON.stringify({ profit: -1 });
+          if (action === 'sold-by-department') {
+            foParams.fields = JSON.stringify({ '*': true, department: { id: true, salesPoint: { id: true, name: true, description: true }, description: true, live: true } });
+          } else {
+            foParams.fields = JSON.stringify({ '*': true, category: { id: true, salesPoint: { id: true, name: true, description: true }, description: true, live: true } });
+          }
+        }
+        if (action === 'sold-trend-by-day') foParams.referenceDate = true;
+
+        const data = await foGet(sessionCookie, '/' + action, foParams);
         return res.status(200).json(data);
       }
 
-      case 'webhooks_list':
-        data = await cicGet(token, '/webhooks', { start: 0, limit: 20 });
+      case 'all-reports': {
+        // Chiama tutti gli endpoint fo-services in parallelo
+        if (!sessionCookie) {
+          return res.status(400).json({ error: 'sessionCookie required', needsSession: true });
+        }
+        const filter = buildFilter(from, to, p.idSalesPoint);
+        const base = { start: 0, limit: 200, filter };
+
+        const [dept, cat, tax, trend, hour] = await Promise.all([
+          foGet(sessionCookie, '/sold-by-department', { ...base, sorts: JSON.stringify({profit:-1}), fields: JSON.stringify({'*':true,department:{id:true,salesPoint:{id:true,name:true,description:true},description:true,live:true}}) }),
+          foGet(sessionCookie, '/sold-by-category',   { ...base, sorts: JSON.stringify({profit:-1}), fields: JSON.stringify({'*':true,category:{id:true,salesPoint:{id:true,name:true,description:true},description:true,live:true}}) }),
+          foGet(sessionCookie, '/sold-by-tax',        { ...base }),
+          foGet(sessionCookie, '/sold-trend-by-day',  { ...base, referenceDate: true }),
+          foGet(sessionCookie, '/sold-trend-by-hour', { ...base }),
+        ]);
+
+        return res.status(200).json({ dept, cat, tax, trend, hour });
+      }
+
+      case 'webhooks_list': {
+        const data = await cicGet(token, '/webhooks', { start: 0, limit: 20 });
         return res.status(200).json(data);
+      }
 
       default:
         return res.status(400).json({ error: 'unknown action: ' + action });
     }
   } catch (err) {
-    console.error('[PROXY ERROR]', err.message);
+    console.error('[PROXY ERROR]', action, err.message);
     return res.status(500).json({ error: err.message });
   }
 }
