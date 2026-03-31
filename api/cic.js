@@ -1,6 +1,5 @@
 
 const CIC_BASE = 'https://api.cassanova.com';
-const FO_BASE  = 'https://fo-services.cassanova.com';
 
 async function getToken(apiKey) {
   const res = await fetch(CIC_BASE + '/apikey/token', {
@@ -21,27 +20,18 @@ async function cicGet(token, path, params = {}) {
     headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Version': '1.0.0' }
   });
   const body = await res.text();
-  if (!res.ok) throw new Error('CIC ' + res.status + ' ' + path + ': ' + body.substring(0, 200));
+  if (!res.ok) throw new Error('CIC ' + res.status + ': ' + body.substring(0, 200));
   return JSON.parse(body);
 }
 
-// Prova fo-services server-side con Bearer token — funziona da server ma non da browser?
-async function foGet(token, path, params = {}) {
-  const url = new URL(FO_BASE + path);
-  Object.entries(params).forEach(([k, v]) => {
-    if (v != null) url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
-  });
-  const res = await fetch(url.toString(), {
-    headers: {
-      'Authorization': 'Bearer ' + token,
-      'Accept': 'application/json',
-      'Accept-Language': 'it',
-      'cn-datetime': new Date().toISOString(),
-      'User-Agent': 'Mozilla/5.0 (compatible; CIC-Dashboard/1.0)'
-    }
+async function cicPost(token, path, data) {
+  const res = await fetch(CIC_BASE + path, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Version': '1.0.0', 'X-Requested-With': '*' },
+    body: JSON.stringify(data)
   });
   const body = await res.text();
-  if (!res.ok) throw new Error('FO ' + res.status + ' ' + path + ': ' + body.substring(0, 200));
+  if (!res.ok) throw new Error('CIC POST ' + res.status + ': ' + body.substring(0, 200));
   return JSON.parse(body);
 }
 
@@ -57,16 +47,8 @@ export default async function handler(req, res) {
 
   try {
     const token = await getToken(apiKey);
-    const f = params?.filter ? JSON.parse(params.filter) : {
-      referenceDatetimeFrom: (params?.from || '2026-03-01') + 'T00:00:00.000',
-      referenceDatetimeTo:   (params?.to   || '2026-03-31') + 'T23:59:59.999',
-      refund: false, idSharedBillReasonIsNull: true,
-      periodLocked: true, idSalesPointIsNull: true,
-      idSalesPoint: null, idSalesPointLocked: false,
-      idDevice: null, idDeviceLocked: false
-    };
-
     let data;
+
     switch (action) {
       case 'salespoints':
         data = await cicGet(token, '/salespoint', { hasActiveLicense: true });
@@ -76,32 +58,26 @@ export default async function handler(req, res) {
         data = await cicGet(token, '/documents/receipts', params || {});
         return res.status(200).json(data);
 
-      // Tenta fo-services server-side con Bearer token
-      case 'sold-by-department':
-        data = await foGet(token, '/sold-by-department', { filter: JSON.stringify(f), start: 0, limit: 100, sorts: JSON.stringify({ profit: -1 }) });
+      case 'webhooks_list':
+        data = await cicGet(token, '/webhooks', { start: 0, limit: 20 });
         return res.status(200).json(data);
 
-      case 'sold-by-category':
-        data = await foGet(token, '/sold-by-category', { filter: JSON.stringify(f), start: 0, limit: 100, sorts: JSON.stringify({ profit: -1 }) });
+      case 'webhooks_create':
+        data = await cicPost(token, '/webhooks', params);
         return res.status(200).json(data);
 
-      case 'sold-by-tax':
-        data = await foGet(token, '/sold-by-tax', { filter: JSON.stringify(f), start: 0, limit: 50 });
-        return res.status(200).json(data);
-
-      case 'sold-trend-by-day':
-        data = await foGet(token, '/sold-trend-by-day', { filter: JSON.stringify(f), referenceDate: true });
-        return res.status(200).json(data);
-
-      case 'products':
-        data = await cicGet(token, '/products', params || {});
-        return res.status(200).json(data);
+      case 'webhooks_delete':
+        const del = await fetch(CIC_BASE + '/webhooks/' + params.id, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token, 'X-Version': '1.0.0' }
+        });
+        return res.status(200).json({ deleted: del.ok, status: del.status });
 
       default:
-        return res.status(400).json({ error: 'action not allowed: ' + action });
+        return res.status(400).json({ error: 'unknown action: ' + action });
     }
   } catch (err) {
-    console.error('[CIC PROXY ERROR]', err.message);
+    console.error('[CIC PROXY]', err.message);
     return res.status(500).json({ error: err.message });
   }
 }
