@@ -11,16 +11,23 @@ async function getToken(apiKey) {
   return (await res.json()).access_token;
 }
 
+// Converte data yyyy-MM-dd o yyyy-MM-ddTHH:mm:ss in Unix timestamp (secondi)
+function toUnix(dateStr) {
+  if (!dateStr) return null;
+  if (typeof dateStr === 'number') return dateStr;
+  return Math.floor(new Date(dateStr).getTime() / 1000);
+}
+
 async function cicGet(token, path, params = {}) {
   const url = new URL(CIC_BASE + path);
   Object.entries(params).forEach(([k, v]) => {
     if (v != null) url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
   });
   const res = await fetch(url.toString(), {
-    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Version': '1.0.0' }
+    headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' }
   });
   const body = await res.text();
-  if (!res.ok) throw new Error('CIC ' + res.status + ': ' + body.substring(0, 200));
+  if (!res.ok) throw new Error('CIC ' + res.status + ': ' + body.substring(0, 300));
   return JSON.parse(body);
 }
 
@@ -31,7 +38,7 @@ async function cicPost(token, path, data) {
     body: JSON.stringify(data)
   });
   const body = await res.text();
-  if (!res.ok) throw new Error('CIC POST ' + res.status + ': ' + body.substring(0, 200));
+  if (!res.ok) throw new Error('CIC POST ' + res.status + ': ' + body.substring(0, 300));
   return JSON.parse(body);
 }
 
@@ -54,9 +61,27 @@ export default async function handler(req, res) {
         data = await cicGet(token, '/salespoint', { hasActiveLicense: true });
         return res.status(200).json(data);
 
-      case 'receipts':
-        data = await cicGet(token, '/documents/receipts', params || {});
+      case 'receipts': {
+        // Formato CORRETTO: Unix timestamp in secondi
+        const p = params || {};
+        const from = toUnix(p.from || p.datetimeFrom || '2026-01-01');
+        const to   = toUnix(p.to   || p.datetimeTo   || new Date().toISOString().split('T')[0]);
+        const q = { start: p.start || 0, limit: p.limit || 100, datetimeFrom: from, datetimeTo: to };
+        if (p.idsSalesPoint) q.idsSalesPoint = p.idsSalesPoint;
+        data = await cicGet(token, '/documents/receipts', q);
         return res.status(200).json(data);
+      }
+
+      case 'receipts_debug': {
+        // Debug: mostra l'URL esatto che stiamo chiamando
+        const p = params || {};
+        const from = toUnix(p.from || '2026-03-01');
+        const to   = toUnix(p.to   || '2026-03-31');
+        const url = `${CIC_BASE}/documents/receipts?start=0&limit=5&datetimeFrom=${from}&datetimeTo=${to}`;
+        const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' } });
+        const body = await r.text();
+        return res.status(200).json({ url, status: r.status, body: body.substring(0, 500), from, to });
+      }
 
       case 'webhooks_list':
         data = await cicGet(token, '/webhooks', { start: 0, limit: 20 });
@@ -65,13 +90,6 @@ export default async function handler(req, res) {
       case 'webhooks_create':
         data = await cicPost(token, '/webhooks', params);
         return res.status(200).json(data);
-
-      case 'webhooks_delete':
-        const del = await fetch(CIC_BASE + '/webhooks/' + params.id, {
-          method: 'DELETE',
-          headers: { 'Authorization': 'Bearer ' + token, 'X-Version': '1.0.0' }
-        });
-        return res.status(200).json({ deleted: del.ok, status: del.status });
 
       default:
         return res.status(400).json({ error: 'unknown action: ' + action });
