@@ -22,9 +22,7 @@ export async function getSalesPoints(apiKey) {
   }
 }
 
-// Legge e aggrega dati da Supabase monthly_stats con supporto range parziali
 async function getFromSupabase(from, to, idsSalesPoint = []) {
-  // Calcola mesi nel range
   const fromDate = new Date(from);
   const toDate = new Date(to);
   const months = [];
@@ -40,21 +38,22 @@ async function getFromSupabase(from, to, idsSalesPoint = []) {
   if (error || !rows?.length) return null;
 
   const deptMap = {}, catMap = {}, trendMap = {};
+  let totalBillCount = 0;
 
   rows.forEach(row => {
-    // Calcola quanta % dei ricavi mensili cade nel range selezionato
-    // usando il trend giornaliero come peso
+    // Ratio per range parziali: usa il trend giornaliero come peso
     const trendAll = row.trend_records || [];
-    const totalMonthRevenue = trendAll.reduce((s, t) => s + (t.total || t.profit || 0), 0);
+    const totalMonthRevenue = trendAll.reduce((s, t) => s + (t.profit || t.total || 0), 0);
     const selectedRevenue = trendAll.filter(t => {
-      const date = (t.referenceDatetime || t.date || '').substring(0, 10);
+      const date = (t.date || t.referenceDatetime || '').substring(0, 10);
       return date >= from && date <= to;
-    }).reduce((s, t) => s + (t.total || t.profit || 0), 0);
-
-    // Ratio: se il mese è tutto nel range → 1.0, se parziale → proporzione dei ricavi
+    }).reduce((s, t) => s + (t.profit || t.total || 0), 0);
     const ratio = totalMonthRevenue > 0 ? selectedRevenue / totalMonthRevenue : 1.0;
 
-    // Aggrega reparti con ratio
+    // Scontrini reali proporzionati al range
+    totalBillCount += Math.round((row.bill_count || 0) * ratio);
+
+    // Reparti con ratio
     (row.dept_records || []).forEach(rec => {
       const key = rec.department?.description || rec.idDepartment || 'Altro';
       if (!deptMap[key]) deptMap[key] = { description: key, profit: 0, qty: 0 };
@@ -62,20 +61,19 @@ async function getFromSupabase(from, to, idsSalesPoint = []) {
       deptMap[key].qty += (rec.quantity || 0) * ratio;
     });
 
-    // Aggrega categorie con ratio
+    // Categorie con ratio
     (row.cat_records || []).forEach(rec => {
       const key = rec.category?.description || rec.idCategory || 'Altro';
       if (!catMap[key]) catMap[key] = { description: key, total: 0 };
       catMap[key].total += (rec.profit || 0) * ratio;
     });
 
-    // Aggrega trend giornaliero (solo giorni nel range)
+    // Trend giornaliero (solo giorni nel range, campo profit)
     trendAll.forEach(rec => {
-      const date = (rec.referenceDatetime || rec.date || '').substring(0, 10);
+      const date = (rec.date || rec.referenceDatetime || '').substring(0, 10);
       if (!date || date < from || date > to) return;
       if (!trendMap[date]) trendMap[date] = { date, ricavi: 0, scontrini: 0 };
-      trendMap[date].ricavi += rec.total || rec.profit || 0;
-      trendMap[date].scontrini += rec.quantity || 0;
+      trendMap[date].ricavi += rec.profit || rec.total || 0;
     });
   });
 
@@ -84,10 +82,15 @@ async function getFromSupabase(from, to, idsSalesPoint = []) {
   const trend = Object.values(trendMap).sort((a,b) => a.date.localeCompare(b.date))
     .map(t => ({ ...t, label: new Date(t.date + 'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) }));
   const totale = trend.reduce((s,t) => s + t.ricavi, 0);
-  const scontrini = trend.reduce((s,t) => s + t.scontrini, 0);
   const taxes = totale > 0 ? [{ rate: 10, taxable: Math.round(totale / 1.1), tax_amount: Math.round(totale - totale / 1.1) }] : [];
 
-  return { totale, scontrini, medio: scontrini > 0 ? totale/scontrini : 0, depts, cats, taxes, trend, isDemo: false };
+  return {
+    totale,
+    scontrini: totalBillCount,
+    medio: totalBillCount > 0 ? totale / totalBillCount : 0,
+    depts, cats, taxes, trend,
+    isDemo: false
+  };
 }
 
 export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPoints = []) {
@@ -111,7 +114,6 @@ export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPo
       return{totale,scontrini:receipts.length,medio:receipts.length?totale/receipts.length:0,depts:Object.entries(deptMap).map(([k,v])=>({description:k,...v})).sort((a,b)=>b.profit-a.profit),cats:Object.entries(catMap).map(([k,v])=>({description:k,total:v})).sort((a,b)=>b.total-a.total),taxes:Object.entries(taxMap).map(([k,v])=>({rate:Number(k),...v})),trend:demo.trend,topProducts:demo.topProducts,scontriniList:demo.scontriniList,prodOre:demo.prodOre,suspicious:demo.suspicious,fatture:demo.fatture,ce:demo.ce,isDemo:false};
     }
   } catch(e) { console.warn('[CiC]', e.message); }
-
   return generateDemoData(from, to, salesPoints);
 }
 
