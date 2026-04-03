@@ -32,7 +32,7 @@ async function getReceipts(token, date, filterSp) {
     const d = await res.json();
     const page = d.receipts || [];
     // filtro client-side per salespoint
-    all.push(...page.filter(r => r.document?.idSalesPoint === filterSp));
+    all.push(...page.filter(r => r.document?.idSalesPoint === filterSp && !r.document?.refund));
     if (page.length < 100) break;
     start += 100;
     await new Promise(r => setTimeout(r, 150));
