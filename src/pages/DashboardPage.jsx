@@ -3,7 +3,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { supabase } from '../lib/supabase'
 import { getToken, getSalesPoints, getReportData } from '../lib/cicApi'
 
-const fmt    = n => { const v=Math.round(Number(n||0)); return v.toLocaleString('it-IT',{minimumFractionDigits:0,maximumFractionDigits:0,useGrouping:true})+' €'; }
+const fmt    = n => Number(n||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:true})+' €'
 const fmtD   = n => Number(n||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2})
 const fmtN   = n => Number(n||0).toLocaleString('it-IT')
 const pct    = (v,t) => t>0?(v/t*100).toFixed(1)+'%':'—'
