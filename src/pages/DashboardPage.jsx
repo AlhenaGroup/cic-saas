@@ -78,18 +78,25 @@ function Loader() {
 
 export default function DashboardPage({ settings }) {
   const [token, setToken]         = useState(null)
-  const [from,  setFrom]          = useState(monthStart())
-  const [to,    setTo]            = useState(today())
-  const [sp,    setSp]            = useState('all')
+  const [from,  setFrom]          = useState(() => localStorage.getItem('cic_from') || monthStart())
+  const [to,    setTo]            = useState(() => localStorage.getItem('cic_to') || today())
+  const [sp,    setSp]            = useState(() => localStorage.getItem('cic_sp') || 'all')
   const [sps,   setSps]           = useState(Array.isArray(settings?.sales_points)?settings.sales_points:[])
   const [data,  setData]          = useState(null)
   const [loading,setLoading]      = useState(true)
   const [error,  setError]        = useState('')
-  const [tab,    setTab]          = useState('ov')
+  const [tab,    setTab]          = useState(() => localStorage.getItem('cic_tab') || 'ov')
   const [recSearch,setRecSearch]  = useState('')
   const [fatSearch,setFatSearch]  = useState('')
   const [fatFilter,setFatFilter]  = useState('all')
   const [prodRep,setProdRep]      = useState('tutti')
+  // Persisti filtro in localStorage
+  useEffect(() => { localStorage.setItem('cic_from', from) }, [from])
+  useEffect(() => { localStorage.setItem('cic_to', to) }, [to])
+  useEffect(() => { localStorage.setItem('cic_sp', sp) }, [sp])
+  useEffect(() => { localStorage.setItem('cic_tab', tab) }, [tab])
+
+
 
   useEffect(() => {
     getToken(settings.cic_api_key).then(async t => {
