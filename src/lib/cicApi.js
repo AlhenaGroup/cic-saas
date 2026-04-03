@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 
+
 // Lookup UUID → nome categoria (da fo-services CiC, tutti i locali)
 const CAT_NAMES = {
   '5c4e782b-8c54-402d-8ee2-861d1fc181c1': "CLASSICI",
