@@ -8,6 +8,12 @@ async function proxyCall(apiKey, action, params = {}) {
   return data;
 }
 
+
+// ─── Mapping UUID → Nome (estratto da monthly_stats) ───────────────────────
+const DEPT_NAMES = {"4b5a191f-2a22-4520-9c86-71ad1eda5b15":"BAR","5fe05a66-002d-4c2f-9fe7-2d2ea55a39c9":"CUCINA","a164ece6-2c76-4031-a6f6-4900acf1229f":"Reparto 1","ecddf000-60ad-492c-aaaa-5d669e188679":"IVA AL 4","1f8f00bd-7671-4d5d-b19e-e8dc581c3256":"COPERTO","226b870e-44fc-40d1-8506-585bec12ed72":"PIZZERIA","c80cdb68-e3c1-4344-a8e4-f799ff811ae9":"COPERTO","ed7ffa46-6a3d-42f8-a52f-3be32b97d8db":"BAR"};
+const CAT_NAMES  = {"5c4e782b-8c54-402d-8ee2-861d1fc181c1":"CLASSICI","15df84ef-245f-44f2-a651-ffe6ba5820b1":"SPINA","3a8c8499-4200-4a8a-8b68-4d84a5e8da17":"VINI","6610357a-5f52-49cc-8b5c-78bef33f29c7":"GIN","8856e504-961b-4b92-8218-305bd4c9d5b7":"BIBITE","d6231966-0341-4e5b-b362-421526e186c2":"ALCOOL FREE","879254a2-c2af-444b-afac-3b75d0847b2d":"BOX","be654494-49c3-4b77-a1be-ed985c233acf":"PINSE","edf21cf0-4f6f-4055-bb2c-389b796fbafd":"AMARI","bbfcab4f-de88-422c-a7b9-77c19ca14a56":"STARTERS","6f6c58ab-08c7-40ce-bcac-226701f87ffb":"BURGER","be7758d7-fcba-48b3-80c4-bd2ff8fa9480":"BEER AND JUICE","833e3f20-8338-4e9d-a4ea-f1d147094ad4":"REMEMBEER WHEN","20230963-1f42-4709-8fbb-687d41f44f2b":"VERMOUTH","9df9e33a-e2e8-4d6b-8c06-5371f086fe47":"DOLCI","b687801f-010a-43bc-bdb8-f408d370e821":"WHISKY","aa6ce45f-3a53-4d52-802e-fe8c999bf123":"SUCCHI DI FRUTTA","c4d771fb-74ba-426e-b2aa-9e25b109753e":"RUM","e361b756-5727-4296-b02d-78c8cbff721a":"GRAPPE","f1320f5d-b5b4-4f1c-a03e-88e7f2266f10":"PESTATI","e2b95b55-1e74-4345-95a0-a6011088fe4f":"GOLOSI","e859c5a1-bf49-4926-a1df-4fbcdec3d146":"CUCINA","f3bd1fc0-cde2-4cb4-ae19-156900bf3f98":"PROMOZIONI BEVERAGE","eefa3dc1-ce70-496d-a776-750ef84e8001":"PROMOZIONI FOOD","b8f3b1f7-e318-45aa-8972-b911649ca5bd":"LE NOSTRE CLASSICHE","aa26eeec-f9b1-4496-b751-1dc03354e64e":"LE CREAZIONI DI CASA","fcdfcc4b-c5ae-4997-90a3-c7b9ca35e0c8":"DOLCI","466f0936-de33-42b7-9009-4484ae251e3c":"BIRRE","221fe8dc-cd19-4cc6-a81a-1fb13048d2f8":"STAGIONALI","69bad285-f472-4af3-ac6c-d390d8c03a8e":"I PADELLINI CONTEMPORANEI","49d6708c-e2ab-4c38-8439-3c32873e4c82":"ACQUE","ebb905c9-1ff1-47d7-a741-ca59354d20da":"CAFFE'","01401edf-7dbf-4b9e-a9fe-6fd2a7c162f2":"BIBITE","8dee62de-7ee9-451d-a13c-2ea90d652e5f":"ROSSI","bebbd1f6-bb42-40ab-8587-e19e6774143e":"BOLLICINE","df4556fc-bccb-4747-a06c-fd246e9972b8":"BIANCHI","e1261237-2b0a-4602-8b8b-ed4d620f921a":"AMARI","1c86d42e-903d-411a-a70f-f74dd8692538":"GIN TONIC","a250119a-17d4-4eb5-956a-e3fa56794136":"VINI DESSERT","be444bfe-2665-4ebb-a445-a45d2bf612bc":"ROSATI","c4f16422-61b4-4612-94c0-80519e46b03c":"BOURBON","8a7664fe-2883-4b3c-89eb-3e4bf4a6f5af":"VINI DOLCI","6cc63801-6e20-41df-b59a-2d6a140ecb5f":"WHISKY","45493c2a-824b-4a4e-ad94-8220ef617b96":"RUM","b710212b-1653-4a53-b56c-30dde21eb37d":"COCKTAIL","1b42d20e-53b8-4a45-a278-f75d829d1186":"BEVANDE","b2290bc1-4da9-45eb-8306-a74b163b234e":"ANTIPASTI","9119a630-5d0c-4f10-ac22-895331f58abb":"PROMOZIONI BEVERAGE","8bc2e435-0b06-4f6b-b8ba-a72ce2886e77":"PROMOZIONI FOOD","7fe7f355-f3c8-4c65-b5b5-62c6abf5a894":"PROMOZIONI FOOD & BEVERAGE"};
+// ────────────────────────────────────────────────────────────────────────────
+
 export async function getToken(apiKey) { return apiKey; }
 
 export async function getSalesPoints(apiKey) {
@@ -46,7 +52,7 @@ async function getFromDailyStats(from, to, idsSalesPoint = []) {
     
     // Aggregazione reparti (somma per nome)
     (row.dept_records || []).forEach(rec => {
-      const key = rec.department?.description || rec.idDepartment || 'Altro';
+      const key = rec.department?.description || DEPT_NAMES[rec.idDepartment] || rec.idDepartment || 'Altro';
       if (!deptMap[key]) deptMap[key] = { description: key, profit: 0, qty: 0 };
       deptMap[key].profit += rec.profit || 0;
       deptMap[key].qty += rec.quantity || 0;
