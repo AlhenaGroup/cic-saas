@@ -15,26 +15,23 @@ export async function getSalesPoints(apiKey) {
     const d = await proxyCall(apiKey, 'salespoints');
     return Array.isArray(d.salesPoint) ? d.salesPoint : Array.isArray(d) ? d : [];
   } catch(e) {
-    const { data } = await supabase.from('monthly_stats').select('salespoint_id,salespoint_name').limit(50);
+    const { data } = await supabase.from('daily_stats').select('salespoint_id,salespoint_name').limit(50);
     const seen = {};
     (data||[]).forEach(r => { seen[r.salespoint_id] = r.salespoint_name; });
     return Object.entries(seen).map(([id,name]) => ({ id: parseInt(id), description: name }));
   }
 }
 
-// Legge e aggrega dati da Supabase monthly_stats con supporto range parziali
-async function getFromSupabase(from, to, idsSalesPoint = []) {
-  const fromDate = new Date(from);
-  const toDate = new Date(to);
-  const months = [];
-  let d = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
-  while (d <= toDate) {
-    months.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
-    d.setMonth(d.getMonth() + 1);
-  }
-
-  let query = supabase.from('monthly_stats').select('*').in('month', months);
+// Legge dati giornalieri ESATTI da daily_stats
+async function getFromDailyStats(from, to, idsSalesPoint = []) {
+  let query = supabase
+    .from('daily_stats')
+    .select('*')
+    .gte('date', from)
+    .lte('date', to)
+    .order('date', { ascending: true });
   if (idsSalesPoint?.length) query = query.in('salespoint_id', idsSalesPoint);
+  
   const { data: rows, error } = await query;
   if (error || !rows?.length) return null;
 
@@ -42,37 +39,29 @@ async function getFromSupabase(from, to, idsSalesPoint = []) {
   let totalBillCount = 0;
 
   rows.forEach(row => {
-    // CAMPI CORRETTI: trend usa "profit" (non "total") e "date" (non "referenceDatetime")
-    const trendAll = row.trend_records || [];
-    const totalMonthRevenue = trendAll.reduce((s, t) => s + (t.profit || t.total || 0), 0);
-    const selectedRevenue = trendAll.filter(t => {
-      const date = (t.date || t.referenceDatetime || '').substring(0, 10);
-      return date >= from && date <= to;
-    }).reduce((s, t) => s + (t.profit || t.total || 0), 0);
-    const ratio = totalMonthRevenue > 0 ? selectedRevenue / totalMonthRevenue : 1.0;
-
-    // Scontrini reali da bill_count, proporzionati al range
-    totalBillCount += Math.round((row.bill_count || 0) * ratio);
-
+    const dateStr = typeof row.date === 'string' ? row.date.substring(0,10) : row.date;
+    
+    // Scontrini esatti per giorno
+    totalBillCount += row.bill_count || 0;
+    
+    // Aggregazione reparti (somma per nome)
     (row.dept_records || []).forEach(rec => {
       const key = rec.department?.description || rec.idDepartment || 'Altro';
       if (!deptMap[key]) deptMap[key] = { description: key, profit: 0, qty: 0 };
-      deptMap[key].profit += (rec.profit || 0) * ratio;
-      deptMap[key].qty += (rec.quantity || 0) * ratio;
+      deptMap[key].profit += rec.profit || 0;
+      deptMap[key].qty += rec.quantity || 0;
     });
 
+    // Aggregazione categorie
     (row.cat_records || []).forEach(rec => {
       const key = rec.category?.description || rec.idCategory || 'Altro';
       if (!catMap[key]) catMap[key] = { description: key, total: 0 };
-      catMap[key].total += (rec.profit || 0) * ratio;
+      catMap[key].total += rec.profit || 0;
     });
 
-    trendAll.forEach(rec => {
-      const date = (rec.date || rec.referenceDatetime || '').substring(0, 10);
-      if (!date || date < from || date > to) return;
-      if (!trendMap[date]) trendMap[date] = { date, ricavi: 0, scontrini: 0 };
-      trendMap[date].ricavi += rec.profit || rec.total || 0;
-    });
+    // Trend giornaliero
+    if (!trendMap[dateStr]) trendMap[dateStr] = { date: dateStr, ricavi: 0 };
+    trendMap[dateStr].ricavi += Number(row.revenue) || 0;
   });
 
   const depts = Object.values(deptMap).sort((a,b) => b.profit - a.profit);
@@ -80,21 +69,28 @@ async function getFromSupabase(from, to, idsSalesPoint = []) {
   const trend = Object.values(trendMap).sort((a,b) => a.date.localeCompare(b.date))
     .map(t => ({ ...t, label: new Date(t.date + 'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) }));
   const totale = trend.reduce((s,t) => s + t.ricavi, 0);
-  const scontrini = totalBillCount;
   const taxes = totale > 0 ? [{ rate: 10, taxable: Math.round(totale / 1.1), tax_amount: Math.round(totale - totale / 1.1) }] : [];
 
-  return { totale, scontrini, medio: scontrini > 0 ? totale/scontrini : 0, depts, cats, taxes, trend, isDemo: false };
+  return {
+    totale,
+    scontrini: totalBillCount,
+    medio: totalBillCount > 0 ? totale / totalBillCount : 0,
+    depts, cats, taxes, trend,
+    isDemo: false
+  };
 }
 
 export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPoints = []) {
+  // Prima prova daily_stats (dati esatti)
   try {
-    const sb = await getFromSupabase(from, to, idsSalesPoint);
-    if (sb && sb.totale > 0) {
+    const daily = await getFromDailyStats(from, to, idsSalesPoint);
+    if (daily && daily.totale > 0) {
       const demo = generateDemoData(from, to, salesPoints);
-      return { ...demo, ...sb };
+      return { ...demo, ...daily };
     }
-  } catch(e) { console.warn('[Supabase]', e.message); }
+  } catch(e) { console.warn('[daily_stats]', e.message); }
 
+  // Poi receipts live CiC
   try {
     const params = { datetimeFrom: from+'T00:00:00.000', datetimeTo: to+'T23:59:59.999', start:0, limit:100 };
     if (idsSalesPoint?.length) params.idsSalesPoint = JSON.stringify(idsSalesPoint);
