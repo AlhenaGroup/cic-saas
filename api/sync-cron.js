@@ -4,10 +4,9 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://afdochrjbmxnhviidzpb.s
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZG9jaHJqYm14bmh2aWlkenBiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDkzMzk5MSwiZXhwIjoyMDkwNTA5OTkxfQ.odgLZGS_W1j5mSngmL3MGlJOKTzfAm3RjsdXhi5MEEA';
 const CIC_BASE = 'https://api.cassanova.com';
 
-const ACCOUNT_API_KEY = '4b7a4c14-75f3-417a-8f23-fc85c8c58d57'; // un'unica chiave, stesso account FIORIO
 const SALESPOINTS = [
-  { id: 21747, name: 'REMEMBEER' },
-  { id: 22399, name: 'CASA DE AMICIS' },
+  { id: 21747, name: 'REMEMBEER',      apiKey: '4b7a4c14-75f3-417a-8f23-fc85c8c58d57', filterSp: 21747 },
+  { id: 22399, name: 'CASA DE AMICIS', apiKey: '41000e19-b98c-4022-904a-cf2290ae9d81', filterSp: 22399 },
 ];
 
 async function getCicToken(apiKey) {
@@ -21,14 +20,24 @@ async function getCicToken(apiKey) {
   return d.access_token;
 }
 
-async function getReceipts(token, date, spId) {
+async function getReceipts(token, date, filterSp) {
+  // Paginazione: cap API = 100 record/pagina
   const sorts = encodeURIComponent(JSON.stringify([{ key: 'date', direction: 1 }]));
   const dateQ = encodeURIComponent('"' + date + '"');
-  const spFilter = encodeURIComponent(JSON.stringify([spId]));
-  const url = `${CIC_BASE}/documents/receipts?start=0&limit=500&datetimeFrom=${dateQ}&datetimeTo=${dateQ}&sorts=${sorts}&idsSalesPoint=${spFilter}`;
-  const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' } });
-  const d = await res.json();
-  return d.receipts || [];
+  const all = [];
+  let start = 0;
+  while (true) {
+    const url = `${CIC_BASE}/documents/receipts?start=${start}&limit=100&datetimeFrom=${dateQ}&datetimeTo=${dateQ}&sorts=${sorts}`;
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' } });
+    const d = await res.json();
+    const page = d.receipts || [];
+    // filtro client-side per salespoint
+    all.push(...page.filter(r => r.document?.idSalesPoint === filterSp));
+    if (page.length < 100) break;
+    start += 100;
+    await new Promise(r => setTimeout(r, 150));
+  }
+  return all;
 }
 
 function aggregateReceipts(receipts) {
@@ -115,12 +124,12 @@ export default async function handler(req, res) {
 
     for (const sp of SALESPOINTS) {
       let token;
-      try { token = await getCicToken(ACCOUNT_API_KEY); }
+      try { token = await getCicToken(sp.apiKey); }
       catch (e) { logs.push(`Token fail ${sp.name}: ${e.message}`); errors++; continue; }
 
       for (const date of days) {
         try {
-          const receipts = await getReceipts(token, date, sp.id);
+          const receipts = await getReceipts(token, date, sp.filterSp);
           if (receipts.length === 0) continue; // salta giorni senza vendite
           const agg = aggregateReceipts(receipts);
           const status = await saveDailyStats(sp, date, agg);
