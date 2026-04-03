@@ -1,5 +1,38 @@
 import { supabase } from './supabase'
 
+// Lookup UUID → nome categoria (da fo-services CiC)
+const CAT_NAMES = {
+  '5c4e782b-8c54-402d-8ee2-861d1fc181c1': 'CLASSICI',
+  '15df84ef-245f-44f2-a651-ffe6ba5820b1': 'SPINA',
+  '8856e504-961b-4b92-8218-305bd4c9d5b7': 'BIBITE',
+  '3a8c8499-4200-4a8a-8b68-4d84a5e8da17': 'VINI',
+  '6610357a-5f52-49cc-8b5c-78bef33f29c7': 'GIN',
+  'bbfcab4f-de88-422c-a7b9-77c19ca14a56': 'STARTERS',
+  'd6231966-0341-4e5b-b362-421526e186c2': 'ALCOOL FREE',
+  'be654494-49c3-4b77-a1be-ed985c233acf': 'PINSE',
+  '879254a2-c2af-444b-afac-3b75d0847b2d': 'BOX',
+  'edf21cf0-4f6f-4055-bb2c-389b796fbafd': 'AMARI',
+  '6f6c58ab-08c7-40ce-bcac-226701f87ffb': 'BURGER',
+  'be7758d7-fcba-48b3-80c4-bd2ff8fa9480': 'BEER AND JUICE',
+  'e859c5a1-bf49-4926-a1df-4fbcdec3d146': 'CUCINA',
+  '833e3f20-8338-4e9d-a4ea-f1d147094ad4': 'REMEMBEER WHEN',
+  'f1320f5d-b5b4-4f1c-a03e-88e7f2266f10': 'PESTATI',
+  'aa6ce45f-3a53-4d52-802e-fe8c999bf123': 'SUCCHI DI FRUTTA',
+  '20230963-1f42-4709-8fbb-687d41f44f2b': 'VERMOUTH',
+  'e2b95b55-1e74-4345-95a0-a6011088fe4f': 'GOLOSI',
+  'b687801f-010a-43bc-bdb8-f408d370e821': 'WHISKY',
+  '9df9e33a-e2e8-4d6b-8c06-5371f086fe47': 'DOLCI',
+  'c4d771fb-74ba-426e-b2aa-9e25b109753e': 'RUM',
+  'e361b756-5727-4296-b02d-78c8cbff721a': 'GRAPPE',
+  'eefa3dc1-ce70-496d-a776-750ef84e8001': 'PROMOZIONI FOOD',
+  'f3bd1fc0-cde2-4cb4-ae19-156900bf3f98': 'PROMOZIONI BEVERAGE',
+  // CDA categories
+  'aa26eeec-f9b1-4496-b751-1dc03354e64e': 'LE CREAZIONI DI CASA',
+  'b8f3b1f7-e318-45aa-8972-b911649ca5bd': 'LE NOSTRE CLASSICHE',
+  '5c4e782b-8c54-402d-8ee2-861d1fc181c1': 'BIRRE',
+};
+
+
 const PROXY = '/api/cic';
 async function proxyCall(apiKey, action, params = {}) {
   const res = await fetch(PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey, action, params }) });
@@ -60,8 +93,8 @@ async function getFromDailyStats(from, to, idsSalesPoint = []) {
 
     // Aggregazione categorie
     (row.cat_records || []).forEach(rec => {
-      const key = rec.category?.description || rec.idCategory || 'Altro';
-      if (!catMap[key]) catMap[key] = { description: key, total: 0 };
+      const key = CAT_NAMES[rec.idCategory] || rec.category?.description || rec.idCategory || 'Altro';
+      if (!catMap[key]) catMap[key] = { description: CAT_NAMES[rec.idCategory] || key, total: 0 };
       catMap[key].total += rec.profit || 0;
     });
 
