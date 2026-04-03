@@ -90,6 +90,13 @@ export default function DashboardPage({ settings }) {
   const [fatSearch,setFatSearch]  = useState('')
   const [fatFilter,setFatFilter]  = useState('all')
   const [prodRep,setProdRep]      = useState('tutti')
+
+  // Carica data ultima sincronizzazione da daily_stats
+  useEffect(() => {
+    supabase.from('daily_stats').select('date').order('date',{ascending:false}).limit(1)
+      .then(({data}) => { if(data?.[0]) setLastSync(data[0].date) })
+  }, [])
+
   // Persisti filtro in localStorage
   useEffect(() => { localStorage.setItem('cic_from', from) }, [from])
   useEffect(() => { localStorage.setItem('cic_to', to) }, [to])
@@ -159,7 +166,10 @@ export default function DashboardPage({ settings }) {
         </select>}
       </div>
       <div style={{display:'flex',alignItems:'center',gap:8}}>
-        {isDemo&&<span style={S.badge('#F59E0B','rgba(245,158,11,.12)')}>DEMO</span>}
+        {lastSync&&<span style={{fontSize:11,color:'#64748b',marginLeft:4}}>
+              📅 Sync: <b style={{color: new Date(lastSync) < new Date(new Date().setDate(new Date().getDate()-1)) ? '#EF4444' : '#10B981'}}>{lastSync}</b>
+            </span>}
+          {isDemo&&<span style={S.badge('#F59E0B','rgba(245,158,11,.12)')}>DEMO</span>}
         <input type="date" value={from} onChange={e=>setFrom(e.target.value)} style={iS}/>
         <span style={{color:'#2a3042'}}>—</span>
         <input type="date" value={to}   onChange={e=>setTo(e.target.value)}   style={iS}/>
