@@ -8,17 +8,13 @@ async function proxyCall(apiKey, action, params = {}) {
   return data;
 }
 
-export async function getToken(apiKey) {
-  // restituiamo la key stessa come "token" senza validare lato server
-  return apiKey;
-}
+export async function getToken(apiKey) { return apiKey; }
 
 export async function getSalesPoints(apiKey) {
   try {
     const d = await proxyCall(apiKey, 'salespoints');
     return Array.isArray(d.salesPoint) ? d.salesPoint : Array.isArray(d) ? d : [];
   } catch(e) {
-    // Fallback: usa i salespoint noti dal DB
     const { data } = await supabase.from('monthly_stats').select('salespoint_id,salespoint_name').limit(50);
     const seen = {};
     (data||[]).forEach(r => { seen[r.salespoint_id] = r.salespoint_name; });
@@ -26,8 +22,9 @@ export async function getSalesPoints(apiKey) {
   }
 }
 
-// Legge dati aggregati da Supabase monthly_stats
+// Legge e aggrega dati da Supabase monthly_stats con supporto range parziali
 async function getFromSupabase(from, to, idsSalesPoint = []) {
+  // Calcola mesi nel range
   const fromDate = new Date(from);
   const toDate = new Date(to);
   const months = [];
@@ -45,18 +42,35 @@ async function getFromSupabase(from, to, idsSalesPoint = []) {
   const deptMap = {}, catMap = {}, trendMap = {};
 
   rows.forEach(row => {
+    // Calcola quanta % dei ricavi mensili cade nel range selezionato
+    // usando il trend giornaliero come peso
+    const trendAll = row.trend_records || [];
+    const totalMonthRevenue = trendAll.reduce((s, t) => s + (t.total || t.profit || 0), 0);
+    const selectedRevenue = trendAll.filter(t => {
+      const date = (t.referenceDatetime || t.date || '').substring(0, 10);
+      return date >= from && date <= to;
+    }).reduce((s, t) => s + (t.total || t.profit || 0), 0);
+
+    // Ratio: se il mese è tutto nel range → 1.0, se parziale → proporzione dei ricavi
+    const ratio = totalMonthRevenue > 0 ? selectedRevenue / totalMonthRevenue : 1.0;
+
+    // Aggrega reparti con ratio
     (row.dept_records || []).forEach(rec => {
       const key = rec.department?.description || rec.idDepartment || 'Altro';
       if (!deptMap[key]) deptMap[key] = { description: key, profit: 0, qty: 0 };
-      deptMap[key].profit += rec.profit || 0;
-      deptMap[key].qty += rec.quantity || 0;
+      deptMap[key].profit += (rec.profit || 0) * ratio;
+      deptMap[key].qty += (rec.quantity || 0) * ratio;
     });
+
+    // Aggrega categorie con ratio
     (row.cat_records || []).forEach(rec => {
       const key = rec.category?.description || rec.idCategory || 'Altro';
       if (!catMap[key]) catMap[key] = { description: key, total: 0 };
-      catMap[key].total += rec.profit || 0;
+      catMap[key].total += (rec.profit || 0) * ratio;
     });
-    (row.trend_records || []).forEach(rec => {
+
+    // Aggrega trend giornaliero (solo giorni nel range)
+    trendAll.forEach(rec => {
       const date = (rec.referenceDatetime || rec.date || '').substring(0, 10);
       if (!date || date < from || date > to) return;
       if (!trendMap[date]) trendMap[date] = { date, ricavi: 0, scontrini: 0 };
@@ -68,18 +82,15 @@ async function getFromSupabase(from, to, idsSalesPoint = []) {
   const depts = Object.values(deptMap).sort((a,b) => b.profit - a.profit);
   const cats = Object.values(catMap).sort((a,b) => b.total - a.total);
   const trend = Object.values(trendMap).sort((a,b) => a.date.localeCompare(b.date))
-    .map(t => ({ ...t, label: new Date(t.date).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) }));
-  const totale = depts.reduce((s,d) => s + d.profit, 0);
+    .map(t => ({ ...t, label: new Date(t.date + 'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) }));
+  const totale = trend.reduce((s,t) => s + t.ricavi, 0);
   const scontrini = trend.reduce((s,t) => s + t.scontrini, 0);
-
-  // IVA approssimata (10% su totale)
-  const taxes = [{ rate: 10, taxable: Math.round(totale / 1.1), tax_amount: Math.round(totale - totale / 1.1) }];
+  const taxes = totale > 0 ? [{ rate: 10, taxable: Math.round(totale / 1.1), tax_amount: Math.round(totale - totale / 1.1) }] : [];
 
   return { totale, scontrini, medio: scontrini > 0 ? totale/scontrini : 0, depts, cats, taxes, trend, isDemo: false };
 }
 
 export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPoints = []) {
-  // Prima prova Supabase (dati storici sincronizzati)
   try {
     const sb = await getFromSupabase(from, to, idsSalesPoint);
     if (sb && sb.totale > 0) {
@@ -88,35 +99,19 @@ export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPo
     }
   } catch(e) { console.warn('[Supabase]', e.message); }
 
-  // Poi prova receipts CiC
   try {
     const params = { datetimeFrom: from+'T00:00:00.000', datetimeTo: to+'T23:59:59.999', start:0, limit:100 };
     if (idsSalesPoint?.length) params.idsSalesPoint = JSON.stringify(idsSalesPoint);
     const d = await proxyCall(apiKey, 'receipts', params);
     if (Array.isArray(d.receipts) && d.receipts.length > 0) {
       const receipts = d.receipts;
-      const deptMap = {}, catMap = {}, taxMap = {};
-      let totale = 0;
-      receipts.forEach(r => {
-        totale += r.totalPrice || 0;
-        (r.items||[]).forEach(item => {
-          const dept = item.department?.description||'Altro', cat = item.category?.description||'Altro', rate = item.tax?.rate??0, price = item.totalPrice||0;
-          deptMap[dept] = deptMap[dept]||{profit:0,qty:0}; deptMap[dept].profit+=price; deptMap[dept].qty+=item.quantity||1;
-          catMap[cat] = (catMap[cat]||0)+price;
-          taxMap[rate] = taxMap[rate]||{taxable:0,tax_amount:0}; taxMap[rate].taxable+=price/(1+rate/100); taxMap[rate].tax_amount+=price-price/(1+rate/100);
-        });
-      });
-      const demo = generateDemoData(from, to, salesPoints);
-      return { totale, scontrini: receipts.length, medio: receipts.length?totale/receipts.length:0,
-        depts: Object.entries(deptMap).map(([k,v])=>({description:k,...v})).sort((a,b)=>b.profit-a.profit),
-        cats: Object.entries(catMap).map(([k,v])=>({description:k,total:v})).sort((a,b)=>b.total-a.total),
-        taxes: Object.entries(taxMap).map(([k,v])=>({rate:Number(k),...v})),
-        trend: demo.trend, topProducts: demo.topProducts, scontriniList: demo.scontriniList,
-        prodOre: demo.prodOre, suspicious: demo.suspicious, fatture: demo.fatture, ce: demo.ce, isDemo: false };
+      const deptMap={},catMap={},taxMap={};let totale=0;
+      receipts.forEach(r=>{totale+=r.totalPrice||0;(r.items||[]).forEach(item=>{const dept=item.department?.description||'Altro',cat=item.category?.description||'Altro',rate=item.tax?.rate??0,price=item.totalPrice||0;deptMap[dept]=deptMap[dept]||{profit:0,qty:0};deptMap[dept].profit+=price;deptMap[dept].qty+=item.quantity||1;catMap[cat]=(catMap[cat]||0)+price;taxMap[rate]=taxMap[rate]||{taxable:0,tax_amount:0};taxMap[rate].taxable+=price/(1+rate/100);taxMap[rate].tax_amount+=price-price/(1+rate/100);});});
+      const demo=generateDemoData(from,to,salesPoints);
+      return{totale,scontrini:receipts.length,medio:receipts.length?totale/receipts.length:0,depts:Object.entries(deptMap).map(([k,v])=>({description:k,...v})).sort((a,b)=>b.profit-a.profit),cats:Object.entries(catMap).map(([k,v])=>({description:k,total:v})).sort((a,b)=>b.total-a.total),taxes:Object.entries(taxMap).map(([k,v])=>({rate:Number(k),...v})),trend:demo.trend,topProducts:demo.topProducts,scontriniList:demo.scontriniList,prodOre:demo.prodOre,suspicious:demo.suspicious,fatture:demo.fatture,ce:demo.ce,isDemo:false};
     }
-  } catch(e) { console.warn('[CiC receipts]', e.message); }
+  } catch(e) { console.warn('[CiC]', e.message); }
 
-  // Fallback demo
   return generateDemoData(from, to, salesPoints);
 }
 
