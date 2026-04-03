@@ -8,5 +8,11 @@
         "fra1"
       ]
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/sync-cron",
+      "schedule": "0 4 * * *"
+    }
+  ]
 }
