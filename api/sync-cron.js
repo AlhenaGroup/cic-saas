@@ -163,8 +163,8 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
     // Numero chiusura Z
     if (r.zNumber) zNumber = r.zNumber;
 
-    // Aggregazione oraria
-    if (receiptHour != null) {
+    // Aggregazione oraria (solo dalle 16:00)
+    if (receiptHour != null && receiptHour >= 16) {
       if (!hourlyMap[receiptHour]) hourlyMap[receiptHour] = { hour: receiptHour, ricavi: 0, scontrini: 0 };
       hourlyMap[receiptHour].ricavi += doc.amount || 0;
       hourlyMap[receiptHour].scontrini += 1;
@@ -202,8 +202,8 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
         catMap[cId].quantity += row.quantity || 1;
       }
     }
-    // Salva dettaglio comanda
-    if (receiptItems.length > 0) {
+    // Salva dettaglio comanda (solo dalle 16:00)
+    if (receiptItems.length > 0 && receiptHour != null && receiptHour >= 16) {
       receiptDetails.push({ ora: receiptTime || '—', totale: doc.amount || 0, items: receiptItems });
     }
     if (receiptHour != null && receiptHour >= 16) {
