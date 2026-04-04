@@ -695,18 +695,21 @@ export default function DashboardPage({ settings }) {
           <Card title="Comande del periodo" badge={fmtN((data?.receiptDetails||[]).length)+' comande'}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['','Ora','Totale','Articoli','Reparto'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                {['','Tavolo','Aperta','Chiusa','Coperti','Totale','Articoli','Reparto'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {(data?.receiptDetails||[]).map((r,i)=><>
                   <tr key={i} onClick={()=>setExpandedReceipt(expandedReceipt===i?null:i)} style={{cursor:'pointer',borderBottom:'1px solid #1a1f2e'}}>
                     <td style={{...S.td,width:24,color:'#64748b'}}>{expandedReceipt===i?'▼':'▶'}</td>
-                    <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{r.ora}</td>
+                    <td style={{...S.td,fontWeight:600,color:'#e2e8f0'}}>{r.tavolo||'—'}</td>
+                    <td style={{...S.td,fontWeight:600,color:'#10B981'}}>{r.aperturaComanda||r.ora}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{r.chiusuraComanda||r.ora}</td>
+                    <td style={{...S.td,color:'#F59E0B',fontWeight:600}}>{r.coperti||'—'}</td>
                     <td style={{...S.td,fontWeight:600}}>{fmt(r.totale)}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{r.items?.length||0} art.</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{[...new Set(r.items?.map(it=>it.reparto).filter(Boolean))].join(', ')||'—'}</td>
                   </tr>
-                  {expandedReceipt===i&&<tr key={'d'+i}><td colSpan={5} style={{padding:'0 14px 12px 38px',background:'#131825'}}>
+                  {expandedReceipt===i&&<tr key={'d'+i}><td colSpan={8} style={{padding:'0 14px 12px 38px',background:'#131825'}}>
                     <table style={{width:'100%',borderCollapse:'collapse'}}>
                       <thead><tr>
                         {['Prodotto','Qtà','Prezzo','Reparto'].map(h=><th key={h} style={{...S.th,fontSize:10,padding:'6px 10px'}}>{h}</th>)}

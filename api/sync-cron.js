@@ -202,9 +202,20 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
         catMap[cId].quantity += row.quantity || 1;
       }
     }
-    // Salva dettaglio comanda (solo dalle 16:00)
+    // Salva dettaglio comanda con dati orderSummary (solo dalle 16:00)
     if (receiptItems.length > 0 && receiptHour != null && receiptHour >= 16) {
-      receiptDetails.push({ ora: receiptTime || '—', totale: doc.amount || 0, items: receiptItems });
+      const os = doc.orderSummary || {};
+      const openMatch = typeof os.openingTime === 'string' ? os.openingTime.match(/T(\d{2}:\d{2})/) : null;
+      const closeMatch = typeof os.closingTime === 'string' ? os.closingTime.match(/T(\d{2}:\d{2})/) : null;
+      receiptDetails.push({
+        ora: receiptTime || '—',
+        aperturaComanda: openMatch ? openMatch[1] : null,
+        chiusuraComanda: closeMatch ? closeMatch[1] : null,
+        tavolo: os.tableName || null,
+        coperti: os.covers || null,
+        totale: doc.amount || 0,
+        items: receiptItems
+      });
     }
     if (receiptHour != null && receiptHour >= 16) {
       if (hasKitchen && receiptTime && (!lastKitchenTime || receiptTime > lastKitchenTime)) lastKitchenTime = receiptTime;

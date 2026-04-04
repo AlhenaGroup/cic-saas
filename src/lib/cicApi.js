@@ -111,7 +111,7 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
     coperti: totalCoperti,
     copertoMedio: totalCoperti > 0 ? totale / totalCoperti : 0,
     depts, cats, taxes, trend, prodOre,
-    receiptDetails: rows.flatMap(r => r.receipt_details || []).sort((a,b) => (a.ora||'').localeCompare(b.ora||'')),
+    receiptDetails: rows.flatMap(r => r.receipt_details || []).sort((a,b) => (a.aperturaComanda||a.ora||'').localeCompare(b.aperturaComanda||b.ora||'')),
     firstReceiptTime, lastReceiptTime, lastKitchenTime, lastBarTime, zNumber,
     isDemo: false
   };
