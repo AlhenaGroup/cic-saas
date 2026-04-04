@@ -116,9 +116,9 @@ async function getFromDailyStats(from, to, idsSalesPoint = []) {
 
     // Aggregazione categorie
     (row.cat_records || []).forEach(rec => {
-      const key = CAT_NAMES[rec.idCategory] || rec.category?.description || rec.idCategory || 'Altro';
-      if (!catMap[key]) catMap[key] = { description: CAT_NAMES[rec.idCategory] || key, total: 0 };
-      catMap[key].total += rec.profit || 0;
+      const name = rec.description || CAT_NAMES[rec.idCategory] || rec.idCategory || 'Altro';
+      if (!catMap[name]) catMap[name] = { description: name, total: 0 };
+      catMap[name].total += rec.profit || 0;
     });
 
     // Trend giornaliero
