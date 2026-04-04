@@ -621,10 +621,10 @@ export default function DashboardPage({ settings }) {
         return <>
         {/* Box informativi */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          <KPI label="Apertura" icon="🟢" value={data?.firstReceiptTime || '—'} sub="primo scontrino" accent='#10B981'/>
+          <KPI label="Chiusura cassa" icon="🔒" value={data?.lastReceiptTime || '—'} sub={'Z-'+(data?.zNumber||'—')} accent='#EF4444'/>
           <KPI label="Ultima cucina/pizzeria" icon="🍕" value={data?.lastKitchenTime || '—'} sub="comanda" accent='#F59E0B'/>
           <KPI label="Ultima bar" icon="🍺" value={data?.lastBarTime || '—'} sub="comanda" accent='#3B82F6'/>
-          <KPI label="Ultimo scontrino" icon="🧾" value={data?.lastReceiptTime || '—'} sub={'Z-'+(data?.zNumber||'—')} accent='#8B5CF6'/>
+          <KPI label="Apertura" icon="🟢" value={data?.firstReceiptTime || '—'} sub="primo scontrino" accent='#10B981'/>
         </div>
 
         {/* Target e soglie */}
