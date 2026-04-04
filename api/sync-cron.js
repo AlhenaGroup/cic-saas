@@ -142,7 +142,8 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
   const deptMap = {}, catMap = {}, hourlyMap = {};
   const receiptDetails = [];
   let revenue = 0;
-  let lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null, fiscalCloseTime = null;
+  let firstReceiptTime = null, lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null;
+  let zNumber = null;
 
   for (const r of receipts) {
     const doc = r.document || {};
@@ -154,10 +155,11 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
     const receiptHour = timeMatch ? parseInt(timeMatch[1]) : null;
     const receiptTime = timeMatch ? timeMatch[1] + ':' + timeMatch[2] : null;
 
-    // Traccia ultimo scontrino
+    // Traccia primo e ultimo scontrino
+    if (receiptTime && (!firstReceiptTime || receiptTime < firstReceiptTime)) firstReceiptTime = receiptTime;
     if (receiptTime && (!lastReceiptTime || receiptTime > lastReceiptTime)) lastReceiptTime = receiptTime;
-    // Chiusura fiscale = ultimo scontrino del giorno
-    if (receiptTime && (!fiscalCloseTime || receiptTime > fiscalCloseTime)) fiscalCloseTime = receiptTime;
+    // Numero chiusura Z
+    if (r.zNumber) zNumber = r.zNumber;
 
     // Aggregazione oraria
     if (receiptHour != null) {
@@ -213,10 +215,11 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
     receipt_details: receiptDetails.sort((a, b) => (a.ora || '').localeCompare(b.ora || '')),
     bill_count: receipts.length,
     revenue: Math.round(revenue * 100) / 100,
+    first_receipt_time: firstReceiptTime,
     last_receipt_time: lastReceiptTime,
     last_kitchen_time: lastKitchenTime,
     last_bar_time: lastBarTime,
-    fiscal_close_time: fiscalCloseTime
+    z_number: zNumber
   };
 }
 
@@ -231,10 +234,11 @@ async function saveDailyStats(sp, date, agg) {
     receipt_details: agg.receipt_details,
     bill_count: agg.bill_count,
     revenue: agg.revenue,
+    first_receipt_time: agg.first_receipt_time,
     last_receipt_time: agg.last_receipt_time,
     last_kitchen_time: agg.last_kitchen_time,
     last_bar_time: agg.last_bar_time,
-    fiscal_close_time: agg.fiscal_close_time,
+    z_number: agg.z_number,
     synced_at: new Date().toISOString()
   };
   const headers = {

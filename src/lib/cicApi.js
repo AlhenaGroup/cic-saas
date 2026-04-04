@@ -45,7 +45,7 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
   const deptMap = {}, catMap = {}, trendMap = {}, hourlyMap = {};
   let totalBillCount = 0;
   let totalCoperti = 0;
-  let lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null, fiscalCloseTime = null;
+  let firstReceiptTime = null, lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null, zNumber = null;
 
   rows.forEach(row => {
     const dateStr = typeof row.date === 'string' ? row.date.substring(0,10) : row.date;
@@ -82,13 +82,13 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
       hourlyMap[h].scontrini += hr.scontrini || 0;
     });
 
-    // Tempi ultimo scontrino (prendi l'ultimo giorno disponibile)
-    if (row.last_receipt_time && (!lastReceiptTime || row.date > lastReceiptTime._date)) {
-      lastReceiptTime = row.last_receipt_time;
-    }
+    // Tempi ultimo scontrino — prendi solo dall'ultimo giorno con dati
+    // I rows sono ordinati per data ASC, quindi l'ultimo giorno sovrascrive
+    if (row.first_receipt_time) firstReceiptTime = row.first_receipt_time;
+    if (row.last_receipt_time) lastReceiptTime = row.last_receipt_time;
     if (row.last_kitchen_time) lastKitchenTime = row.last_kitchen_time;
     if (row.last_bar_time) lastBarTime = row.last_bar_time;
-    if (row.fiscal_close_time) fiscalCloseTime = row.fiscal_close_time;
+    if (row.z_number) zNumber = row.z_number;
 
     // Trend giornaliero (con coperti)
     if (!trendMap[dateStr]) trendMap[dateStr] = { date: dateStr, ricavi: 0, coperti: 0 };
@@ -112,7 +112,7 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
     copertoMedio: totalCoperti > 0 ? totale / totalCoperti : 0,
     depts, cats, taxes, trend, prodOre,
     receiptDetails: rows.flatMap(r => r.receipt_details || []).sort((a,b) => (a.ora||'').localeCompare(b.ora||'')),
-    lastReceiptTime, lastKitchenTime, lastBarTime, fiscalCloseTime,
+    firstReceiptTime, lastReceiptTime, lastKitchenTime, lastBarTime, zNumber,
     isDemo: false
   };
 }
