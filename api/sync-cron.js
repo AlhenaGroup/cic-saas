@@ -57,6 +57,8 @@ const CAT_NAMES = {
   "8bc2e435-0b06-4f6b-b8ba-a72ce2886e77": "PROMOZIONI FOOD"
 };
 
+const DEPT_NAMES = {"4b5a191f-2a22-4520-9c86-71ad1eda5b15":"BAR","5fe05a66-002d-4c2f-9fe7-2d2ea55a39c9":"CUCINA","a164ece6-2c76-4031-a6f6-4900acf1229f":"Reparto 1","ecddf000-60ad-492c-aaaa-5d669e188679":"IVA AL 4","1f8f00bd-7671-4d5d-b19e-e8dc581c3256":"COPERTO","226b870e-44fc-40d1-8506-585bec12ed72":"PIZZERIA","c80cdb68-e3c1-4344-a8e4-f799ff811ae9":"COPERTO","ed7ffa46-6a3d-42f8-a52f-3be32b97d8db":"BAR"};
+
 const SALESPOINTS = [
   { id: 21747, name: 'REMEMBEER',      apiKey: '4b7a4c14-75f3-417a-8f23-fc85c8c58d57', filterSp: 21747 },
   { id: 22399, name: 'CASA DE AMICIS', apiKey: '41000e19-b98c-4022-904a-cf2290ae9d81', filterSp: 22399 },
@@ -71,6 +73,24 @@ async function getCicToken(apiKey) {
   const d = await res.json();
   if (!d.access_token) throw new Error('Token fail: ' + JSON.stringify(d));
   return d.access_token;
+}
+
+// Fetch categorie dinamiche dall'API CiC
+async function fetchCategoryNames(token) {
+  const names = {};
+  try {
+    const res = await fetch(CIC_BASE + '/warehouse/categories?start=0&limit=500', {
+      headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' }
+    });
+    if (res.ok) {
+      const d = await res.json();
+      const cats = d.categories || d.results || (Array.isArray(d) ? d : []);
+      for (const c of cats) {
+        if (c.id && c.description) names[c.id] = c.description;
+      }
+    }
+  } catch (e) { /* fallback a CAT_NAMES statica */ }
+  return names;
 }
 
 async function getReceipts(token, date, filterSp) {
@@ -93,7 +113,7 @@ async function getReceipts(token, date, filterSp) {
   return all;
 }
 
-function aggregateReceipts(receipts) {
+function aggregateReceipts(receipts, dynamicCatNames = {}) {
   const deptMap = {}, catMap = {};
   let revenue = 0;
   for (const r of receipts) {
@@ -103,11 +123,15 @@ function aggregateReceipts(receipts) {
       const price = (row.price || 0) * (row.quantity || 1);
       const dId = row.idDepartment || 'unknown';
       const cId = row.idCategory || null;
-      deptMap[dId] = deptMap[dId] || { idDepartment: dId, profit: 0, quantity: 0 };
+      const dName = row.department?.description || DEPT_NAMES[dId] || null;
+      deptMap[dId] = deptMap[dId] || { idDepartment: dId, department: dName ? { description: dName } : undefined, profit: 0, quantity: 0 };
+      if (!deptMap[dId].department?.description && dName) deptMap[dId].department = { description: dName };
       deptMap[dId].profit += price;
       deptMap[dId].quantity += row.quantity || 1;
       if (cId) {
-        catMap[cId] = catMap[cId] || { idCategory: cId, description: CAT_NAMES[cId] || null, profit: 0, quantity: 0 };
+        const cName = row.category?.description || dynamicCatNames[cId] || CAT_NAMES[cId] || null;
+        catMap[cId] = catMap[cId] || { idCategory: cId, description: cName, profit: 0, quantity: 0 };
+        if (!catMap[cId].description && cName) catMap[cId].description = cName;
         catMap[cId].profit += price;
         catMap[cId].quantity += row.quantity || 1;
       }
@@ -122,26 +146,38 @@ function aggregateReceipts(receipts) {
 }
 
 async function saveDailyStats(sp, date, agg) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_stats`, {
+  const payload = {
+    salespoint_id: sp.id,
+    salespoint_name: sp.name,
+    date: date,
+    dept_records: agg.dept_records,
+    cat_records: agg.cat_records,
+    bill_count: agg.bill_count,
+    revenue: agg.revenue,
+    synced_at: new Date().toISOString()
+  };
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Prefer': 'return=minimal'
+  };
+
+  // Prima prova UPDATE (PATCH) sul record esistente
+  const patchRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/daily_stats?salespoint_id=eq.${sp.id}&date=eq.${date}`,
+    { method: 'PATCH', headers, body: JSON.stringify(payload) }
+  );
+  // 204 = aggiornato, 404 o 0 righe = non esiste ancora
+  if (patchRes.status === 204) return 204;
+
+  // Fallback: INSERT
+  const postRes = await fetch(`${SUPABASE_URL}/rest/v1/daily_stats`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
-      'Prefer': 'resolution=merge-duplicates,return=minimal'
-    },
-    body: JSON.stringify([{
-      salespoint_id: sp.id,
-      salespoint_name: sp.name,
-      date: date,
-      dept_records: agg.dept_records,
-      cat_records: agg.cat_records,
-      bill_count: agg.bill_count,
-      revenue: agg.revenue,
-      synced_at: new Date().toISOString()
-    }])
+    headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([payload])
   });
-  return res.status;
+  return postRes.status;
 }
 
 async function getMissingDays() {
@@ -180,11 +216,16 @@ export default async function handler(req, res) {
       try { token = await getCicToken(sp.apiKey); }
       catch (e) { logs.push(`Token fail ${sp.name}: ${e.message}`); errors++; continue; }
 
+      // Fetch nomi categorie dinamici dall'API
+      const dynamicCatNames = await fetchCategoryNames(token);
+      const dynCount = Object.keys(dynamicCatNames).length;
+      if (dynCount > 0) logs.push(`${sp.name}: ${dynCount} categorie da API`);
+
       for (const date of days) {
         try {
           const receipts = await getReceipts(token, date, sp.filterSp);
           if (receipts.length === 0) continue; // salta giorni senza vendite
-          const agg = aggregateReceipts(receipts);
+          const agg = aggregateReceipts(receipts, dynamicCatNames);
           const status = await saveDailyStats(sp, date, agg);
           if (status === 201 || status === 204) {
             saved++;
