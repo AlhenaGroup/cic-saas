@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { ComposedChart, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { supabase } from '../lib/supabase'
-import { getToken, getSalesPoints, getReportData } from '../lib/cicApi'
+import { getToken, getSalesPoints, getReportData, getFromDailyStats } from '../lib/cicApi'
 
 const fmt    = n => Number(n||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:true})+' €'
 const fmtD   = n => Number(n||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2})
@@ -9,6 +9,21 @@ const fmtN   = n => Number(n||0).toLocaleString('it-IT')
 const pct    = (v,t) => t>0?(v/t*100).toFixed(1)+'%':'—'
 const today      = () => new Date().toISOString().split('T')[0]
 const monthStart = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01' }
+// Calcola periodo precedente di uguale durata
+function prevPeriod(from, to) {
+  const f = new Date(from), t = new Date(to)
+  const days = Math.round((t - f) / 86400000) + 1
+  const pTo = new Date(f); pTo.setDate(pTo.getDate() - 1)
+  const pFrom = new Date(pTo); pFrom.setDate(pFrom.getDate() - days + 1)
+  return { from: pFrom.toISOString().split('T')[0], to: pTo.toISOString().split('T')[0] }
+}
+function deltaFmt(curr, prev) {
+  if (!prev) return null
+  const diff = curr - prev
+  const pctVal = prev > 0 ? ((curr - prev) / prev * 100) : 0
+  const sign = diff >= 0 ? '+' : ''
+  return { diff, pct: pctVal, label: `${sign}${Math.round(diff).toLocaleString('it-IT')} (${sign}${pctVal.toFixed(1)}%)`, positive: diff >= 0 }
+}
 const C = ['#F59E0B','#3B82F6','#10B981','#8B5CF6','#EC4899','#F97316','#06B6D4','#84CC16','#EF4444','#A78BFA']
 
 const S = { // shared inline styles
@@ -90,11 +105,29 @@ export default function DashboardPage({ settings }) {
   const [fatSearch,setFatSearch]  = useState('')
   const [fatFilter,setFatFilter]  = useState('all')
   const [prodRep,setProdRep]      = useState('tutti')
+  // Confronto periodo
+  const [from2, setFrom2]         = useState(() => localStorage.getItem('cic_from2') || '')
+  const [to2,   setTo2]           = useState(() => localStorage.getItem('cic_to2') || '')
+  const [prevData, setPrevData]   = useState(null)
+  // Staff per fascia oraria (default vuoto, salvato in Supabase)
+  const [staffSchedule, setStaffSchedule] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cic_staff_schedule') || '{}') } catch { return {} }
+  })
+  // Soglie produttivita e target
+  const [prodTarget, setProdTarget] = useState(() => Number(localStorage.getItem('cic_prod_target')) || 50)
+  const [sogliaRed, setSogliaRed]   = useState(() => Number(localStorage.getItem('cic_soglia_red')) || 35)
+  const [sogliaYel, setSogliaYel]   = useState(() => Number(localStorage.getItem('cic_soglia_yel')) || 47)
   // Persisti filtro in localStorage
   useEffect(() => { localStorage.setItem('cic_from', from) }, [from])
   useEffect(() => { localStorage.setItem('cic_to', to) }, [to])
   useEffect(() => { localStorage.setItem('cic_sp', sp) }, [sp])
   useEffect(() => { localStorage.setItem('cic_tab', tab) }, [tab])
+  useEffect(() => { localStorage.setItem('cic_from2', from2) }, [from2])
+  useEffect(() => { localStorage.setItem('cic_to2', to2) }, [to2])
+  useEffect(() => { localStorage.setItem('cic_staff_schedule', JSON.stringify(staffSchedule)) }, [staffSchedule])
+  useEffect(() => { localStorage.setItem('cic_prod_target', prodTarget) }, [prodTarget])
+  useEffect(() => { localStorage.setItem('cic_soglia_red', sogliaRed) }, [sogliaRed])
+  useEffect(() => { localStorage.setItem('cic_soglia_yel', sogliaYel) }, [sogliaYel])
 
 
 
@@ -112,12 +145,26 @@ export default function DashboardPage({ settings }) {
       const spf = sp==='all'?[]:[ parseInt(sp) ]
       const d = await getReportData(token,{from,to,idsSalesPoint:spf},sps)
       setData(d)
+      // Carica dati periodo di confronto
+      const pp = (from2 && to2) ? { from: from2, to: to2 } : prevPeriod(from, to)
+      if (!from2) setFrom2(pp.from)
+      if (!to2) setTo2(pp.to)
+      try {
+        const pd = await getFromDailyStats(pp.from, pp.to, spf)
+        setPrevData(pd)
+      } catch { setPrevData(null) }
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
-  },[token,from,to,sp,sps])
+  },[token,from,to,sp,sps,from2,to2])
   useEffect(()=>{load()},[load])
 
   const totale = data?.totale||0
+  const coperti = data?.coperti||0
+  const copertoMedio = data?.copertoMedio||0
+  // Confronto
+  const dRicavi = deltaFmt(totale, prevData?.totale)
+  const dScontrini = deltaFmt(data?.scontrini||0, prevData?.scontrini)
+  const dCoperti = deltaFmt(coperti, prevData?.coperti)
   const depts  = data?.depts||[]
   const cats   = data?.cats||[]
   const taxes  = data?.taxes||[]
@@ -163,6 +210,10 @@ export default function DashboardPage({ settings }) {
         <input type="date" value={from} onChange={e=>setFrom(e.target.value)} style={iS}/>
         <span style={{color:'#2a3042'}}>—</span>
         <input type="date" value={to}   onChange={e=>setTo(e.target.value)}   style={iS}/>
+        <span style={{color:'#475569',fontSize:11,marginLeft:8}}>vs</span>
+        <input type="date" value={from2} onChange={e=>setFrom2(e.target.value)} style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta dal"/>
+        <span style={{color:'#2a3042'}}>—</span>
+        <input type="date" value={to2}   onChange={e=>setTo2(e.target.value)}   style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta al"/>
         <button onClick={load} style={{...iS,background:'#F59E0B',color:'#0f1420',fontWeight:600,border:'none',padding:'6px 16px'}}>Aggiorna</button>
         <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'#475569',border:'1px solid #2a3042',padding:'6px 12px'}}>Esci</button>
       </div>
@@ -183,26 +234,67 @@ export default function DashboardPage({ settings }) {
 
       {/* ── PANORAMICA ── */}
       {tab==='ov'&&<>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:'1.5rem'}}>
-          <KPI label="Ricavi totali"   icon="💶" value={fmt(totale)}            sub={from+' → '+to} accent='#F59E0B' trend={8.3}/>
-          <KPI label="Scontrini"       icon="🧾" value={fmtN(data?.scontrini)} sub="documenti"     accent='#3B82F6' trend={5.1}/>
-          <KPI label="Scontrino medio" icon="📈" value={fmtD(data?.medio)}     sub="per documento" accent='#10B981' trend={2.8}/>
-          <KPI label="Reparti attivi"  icon="🏷️" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#8B5CF6'/>
+        {/* KPI Cards 3x2 */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
+          <KPI label="Ricavi totali" icon="💶" value={fmt(totale)} sub={dRicavi?<span style={{color:dRicavi.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dRicavi.label}</span>:from+' → '+to} accent='#F59E0B' trend={dRicavi?.pct}/>
+          <KPI label="Scontrini" icon="🧾" value={fmtN(data?.scontrini)} sub={dScontrini?<span style={{color:dScontrini.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dScontrini.label}</span>:'documenti'} accent='#3B82F6' trend={dScontrini?.pct}/>
+          <KPI label="Scontrino medio" icon="📈" value={fmtD(data?.medio)} sub="per documento" accent='#10B981'/>
+          <KPI label="Coperti totali" icon="🍽️" value={fmtN(coperti)} sub={dCoperti?<span style={{color:dCoperti.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCoperti.label}</span>:'persone'} accent='#F97316' trend={dCoperti?.pct}/>
+          <KPI label="Coperto medio" icon="💰" value={fmtD(copertoMedio)} sub="incasso / coperto" accent='#8B5CF6'/>
+          <KPI label="Reparti attivi" icon="🏷️" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#06B6D4'/>
         </div>
+
+        {/* Giorno migliore / peggiore */}
+        {trend.length>0&&(()=>{
+          const best = trend.reduce((a,b)=>b.ricavi>a.ricavi?b:a, trend[0])
+          const worst = trend.filter(t=>t.ricavi>0).reduce((a,b)=>b.ricavi<a.ricavi?b:a, trend.find(t=>t.ricavi>0)||trend[0])
+          return <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:'1.25rem'}}>
+            <div style={{...S.card,borderLeft:'3px solid #10B981'}}>
+              <div style={{fontSize:11,fontWeight:600,color:'#10B981',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Giorno migliore</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:20,fontWeight:700,color:'#f1f5f9'}}>{fmt(best.ricavi)}</div>
+                  <div style={{fontSize:12,color:'#94a3b8'}}>{new Date(best.date+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</div>
+                </div>
+                {best.coperti>0&&<div style={{textAlign:'right'}}>
+                  <div style={{fontSize:14,fontWeight:600,color:'#cbd5e1'}}>{fmtN(best.coperti)}</div>
+                  <div style={{fontSize:11,color:'#64748b'}}>coperti</div>
+                </div>}
+              </div>
+            </div>
+            <div style={{...S.card,borderLeft:'3px solid #EF4444'}}>
+              <div style={{fontSize:11,fontWeight:600,color:'#EF4444',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Giorno peggiore</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:20,fontWeight:700,color:'#f1f5f9'}}>{fmt(worst.ricavi)}</div>
+                  <div style={{fontSize:12,color:'#94a3b8'}}>{new Date(worst.date+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</div>
+                </div>
+                {worst.coperti>0&&<div style={{textAlign:'right'}}>
+                  <div style={{fontSize:14,fontWeight:600,color:'#cbd5e1'}}>{fmtN(worst.coperti)}</div>
+                  <div style={{fontSize:11,color:'#64748b'}}>coperti</div>
+                </div>}
+              </div>
+            </div>
+          </div>
+        })()}
+
+        {/* Grafico trend ricavi + coperti */}
         <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12,marginBottom:12}}>
-          <Card title="Andamento ricavi" badge={isDemo?'Demo':null}>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={trend} margin={{top:5,right:10,left:0,bottom:5}}>
+          <Card title="Andamento ricavi e coperti" badge={isDemo?'Demo':null}>
+            <ResponsiveContainer width="100%" height={240}>
+              <ComposedChart data={trend} margin={{top:5,right:10,left:0,bottom:5}}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e2636" vertical={false}/>
                 <XAxis dataKey="label" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} interval={Math.max(1,Math.floor(trend.length/7))}/>
-                <YAxis tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} tickFormatter={v=>'€'+Math.round(v/1000)+'k'} width={38}/>
+                <YAxis yAxisId="left" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} tickFormatter={v=>'€'+Math.round(v/1000)+'k'} width={38}/>
+                <YAxis yAxisId="right" orientation="right" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} width={30}/>
                 <Tooltip content={<Tip/>}/>
-                <Line type="monotone" dataKey="ricavi" stroke="#F59E0B" strokeWidth={2} dot={false} name="ricavi"/>
-              </LineChart>
+                <Bar yAxisId="right" dataKey="coperti" fill="rgba(249,115,22,.3)" name="coperti" radius={[2,2,0,0]}/>
+                <Line yAxisId="left" type="monotone" dataKey="ricavi" stroke="#F59E0B" strokeWidth={2} dot={false} name="ricavi"/>
+              </ComposedChart>
             </ResponsiveContainer>
           </Card>
           <Card title="Ripartizione reparti">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie data={depts.filter(d=>d.profit>0)} dataKey="profit" nameKey="description" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
                   {depts.filter(d=>d.profit>0).map((_,i)=><Cell key={i} fill={C[i%C.length]}/>)}
@@ -437,48 +529,93 @@ export default function DashboardPage({ settings }) {
       </>}
 
       {/* ── PRODUTTIVITÀ ORARIA ── */}
-      {tab==='prod'&&<>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          <KPI label="Ora di punta" icon="⏰" value={ore.reduce((m,o)=>o.ricavi>m.ricavi?o:m,{ricavi:0,ora:'—'}).ora} sub="massimo incasso" accent='#F59E0B'/>
-          <KPI label="Media oraria" icon="📊" value={fmt(ore.length?ore.reduce((s,o)=>s+o.ricavi,0)/ore.filter(o=>o.ricavi>0).length:0)} sub="nelle ore attive" accent='#3B82F6'/>
-          <KPI label="Ore attive" icon="⚡" value={ore.filter(o=>o.ricavi>0).length} sub="su 24 ore" accent='#10B981'/>
+      {tab==='prod'&&(()=>{
+        const prodColor = v => v < sogliaRed ? '#EF4444' : v < sogliaYel ? '#F59E0B' : '#10B981'
+        const prodLabel = v => v < sogliaRed ? 'Sotto soglia' : v < sogliaYel ? 'Attenzione' : 'OK'
+        const oreWithProd = ore.map(o => {
+          const staff = staffSchedule[o.ora] || 0
+          const prodOraria = staff > 0 ? o.ricavi / staff : 0
+          return { ...o, staff, oreLavorate: staff, prodOraria }
+        })
+        const totOreDay = oreWithProd.reduce((s,o) => s + o.oreLavorate, 0)
+        const totIncassoOre = oreWithProd.reduce((s,o) => s + o.ricavi, 0)
+        const mediaGiornaliera = totOreDay > 0 ? totIncassoOre / totOreDay : 0
+        // Dividi per n. giorni nel periodo per media giornaliera
+        const nDays = trend.length || 1
+        const mediaGiorn = totOreDay > 0 ? (totIncassoOre / nDays) / totOreDay : 0
+
+        return <>
+        {/* Box informativi */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:'1.25rem'}}>
+          <KPI label="Ultima cucina/pizzeria" icon="🍕" value={data?.lastKitchenTime || '—'} sub="comanda" accent='#F59E0B'/>
+          <KPI label="Ultima bar" icon="🍺" value={data?.lastBarTime || '—'} sub="comanda" accent='#3B82F6'/>
+          <KPI label="Ultimo scontrino" icon="🧾" value={data?.lastReceiptTime || '—'} sub="emesso" accent='#10B981'/>
+          <KPI label="Chiusura fiscale" icon="🔒" value={data?.fiscalCloseTime || '—'} sub="del giorno" accent='#8B5CF6'/>
         </div>
-        <Card title="Produttività oraria" extra={
-          <select value={prodRep} onChange={e=>setProdRep(e.target.value)} style={iS}>
-            <option value="tutti">Tutti i reparti</option>
-            {depts.filter(d=>d.profit>0).map(d=><option key={d.description} value={d.description}>{d.description}</option>)}
-          </select>
-        }>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={ore} margin={{top:5,right:20,left:0,bottom:5}}>
+
+        {/* Target e soglie */}
+        <div style={{...S.card,marginBottom:'1.25rem',display:'flex',alignItems:'center',gap:24,flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:12,color:'#64748b'}}>Target €/h:</span>
+            <input type="number" value={prodTarget} onChange={e=>setProdTarget(Number(e.target.value))} style={{...iS,width:70,textAlign:'center'}}/>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:12,color:'#EF4444'}}>Rosso &lt;</span>
+            <input type="number" value={sogliaRed} onChange={e=>setSogliaRed(Number(e.target.value))} style={{...iS,width:60,textAlign:'center'}}/>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:12,color:'#F59E0B'}}>Giallo &lt;</span>
+            <input type="number" value={sogliaYel} onChange={e=>setSogliaYel(Number(e.target.value))} style={{...iS,width:60,textAlign:'center'}}/>
+          </div>
+          <span style={{fontSize:12,color:'#10B981'}}>Verde ≥ {sogliaYel}</span>
+          {/* Media giornaliera */}
+          <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:12,color:'#64748b'}}>Media giornaliera:</span>
+            <span style={{fontSize:18,fontWeight:700,color:prodColor(mediaGiorn)}}>{mediaGiorn > 0 ? mediaGiorn.toFixed(1)+' €/h' : '—'}</span>
+            {mediaGiorn > 0 && <span style={{fontSize:11,fontWeight:600,color:prodColor(mediaGiorn)}}>{prodLabel(mediaGiorn)}</span>}
+          </div>
+        </div>
+
+        {/* Grafico */}
+        <Card title="Produttività oraria" badge={isDemo?'Demo':null}>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={oreWithProd.filter(o=>o.ricavi>0)} margin={{top:5,right:20,left:0,bottom:5}}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2636" vertical={false}/>
               <XAxis dataKey="ora" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false}/>
-              <YAxis tick={{fontSize:10,fill:'#475569'}} tickFormatter={v=>'€'+Math.round(v/1000)+'k'} tickLine={false} axisLine={false} width={42}/>
-              <Tooltip formatter={v=>fmt(v)} contentStyle={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,fontSize:12}}/>
-              <Bar dataKey="ricavi" name="Ricavi" fill="#F59E0B" radius={[3,3,0,0]}/>
+              <YAxis tick={{fontSize:10,fill:'#475569'}} tickFormatter={v=>v+'€'} tickLine={false} axisLine={false} width={42}/>
+              <Tooltip formatter={(v,name)=>name==='prodOraria'?v.toFixed(1)+' €/h':fmt(v)} contentStyle={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,fontSize:12}}/>
+              <Bar dataKey="ricavi" name="Ricavi" radius={[3,3,0,0]}>
+                {oreWithProd.filter(o=>o.ricavi>0).map((o,i)=><Cell key={i} fill={o.staff>0?prodColor(o.prodOraria):'#475569'}/>)}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </Card>
+
+        {/* Tabella dettaglio */}
         <div style={{marginTop:12}}>
-          <Card title="Dettaglio orario">
+          <Card title="Dettaglio per fascia oraria">
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['Ora','Ricavi','Scontrini','Incasso medio'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                {['Ora','Ricavi','Scontrini','Personale','Ore lavorate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {ore.filter(o=>o.ricavi>0).map((o,i)=>(
-                  <tr key={i}>
+                {oreWithProd.filter(o=>o.ricavi>0).map((o,i)=>{
+                  const pc = prodColor(o.prodOraria)
+                  return <tr key={i}>
                     <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{o.ora}</td>
                     <td style={{...S.td,fontWeight:600}}>{fmt(o.ricavi)}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{o.scontrini}</td>
-                    <td style={S.td}>{fmtD(o.scontrini>0?o.ricavi/o.scontrini:0)}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{o.staff || '—'}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{o.oreLavorate || '—'}</td>
+                    <td style={{...S.td,fontWeight:700,color:o.staff>0?pc:'#475569'}}>{o.staff>0?o.prodOraria.toFixed(1)+' €/h':'—'}</td>
+                    <td style={S.td}>{o.staff>0?<span style={{...S.badge(pc,pc+'22'),fontSize:10}}>{prodLabel(o.prodOraria)}</span>:'—'}</td>
                   </tr>
-                ))}
+                })}
               </tbody>
             </table>
           </Card>
         </div>
-      </>}
+      </>})()}
 
       {/* ── CONTO ECONOMICO ── */}
       {tab==='ce'&&<>
@@ -542,7 +679,26 @@ export default function DashboardPage({ settings }) {
           <KPI label="Documenti" icon="📁" value="12" sub="caricati" accent='#10B981'/>
           <KPI label="Scadenze" icon="📅" value="2" sub="nei prossimi 30gg" accent='#F59E0B'/>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+
+        {/* Presenze per fascia oraria */}
+        <Card title="Presenze per fascia oraria" badge="→ Produttività" extra={
+          <span style={{fontSize:11,color:'#64748b'}}>N. persone per fascia (usato in Produttività)</span>
+        }>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+            {Array.from({length:16},(_,i)=>{
+              const h = i+8
+              const key = String(h).padStart(2,'0')+':00'
+              return <div key={h} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0'}}>
+                <span style={{fontSize:12,color:'#94a3b8',width:45,fontWeight:500}}>{key}</span>
+                <input type="number" min="0" max="20" value={staffSchedule[key]||''} placeholder="0"
+                  onChange={e=>setStaffSchedule(prev=>({...prev,[key]:Number(e.target.value)||0}))}
+                  style={{...iS,width:50,textAlign:'center',fontSize:13,padding:'4px 6px'}}/>
+              </div>
+            })}
+          </div>
+        </Card>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:12}}>
           <Card title="Dipendenti">
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>

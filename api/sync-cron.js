@@ -113,12 +113,39 @@ async function getReceipts(token, date, filterSp) {
   return all;
 }
 
+// Reparti cucina/pizzeria per rilevare ultima comanda cucina
+const KITCHEN_DEPTS = new Set(['CUCINA', 'PIZZERIA']);
+const BAR_DEPTS = new Set(['BAR']);
+
 function aggregateReceipts(receipts, dynamicCatNames = {}) {
-  const deptMap = {}, catMap = {};
+  const deptMap = {}, catMap = {}, hourlyMap = {};
   let revenue = 0;
+  let lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null, fiscalCloseTime = null;
+
   for (const r of receipts) {
-    revenue += r.document?.amount || 0;
-    for (const row of (r.document?.rows || [])) {
+    const doc = r.document || {};
+    revenue += doc.amount || 0;
+
+    // Estrai ora dallo scontrino (datetime è sul receipt top-level)
+    const dt = r.datetime || r.date || '';
+    const timeMatch = typeof dt === 'string' ? dt.match(/T(\d{2}):(\d{2})/) : null;
+    const receiptHour = timeMatch ? parseInt(timeMatch[1]) : null;
+    const receiptTime = timeMatch ? timeMatch[1] + ':' + timeMatch[2] : null;
+
+    // Traccia ultimo scontrino
+    if (receiptTime && (!lastReceiptTime || receiptTime > lastReceiptTime)) lastReceiptTime = receiptTime;
+    // Chiusura fiscale = ultimo scontrino del giorno
+    if (receiptTime && (!fiscalCloseTime || receiptTime > fiscalCloseTime)) fiscalCloseTime = receiptTime;
+
+    // Aggregazione oraria
+    if (receiptHour != null) {
+      if (!hourlyMap[receiptHour]) hourlyMap[receiptHour] = { hour: receiptHour, ricavi: 0, scontrini: 0 };
+      hourlyMap[receiptHour].ricavi += doc.amount || 0;
+      hourlyMap[receiptHour].scontrini += 1;
+    }
+
+    let hasKitchen = false, hasBar = false;
+    for (const row of (doc.rows || [])) {
       if (row.subtotal || row.composition) continue;
       const price = (row.price || 0) * (row.quantity || 1);
       const dId = row.idDepartment || 'unknown';
@@ -128,6 +155,11 @@ function aggregateReceipts(receipts, dynamicCatNames = {}) {
       if (!deptMap[dId].department?.description && dName) deptMap[dId].department = { description: dName };
       deptMap[dId].profit += price;
       deptMap[dId].quantity += row.quantity || 1;
+
+      // Traccia ultima comanda cucina/bar
+      if (dName && KITCHEN_DEPTS.has(dName.toUpperCase())) hasKitchen = true;
+      if (dName && BAR_DEPTS.has(dName.toUpperCase())) hasBar = true;
+
       if (cId) {
         const cName = row.category?.description || dynamicCatNames[cId] || CAT_NAMES[cId] || null;
         catMap[cId] = catMap[cId] || { idCategory: cId, description: cName, profit: 0, quantity: 0 };
@@ -136,12 +168,20 @@ function aggregateReceipts(receipts, dynamicCatNames = {}) {
         catMap[cId].quantity += row.quantity || 1;
       }
     }
+    if (hasKitchen && receiptTime && (!lastKitchenTime || receiptTime > lastKitchenTime)) lastKitchenTime = receiptTime;
+    if (hasBar && receiptTime && (!lastBarTime || receiptTime > lastBarTime)) lastBarTime = receiptTime;
   }
+
   return {
     dept_records: Object.values(deptMap).sort((a, b) => b.profit - a.profit),
     cat_records: Object.values(catMap).sort((a, b) => b.profit - a.profit),
+    hourly_records: Object.values(hourlyMap).sort((a, b) => a.hour - b.hour),
     bill_count: receipts.length,
-    revenue: Math.round(revenue * 100) / 100
+    revenue: Math.round(revenue * 100) / 100,
+    last_receipt_time: lastReceiptTime,
+    last_kitchen_time: lastKitchenTime,
+    last_bar_time: lastBarTime,
+    fiscal_close_time: fiscalCloseTime
   };
 }
 
@@ -152,8 +192,13 @@ async function saveDailyStats(sp, date, agg) {
     date: date,
     dept_records: agg.dept_records,
     cat_records: agg.cat_records,
+    hourly_records: agg.hourly_records,
     bill_count: agg.bill_count,
     revenue: agg.revenue,
+    last_receipt_time: agg.last_receipt_time,
+    last_kitchen_time: agg.last_kitchen_time,
+    last_bar_time: agg.last_bar_time,
+    fiscal_close_time: agg.fiscal_close_time,
     synced_at: new Date().toISOString()
   };
   const headers = {

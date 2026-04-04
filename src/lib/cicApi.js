@@ -30,7 +30,7 @@ export async function getSalesPoints(apiKey) {
 }
 
 // Legge dati giornalieri ESATTI da daily_stats
-async function getFromDailyStats(from, to, idsSalesPoint = []) {
+export async function getFromDailyStats(from, to, idsSalesPoint = []) {
   let query = supabase
     .from('daily_stats')
     .select('*')
@@ -42,22 +42,29 @@ async function getFromDailyStats(from, to, idsSalesPoint = []) {
   const { data: rows, error } = await query;
   if (error || !rows?.length) return null;
 
-  const deptMap = {}, catMap = {}, trendMap = {};
+  const deptMap = {}, catMap = {}, trendMap = {}, hourlyMap = {};
   let totalBillCount = 0;
+  let totalCoperti = 0;
+  let lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null, fiscalCloseTime = null;
 
   rows.forEach(row => {
     const dateStr = typeof row.date === 'string' ? row.date.substring(0,10) : row.date;
-    
+
     // Scontrini esatti per giorno
     totalBillCount += row.bill_count || 0;
-    
+
+    // Coperti giornalieri (dal reparto COPERTO)
+    let dayCoperti = 0;
+
     // Aggregazione reparti (somma per nome)
     (row.dept_records || []).forEach(rec => {
       const key = rec.department?.description || DEPT_NAMES[rec.idDepartment] || rec.idDepartment || 'Altro';
       if (!deptMap[key]) deptMap[key] = { description: key, profit: 0, qty: 0 };
       deptMap[key].profit += rec.profit || 0;
       deptMap[key].qty += rec.quantity || 0;
+      if (key === 'COPERTO') dayCoperti += rec.quantity || 0;
     });
+    totalCoperti += dayCoperti;
 
     // Aggregazione categorie
     (row.cat_records || []).forEach(rec => {
@@ -67,13 +74,31 @@ async function getFromDailyStats(from, to, idsSalesPoint = []) {
       catMap[name].total += rec.profit || 0;
     });
 
-    // Trend giornaliero
-    if (!trendMap[dateStr]) trendMap[dateStr] = { date: dateStr, ricavi: 0 };
+    // Aggregazione oraria
+    (row.hourly_records || []).forEach(hr => {
+      const h = hr.hour;
+      if (!hourlyMap[h]) hourlyMap[h] = { ora: String(h).padStart(2,'0')+':00', ricavi: 0, scontrini: 0 };
+      hourlyMap[h].ricavi += hr.ricavi || 0;
+      hourlyMap[h].scontrini += hr.scontrini || 0;
+    });
+
+    // Tempi ultimo scontrino (prendi l'ultimo giorno disponibile)
+    if (row.last_receipt_time && (!lastReceiptTime || row.date > lastReceiptTime._date)) {
+      lastReceiptTime = row.last_receipt_time;
+    }
+    if (row.last_kitchen_time) lastKitchenTime = row.last_kitchen_time;
+    if (row.last_bar_time) lastBarTime = row.last_bar_time;
+    if (row.fiscal_close_time) fiscalCloseTime = row.fiscal_close_time;
+
+    // Trend giornaliero (con coperti)
+    if (!trendMap[dateStr]) trendMap[dateStr] = { date: dateStr, ricavi: 0, coperti: 0 };
     trendMap[dateStr].ricavi += Number(row.revenue) || 0;
+    trendMap[dateStr].coperti += dayCoperti;
   });
 
   const depts = Object.values(deptMap).sort((a,b) => b.profit - a.profit);
   const cats = Object.values(catMap).sort((a,b) => b.total - a.total);
+  const prodOre = Object.values(hourlyMap).sort((a,b) => a.ora.localeCompare(b.ora));
   const trend = Object.values(trendMap).sort((a,b) => a.date.localeCompare(b.date))
     .map(t => ({ ...t, label: new Date(t.date + 'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) }));
   const totale = trend.reduce((s,t) => s + t.ricavi, 0);
@@ -83,7 +108,10 @@ async function getFromDailyStats(from, to, idsSalesPoint = []) {
     totale,
     scontrini: totalBillCount,
     medio: totalBillCount > 0 ? totale / totalBillCount : 0,
-    depts, cats, taxes, trend,
+    coperti: totalCoperti,
+    copertoMedio: totalCoperti > 0 ? totale / totalCoperti : 0,
+    depts, cats, taxes, trend, prodOre,
+    lastReceiptTime, lastKitchenTime, lastBarTime, fiscalCloseTime,
     isDemo: false
   };
 }
@@ -116,4 +144,4 @@ export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPo
 }
 
 function rand(min,max){return Math.round(min+Math.random()*(max-min))}
-export function generateDemoData(from,to,salesPoints=[]){const days=Math.max(1,Math.round((new Date(to)-new Date(from))/86400000)+1);const m=days/30;const depts=[{description:'PIZZERIA',profit:Math.round(22593*m),qty:Math.round(3188*m),color:'#F59E0B'},{description:'BAR',profit:Math.round(14820*m),qty:Math.round(4210*m),color:'#3B82F6'},{description:'CUCINA',profit:Math.round(9340*m),qty:Math.round(1820*m),color:'#10B981'},{description:'DOLCI',profit:Math.round(4210*m),qty:Math.round(980*m),color:'#8B5CF6'},{description:'ANTIPASTI',profit:Math.round(2980*m),qty:Math.round(540*m),color:'#EC4899'},{description:'COPERTO',profit:0,qty:Math.round(1936*m),color:'#94A3B8'}];const cats=[{description:'LE CREAZIONI DI CASA',total:Math.round(15200*m)},{description:'PIZZE SPECIALI',total:Math.round(7393*m)},{description:'VINI',total:Math.round(6820*m)},{description:'BIRRE ARTIGIANALI',total:Math.round(4800*m)},{description:'COCKTAIL',total:Math.round(3200*m)},{description:'SECONDI',total:Math.round(5640*m)},{description:'PRIMI',total:Math.round(3700*m)},{description:'DOLCI',total:Math.round(4210*m)},{description:'ACQUA / SOFT',total:Math.round(2100*m)},{description:'ANTIPASTI',total:Math.round(2980*m)}];const taxes=[{rate:10,taxable:Math.round(49715*m*0.909),tax_amount:Math.round(49715*m*0.091)},{rate:4,taxable:Math.round(2800*m*0.962),tax_amount:Math.round(2800*m*0.038)},{rate:22,taxable:Math.round(2171*m*0.820),tax_amount:Math.round(2171*m*0.180)}];const trend=[];const cur=new Date(from),end=new Date(to);while(cur<=end){const isWe=cur.getDay()===0||cur.getDay()===6;const v=Math.max(0,Math.round((isWe?2400:1500)+(Math.random()-0.5)*600));trend.push({date:cur.toISOString().split('T')[0],label:cur.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}),ricavi:v,scontrini:Math.round(v/22)});cur.setDate(cur.getDate()+1)}const payments=['Contanti','Carta','Satispay','Carta','Contanti','Carta'];const scontriniList=Array.from({length:Math.min(50,Math.round(100*m))},(_,i)=>{const d=new Date(from);d.setDate(d.getDate()+rand(0,days-1));return{id:'S'+String(i+1).padStart(4,'0'),date:d.toISOString().split('T')[0],time:String(rand(11,23)).padStart(2,'0')+':'+String(rand(0,59)).padStart(2,'0'),items:rand(1,8),total:Math.round((8+Math.random()*87)*100)/100,payment:payments[rand(0,5)],locale:salesPoints[rand(0,Math.max(0,salesPoints.length-1))]?.description||'REMEMBEER'}}).sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time));const prodOre=Array.from({length:16},(_,i)=>{const h=i+8,peak=(h>=12&&h<=14)||(h>=19&&h<=22);const v=Math.max(0,Math.round((peak?2800:400)*(0.7+Math.random()*0.6)));return{ora:String(h).padStart(2,'0')+':00',ricavi:v,scontrini:Math.round(v/22)}});const suppliers=['DAVIDE MEINI','LA NOBILE BEVERAGE','DISTRIBUZIONE METRO','FORNITORE VINI SRL','ALHENA SERVIZI'];const fatture=Array.from({length:Math.min(30,Math.round(40*m))},(_,i)=>{const d=new Date(from);d.setDate(d.getDate()+rand(0,days-1));return{id:i+1,date:d.toISOString().split('T')[0],fornitore:suppliers[rand(0,4)],numero:'FT'+rand(100,999),tipo:'TD01',locale:salesPoints[rand(0,Math.max(0,salesPoints.length-1))]?.description||'REMEMBEER',imponibile:Math.round((120+Math.random()*3080)*100)/100,iva:Math.round((12+Math.random()*628)*100)/100,statoSDI:Math.random()>.3?'✅ Consegnata':'⏳ In attesa',statoContabile:Math.random()>.4?'✅ Registrata':'📋 Da registrare'}}).sort((a,b)=>b.date.localeCompare(a.date));const suspicious=[{type:'Annullo',icon:'⚠️',desc:'Scontrino annullato dopo emissione',amount:-45.50,date:from,user:'Operatore 1',severity:'high'},{type:'Sconto elevato',icon:'🔶',desc:'Sconto >30% applicato manualmente',amount:-18.00,date:from,user:'Admin',severity:'medium'},{type:'Annullo',icon:'⚠️',desc:'Scontrino annullato dopo emissione',amount:-32.00,date:from,user:'Operatore 2',severity:'high'}];const totale=depts.reduce((s,d)=>s+d.profit,0);const foodCost=Math.round(totale*0.195),bevCost=Math.round(totale*0.148);const matCost=Math.round(totale*0.018),strCost=Math.round(totale*0.025);const totCosti=foodCost+bevCost+matCost+strCost;const mol=totale-totCosti;const topProducts=[{name:'Margherita',qty:Math.round(520*m),revenue:Math.round(5720*m)},{name:'Diavola',qty:Math.round(380*m),revenue:Math.round(4940*m)},{name:'Acqua 0.75L',qty:Math.round(890*m),revenue:Math.round(2670*m)},{name:'Birra 0.4L',qty:Math.round(620*m),revenue:Math.round(3720*m)},{name:'Quattro Stagioni',qty:Math.round(290*m),revenue:Math.round(3480*m)},{name:'Vino casa 0.5L',qty:Math.round(340*m),revenue:Math.round(3060*m)},{name:'Tiramisù',qty:Math.round(280*m),revenue:Math.round(1960*m)},{name:'Capricciosa',qty:Math.round(210*m),revenue:Math.round(2730*m)}];const scontrini=Math.round(totale/22);return{totale,scontrini,medio:scontrini>0?totale/scontrini:0,depts,cats,taxes,trend,topProducts,scontriniList,prodOre,suspicious,fatture,ce:{ricavi:totale,foodCost,bevCost,matCost,persCost:0,strCost,altCost:0,totCosti,mol,molPct:totale>0?mol/totale*100:0,foodPct:totale>0?foodCost/totale*100:0,bevPct:totale>0?bevCost/totale*100:0,persPct:0},isDemo:true}}
+export function generateDemoData(from,to,salesPoints=[]){const days=Math.max(1,Math.round((new Date(to)-new Date(from))/86400000)+1);const m=days/30;const depts=[{description:'PIZZERIA',profit:Math.round(22593*m),qty:Math.round(3188*m),color:'#F59E0B'},{description:'BAR',profit:Math.round(14820*m),qty:Math.round(4210*m),color:'#3B82F6'},{description:'CUCINA',profit:Math.round(9340*m),qty:Math.round(1820*m),color:'#10B981'},{description:'DOLCI',profit:Math.round(4210*m),qty:Math.round(980*m),color:'#8B5CF6'},{description:'ANTIPASTI',profit:Math.round(2980*m),qty:Math.round(540*m),color:'#EC4899'},{description:'COPERTO',profit:0,qty:Math.round(1936*m),color:'#94A3B8'}];const cats=[{description:'LE CREAZIONI DI CASA',total:Math.round(15200*m)},{description:'PIZZE SPECIALI',total:Math.round(7393*m)},{description:'VINI',total:Math.round(6820*m)},{description:'BIRRE ARTIGIANALI',total:Math.round(4800*m)},{description:'COCKTAIL',total:Math.round(3200*m)},{description:'SECONDI',total:Math.round(5640*m)},{description:'PRIMI',total:Math.round(3700*m)},{description:'DOLCI',total:Math.round(4210*m)},{description:'ACQUA / SOFT',total:Math.round(2100*m)},{description:'ANTIPASTI',total:Math.round(2980*m)}];const taxes=[{rate:10,taxable:Math.round(49715*m*0.909),tax_amount:Math.round(49715*m*0.091)},{rate:4,taxable:Math.round(2800*m*0.962),tax_amount:Math.round(2800*m*0.038)},{rate:22,taxable:Math.round(2171*m*0.820),tax_amount:Math.round(2171*m*0.180)}];const trend=[];const cur=new Date(from),end=new Date(to);while(cur<=end){const isWe=cur.getDay()===0||cur.getDay()===6;const v=Math.max(0,Math.round((isWe?2400:1500)+(Math.random()-0.5)*600));trend.push({date:cur.toISOString().split('T')[0],label:cur.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}),ricavi:v,scontrini:Math.round(v/22),coperti:Math.round(v/28)});cur.setDate(cur.getDate()+1)}const payments=['Contanti','Carta','Satispay','Carta','Contanti','Carta'];const scontriniList=Array.from({length:Math.min(50,Math.round(100*m))},(_,i)=>{const d=new Date(from);d.setDate(d.getDate()+rand(0,days-1));return{id:'S'+String(i+1).padStart(4,'0'),date:d.toISOString().split('T')[0],time:String(rand(11,23)).padStart(2,'0')+':'+String(rand(0,59)).padStart(2,'0'),items:rand(1,8),total:Math.round((8+Math.random()*87)*100)/100,payment:payments[rand(0,5)],locale:salesPoints[rand(0,Math.max(0,salesPoints.length-1))]?.description||'REMEMBEER'}}).sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time));const prodOre=Array.from({length:16},(_,i)=>{const h=i+8,peak=(h>=12&&h<=14)||(h>=19&&h<=22);const v=Math.max(0,Math.round((peak?2800:400)*(0.7+Math.random()*0.6)));return{ora:String(h).padStart(2,'0')+':00',ricavi:v,scontrini:Math.round(v/22)}});const suppliers=['DAVIDE MEINI','LA NOBILE BEVERAGE','DISTRIBUZIONE METRO','FORNITORE VINI SRL','ALHENA SERVIZI'];const fatture=Array.from({length:Math.min(30,Math.round(40*m))},(_,i)=>{const d=new Date(from);d.setDate(d.getDate()+rand(0,days-1));return{id:i+1,date:d.toISOString().split('T')[0],fornitore:suppliers[rand(0,4)],numero:'FT'+rand(100,999),tipo:'TD01',locale:salesPoints[rand(0,Math.max(0,salesPoints.length-1))]?.description||'REMEMBEER',imponibile:Math.round((120+Math.random()*3080)*100)/100,iva:Math.round((12+Math.random()*628)*100)/100,statoSDI:Math.random()>.3?'✅ Consegnata':'⏳ In attesa',statoContabile:Math.random()>.4?'✅ Registrata':'📋 Da registrare'}}).sort((a,b)=>b.date.localeCompare(a.date));const suspicious=[{type:'Annullo',icon:'⚠️',desc:'Scontrino annullato dopo emissione',amount:-45.50,date:from,user:'Operatore 1',severity:'high'},{type:'Sconto elevato',icon:'🔶',desc:'Sconto >30% applicato manualmente',amount:-18.00,date:from,user:'Admin',severity:'medium'},{type:'Annullo',icon:'⚠️',desc:'Scontrino annullato dopo emissione',amount:-32.00,date:from,user:'Operatore 2',severity:'high'}];const totale=depts.reduce((s,d)=>s+d.profit,0);const foodCost=Math.round(totale*0.195),bevCost=Math.round(totale*0.148);const matCost=Math.round(totale*0.018),strCost=Math.round(totale*0.025);const totCosti=foodCost+bevCost+matCost+strCost;const mol=totale-totCosti;const topProducts=[{name:'Margherita',qty:Math.round(520*m),revenue:Math.round(5720*m)},{name:'Diavola',qty:Math.round(380*m),revenue:Math.round(4940*m)},{name:'Acqua 0.75L',qty:Math.round(890*m),revenue:Math.round(2670*m)},{name:'Birra 0.4L',qty:Math.round(620*m),revenue:Math.round(3720*m)},{name:'Quattro Stagioni',qty:Math.round(290*m),revenue:Math.round(3480*m)},{name:'Vino casa 0.5L',qty:Math.round(340*m),revenue:Math.round(3060*m)},{name:'Tiramisù',qty:Math.round(280*m),revenue:Math.round(1960*m)},{name:'Capricciosa',qty:Math.round(210*m),revenue:Math.round(2730*m)}];const scontrini=Math.round(totale/22);const coperti=Math.round(1936*m);return{totale,scontrini,medio:scontrini>0?totale/scontrini:0,coperti,copertoMedio:coperti>0?totale/coperti:0,depts,cats,taxes,trend,topProducts,scontriniList,prodOre,suspicious,fatture,ce:{ricavi:totale,foodCost,bevCost,matCost,persCost:0,strCost,altCost:0,totCosti,mol,molPct:totale>0?mol/totale*100:0,foodPct:totale>0?foodCost/totale*100:0,bevPct:totale>0?bevCost/totale*100:0,persPct:0},isDemo:true}}
