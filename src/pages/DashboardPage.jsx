@@ -125,6 +125,7 @@ export default function DashboardPage({ settings }) {
   const [showDocForm, setShowDocForm]   = useState(false)
   const [docForm, setDocForm]           = useState({employee_id:'',tipo:'Contratto',nome:'',scadenza:'',file:null})
   const [hrLoading, setHrLoading]       = useState(false)
+  const [expandedReceipt, setExpandedReceipt] = useState(null)
   const [sogliaYel, setSogliaYel]   = useState(() => Number(localStorage.getItem('cic_soglia_yel')) || 47)
   // Persisti filtro in localStorage
   useEffect(() => { localStorage.setItem('cic_from', from) }, [from])
@@ -688,6 +689,43 @@ export default function DashboardPage({ settings }) {
             </table>
           </Card>
         </div>
+
+        {/* Lista comande */}
+        {(data?.receiptDetails||[]).length>0&&<div style={{marginTop:12}}>
+          <Card title="Comande del periodo" badge={fmtN((data?.receiptDetails||[]).length)+' comande'}>
+            <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+                {['','Ora','Totale','Articoli','Reparto'].map(h=><th key={h} style={S.th}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {(data?.receiptDetails||[]).map((r,i)=><>
+                  <tr key={i} onClick={()=>setExpandedReceipt(expandedReceipt===i?null:i)} style={{cursor:'pointer',borderBottom:'1px solid #1a1f2e'}}>
+                    <td style={{...S.td,width:24,color:'#64748b'}}>{expandedReceipt===i?'▼':'▶'}</td>
+                    <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{r.ora}</td>
+                    <td style={{...S.td,fontWeight:600}}>{fmt(r.totale)}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{r.items?.length||0} art.</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{[...new Set(r.items?.map(it=>it.reparto).filter(Boolean))].join(', ')||'—'}</td>
+                  </tr>
+                  {expandedReceipt===i&&<tr key={'d'+i}><td colSpan={5} style={{padding:'0 14px 12px 38px',background:'#131825'}}>
+                    <table style={{width:'100%',borderCollapse:'collapse'}}>
+                      <thead><tr>
+                        {['Prodotto','Qtà','Prezzo','Reparto'].map(h=><th key={h} style={{...S.th,fontSize:10,padding:'6px 10px'}}>{h}</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {(r.items||[]).map((it,j)=><tr key={j}>
+                          <td style={{...S.td,fontSize:12,fontWeight:500,padding:'6px 10px'}}>{it.nome}</td>
+                          <td style={{...S.td,fontSize:12,color:'#94a3b8',padding:'6px 10px'}}>{it.qty}x</td>
+                          <td style={{...S.td,fontSize:12,fontWeight:500,padding:'6px 10px'}}>{fmt(it.prezzo)}</td>
+                          <td style={{...S.td,fontSize:11,color:'#64748b',padding:'6px 10px'}}>{it.reparto||'—'}</td>
+                        </tr>)}
+                      </tbody>
+                    </table>
+                  </td></tr>}
+                </>)}
+              </tbody>
+            </table>
+          </Card>
+        </div>}
       </>})()}
 
       {/* ── CONTO ECONOMICO ── */}

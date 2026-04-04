@@ -75,6 +75,27 @@ async function getCicToken(apiKey) {
   return d.access_token;
 }
 
+// Fetch nomi prodotti dall'API CiC
+async function fetchProductNames(token) {
+  const names = {};
+  try {
+    let start = 0;
+    while (true) {
+      const res = await fetch(CIC_BASE + '/products?start=' + start + '&limit=100', {
+        headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' }
+      });
+      if (!res.ok) break;
+      const d = await res.json();
+      const prods = d.products || [];
+      for (const p of prods) { if (p.id && p.description) names[p.id] = p.description; }
+      if (prods.length < 100) break;
+      start += 100;
+      await new Promise(r => setTimeout(r, 100));
+    }
+  } catch (e) { /* silently fail */ }
+  return names;
+}
+
 // Fetch categorie dinamiche dall'API CiC
 async function fetchCategoryNames(token) {
   const names = {};
@@ -117,8 +138,9 @@ async function getReceipts(token, date, filterSp) {
 const KITCHEN_DEPTS = new Set(['CUCINA', 'PIZZERIA']);
 const BAR_DEPTS = new Set(['BAR']);
 
-function aggregateReceipts(receipts, dynamicCatNames = {}) {
+function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
   const deptMap = {}, catMap = {}, hourlyMap = {};
+  const receiptDetails = [];
   let revenue = 0;
   let lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null, fiscalCloseTime = null;
 
@@ -144,6 +166,8 @@ function aggregateReceipts(receipts, dynamicCatNames = {}) {
       hourlyMap[receiptHour].scontrini += 1;
     }
 
+    // Raccolta items per dettaglio comanda
+    const receiptItems = [];
     let hasKitchen = false, hasBar = false;
     for (const row of (doc.rows || [])) {
       if (row.subtotal || row.composition) continue;
@@ -155,6 +179,12 @@ function aggregateReceipts(receipts, dynamicCatNames = {}) {
       if (!deptMap[dId].department?.description && dName) deptMap[dId].department = { description: dName };
       deptMap[dId].profit += price;
       deptMap[dId].quantity += row.quantity || 1;
+
+      // Dettaglio prodotto per la comanda
+      if (!row.coverCharge && price > 0) {
+        const prodName = (row.idProduct && productNames[row.idProduct]) || (row.idProductVariant && productNames[row.idProductVariant]) || null;
+        receiptItems.push({ nome: prodName || dName || 'Articolo', qty: row.quantity || 1, prezzo: price, reparto: dName });
+      }
 
       // Traccia ultima comanda cucina/bar
       if (dName && KITCHEN_DEPTS.has(dName.toUpperCase())) hasKitchen = true;
@@ -168,6 +198,10 @@ function aggregateReceipts(receipts, dynamicCatNames = {}) {
         catMap[cId].quantity += row.quantity || 1;
       }
     }
+    // Salva dettaglio comanda
+    if (receiptItems.length > 0) {
+      receiptDetails.push({ ora: receiptTime || '—', totale: doc.amount || 0, items: receiptItems });
+    }
     if (hasKitchen && receiptTime && (!lastKitchenTime || receiptTime > lastKitchenTime)) lastKitchenTime = receiptTime;
     if (hasBar && receiptTime && (!lastBarTime || receiptTime > lastBarTime)) lastBarTime = receiptTime;
   }
@@ -176,6 +210,7 @@ function aggregateReceipts(receipts, dynamicCatNames = {}) {
     dept_records: Object.values(deptMap).sort((a, b) => b.profit - a.profit),
     cat_records: Object.values(catMap).sort((a, b) => b.profit - a.profit),
     hourly_records: Object.values(hourlyMap).sort((a, b) => a.hour - b.hour),
+    receipt_details: receiptDetails.sort((a, b) => (a.ora || '').localeCompare(b.ora || '')),
     bill_count: receipts.length,
     revenue: Math.round(revenue * 100) / 100,
     last_receipt_time: lastReceiptTime,
@@ -193,6 +228,7 @@ async function saveDailyStats(sp, date, agg) {
     dept_records: agg.dept_records,
     cat_records: agg.cat_records,
     hourly_records: agg.hourly_records,
+    receipt_details: agg.receipt_details,
     bill_count: agg.bill_count,
     revenue: agg.revenue,
     last_receipt_time: agg.last_receipt_time,
@@ -263,14 +299,17 @@ export default async function handler(req, res) {
 
       // Fetch nomi categorie dinamici dall'API
       const dynamicCatNames = await fetchCategoryNames(token);
+      const prodNames = await fetchProductNames(token);
       const dynCount = Object.keys(dynamicCatNames).length;
+      const prodCount = Object.keys(prodNames).length;
       if (dynCount > 0) logs.push(`${sp.name}: ${dynCount} categorie da API`);
+      if (prodCount > 0) logs.push(`${sp.name}: ${prodCount} prodotti da API`);
 
       for (const date of days) {
         try {
           const receipts = await getReceipts(token, date, sp.filterSp);
           if (receipts.length === 0) continue; // salta giorni senza vendite
-          const agg = aggregateReceipts(receipts, dynamicCatNames);
+          const agg = aggregateReceipts(receipts, dynamicCatNames, prodNames);
           const status = await saveDailyStats(sp, date, agg);
           if (status === 201 || status === 204) {
             saved++;
