@@ -155,9 +155,11 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
     const receiptHour = timeMatch ? parseInt(timeMatch[1]) : null;
     const receiptTime = timeMatch ? timeMatch[1] + ':' + timeMatch[2] : null;
 
-    // Traccia primo e ultimo scontrino
-    if (receiptTime && (!firstReceiptTime || receiptTime < firstReceiptTime)) firstReceiptTime = receiptTime;
-    if (receiptTime && (!lastReceiptTime || receiptTime > lastReceiptTime)) lastReceiptTime = receiptTime;
+    // Traccia primo e ultimo scontrino (solo dalle 16:00 - locali aperti solo la sera)
+    if (receiptHour != null && receiptHour >= 16) {
+      if (receiptTime && (!firstReceiptTime || receiptTime < firstReceiptTime)) firstReceiptTime = receiptTime;
+      if (receiptTime && (!lastReceiptTime || receiptTime > lastReceiptTime)) lastReceiptTime = receiptTime;
+    }
     // Numero chiusura Z
     if (r.zNumber) zNumber = r.zNumber;
 
@@ -204,8 +206,10 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
     if (receiptItems.length > 0) {
       receiptDetails.push({ ora: receiptTime || '—', totale: doc.amount || 0, items: receiptItems });
     }
-    if (hasKitchen && receiptTime && (!lastKitchenTime || receiptTime > lastKitchenTime)) lastKitchenTime = receiptTime;
-    if (hasBar && receiptTime && (!lastBarTime || receiptTime > lastBarTime)) lastBarTime = receiptTime;
+    if (receiptHour != null && receiptHour >= 16) {
+      if (hasKitchen && receiptTime && (!lastKitchenTime || receiptTime > lastKitchenTime)) lastKitchenTime = receiptTime;
+      if (hasBar && receiptTime && (!lastBarTime || receiptTime > lastBarTime)) lastBarTime = receiptTime;
+    }
   }
 
   return {
