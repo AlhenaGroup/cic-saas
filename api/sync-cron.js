@@ -154,8 +154,7 @@ const KITCHEN_DEPTS = new Set(['CUCINA', 'PIZZERIA']);
 const BAR_DEPTS = new Set(['BAR']);
 
 function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
-  const deptMap = {}, catMap = {}, hourlyMap = {};
-  const receiptDetails = [];
+  const deptMap = {}, catMap = {}, hourlyMap = {}, comandeMap = {};
   let revenue = 0;
   let firstReceiptTime = null, lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null;
   let zNumber = null;
@@ -217,20 +216,25 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
         catMap[cId].quantity += row.quantity || 1;
       }
     }
-    // Salva dettaglio comanda con dati orderSummary (solo dalle 16:00)
+    // Raggruppa scontrini per comanda (orderSummary.id) — solo dalle 16:00
     if (receiptItems.length > 0 && receiptHour != null && receiptHour >= 16) {
       const os = doc.orderSummary || {};
+      const orderId = os.id || r.id; // fallback a receipt id se non c'e orderSummary
       const openMatch = typeof os.openingTime === 'string' ? os.openingTime.match(/T(\d{2}:\d{2})/) : null;
       const closeMatch = typeof os.closingTime === 'string' ? os.closingTime.match(/T(\d{2}:\d{2})/) : null;
-      receiptDetails.push({
-        ora: receiptTime || '—',
-        aperturaComanda: openMatch ? openMatch[1] : null,
-        chiusuraComanda: closeMatch ? closeMatch[1] : null,
-        tavolo: os.tableName || null,
-        coperti: os.covers || null,
-        totale: doc.amount || 0,
-        items: receiptItems
-      });
+
+      if (!comandeMap[orderId]) {
+        comandeMap[orderId] = {
+          aperturaComanda: openMatch ? openMatch[1] : null,
+          chiusuraComanda: closeMatch ? closeMatch[1] : null,
+          tavolo: os.tableName || null,
+          coperti: os.covers || null,
+          totale: 0,
+          items: []
+        };
+      }
+      comandeMap[orderId].totale += doc.amount || 0;
+      comandeMap[orderId].items.push(...receiptItems);
     }
     if (receiptHour != null && receiptHour >= 16) {
       if (hasKitchen && receiptTime && (!lastKitchenTime || receiptTime > lastKitchenTime)) lastKitchenTime = receiptTime;
@@ -242,7 +246,7 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
     dept_records: Object.values(deptMap).sort((a, b) => b.profit - a.profit),
     cat_records: Object.values(catMap).sort((a, b) => b.profit - a.profit),
     hourly_records: Object.values(hourlyMap).sort((a, b) => a.hour - b.hour),
-    receipt_details: receiptDetails.sort((a, b) => (a.ora || '').localeCompare(b.ora || '')),
+    receipt_details: Object.values(comandeMap).sort((a, b) => (a.aperturaComanda || '').localeCompare(b.aperturaComanda || '')),
     bill_count: receipts.length,
     revenue: Math.round(revenue * 100) / 100,
     first_receipt_time: firstReceiptTime,
