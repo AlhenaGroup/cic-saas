@@ -658,7 +658,7 @@ export default function DashboardPage({ settings }) {
               <YAxis tick={{fontSize:10,fill:'#475569'}} tickFormatter={v=>v+'€'} tickLine={false} axisLine={false} width={42}/>
               <Tooltip formatter={(v,name)=>name==='prodOraria'?v.toFixed(1)+' €/h':fmt(v)} contentStyle={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,fontSize:12}}/>
               <Bar dataKey="ricavi" name="Ricavi" radius={[3,3,0,0]}>
-                {oreWithProd.filter(o=>o.ricavi>0).map((o,i)=><Cell key={i} fill={o.staff>0?prodColor(o.prodOraria):'#475569'}/>)}
+                {oreWithProd.filter(o=>o.ricavi>0).map((o,i)=><Cell key={i} fill={o.staff>0?prodColor(o.prodOraria):'#F59E0B'}/>)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
