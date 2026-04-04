@@ -132,15 +132,21 @@ export default async function handler(req, res) {
         const filter = buildFilter(from, to, p.idSalesPoint);
         const base = { start: 0, limit: 200, filter };
 
-        const [dept, cat, tax, trend, hour] = await Promise.all([
+        const reconcFilter = JSON.stringify({
+          referenceDatetimeFrom: from + 'T00:00:00.000',
+          referenceDatetimeTo:   to   + 'T23:59:59.999'
+        });
+
+        const [dept, cat, tax, trend, hour, reconc] = await Promise.all([
           foGet(sessionCookie, '/sold-by-department', { ...base, sorts: JSON.stringify({profit:-1}), fields: JSON.stringify({'*':true,department:{id:true,salesPoint:{id:true,name:true,description:true},description:true,live:true}}) }),
           foGet(sessionCookie, '/sold-by-category',   { ...base, sorts: JSON.stringify({profit:-1}), fields: JSON.stringify({'*':true,category:{id:true,salesPoint:{id:true,name:true,description:true},description:true,live:true}}) }),
           foGet(sessionCookie, '/sold-by-tax',        { ...base }),
           foGet(sessionCookie, '/sold-trend-by-day',  { ...base, referenceDate: true }),
           foGet(sessionCookie, '/sold-trend-by-hour', { ...base }),
+          foGet(sessionCookie, '/reconciliation',     { start: 0, limit: 50, filter: reconcFilter }).catch(() => ({ records: [] })),
         ]);
 
-        return res.status(200).json({ dept, cat, tax, trend, hour });
+        return res.status(200).json({ dept, cat, tax, trend, hour, reconc });
       }
 
       case 'webhooks_list': {

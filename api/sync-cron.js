@@ -114,6 +114,21 @@ async function fetchCategoryNames(token) {
   return names;
 }
 
+// Fetch chiusura cassa (reconciliation) per una data
+async function getReconciliation(token, date, filterSp) {
+  try {
+    const dateQ = encodeURIComponent('"' + date + '"');
+    const url = `${CIC_BASE}/reconciliations?start=0&limit=10&datetimeFrom=${dateQ}&datetimeTo=${dateQ}`;
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' } });
+    if (!res.ok) return null;
+    const d = await res.json();
+    const rec = (d.reconciliations || []).find(r => r.idSalesPoint === filterSp);
+    if (!rec || !rec.date) return null;
+    const dt = new Date(rec.date);
+    return { time: String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0'), zNumber: rec.number };
+  } catch { return null; }
+}
+
 async function getReceipts(token, date, filterSp) {
   // Paginazione: cap API = 100 record/pagina
   const sorts = encodeURIComponent(JSON.stringify([{ key: 'date', direction: 1 }]));
@@ -254,6 +269,7 @@ async function saveDailyStats(sp, date, agg) {
     last_kitchen_time: agg.last_kitchen_time,
     last_bar_time: agg.last_bar_time,
     z_number: agg.z_number,
+    fiscal_close_time: agg.fiscal_close_time,
     synced_at: new Date().toISOString()
   };
   const headers = {
@@ -329,6 +345,12 @@ export default async function handler(req, res) {
           const receipts = await getReceipts(token, date, sp.filterSp);
           if (receipts.length === 0) continue; // salta giorni senza vendite
           const agg = aggregateReceipts(receipts, dynamicCatNames, prodNames);
+          // Chiusura cassa reale dalla reconciliation
+          const reconc = await getReconciliation(token, date, sp.filterSp);
+          if (reconc) {
+            agg.fiscal_close_time = reconc.time;
+            agg.z_number = reconc.zNumber;
+          }
           const status = await saveDailyStats(sp, date, agg);
           if (status === 201 || status === 204) {
             saved++;

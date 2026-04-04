@@ -45,7 +45,7 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
   const deptMap = {}, catMap = {}, trendMap = {}, hourlyMap = {};
   let totalBillCount = 0;
   let totalCoperti = 0;
-  let firstReceiptTime = null, lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null, zNumber = null;
+  let firstReceiptTime = null, lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null, zNumber = null, fiscalCloseTime = null;
 
   rows.forEach(row => {
     const dateStr = typeof row.date === 'string' ? row.date.substring(0,10) : row.date;
@@ -89,6 +89,7 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
     if (row.last_kitchen_time) lastKitchenTime = row.last_kitchen_time;
     if (row.last_bar_time) lastBarTime = row.last_bar_time;
     if (row.z_number) zNumber = row.z_number;
+    if (row.fiscal_close_time) fiscalCloseTime = row.fiscal_close_time;
 
     // Trend giornaliero (con coperti)
     if (!trendMap[dateStr]) trendMap[dateStr] = { date: dateStr, ricavi: 0, coperti: 0 };
@@ -112,7 +113,7 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
     copertoMedio: totalCoperti > 0 ? totale / totalCoperti : 0,
     depts, cats, taxes, trend, prodOre,
     receiptDetails: rows.flatMap(r => r.receipt_details || []).sort((a,b) => (a.aperturaComanda||a.ora||'').localeCompare(b.aperturaComanda||b.ora||'')),
-    firstReceiptTime, lastReceiptTime, lastKitchenTime, lastBarTime, zNumber,
+    firstReceiptTime, lastReceiptTime, lastKitchenTime, lastBarTime, zNumber, fiscalCloseTime,
     isDemo: false
   };
 }
