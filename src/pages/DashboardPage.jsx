@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { ComposedChart, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { supabase } from '../lib/supabase'
-import { getToken, getSalesPoints, getReportData } from '../lib/cicApi'
+import { getToken, getSalesPoints, getReportData, getFromDailyStats } from '../lib/cicApi'
 
 const fmt    = n => Number(n||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:true})+' €'
 const fmtD   = n => Number(n||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2})
@@ -9,6 +9,21 @@ const fmtN   = n => Number(n||0).toLocaleString('it-IT')
 const pct    = (v,t) => t>0?(v/t*100).toFixed(1)+'%':'—'
 const today      = () => new Date().toISOString().split('T')[0]
 const monthStart = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01' }
+// Calcola periodo precedente di uguale durata
+function prevPeriod(from, to) {
+  const f = new Date(from), t = new Date(to)
+  const days = Math.round((t - f) / 86400000) + 1
+  const pTo = new Date(f); pTo.setDate(pTo.getDate() - 1)
+  const pFrom = new Date(pTo); pFrom.setDate(pFrom.getDate() - days + 1)
+  return { from: pFrom.toISOString().split('T')[0], to: pTo.toISOString().split('T')[0] }
+}
+function deltaFmt(curr, prev) {
+  if (!prev) return null
+  const diff = curr - prev
+  const pctVal = prev > 0 ? ((curr - prev) / prev * 100) : 0
+  const sign = diff >= 0 ? '+' : ''
+  return { diff, pct: pctVal, label: `${sign}${Math.round(diff).toLocaleString('it-IT')} (${sign}${pctVal.toFixed(1)}%)`, positive: diff >= 0 }
+}
 const C = ['#F59E0B','#3B82F6','#10B981','#8B5CF6','#EC4899','#F97316','#06B6D4','#84CC16','#EF4444','#A78BFA']
 
 const S = { // shared inline styles
@@ -90,13 +105,105 @@ export default function DashboardPage({ settings }) {
   const [fatSearch,setFatSearch]  = useState('')
   const [fatFilter,setFatFilter]  = useState('all')
   const [prodRep,setProdRep]      = useState('tutti')
+  // Confronto periodo
+  const [from2, setFrom2]         = useState(() => localStorage.getItem('cic_from2') || '')
+  const [to2,   setTo2]           = useState(() => localStorage.getItem('cic_to2') || '')
+  const [prevData, setPrevData]   = useState(null)
+  // Staff per fascia oraria (da Supabase)
+  const [staffSchedule, setStaffSchedule] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cic_staff_schedule') || '{}') } catch { return {} }
+  })
+  // Soglie produttivita e target
+  const [prodTarget, setProdTarget] = useState(() => Number(localStorage.getItem('cic_prod_target')) || 50)
+  const [sogliaRed, setSogliaRed]   = useState(() => Number(localStorage.getItem('cic_soglia_red')) || 35)
+  // HR module state
+  const [employees, setEmployees]       = useState([])
+  const [empDocs, setEmpDocs]           = useState([])
+  const [showEmpForm, setShowEmpForm]   = useState(false)
+  const [editEmp, setEditEmp]           = useState(null)
+  const [empForm, setEmpForm]           = useState({nome:'',ruolo:'',locale:'',telefono:'',email:''})
+  const [showDocForm, setShowDocForm]   = useState(false)
+  const [docForm, setDocForm]           = useState({employee_id:'',tipo:'Contratto',nome:'',scadenza:'',file:null})
+  const [hrLoading, setHrLoading]       = useState(false)
+  const [expandedReceipt, setExpandedReceipt] = useState(null)
+  const [sogliaYel, setSogliaYel]   = useState(() => Number(localStorage.getItem('cic_soglia_yel')) || 47)
   // Persisti filtro in localStorage
   useEffect(() => { localStorage.setItem('cic_from', from) }, [from])
   useEffect(() => { localStorage.setItem('cic_to', to) }, [to])
   useEffect(() => { localStorage.setItem('cic_sp', sp) }, [sp])
   useEffect(() => { localStorage.setItem('cic_tab', tab) }, [tab])
+  useEffect(() => { localStorage.setItem('cic_from2', from2) }, [from2])
+  useEffect(() => { localStorage.setItem('cic_to2', to2) }, [to2])
+  useEffect(() => { localStorage.setItem('cic_staff_schedule', JSON.stringify(staffSchedule)) }, [staffSchedule])
+  useEffect(() => { localStorage.setItem('cic_prod_target', prodTarget) }, [prodTarget])
+  useEffect(() => { localStorage.setItem('cic_soglia_red', sogliaRed) }, [sogliaRed])
+  useEffect(() => { localStorage.setItem('cic_soglia_yel', sogliaYel) }, [sogliaYel])
 
 
+
+  // ─── HR CRUD ────────────────────────────────────────────────────────
+  const loadEmployees = useCallback(async () => {
+    const { data } = await supabase.from('employees').select('*').order('created_at')
+    setEmployees(data || [])
+  }, [])
+  const loadDocs = useCallback(async () => {
+    const { data } = await supabase.from('employee_documents').select('*').order('scadenza', { ascending: true, nullsFirst: false })
+    setEmpDocs(data || [])
+  }, [])
+  const loadSchedule = useCallback(async () => {
+    const loc = sp === 'all' ? 'all' : sp
+    const { data } = await supabase.from('staff_schedules').select('schedule').eq('locale', loc).maybeSingle()
+    if (data?.schedule) { setStaffSchedule(data.schedule); localStorage.setItem('cic_staff_schedule', JSON.stringify(data.schedule)) }
+  }, [sp])
+  const saveSchedule = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const loc = sp === 'all' ? 'all' : sp
+    await supabase.from('staff_schedules').upsert({ user_id: user.id, locale: loc, schedule: staffSchedule, updated_at: new Date().toISOString() }, { onConflict: 'user_id,locale' })
+  }
+  const saveEmployee = async () => {
+    setHrLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (editEmp) {
+      await supabase.from('employees').update({ ...empForm, locale: empForm.locale || sp }).eq('id', editEmp.id)
+    } else {
+      await supabase.from('employees').insert({ ...empForm, user_id: user.id, locale: empForm.locale || (sps.find(s=>String(s.id)===sp)?.description) || '' })
+    }
+    setEmpForm({nome:'',ruolo:'',locale:'',telefono:'',email:''}); setShowEmpForm(false); setEditEmp(null)
+    await loadEmployees(); setHrLoading(false)
+  }
+  const deleteEmployee = async (id) => {
+    await supabase.from('employees').delete().eq('id', id)
+    await loadEmployees(); await loadDocs()
+  }
+  const saveDoc = async () => {
+    setHrLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    let filePath = null
+    if (docForm.file) {
+      const ext = docForm.file.name.split('.').pop()
+      const path = `${user.id}/${Date.now()}.${ext}`
+      await supabase.storage.from('documents').upload(path, docForm.file)
+      filePath = path
+    }
+    await supabase.from('employee_documents').insert({
+      employee_id: docForm.employee_id, user_id: user.id,
+      tipo: docForm.tipo, nome: docForm.nome,
+      scadenza: docForm.scadenza || null, file_path: filePath
+    })
+    setDocForm({employee_id:'',tipo:'Contratto',nome:'',scadenza:'',file:null}); setShowDocForm(false)
+    await loadDocs(); setHrLoading(false)
+  }
+  const deleteDoc = async (doc) => {
+    if (doc.file_path) await supabase.storage.from('documents').remove([doc.file_path])
+    await supabase.from('employee_documents').delete().eq('id', doc.id)
+    await loadDocs()
+  }
+  const downloadDoc = async (filePath) => {
+    const { data } = await supabase.storage.from('documents').createSignedUrl(filePath, 300)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  }
+
+  useEffect(() => { loadEmployees(); loadDocs(); loadSchedule() }, [loadEmployees, loadDocs, loadSchedule])
 
   useEffect(() => {
     getToken(settings.cic_api_key).then(async t => {
@@ -112,12 +219,26 @@ export default function DashboardPage({ settings }) {
       const spf = sp==='all'?[]:[ parseInt(sp) ]
       const d = await getReportData(token,{from,to,idsSalesPoint:spf},sps)
       setData(d)
+      // Carica dati periodo di confronto
+      const pp = (from2 && to2) ? { from: from2, to: to2 } : prevPeriod(from, to)
+      if (!from2) setFrom2(pp.from)
+      if (!to2) setTo2(pp.to)
+      try {
+        const pd = await getFromDailyStats(pp.from, pp.to, spf)
+        setPrevData(pd)
+      } catch { setPrevData(null) }
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
-  },[token,from,to,sp,sps])
+  },[token,from,to,sp,sps,from2,to2])
   useEffect(()=>{load()},[load])
 
   const totale = data?.totale||0
+  const coperti = data?.coperti||0
+  const copertoMedio = data?.copertoMedio||0
+  // Confronto
+  const dRicavi = deltaFmt(totale, prevData?.totale)
+  const dScontrini = deltaFmt(data?.scontrini||0, prevData?.scontrini)
+  const dCoperti = deltaFmt(coperti, prevData?.coperti)
   const depts  = data?.depts||[]
   const cats   = data?.cats||[]
   const taxes  = data?.taxes||[]
@@ -163,6 +284,10 @@ export default function DashboardPage({ settings }) {
         <input type="date" value={from} onChange={e=>setFrom(e.target.value)} style={iS}/>
         <span style={{color:'#2a3042'}}>—</span>
         <input type="date" value={to}   onChange={e=>setTo(e.target.value)}   style={iS}/>
+        <span style={{color:'#475569',fontSize:11,marginLeft:8}}>vs</span>
+        <input type="date" value={from2} onChange={e=>setFrom2(e.target.value)} style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta dal"/>
+        <span style={{color:'#2a3042'}}>—</span>
+        <input type="date" value={to2}   onChange={e=>setTo2(e.target.value)}   style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta al"/>
         <button onClick={load} style={{...iS,background:'#F59E0B',color:'#0f1420',fontWeight:600,border:'none',padding:'6px 16px'}}>Aggiorna</button>
         <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'#475569',border:'1px solid #2a3042',padding:'6px 12px'}}>Esci</button>
       </div>
@@ -183,26 +308,67 @@ export default function DashboardPage({ settings }) {
 
       {/* ── PANORAMICA ── */}
       {tab==='ov'&&<>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:'1.5rem'}}>
-          <KPI label="Ricavi totali"   icon="💶" value={fmt(totale)}            sub={from+' → '+to} accent='#F59E0B' trend={8.3}/>
-          <KPI label="Scontrini"       icon="🧾" value={fmtN(data?.scontrini)} sub="documenti"     accent='#3B82F6' trend={5.1}/>
-          <KPI label="Scontrino medio" icon="📈" value={fmtD(data?.medio)}     sub="per documento" accent='#10B981' trend={2.8}/>
-          <KPI label="Reparti attivi"  icon="🏷️" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#8B5CF6'/>
+        {/* KPI Cards 3x2 */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
+          <KPI label="Ricavi totali" icon="💶" value={fmt(totale)} sub={dRicavi?<span style={{color:dRicavi.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dRicavi.label}</span>:from+' → '+to} accent='#F59E0B' trend={dRicavi?.pct}/>
+          <KPI label="Scontrini" icon="🧾" value={fmtN(data?.scontrini)} sub={dScontrini?<span style={{color:dScontrini.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dScontrini.label}</span>:'documenti'} accent='#3B82F6' trend={dScontrini?.pct}/>
+          <KPI label="Scontrino medio" icon="📈" value={fmtD(data?.medio)} sub="per documento" accent='#10B981'/>
+          <KPI label="Coperti totali" icon="🍽️" value={fmtN(coperti)} sub={dCoperti?<span style={{color:dCoperti.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCoperti.label}</span>:'persone'} accent='#F97316' trend={dCoperti?.pct}/>
+          <KPI label="Coperto medio" icon="💰" value={fmtD(copertoMedio)} sub="incasso / coperto" accent='#8B5CF6'/>
+          <KPI label="Reparti attivi" icon="🏷️" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#06B6D4'/>
         </div>
+
+        {/* Giorno migliore / peggiore */}
+        {trend.length>0&&(()=>{
+          const best = trend.reduce((a,b)=>b.ricavi>a.ricavi?b:a, trend[0])
+          const worst = trend.filter(t=>t.ricavi>0).reduce((a,b)=>b.ricavi<a.ricavi?b:a, trend.find(t=>t.ricavi>0)||trend[0])
+          return <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:'1.25rem'}}>
+            <div style={{...S.card,borderLeft:'3px solid #10B981'}}>
+              <div style={{fontSize:11,fontWeight:600,color:'#10B981',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Giorno migliore</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:20,fontWeight:700,color:'#f1f5f9'}}>{fmt(best.ricavi)}</div>
+                  <div style={{fontSize:12,color:'#94a3b8'}}>{new Date(best.date+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</div>
+                </div>
+                {best.coperti>0&&<div style={{textAlign:'right'}}>
+                  <div style={{fontSize:14,fontWeight:600,color:'#cbd5e1'}}>{fmtN(best.coperti)}</div>
+                  <div style={{fontSize:11,color:'#64748b'}}>coperti</div>
+                </div>}
+              </div>
+            </div>
+            <div style={{...S.card,borderLeft:'3px solid #EF4444'}}>
+              <div style={{fontSize:11,fontWeight:600,color:'#EF4444',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Giorno peggiore</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:20,fontWeight:700,color:'#f1f5f9'}}>{fmt(worst.ricavi)}</div>
+                  <div style={{fontSize:12,color:'#94a3b8'}}>{new Date(worst.date+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</div>
+                </div>
+                {worst.coperti>0&&<div style={{textAlign:'right'}}>
+                  <div style={{fontSize:14,fontWeight:600,color:'#cbd5e1'}}>{fmtN(worst.coperti)}</div>
+                  <div style={{fontSize:11,color:'#64748b'}}>coperti</div>
+                </div>}
+              </div>
+            </div>
+          </div>
+        })()}
+
+        {/* Grafico trend ricavi + coperti */}
         <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12,marginBottom:12}}>
-          <Card title="Andamento ricavi" badge={isDemo?'Demo':null}>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={trend} margin={{top:5,right:10,left:0,bottom:5}}>
+          <Card title="Andamento ricavi e coperti" badge={isDemo?'Demo':null}>
+            <ResponsiveContainer width="100%" height={240}>
+              <ComposedChart data={trend} margin={{top:5,right:10,left:0,bottom:5}}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e2636" vertical={false}/>
                 <XAxis dataKey="label" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} interval={Math.max(1,Math.floor(trend.length/7))}/>
-                <YAxis tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} tickFormatter={v=>'€'+Math.round(v/1000)+'k'} width={38}/>
+                <YAxis yAxisId="left" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} tickFormatter={v=>'€'+Math.round(v/1000)+'k'} width={38}/>
+                <YAxis yAxisId="right" orientation="right" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} width={30}/>
                 <Tooltip content={<Tip/>}/>
-                <Line type="monotone" dataKey="ricavi" stroke="#F59E0B" strokeWidth={2} dot={false} name="ricavi"/>
-              </LineChart>
+                <Bar yAxisId="right" dataKey="coperti" fill="rgba(249,115,22,.3)" name="coperti" radius={[2,2,0,0]}/>
+                <Line yAxisId="left" type="monotone" dataKey="ricavi" stroke="#F59E0B" strokeWidth={2} dot={false} name="ricavi"/>
+              </ComposedChart>
             </ResponsiveContainer>
           </Card>
           <Card title="Ripartizione reparti">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie data={depts.filter(d=>d.profit>0)} dataKey="profit" nameKey="description" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
                   {depts.filter(d=>d.profit>0).map((_,i)=><Cell key={i} fill={C[i%C.length]}/>)}
@@ -437,48 +603,133 @@ export default function DashboardPage({ settings }) {
       </>}
 
       {/* ── PRODUTTIVITÀ ORARIA ── */}
-      {tab==='prod'&&<>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          <KPI label="Ora di punta" icon="⏰" value={ore.reduce((m,o)=>o.ricavi>m.ricavi?o:m,{ricavi:0,ora:'—'}).ora} sub="massimo incasso" accent='#F59E0B'/>
-          <KPI label="Media oraria" icon="📊" value={fmt(ore.length?ore.reduce((s,o)=>s+o.ricavi,0)/ore.filter(o=>o.ricavi>0).length:0)} sub="nelle ore attive" accent='#3B82F6'/>
-          <KPI label="Ore attive" icon="⚡" value={ore.filter(o=>o.ricavi>0).length} sub="su 24 ore" accent='#10B981'/>
+      {tab==='prod'&&(()=>{
+        const prodColor = v => v < sogliaRed ? '#EF4444' : v < sogliaYel ? '#F59E0B' : '#10B981'
+        const prodLabel = v => v < sogliaRed ? 'Sotto soglia' : v < sogliaYel ? 'Attenzione' : 'OK'
+        const oreWithProd = ore.map(o => {
+          const staff = staffSchedule[o.ora] || 0
+          const prodOraria = staff > 0 ? o.ricavi / staff : 0
+          return { ...o, staff, oreLavorate: staff, prodOraria }
+        })
+        const totOreDay = oreWithProd.reduce((s,o) => s + o.oreLavorate, 0)
+        const totIncassoOre = oreWithProd.reduce((s,o) => s + o.ricavi, 0)
+        const mediaGiornaliera = totOreDay > 0 ? totIncassoOre / totOreDay : 0
+        // Dividi per n. giorni nel periodo per media giornaliera
+        const nDays = trend.length || 1
+        const mediaGiorn = totOreDay > 0 ? (totIncassoOre / nDays) / totOreDay : 0
+
+        return <>
+        {/* Box informativi */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:'1.25rem'}}>
+          <KPI label="Chiusura cassa" icon="🔒" value={data?.fiscalCloseTime || '—'} sub={'Z-'+(data?.zNumber||'—')} accent='#EF4444'/>
+          <KPI label="Ultima cucina/pizzeria" icon="🍕" value={data?.lastKitchenTime || '—'} sub="comanda" accent='#F59E0B'/>
+          <KPI label="Ultima bar" icon="🍺" value={data?.lastBarTime || '—'} sub="comanda" accent='#3B82F6'/>
+          <KPI label="Apertura" icon="🟢" value={data?.firstReceiptTime || '—'} sub="primo scontrino" accent='#10B981'/>
         </div>
-        <Card title="Produttività oraria" extra={
-          <select value={prodRep} onChange={e=>setProdRep(e.target.value)} style={iS}>
-            <option value="tutti">Tutti i reparti</option>
-            {depts.filter(d=>d.profit>0).map(d=><option key={d.description} value={d.description}>{d.description}</option>)}
-          </select>
-        }>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={ore} margin={{top:5,right:20,left:0,bottom:5}}>
+
+        {/* Target e soglie */}
+        <div style={{...S.card,marginBottom:'1.25rem',display:'flex',alignItems:'center',gap:24,flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:12,color:'#64748b'}}>Target €/h:</span>
+            <input type="number" value={prodTarget} onChange={e=>setProdTarget(Number(e.target.value))} style={{...iS,width:70,textAlign:'center'}}/>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:12,color:'#EF4444'}}>Rosso &lt;</span>
+            <input type="number" value={sogliaRed} onChange={e=>setSogliaRed(Number(e.target.value))} style={{...iS,width:60,textAlign:'center'}}/>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:12,color:'#F59E0B'}}>Giallo &lt;</span>
+            <input type="number" value={sogliaYel} onChange={e=>setSogliaYel(Number(e.target.value))} style={{...iS,width:60,textAlign:'center'}}/>
+          </div>
+          <span style={{fontSize:12,color:'#10B981'}}>Verde ≥ {sogliaYel}</span>
+          {/* Media giornaliera */}
+          <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:12,color:'#64748b'}}>Media giornaliera:</span>
+            <span style={{fontSize:18,fontWeight:700,color:prodColor(mediaGiorn)}}>{mediaGiorn > 0 ? mediaGiorn.toFixed(1)+' €/h' : '—'}</span>
+            {mediaGiorn > 0 && <span style={{fontSize:11,fontWeight:600,color:prodColor(mediaGiorn)}}>{prodLabel(mediaGiorn)}</span>}
+          </div>
+        </div>
+
+        {/* Grafico */}
+        <Card title="Produttività oraria" badge={isDemo?'Demo':null}>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={oreWithProd.filter(o=>o.ricavi>0)} margin={{top:5,right:20,left:0,bottom:5}}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2636" vertical={false}/>
               <XAxis dataKey="ora" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false}/>
-              <YAxis tick={{fontSize:10,fill:'#475569'}} tickFormatter={v=>'€'+Math.round(v/1000)+'k'} tickLine={false} axisLine={false} width={42}/>
-              <Tooltip formatter={v=>fmt(v)} contentStyle={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,fontSize:12}}/>
-              <Bar dataKey="ricavi" name="Ricavi" fill="#F59E0B" radius={[3,3,0,0]}/>
+              <YAxis tick={{fontSize:10,fill:'#475569'}} tickFormatter={v=>v+'€'} tickLine={false} axisLine={false} width={42}/>
+              <Tooltip formatter={(v,name)=>name==='prodOraria'?v.toFixed(1)+' €/h':fmt(v)} contentStyle={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,fontSize:12,color:'#f1f5f9'}} labelStyle={{color:'#94a3b8'}} itemStyle={{color:'#f1f5f9'}}/>
+              <Bar dataKey="ricavi" name="Ricavi" radius={[3,3,0,0]}>
+                {oreWithProd.filter(o=>o.ricavi>0).map((o,i)=><Cell key={i} fill={o.staff>0?prodColor(o.prodOraria):'#F59E0B'}/>)}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </Card>
+
+        {/* Tabella dettaglio */}
         <div style={{marginTop:12}}>
-          <Card title="Dettaglio orario">
+          <Card title="Dettaglio per fascia oraria">
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['Ora','Ricavi','Scontrini','Incasso medio'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                {['Ora','Ricavi','Scontrini','Personale','Ore lavorate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {ore.filter(o=>o.ricavi>0).map((o,i)=>(
-                  <tr key={i}>
+                {oreWithProd.filter(o=>o.ricavi>0).map((o,i)=>{
+                  const pc = prodColor(o.prodOraria)
+                  return <tr key={i}>
                     <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{o.ora}</td>
                     <td style={{...S.td,fontWeight:600}}>{fmt(o.ricavi)}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{o.scontrini}</td>
-                    <td style={S.td}>{fmtD(o.scontrini>0?o.ricavi/o.scontrini:0)}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{o.staff || '—'}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{o.oreLavorate || '—'}</td>
+                    <td style={{...S.td,fontWeight:700,color:o.staff>0?pc:'#475569'}}>{o.staff>0?o.prodOraria.toFixed(1)+' €/h':'—'}</td>
+                    <td style={S.td}>{o.staff>0?<span style={{...S.badge(pc,pc+'22'),fontSize:10}}>{prodLabel(o.prodOraria)}</span>:'—'}</td>
                   </tr>
-                ))}
+                })}
               </tbody>
             </table>
           </Card>
         </div>
-      </>}
+
+        {/* Lista comande */}
+        {(data?.receiptDetails||[]).length>0&&<div style={{marginTop:12}}>
+          <Card title="Comande del periodo" badge={fmtN((data?.receiptDetails||[]).length)+' comande'}>
+            <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+                {['','Tavolo','Aperta','Chiusa','Coperti','Totale','Articoli','Reparto'].map(h=><th key={h} style={S.th}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {(data?.receiptDetails||[]).map((r,i)=><>
+                  <tr key={i} onClick={()=>setExpandedReceipt(expandedReceipt===i?null:i)} style={{cursor:'pointer',borderBottom:'1px solid #1a1f2e'}}>
+                    <td style={{...S.td,width:24,color:'#64748b'}}>{expandedReceipt===i?'▼':'▶'}</td>
+                    <td style={{...S.td,fontWeight:600,color:'#e2e8f0'}}>{r.tavolo||'—'}</td>
+                    <td style={{...S.td,fontWeight:600,color:'#10B981'}}>{r.aperturaComanda||r.ora}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{r.chiusuraComanda||r.ora}</td>
+                    <td style={{...S.td,color:'#F59E0B',fontWeight:600}}>{r.coperti||'—'}</td>
+                    <td style={{...S.td,fontWeight:600}}>{fmt(r.totale)}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{r.items?.length||0} art.</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{[...new Set(r.items?.map(it=>it.reparto).filter(Boolean))].join(', ')||'—'}</td>
+                  </tr>
+                  {expandedReceipt===i&&<tr key={'d'+i}><td colSpan={8} style={{padding:'0 14px 12px 38px',background:'#131825'}}>
+                    <table style={{width:'100%',borderCollapse:'collapse'}}>
+                      <thead><tr>
+                        {['Prodotto','Qtà','Prezzo','Reparto'].map(h=><th key={h} style={{...S.th,fontSize:10,padding:'6px 10px'}}>{h}</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {(r.items||[]).map((it,j)=><tr key={j}>
+                          <td style={{...S.td,fontSize:12,fontWeight:500,padding:'6px 10px'}}>{it.nome}</td>
+                          <td style={{...S.td,fontSize:12,color:'#94a3b8',padding:'6px 10px'}}>{it.qty}x</td>
+                          <td style={{...S.td,fontSize:12,fontWeight:500,padding:'6px 10px'}}>{fmt(it.prezzo)}</td>
+                          <td style={{...S.td,fontSize:11,color:'#64748b',padding:'6px 10px'}}>{it.reparto||'—'}</td>
+                        </tr>)}
+                      </tbody>
+                    </table>
+                  </td></tr>}
+                </>)}
+              </tbody>
+            </table>
+          </Card>
+        </div>}
+      </>})()}
 
       {/* ── CONTO ECONOMICO ── */}
       {tab==='ce'&&<>
@@ -533,57 +784,130 @@ export default function DashboardPage({ settings }) {
       </>}
 
       {/* ── PERSONALE ── */}
-      {tab==='hr'&&<>
-        <div style={{background:'rgba(245,158,11,.06)',border:'1px solid rgba(245,158,11,.15)',borderRadius:8,padding:'14px 16px',fontSize:13,color:'#D97706',marginBottom:'1.25rem'}}>
-          👥 Il modulo Personale è disponibile nell'app overlay su <a href="https://fo.cassanova.com" target="_blank" style={{color:'#F59E0B'}}>fo.cassanova.com</a> dove puoi gestire dipendenti, documenti, orari, buste paga e calendario presenze.
-        </div>
+      {tab==='hr'&&(()=>{
+        const now = new Date()
+        const in30 = new Date(now); in30.setDate(in30.getDate()+30)
+        const scadProssime = empDocs.filter(d=>d.scadenza && new Date(d.scadenza) <= in30 && new Date(d.scadenza) >= now)
+        const giorniA = (d) => { const diff = Math.round((new Date(d)-now)/86400000); return diff }
+        const scadColor = (d) => { const g=giorniA(d); return g<0?'#EF4444':g<30?'#EF4444':g<90?'#F59E0B':'#94a3b8' }
+        const scadBg = (d) => { const g=giorniA(d); return g<0?'rgba(239,68,68,.12)':g<30?'rgba(239,68,68,.12)':g<90?'rgba(245,158,11,.12)':'rgba(148,163,184,.1)' }
+        const formStyle = {...iS, width:'100%', marginBottom:8}
+
+        return <>
+        {/* KPI dinamici */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          <KPI label="Dipendenti" icon="👤" value="4" sub="attivi" accent='#3B82F6'/>
-          <KPI label="Documenti" icon="📁" value="12" sub="caricati" accent='#10B981'/>
-          <KPI label="Scadenze" icon="📅" value="2" sub="nei prossimi 30gg" accent='#F59E0B'/>
+          <KPI label="Dipendenti" icon="👤" value={employees.filter(e=>e.stato==='Attivo').length} sub="attivi" accent='#3B82F6'/>
+          <KPI label="Documenti" icon="📁" value={empDocs.length} sub="caricati" accent='#10B981'/>
+          <KPI label="Scadenze" icon="📅" value={scadProssime.length} sub="nei prossimi 30gg" accent='#F59E0B'/>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <Card title="Dipendenti">
+
+        {/* Presenze per fascia oraria */}
+        <Card title="Presenze per fascia oraria" badge="→ Produttività" extra={
+          <button onClick={saveSchedule} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'4px 12px',fontWeight:600,fontSize:11}}>Salva presenze</button>
+        }>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+            {Array.from({length:16},(_,i)=>{
+              const h = i+8, key = String(h).padStart(2,'0')+':00'
+              return <div key={h} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0'}}>
+                <span style={{fontSize:12,color:'#94a3b8',width:45,fontWeight:500}}>{key}</span>
+                <input type="number" min="0" max="20" value={staffSchedule[key]||''} placeholder="0"
+                  onChange={e=>setStaffSchedule(prev=>({...prev,[key]:Number(e.target.value)||0}))}
+                  style={{...iS,width:50,textAlign:'center',fontSize:13,padding:'4px 6px'}}/>
+              </div>
+            })}
+          </div>
+        </Card>
+
+        {/* Dipendenti CRUD */}
+        <div style={{marginTop:12}}>
+          <Card title="Dipendenti" extra={
+            <button onClick={()=>{setShowEmpForm(true);setEditEmp(null);setEmpForm({nome:'',ruolo:'',locale:'',telefono:'',email:''})}} style={{...iS,background:'#3B82F6',color:'#fff',border:'none',padding:'5px 14px',fontWeight:600,fontSize:12}}>+ Aggiungi</button>
+          }>
+            {/* Form aggiungi/modifica */}
+            {showEmpForm&&<div style={{background:'#131825',borderRadius:8,padding:16,marginBottom:16,border:'1px solid #2a3042'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+                <input placeholder="Nome *" value={empForm.nome} onChange={e=>setEmpForm(p=>({...p,nome:e.target.value}))} style={formStyle}/>
+                <input placeholder="Ruolo" value={empForm.ruolo} onChange={e=>setEmpForm(p=>({...p,ruolo:e.target.value}))} style={formStyle}/>
+                <input placeholder="Locale" value={empForm.locale} onChange={e=>setEmpForm(p=>({...p,locale:e.target.value}))} style={formStyle}/>
+                <input placeholder="Telefono" value={empForm.telefono} onChange={e=>setEmpForm(p=>({...p,telefono:e.target.value}))} style={formStyle}/>
+                <input placeholder="Email" value={empForm.email} onChange={e=>setEmpForm(p=>({...p,email:e.target.value}))} style={formStyle}/>
+                <div style={{display:'flex',gap:8}}>
+                  <button onClick={saveEmployee} disabled={!empForm.nome||hrLoading} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'6px 16px',fontWeight:600,flex:1}}>{editEmp?'Salva':'Aggiungi'}</button>
+                  <button onClick={()=>{setShowEmpForm(false);setEditEmp(null)}} style={{...iS,color:'#64748b',border:'1px solid #2a3042',padding:'6px 12px'}}>Annulla</button>
+                </div>
+              </div>
+            </div>}
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['Nome','Ruolo','Locale','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                {['Nome','Ruolo','Locale','Telefono','Email','Stato',''].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {[
-                  {nome:'Gianmarco Incarbone',ruolo:'Bar/Sala',locale:'REMEMBEER',   stato:'Attivo'},
-                  {nome:'Filippo Secchi',     ruolo:'Cucina',  locale:'CASA DE AMICIS',stato:'Attivo'},
-                  {nome:'Mario Rossi',        ruolo:'Sala',    locale:'FIORIO',       stato:'Attivo'},
-                  {nome:'Luigi Verdi',        ruolo:'Pizzeria',locale:'REMEMBEER',   stato:'Attivo'},
-                ].map((d,i)=>(
-                  <tr key={i}>
+                {employees.length===0&&<tr><td colSpan={7} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessun dipendente. Clicca "+ Aggiungi" per inserirne uno.</td></tr>}
+                {employees.map((d)=>(
+                  <tr key={d.id}>
                     <td style={{...S.td,fontWeight:500}}>{d.nome}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{d.ruolo}</td>
                     <td style={{...S.td,fontSize:12,color:'#64748b'}}>{d.locale}</td>
-                    <td style={S.td}><span style={S.badge('#10B981','rgba(16,185,129,.12)')}>✓ {d.stato}</span></td>
+                    <td style={{...S.td,fontSize:12,color:'#94a3b8'}}>{d.telefono||'—'}</td>
+                    <td style={{...S.td,fontSize:12,color:'#94a3b8'}}>{d.email||'—'}</td>
+                    <td style={S.td}><span style={S.badge(d.stato==='Attivo'?'#10B981':'#EF4444',d.stato==='Attivo'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)')}>{d.stato==='Attivo'?'✓':''} {d.stato}</span></td>
+                    <td style={{...S.td,whiteSpace:'nowrap'}}>
+                      <button onClick={()=>{setEditEmp(d);setEmpForm({nome:d.nome,ruolo:d.ruolo||'',locale:d.locale||'',telefono:d.telefono||'',email:d.email||''});setShowEmpForm(true)}} style={{background:'none',border:'none',color:'#3B82F6',cursor:'pointer',fontSize:12,marginRight:8}}>Modifica</button>
+                      <button onClick={()=>{if(confirm('Eliminare '+d.nome+'?'))deleteEmployee(d.id)}} style={{background:'none',border:'none',color:'#EF4444',cursor:'pointer',fontSize:12}}>Elimina</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </Card>
-          <Card title="Scadenze documentali">
-            {[
-              {doc:'Contratto Gianmarco Incarbone',scad:'30/06/2026',giorni:91,alert:false},
-              {doc:'Busta paga Filippo Secchi',    scad:'30/04/2026',giorni:30,alert:true },
-              {doc:'Contratto Mario Rossi',        scad:'31/12/2026',giorni:275,alert:false},
-            ].map((s,i)=>(
-              <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid #1e2636'}}>
-                <div>
-                  <div style={{fontSize:13,fontWeight:500,marginBottom:2}}>{s.doc}</div>
-                  <div style={{fontSize:11,color:'#64748b'}}>Scade: {s.scad}</div>
-                </div>
-                <span style={S.badge(s.alert?'#EF4444':'#94a3b8',s.alert?'rgba(239,68,68,.12)':'rgba(148,163,184,.1)')}>
-                  {s.giorni}gg
-                </span>
+        </div>
+
+        {/* Documenti e scadenze */}
+        <div style={{marginTop:12}}>
+          <Card title="Documenti e scadenze" extra={
+            <button onClick={()=>{setShowDocForm(true);setDocForm({employee_id:employees[0]?.id||'',tipo:'Contratto',nome:'',scadenza:'',file:null})}} disabled={!employees.length} style={{...iS,background:'#F59E0B',color:'#0f1420',border:'none',padding:'5px 14px',fontWeight:600,fontSize:12}}>Carica documento</button>
+          }>
+            {showDocForm&&<div style={{background:'#131825',borderRadius:8,padding:16,marginBottom:16,border:'1px solid #2a3042'}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10}}>
+                <select value={docForm.employee_id} onChange={e=>setDocForm(p=>({...p,employee_id:e.target.value}))} style={formStyle}>
+                  <option value="">Dipendente...</option>
+                  {employees.map(e=><option key={e.id} value={e.id}>{e.nome}</option>)}
+                </select>
+                <select value={docForm.tipo} onChange={e=>setDocForm(p=>({...p,tipo:e.target.value}))} style={formStyle}>
+                  {['Contratto','Busta paga','Documento identita','Certificato','Altro'].map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+                <input placeholder="Nome documento" value={docForm.nome} onChange={e=>setDocForm(p=>({...p,nome:e.target.value}))} style={formStyle}/>
+                <input type="date" value={docForm.scadenza} onChange={e=>setDocForm(p=>({...p,scadenza:e.target.value}))} style={formStyle} title="Scadenza"/>
               </div>
-            ))}
+              <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                <input type="file" accept=".pdf,.jpg,.png,.doc,.docx" onChange={e=>setDocForm(p=>({...p,file:e.target.files[0]||null}))} style={{fontSize:12,color:'#94a3b8'}}/>
+                <button onClick={saveDoc} disabled={!docForm.employee_id||!docForm.nome||hrLoading} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'6px 16px',fontWeight:600}}>Salva</button>
+                <button onClick={()=>setShowDocForm(false)} style={{...iS,color:'#64748b',border:'1px solid #2a3042',padding:'6px 12px'}}>Annulla</button>
+              </div>
+            </div>}
+            <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+                {['Dipendente','Tipo','Nome','Scadenza','File',''].map(h=><th key={h} style={S.th}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {empDocs.length===0&&<tr><td colSpan={6} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessun documento caricato.</td></tr>}
+                {empDocs.map((d)=>{
+                  const emp = employees.find(e=>e.id===d.employee_id)
+                  const g = d.scadenza ? giorniA(d.scadenza) : null
+                  return <tr key={d.id}>
+                    <td style={{...S.td,fontWeight:500}}>{emp?.nome||'—'}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{d.tipo}</td>
+                    <td style={S.td}>{d.nome}</td>
+                    <td style={S.td}>{d.scadenza?<span style={S.badge(scadColor(d.scadenza),scadBg(d.scadenza))}>{d.scadenza} ({g<0?'scaduto':g+'gg'})</span>:'—'}</td>
+                    <td style={S.td}>{d.file_path?<button onClick={()=>downloadDoc(d.file_path)} style={{background:'none',border:'none',color:'#3B82F6',cursor:'pointer',fontSize:12}}>Scarica</button>:'—'}</td>
+                    <td style={S.td}><button onClick={()=>{if(confirm('Eliminare documento?'))deleteDoc(d)}} style={{background:'none',border:'none',color:'#EF4444',cursor:'pointer',fontSize:12}}>Elimina</button></td>
+                  </tr>
+                })}
+              </tbody>
+            </table>
           </Card>
         </div>
-      </>}
+      </>})()}
 
       </>}
     </div>

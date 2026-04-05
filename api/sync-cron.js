@@ -57,6 +57,8 @@ const CAT_NAMES = {
   "8bc2e435-0b06-4f6b-b8ba-a72ce2886e77": "PROMOZIONI FOOD"
 };
 
+const DEPT_NAMES = {"4b5a191f-2a22-4520-9c86-71ad1eda5b15":"BAR","5fe05a66-002d-4c2f-9fe7-2d2ea55a39c9":"CUCINA","a164ece6-2c76-4031-a6f6-4900acf1229f":"Reparto 1","ecddf000-60ad-492c-aaaa-5d669e188679":"IVA AL 4","1f8f00bd-7671-4d5d-b19e-e8dc581c3256":"COPERTO","226b870e-44fc-40d1-8506-585bec12ed72":"PIZZERIA","c80cdb68-e3c1-4344-a8e4-f799ff811ae9":"COPERTO","ed7ffa46-6a3d-42f8-a52f-3be32b97d8db":"BAR"};
+
 const SALESPOINTS = [
   { id: 21747, name: 'REMEMBEER',      apiKey: '4b7a4c14-75f3-417a-8f23-fc85c8c58d57', filterSp: 21747 },
   { id: 22399, name: 'CASA DE AMICIS', apiKey: '41000e19-b98c-4022-904a-cf2290ae9d81', filterSp: 22399 },
@@ -71,6 +73,60 @@ async function getCicToken(apiKey) {
   const d = await res.json();
   if (!d.access_token) throw new Error('Token fail: ' + JSON.stringify(d));
   return d.access_token;
+}
+
+// Fetch nomi prodotti dall'API CiC
+async function fetchProductNames(token) {
+  const names = {};
+  try {
+    let start = 0;
+    while (true) {
+      const res = await fetch(CIC_BASE + '/products?start=' + start + '&limit=100', {
+        headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' }
+      });
+      if (!res.ok) break;
+      const d = await res.json();
+      const prods = d.products || [];
+      for (const p of prods) { if (p.id && p.description) names[p.id] = p.description; }
+      if (prods.length < 100) break;
+      start += 100;
+      await new Promise(r => setTimeout(r, 100));
+    }
+  } catch (e) { /* silently fail */ }
+  return names;
+}
+
+// Fetch categorie dinamiche dall'API CiC
+async function fetchCategoryNames(token) {
+  const names = {};
+  try {
+    const res = await fetch(CIC_BASE + '/warehouse/categories?start=0&limit=500', {
+      headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' }
+    });
+    if (res.ok) {
+      const d = await res.json();
+      const cats = d.categories || d.results || (Array.isArray(d) ? d : []);
+      for (const c of cats) {
+        if (c.id && c.description) names[c.id] = c.description;
+      }
+    }
+  } catch (e) { /* fallback a CAT_NAMES statica */ }
+  return names;
+}
+
+// Fetch chiusura cassa (reconciliation) per una data
+async function getReconciliation(token, date, filterSp) {
+  try {
+    const dateQ = encodeURIComponent('"' + date + '"');
+    const url = `${CIC_BASE}/reconciliations?start=0&limit=10&datetimeFrom=${dateQ}&datetimeTo=${dateQ}`;
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' } });
+    if (!res.ok) return null;
+    const d = await res.json();
+    const rec = (d.reconciliations || []).find(r => r.idSalesPoint === filterSp);
+    if (!rec || !rec.date) return null;
+    const dt = new Date(rec.date);
+    return { time: String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0'), zNumber: rec.number };
+  } catch { return null; }
 }
 
 async function getReceipts(token, date, filterSp) {
@@ -93,55 +149,155 @@ async function getReceipts(token, date, filterSp) {
   return all;
 }
 
-function aggregateReceipts(receipts) {
-  const deptMap = {}, catMap = {};
+// Reparti cucina/pizzeria per rilevare ultima comanda cucina
+const KITCHEN_DEPTS = new Set(['CUCINA', 'PIZZERIA']);
+const BAR_DEPTS = new Set(['BAR']);
+
+function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
+  const deptMap = {}, catMap = {}, hourlyMap = {}, comandeMap = {};
   let revenue = 0;
+  let firstReceiptTime = null, lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null;
+  let zNumber = null;
+
   for (const r of receipts) {
-    revenue += r.document?.amount || 0;
-    for (const row of (r.document?.rows || [])) {
+    const doc = r.document || {};
+    revenue += doc.amount || 0;
+
+    // Estrai ora dallo scontrino (datetime è sul receipt top-level)
+    const dt = r.datetime || r.date || '';
+    const timeMatch = typeof dt === 'string' ? dt.match(/T(\d{2}):(\d{2})/) : null;
+    const receiptHour = timeMatch ? parseInt(timeMatch[1]) : null;
+    const receiptTime = timeMatch ? timeMatch[1] + ':' + timeMatch[2] : null;
+
+    // Traccia primo e ultimo scontrino (solo dalle 16:00 - locali aperti solo la sera)
+    if (receiptHour != null && receiptHour >= 16) {
+      if (receiptTime && (!firstReceiptTime || receiptTime < firstReceiptTime)) firstReceiptTime = receiptTime;
+      if (receiptTime && (!lastReceiptTime || receiptTime > lastReceiptTime)) lastReceiptTime = receiptTime;
+    }
+    // Numero chiusura Z
+    if (r.zNumber) zNumber = r.zNumber;
+
+    // Aggregazione oraria (solo dalle 16:00)
+    if (receiptHour != null && receiptHour >= 16) {
+      if (!hourlyMap[receiptHour]) hourlyMap[receiptHour] = { hour: receiptHour, ricavi: 0, scontrini: 0 };
+      hourlyMap[receiptHour].ricavi += doc.amount || 0;
+      hourlyMap[receiptHour].scontrini += 1;
+    }
+
+    // Raccolta items per dettaglio comanda
+    const receiptItems = [];
+    let hasKitchen = false, hasBar = false;
+    for (const row of (doc.rows || [])) {
       if (row.subtotal || row.composition) continue;
       const price = (row.price || 0) * (row.quantity || 1);
       const dId = row.idDepartment || 'unknown';
       const cId = row.idCategory || null;
-      deptMap[dId] = deptMap[dId] || { idDepartment: dId, profit: 0, quantity: 0 };
+      const dName = row.department?.description || DEPT_NAMES[dId] || null;
+      deptMap[dId] = deptMap[dId] || { idDepartment: dId, department: dName ? { description: dName } : undefined, profit: 0, quantity: 0 };
+      if (!deptMap[dId].department?.description && dName) deptMap[dId].department = { description: dName };
       deptMap[dId].profit += price;
       deptMap[dId].quantity += row.quantity || 1;
+
+      // Dettaglio prodotto per la comanda
+      if (!row.coverCharge && price > 0) {
+        const prodName = (row.idProduct && productNames[row.idProduct]) || (row.idProductVariant && productNames[row.idProductVariant]) || null;
+        receiptItems.push({ nome: prodName || dName || 'Articolo', qty: row.quantity || 1, prezzo: price, reparto: dName });
+      }
+
+      // Traccia ultima comanda cucina/bar
+      if (dName && KITCHEN_DEPTS.has(dName.toUpperCase())) hasKitchen = true;
+      if (dName && BAR_DEPTS.has(dName.toUpperCase())) hasBar = true;
+
       if (cId) {
-        catMap[cId] = catMap[cId] || { idCategory: cId, description: CAT_NAMES[cId] || null, profit: 0, quantity: 0 };
+        const cName = row.category?.description || dynamicCatNames[cId] || CAT_NAMES[cId] || null;
+        catMap[cId] = catMap[cId] || { idCategory: cId, description: cName, profit: 0, quantity: 0 };
+        if (!catMap[cId].description && cName) catMap[cId].description = cName;
         catMap[cId].profit += price;
         catMap[cId].quantity += row.quantity || 1;
       }
     }
+    // Raggruppa scontrini per comanda (orderSummary.id) — solo dalle 16:00
+    if (receiptItems.length > 0 && receiptHour != null && receiptHour >= 16) {
+      const os = doc.orderSummary || {};
+      const orderId = os.id || r.id; // fallback a receipt id se non c'e orderSummary
+      const openMatch = typeof os.openingTime === 'string' ? os.openingTime.match(/T(\d{2}:\d{2})/) : null;
+      const closeMatch = typeof os.closingTime === 'string' ? os.closingTime.match(/T(\d{2}:\d{2})/) : null;
+
+      if (!comandeMap[orderId]) {
+        comandeMap[orderId] = {
+          aperturaComanda: openMatch ? openMatch[1] : null,
+          chiusuraComanda: closeMatch ? closeMatch[1] : null,
+          tavolo: os.tableName || null,
+          coperti: os.covers || null,
+          totale: 0,
+          items: []
+        };
+      }
+      comandeMap[orderId].totale += doc.amount || 0;
+      comandeMap[orderId].items.push(...receiptItems);
+    }
+    if (receiptHour != null && receiptHour >= 16) {
+      if (hasKitchen && receiptTime && (!lastKitchenTime || receiptTime > lastKitchenTime)) lastKitchenTime = receiptTime;
+      if (hasBar && receiptTime && (!lastBarTime || receiptTime > lastBarTime)) lastBarTime = receiptTime;
+    }
   }
+
   return {
     dept_records: Object.values(deptMap).sort((a, b) => b.profit - a.profit),
     cat_records: Object.values(catMap).sort((a, b) => b.profit - a.profit),
+    hourly_records: Object.values(hourlyMap).sort((a, b) => a.hour - b.hour),
+    receipt_details: Object.values(comandeMap).sort((a, b) => (a.aperturaComanda || '').localeCompare(b.aperturaComanda || '')),
     bill_count: receipts.length,
-    revenue: Math.round(revenue * 100) / 100
+    revenue: Math.round(revenue * 100) / 100,
+    first_receipt_time: firstReceiptTime,
+    last_receipt_time: lastReceiptTime,
+    last_kitchen_time: lastKitchenTime,
+    last_bar_time: lastBarTime,
+    z_number: zNumber
   };
 }
 
 async function saveDailyStats(sp, date, agg) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_stats`, {
+  const payload = {
+    salespoint_id: sp.id,
+    salespoint_name: sp.name,
+    date: date,
+    dept_records: agg.dept_records,
+    cat_records: agg.cat_records,
+    hourly_records: agg.hourly_records,
+    receipt_details: agg.receipt_details,
+    bill_count: agg.bill_count,
+    revenue: agg.revenue,
+    first_receipt_time: agg.first_receipt_time,
+    last_receipt_time: agg.last_receipt_time,
+    last_kitchen_time: agg.last_kitchen_time,
+    last_bar_time: agg.last_bar_time,
+    z_number: agg.z_number,
+    fiscal_close_time: agg.fiscal_close_time,
+    synced_at: new Date().toISOString()
+  };
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Prefer': 'return=minimal'
+  };
+
+  // Prima prova UPDATE (PATCH) sul record esistente
+  const patchRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/daily_stats?salespoint_id=eq.${sp.id}&date=eq.${date}`,
+    { method: 'PATCH', headers, body: JSON.stringify(payload) }
+  );
+  // 204 = aggiornato, 404 o 0 righe = non esiste ancora
+  if (patchRes.status === 204) return 204;
+
+  // Fallback: INSERT
+  const postRes = await fetch(`${SUPABASE_URL}/rest/v1/daily_stats`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_KEY,
-      'Authorization': 'Bearer ' + SUPABASE_KEY,
-      'Prefer': 'resolution=merge-duplicates,return=minimal'
-    },
-    body: JSON.stringify([{
-      salespoint_id: sp.id,
-      salespoint_name: sp.name,
-      date: date,
-      dept_records: agg.dept_records,
-      cat_records: agg.cat_records,
-      bill_count: agg.bill_count,
-      revenue: agg.revenue,
-      synced_at: new Date().toISOString()
-    }])
+    headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([payload])
   });
-  return res.status;
+  return postRes.status;
 }
 
 async function getMissingDays() {
@@ -180,11 +336,25 @@ export default async function handler(req, res) {
       try { token = await getCicToken(sp.apiKey); }
       catch (e) { logs.push(`Token fail ${sp.name}: ${e.message}`); errors++; continue; }
 
+      // Fetch nomi categorie dinamici dall'API
+      const dynamicCatNames = await fetchCategoryNames(token);
+      const prodNames = await fetchProductNames(token);
+      const dynCount = Object.keys(dynamicCatNames).length;
+      const prodCount = Object.keys(prodNames).length;
+      if (dynCount > 0) logs.push(`${sp.name}: ${dynCount} categorie da API`);
+      if (prodCount > 0) logs.push(`${sp.name}: ${prodCount} prodotti da API`);
+
       for (const date of days) {
         try {
           const receipts = await getReceipts(token, date, sp.filterSp);
           if (receipts.length === 0) continue; // salta giorni senza vendite
-          const agg = aggregateReceipts(receipts);
+          const agg = aggregateReceipts(receipts, dynamicCatNames, prodNames);
+          // Chiusura cassa reale dalla reconciliation
+          const reconc = await getReconciliation(token, date, sp.filterSp);
+          if (reconc) {
+            agg.fiscal_close_time = reconc.time;
+            agg.z_number = reconc.zNumber;
+          }
           const status = await saveDailyStats(sp, date, agg);
           if (status === 201 || status === 204) {
             saved++;
