@@ -60,8 +60,8 @@ const CAT_NAMES = {
 const DEPT_NAMES = {"4b5a191f-2a22-4520-9c86-71ad1eda5b15":"BAR","5fe05a66-002d-4c2f-9fe7-2d2ea55a39c9":"CUCINA","a164ece6-2c76-4031-a6f6-4900acf1229f":"Reparto 1","ecddf000-60ad-492c-aaaa-5d669e188679":"IVA AL 4","1f8f00bd-7671-4d5d-b19e-e8dc581c3256":"COPERTO","226b870e-44fc-40d1-8506-585bec12ed72":"PIZZERIA","c80cdb68-e3c1-4344-a8e4-f799ff811ae9":"COPERTO","ed7ffa46-6a3d-42f8-a52f-3be32b97d8db":"BAR"};
 
 const SALESPOINTS = [
-  { id: 21747, name: 'REMEMBEER',      apiKey: '4b7a4c14-75f3-417a-8f23-fc85c8c58d57', filterSp: 21747 },
-  { id: 22399, name: 'CASA DE AMICIS', apiKey: '41000e19-b98c-4022-904a-cf2290ae9d81', filterSp: 22399 },
+  { id: 21747, name: 'REMEMBEER',      apiKey: '4b7a4c14-75f3-417a-8f23-fc85c8c58d57', filterSp: 21747, openHour: 10 },
+  { id: 22399, name: 'CASA DE AMICIS', apiKey: '41000e19-b98c-4022-904a-cf2290ae9d81', filterSp: 22399, openHour: 17 },
 ];
 
 async function getCicToken(apiKey) {
@@ -129,22 +129,39 @@ async function getReconciliation(token, date, filterSp) {
   } catch { return null; }
 }
 
-async function getReceipts(token, date, filterSp) {
-  // Paginazione: cap API = 100 record/pagina
+async function getReceipts(token, date, filterSp, openHour = 10) {
+  // Scarica receipt del giorno lavorativo:
+  // - Dal giorno di calendario (date) dall'ora di apertura
+  // - + il giorno successivo fino all'ora di apertura (per scontrini dopo mezzanotte)
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + 1);
+  const nextDateStr = nextDate.toISOString().split('T')[0];
+
   const sorts = encodeURIComponent(JSON.stringify([{ key: 'date', direction: 1 }]));
-  const dateQ = encodeURIComponent('"' + date + '"');
   const all = [];
-  let start = 0;
-  while (true) {
-    const url = `${CIC_BASE}/documents/receipts?start=${start}&limit=100&datetimeFrom=${dateQ}&datetimeTo=${dateQ}&sorts=${sorts}`;
-    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' } });
-    const d = await res.json();
-    const page = d.receipts || [];
-    // filtro client-side per salespoint
-    all.push(...page.filter(r => r.document?.idSalesPoint === filterSp && !r.document?.refund));
-    if (page.length < 100) break;
-    start += 100;
-    await new Promise(r => setTimeout(r, 150));
+
+  // Fetch da entrambi i giorni di calendario
+  for (const d of [date, nextDateStr]) {
+    const dateQ = encodeURIComponent('"' + d + '"');
+    let start = 0;
+    while (true) {
+      const url = `${CIC_BASE}/documents/receipts?start=${start}&limit=100&datetimeFrom=${dateQ}&datetimeTo=${dateQ}&sorts=${sorts}`;
+      const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' } });
+      const data = await res.json();
+      const page = data.receipts || [];
+      for (const r of page) {
+        if (r.document?.idSalesPoint !== filterSp || r.document?.refund) continue;
+        const h = r.datetime ? parseInt(r.datetime.match(/T(\d{2})/)?.[1]) : null;
+        if (h == null) continue;
+        // Giorno di calendario = date → prendi solo da openHour in poi
+        // Giorno successivo = nextDate → prendi solo prima di openHour (dopo mezzanotte)
+        if (d === date && h >= openHour) all.push(r);
+        if (d === nextDateStr && h < openHour) all.push(r);
+      }
+      if (page.length < 100) break;
+      start += 100;
+      await new Promise(r => setTimeout(r, 150));
+    }
   }
   return all;
 }
@@ -153,10 +170,11 @@ async function getReceipts(token, date, filterSp) {
 const KITCHEN_DEPTS = new Set(['CUCINA', 'PIZZERIA']);
 const BAR_DEPTS = new Set(['BAR']);
 
-function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
+function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}, openHour = 10) {
   const deptMap = {}, catMap = {}, hourlyMap = {}, comandeMap = {};
   let revenue = 0;
   let firstReceiptTime = null, lastReceiptTime = null, lastKitchenTime = null, lastBarTime = null;
+  let firstBizTime = null, lastBizTime = null, lastKitchenBiz = null, lastBarBiz = null;
   let zNumber = null;
 
   for (const r of receipts) {
@@ -169,16 +187,18 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
     const receiptHour = timeMatch ? parseInt(timeMatch[1]) : null;
     const receiptTime = timeMatch ? timeMatch[1] + ':' + timeMatch[2] : null;
 
-    // Traccia primo e ultimo scontrino (solo dalle 16:00 - locali aperti solo la sera)
-    if (receiptHour != null && receiptHour >= 16) {
-      if (receiptTime && (!firstReceiptTime || receiptTime < firstReceiptTime)) firstReceiptTime = receiptTime;
-      if (receiptTime && (!lastReceiptTime || receiptTime > lastReceiptTime)) lastReceiptTime = receiptTime;
+    // Traccia primo e ultimo scontrino del giorno lavorativo
+    // Ore prima di openHour = dopo mezzanotte, vanno considerate "tardi"
+    if (receiptHour != null && receiptTime) {
+      const bizTime = receiptHour < openHour ? (24 + receiptHour) : receiptHour;
+      if (firstBizTime == null || bizTime < firstBizTime) { firstBizTime = bizTime; firstReceiptTime = receiptTime; }
+      if (lastBizTime == null || bizTime > lastBizTime) { lastBizTime = bizTime; lastReceiptTime = receiptTime; }
     }
     // Numero chiusura Z
     if (r.zNumber) zNumber = r.zNumber;
 
     // Aggregazione oraria (solo dalle 16:00)
-    if (receiptHour != null && receiptHour >= 16) {
+    if (receiptHour != null) {
       if (!hourlyMap[receiptHour]) hourlyMap[receiptHour] = { hour: receiptHour, ricavi: 0, scontrini: 0 };
       hourlyMap[receiptHour].ricavi += doc.amount || 0;
       hourlyMap[receiptHour].scontrini += 1;
@@ -217,7 +237,7 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
       }
     }
     // Raggruppa scontrini per comanda (orderSummary.id) — solo dalle 16:00
-    if (receiptItems.length > 0 && receiptHour != null && receiptHour >= 16) {
+    if (receiptItems.length > 0 && receiptHour != null) {
       const os = doc.orderSummary || {};
       const orderId = os.id || r.id; // fallback a receipt id se non c'e orderSummary
       const openMatch = typeof os.openingTime === 'string' ? os.openingTime.match(/T(\d{2}:\d{2})/) : null;
@@ -236,9 +256,10 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}) {
       comandeMap[orderId].totale += doc.amount || 0;
       comandeMap[orderId].items.push(...receiptItems);
     }
-    if (receiptHour != null && receiptHour >= 16) {
-      if (hasKitchen && receiptTime && (!lastKitchenTime || receiptTime > lastKitchenTime)) lastKitchenTime = receiptTime;
-      if (hasBar && receiptTime && (!lastBarTime || receiptTime > lastBarTime)) lastBarTime = receiptTime;
+    if (receiptHour != null) {
+      const bizT = receiptHour < openHour ? (24 + receiptHour) : receiptHour;
+      if (hasKitchen && receiptTime && (lastKitchenBiz == null || bizT > lastKitchenBiz)) { lastKitchenBiz = bizT; lastKitchenTime = receiptTime; }
+      if (hasBar && receiptTime && (lastBarBiz == null || bizT > lastBarBiz)) { lastBarBiz = bizT; lastBarTime = receiptTime; }
     }
   }
 
@@ -342,9 +363,9 @@ export default async function handler(req, res) {
 
       for (const date of days) {
         try {
-          const receipts = await getReceipts(token, date, sp.filterSp);
+          const receipts = await getReceipts(token, date, sp.filterSp, sp.openHour);
           if (receipts.length === 0) continue; // salta giorni senza vendite
-          const agg = aggregateReceipts(receipts, dynamicCatNames, prodNames);
+          const agg = aggregateReceipts(receipts, dynamicCatNames, prodNames, sp.openHour);
           // Chiusura cassa reale dalla reconciliation
           const reconc = await getReconciliation(token, date, sp.filterSp);
           if (reconc) {
