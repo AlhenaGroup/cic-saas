@@ -283,18 +283,14 @@ async function saveDailyStats(sp, date, agg) {
     'Prefer': 'return=minimal'
   };
 
-  // Prima prova UPDATE (PATCH) sul record esistente
-  const patchRes = await fetch(
+  // DELETE + INSERT (upsert affidabile)
+  await fetch(
     `${SUPABASE_URL}/rest/v1/daily_stats?salespoint_id=eq.${sp.id}&date=eq.${date}`,
-    { method: 'PATCH', headers, body: JSON.stringify(payload) }
+    { method: 'DELETE', headers }
   );
-  // 204 = aggiornato, 404 o 0 righe = non esiste ancora
-  if (patchRes.status === 204) return 204;
-
-  // Fallback: INSERT
   const postRes = await fetch(`${SUPABASE_URL}/rest/v1/daily_stats`, {
     method: 'POST',
-    headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    headers: { ...headers, 'Prefer': 'return=minimal' },
     body: JSON.stringify([payload])
   });
   return postRes.status;
