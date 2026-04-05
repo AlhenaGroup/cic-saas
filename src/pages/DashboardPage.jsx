@@ -239,6 +239,7 @@ export default function DashboardPage({ settings }) {
   const dRicavi = deltaFmt(totale, prevData?.totale)
   const dScontrini = deltaFmt(data?.scontrini||0, prevData?.scontrini)
   const dCoperti = deltaFmt(coperti, prevData?.coperti)
+  const dCopertoMedio = deltaFmt(copertoMedio, prevData?.copertoMedio)
   const depts  = data?.depts||[]
   const cats   = data?.cats||[]
   const taxes  = data?.taxes||[]
@@ -314,7 +315,7 @@ export default function DashboardPage({ settings }) {
           <KPI label="Scontrini" icon="🧾" value={fmtN(data?.scontrini)} sub={dScontrini?<span style={{color:dScontrini.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dScontrini.label}</span>:'documenti'} accent='#3B82F6' trend={dScontrini?.pct}/>
           <KPI label="Scontrino medio" icon="📈" value={fmtD(data?.medio)} sub="per documento" accent='#10B981'/>
           <KPI label="Coperti totali" icon="🍽️" value={fmtN(coperti)} sub={dCoperti?<span style={{color:dCoperti.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCoperti.label}</span>:'persone'} accent='#F97316' trend={dCoperti?.pct}/>
-          <KPI label="Coperto medio" icon="💰" value={fmtD(copertoMedio)} sub="incasso / coperto" accent='#8B5CF6'/>
+          <KPI label="Coperto medio" icon="💰" value={fmtD(copertoMedio)} sub={dCopertoMedio?<span style={{color:dCopertoMedio.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCopertoMedio.label}</span>:'incasso / coperto'} accent='#8B5CF6' trend={dCopertoMedio?.pct}/>
           <KPI label="Reparti attivi" icon="🏷️" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#06B6D4'/>
         </div>
 
