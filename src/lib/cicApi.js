@@ -124,7 +124,19 @@ export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPo
     const daily = await getFromDailyStats(from, to, idsSalesPoint);
     if (daily && daily.totale > 0) {
       const demo = generateDemoData(from, to, salesPoints);
-      return { ...demo, ...daily };
+      const result = { ...demo, ...daily };
+      // Fetch costi personale per CE
+      try {
+        const { data: pcRows } = await supabase.from('personnel_costs').select('costo_totale').gte('mese', from.substring(0,7)+'-01').lte('mese', to.substring(0,7)+'-01');
+        const persCost = (pcRows||[]).reduce((s,r) => s + Number(r.costo_totale||0), 0);
+        if (persCost > 0 && result.ce) {
+          result.ce = { ...result.ce, persCost, totCosti: result.ce.foodCost+result.ce.bevCost+result.ce.matCost+persCost+result.ce.strCost+(result.ce.altCost||0) };
+          result.ce.mol = result.ce.ricavi - result.ce.totCosti;
+          result.ce.molPct = result.ce.ricavi > 0 ? result.ce.mol/result.ce.ricavi*100 : 0;
+          result.ce.persPct = result.ce.ricavi > 0 ? persCost/result.ce.ricavi*100 : 0;
+        }
+      } catch(e) { /* personnel_costs non disponibile */ }
+      return result;
     }
   } catch(e) { console.warn('[daily_stats]', e.message); }
 

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { S, KPI, Card } from '../components/shared/styles.jsx'
 import EmployeeProfile from '../components/hr/EmployeeProfile'
+import ShiftAssistant from '../components/hr/ShiftAssistant'
+import HRCalendar from '../components/hr/HRCalendar'
 
 export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps }) {
   const [employees, setEmployees]       = useState([])
@@ -59,6 +61,13 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
     })
     setDocForm({employee_id:'',tipo:'Contratto',nome:'',scadenza:'',file:null}); setShowDocForm(false)
     await loadDocs(); setHrLoading(false)
+    // Trigger parsing se è un file parsabile
+    if (filePath && ['pdf','xlsx','xls','doc','docx'].some(e => filePath.endsWith(e))) {
+      const { data: docs } = await supabase.from('employee_documents').select('id').eq('file_path', filePath).limit(1)
+      if (docs?.[0]) {
+        fetch('/api/parse-document', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ file_path: filePath, doc_id: docs[0].id, doc_type: docForm.tipo }) }).then(() => loadDocs()).catch(() => {})
+      }
+    }
   }
   const deleteDoc = async (doc) => {
     if (doc.file_path) await supabase.storage.from('documents').remove([doc.file_path])
@@ -84,6 +93,10 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
   }
 
   return <>
+    {/* Calendario */}
+    <HRCalendar employees={employees}/>
+    <div style={{marginTop:16}}/>
+
     {/* KPI dinamici */}
     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
       <KPI label="Dipendenti" icon="👤" value={employees.filter(e=>e.stato==='Attivo').length} sub="attivi" accent='#3B82F6'/>
@@ -195,6 +208,11 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
           </tbody>
         </table>
       </Card>
+    </div>
+
+    {/* Assistente Turni + Costi */}
+    <div style={{marginTop:12}}>
+      <ShiftAssistant employees={employees} sp={sp} sps={sps} staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule}/>
     </div>
   </>
 }
