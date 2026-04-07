@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { S, KPI, Card } from '../components/shared/styles.jsx'
+import EmployeeProfile from '../components/hr/EmployeeProfile'
 
 export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps }) {
   const [employees, setEmployees]       = useState([])
@@ -11,6 +12,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
   const [showDocForm, setShowDocForm]   = useState(false)
   const [docForm, setDocForm]           = useState({employee_id:'',tipo:'Contratto',nome:'',scadenza:'',file:null})
   const [hrLoading, setHrLoading]       = useState(false)
+  const [selectedEmp, setSelectedEmp]   = useState(null)
 
   const iS = S.input
 
@@ -76,6 +78,11 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
   const scadBg = (d) => { const g=giorniA(d); return g<0?'rgba(239,68,68,.12)':g<30?'rgba(239,68,68,.12)':g<90?'rgba(245,158,11,.12)':'rgba(148,163,184,.1)' }
   const formStyle = {...iS, width:'100%', marginBottom:8}
 
+  // Se un dipendente è selezionato, mostra il profilo
+  if (selectedEmp) {
+    return <EmployeeProfile employee={selectedEmp} onClose={()=>setSelectedEmp(null)} onUpdate={loadEmployees}/>
+  }
+
   return <>
     {/* KPI dinamici */}
     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
@@ -127,7 +134,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
             {employees.length===0&&<tr><td colSpan={7} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessun dipendente. Clicca "+ Aggiungi" per inserirne uno.</td></tr>}
             {employees.map((d)=>(
               <tr key={d.id}>
-                <td style={{...S.td,fontWeight:500}}>{d.nome}</td>
+                <td style={{...S.td,fontWeight:500,color:'#3B82F6',cursor:'pointer'}} onClick={()=>setSelectedEmp(d)}>{d.nome}</td>
                 <td style={{...S.td,color:'#94a3b8'}}>{d.ruolo}</td>
                 <td style={{...S.td,fontSize:12,color:'#64748b'}}>{d.locale}</td>
                 <td style={{...S.td,fontSize:12,color:'#94a3b8'}}>{d.telefono||'—'}</td>
