@@ -79,9 +79,14 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
     if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
+  // Filtro per locale selezionato
+  const locale = sp === 'all' ? null : sps.find(s => String(s.id) === sp)?.description || sp
+  const filteredEmps = locale ? employees.filter(e => e.locale === locale) : employees
+  const filteredDocs = locale ? empDocs.filter(d => { const emp = employees.find(e => e.id === d.employee_id); return !emp || emp.locale === locale }) : empDocs
+
   const now = new Date()
   const in30 = new Date(now); in30.setDate(in30.getDate()+30)
-  const scadProssime = empDocs.filter(d=>d.scadenza && new Date(d.scadenza) <= in30 && new Date(d.scadenza) >= now)
+  const scadProssime = filteredDocs.filter(d=>d.scadenza && new Date(d.scadenza) <= in30 && new Date(d.scadenza) >= now)
   const giorniA = (d) => { const diff = Math.round((new Date(d)-now)/86400000); return diff }
   const scadColor = (d) => { const g=giorniA(d); return g<0?'#EF4444':g<30?'#EF4444':g<90?'#F59E0B':'#94a3b8' }
   const scadBg = (d) => { const g=giorniA(d); return g<0?'rgba(239,68,68,.12)':g<30?'rgba(239,68,68,.12)':g<90?'rgba(245,158,11,.12)':'rgba(148,163,184,.1)' }
@@ -99,8 +104,8 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
 
     {/* KPI dinamici */}
     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
-      <KPI label="Dipendenti" icon="👤" value={employees.filter(e=>e.stato==='Attivo').length} sub="attivi" accent='#3B82F6'/>
-      <KPI label="Documenti" icon="📁" value={empDocs.length} sub="caricati" accent='#10B981'/>
+      <KPI label="Dipendenti" icon="👤" value={filteredEmps.filter(e=>e.stato==='Attivo').length} sub="attivi" accent='#3B82F6'/>
+      <KPI label="Documenti" icon="📁" value={filteredDocs.length} sub="caricati" accent='#10B981'/>
       <KPI label="Scadenze" icon="📅" value={scadProssime.length} sub="nei prossimi 30gg" accent='#F59E0B'/>
     </div>
 
@@ -147,8 +152,8 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
             {['Nome','Ruolo','Locale','Telefono','Email','Stato',''].map(h=><th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {employees.length===0&&<tr><td colSpan={7} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessun dipendente. Clicca "+ Aggiungi" per inserirne uno.</td></tr>}
-            {employees.map((d)=>(
+            {filteredEmps.length===0&&<tr><td colSpan={7} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessun dipendente. Clicca "+ Aggiungi" per inserirne uno.</td></tr>}
+            {filteredEmps.map((d)=>(
               <tr key={d.id}>
                 <td style={{...S.td,fontWeight:500,color:'#3B82F6',cursor:'pointer'}} onClick={()=>setSelectedEmp(d)}>{d.nome}</td>
                 <td style={{...S.td,color:'#94a3b8'}}>{d.ruolo}</td>
@@ -195,8 +200,8 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
             {['Dipendente','Tipo','Nome','Scadenza','File',''].map(h=><th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {empDocs.length===0&&<tr><td colSpan={6} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessun documento caricato.</td></tr>}
-            {empDocs.map((d)=>{
+            {filteredDocs.length===0&&<tr><td colSpan={6} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessun documento caricato.</td></tr>}
+            {filteredDocs.map((d)=>{
               const emp = employees.find(e=>e.id===d.employee_id)
               const g = d.scadenza ? giorniA(d.scadenza) : null
               return <tr key={d.id}>

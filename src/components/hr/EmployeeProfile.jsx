@@ -13,6 +13,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
   const [payForm, setPayForm] = useState({mese:'',retribuzione_lorda:'',retribuzione_netta:'',costo_azienda:'',ore_lavorate:'',ore_straordinario:'',note:''})
   const [showTimeOffForm, setShowTimeOffForm] = useState(false)
   const [timeOffForm, setTimeOffForm] = useState({tipo:'ferie',data_inizio:'',data_fine:'',ore:'',stato:'approvato',note:''})
+  const [shifts, setShifts] = useState([])
 
   const iS = S.input
 
@@ -26,7 +27,12 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
     setTimeOff(data || [])
   }, [employee.id])
 
-  useEffect(() => { loadPayHistory(); loadTimeOff() }, [loadPayHistory, loadTimeOff])
+  const loadShifts = useCallback(async () => {
+    const { data } = await supabase.from('employee_shifts').select('*').eq('employee_id', employee.id).order('settimana', { ascending: false })
+    setShifts(data || [])
+  }, [employee.id])
+
+  useEffect(() => { loadPayHistory(); loadTimeOff(); loadShifts() }, [loadPayHistory, loadTimeOff, loadShifts])
 
   const startEdit = () => { setForm({...emp}); setEditing(true) }
   const saveEdit = async () => {
@@ -250,11 +256,35 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
     {subTab==='ore'&&<>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}}>
         <KPI label="Ore contrattuali" icon="📄" value={emp.ore_contrattuali||'—'} sub="settimanali" accent='#3B82F6'/>
-        <KPI label="Tot. ore lavorate" icon="⏱️" value={totOreLavorate||'—'} sub="da storico compensi" accent='#10B981'/>
+        <KPI label="Ore da turni" icon="📅" value={shifts.reduce((s,sh)=>{const a=parseInt(sh.ora_inizio?.split(':')[0])||0;const b=parseInt(sh.ora_fine?.split(':')[0])||0;return s+(b>a?b-a:0)},0)+'h'} sub={shifts.length+' turni pianificati'} accent='#10B981'/>
         <KPI label="Tot. straordinario" icon="⚡" value={totStraordinario||'—'} sub="ore extra" accent='#F59E0B'/>
       </div>
 
-      <Card title="Distribuzione ore">
+      {/* Turni pianificati */}
+      {shifts.length > 0 && <Card title="Turni pianificati">
+        <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+            {['Settimana','Giorno','Dalle','Alle','Ore','Locale'].map(h=><th key={h} style={S.th}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {shifts.slice(0,20).map(sh=>{
+              const a=parseInt(sh.ora_inizio?.split(':')[0])||0, b=parseInt(sh.ora_fine?.split(':')[0])||0
+              const days=['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
+              return <tr key={sh.id}>
+                <td style={{...S.td,color:'#F59E0B',fontWeight:600}}>{sh.settimana}</td>
+                <td style={{...S.td,fontWeight:500}}>{days[sh.giorno]||sh.giorno}</td>
+                <td style={{...S.td,color:'#10B981'}}>{sh.ora_inizio?.substring(0,5)}</td>
+                <td style={{...S.td,color:'#94a3b8'}}>{sh.ora_fine?.substring(0,5)}</td>
+                <td style={{...S.td,fontWeight:600}}>{b>a?b-a:0}h</td>
+                <td style={{...S.td,color:'#64748b',fontSize:11}}>{sh.locale}</td>
+              </tr>
+            })}
+          </tbody>
+        </table>
+      </Card>}
+      {shifts.length > 0 && <div style={{marginTop:12}}/>}
+
+      <Card title="Distribuzione ore (storico compensi)">
         {payHistory.length === 0 ? (
           <div style={{color:'#475569',textAlign:'center',padding:20,fontSize:13}}>Inserisci i dati nello storico compensi per vedere la distribuzione ore.</div>
         ) : (
