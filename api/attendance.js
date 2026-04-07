@@ -23,7 +23,7 @@ const LOCALE_COORDS = {
   'REMEMBEER': { lat: 44.8857895, lng: 7.3293777 },
   'CASA DE AMICIS': { lat: 44.8858039, lng: 7.3299022 }
 };
-const MAX_DISTANCE = 25; // metri (locali vicini sulla stessa piazza)
+const MAX_DISTANCE = 30; // metri
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
