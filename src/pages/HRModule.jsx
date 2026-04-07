@@ -4,13 +4,14 @@ import { S, KPI, Card } from '../components/shared/styles.jsx'
 import EmployeeProfile from '../components/hr/EmployeeProfile'
 import ShiftAssistant from '../components/hr/ShiftAssistant'
 import HRCalendar from '../components/hr/HRCalendar'
+import AttendanceView from '../components/hr/AttendanceView'
 
 export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps }) {
   const [employees, setEmployees]       = useState([])
   const [empDocs, setEmpDocs]           = useState([])
   const [showEmpForm, setShowEmpForm]   = useState(false)
   const [editEmp, setEditEmp]           = useState(null)
-  const [empForm, setEmpForm]           = useState({nome:'',ruolo:'',locale:'',telefono:'',email:''})
+  const [empForm, setEmpForm]           = useState({nome:'',ruolo:'',locale:'',telefono:'',email:'',pin:''})
   const [showDocForm, setShowDocForm]   = useState(false)
   const [docForm, setDocForm]           = useState({employee_id:'',tipo:'Contratto',nome:'',scadenza:'',file:null})
   const [hrLoading, setHrLoading]       = useState(false)
@@ -37,7 +38,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
     } else {
       await supabase.from('employees').insert({ ...empForm, user_id: user.id, locale: empForm.locale || (sps.find(s=>String(s.id)===sp)?.description) || '' })
     }
-    setEmpForm({nome:'',ruolo:'',locale:'',telefono:'',email:''}); setShowEmpForm(false); setEditEmp(null)
+    setEmpForm({nome:'',ruolo:'',locale:'',telefono:'',email:'',pin:''}); setShowEmpForm(false); setEditEmp(null)
     await loadEmployees(); setHrLoading(false)
   }
   const deleteEmployee = async (id) => {
@@ -129,7 +130,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
     {/* Dipendenti CRUD */}
     <div style={{marginTop:12}}>
       <Card title="Dipendenti" extra={
-        <button onClick={()=>{setShowEmpForm(true);setEditEmp(null);setEmpForm({nome:'',ruolo:'',locale:'',telefono:'',email:''})}} style={{...iS,background:'#3B82F6',color:'#fff',border:'none',padding:'5px 14px',fontWeight:600,fontSize:12}}>+ Aggiungi</button>
+        <button onClick={()=>{setShowEmpForm(true);setEditEmp(null);setEmpForm({nome:'',ruolo:'',locale:'',telefono:'',email:'',pin:''})}} style={{...iS,background:'#3B82F6',color:'#fff',border:'none',padding:'5px 14px',fontWeight:600,fontSize:12}}>+ Aggiungi</button>
       }>
         {showEmpForm&&<div style={{background:'#131825',borderRadius:8,padding:16,marginBottom:16,border:'1px solid #2a3042'}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
@@ -152,6 +153,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
             </div>
             <input placeholder="Telefono" value={empForm.telefono} onChange={e=>setEmpForm(p=>({...p,telefono:e.target.value}))} style={formStyle}/>
             <input placeholder="Email" value={empForm.email} onChange={e=>setEmpForm(p=>({...p,email:e.target.value}))} style={formStyle}/>
+            <input placeholder="PIN 4 cifre" value={empForm.pin||''} onChange={e=>setEmpForm(p=>({...p,pin:e.target.value.replace(/\D/g,'').substring(0,4)}))} style={formStyle} maxLength={4}/>
             <div style={{display:'flex',gap:8}}>
               <button onClick={saveEmployee} disabled={!empForm.nome||hrLoading} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'6px 16px',fontWeight:600,flex:1}}>{editEmp?'Salva':'Aggiungi'}</button>
               <button onClick={()=>{setShowEmpForm(false);setEditEmp(null)}} style={{...iS,color:'#64748b',border:'1px solid #2a3042',padding:'6px 12px'}}>Annulla</button>
@@ -173,7 +175,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
                 <td style={{...S.td,fontSize:12,color:'#94a3b8'}}>{d.email||'—'}</td>
                 <td style={S.td}><span style={S.badge(d.stato==='Attivo'?'#10B981':'#EF4444',d.stato==='Attivo'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)')}>{d.stato==='Attivo'?'✓':''} {d.stato}</span></td>
                 <td style={{...S.td,whiteSpace:'nowrap'}}>
-                  <button onClick={()=>{setEditEmp(d);setEmpForm({nome:d.nome,ruolo:d.ruolo||'',locale:d.locale||'',telefono:d.telefono||'',email:d.email||''});setShowEmpForm(true)}} style={{background:'none',border:'none',color:'#3B82F6',cursor:'pointer',fontSize:12,marginRight:8}}>Modifica</button>
+                  <button onClick={()=>{setEditEmp(d);setEmpForm({nome:d.nome,ruolo:d.ruolo||'',locale:d.locale||'',telefono:d.telefono||'',email:d.email||'',pin:d.pin||''});setShowEmpForm(true)}} style={{background:'none',border:'none',color:'#3B82F6',cursor:'pointer',fontSize:12,marginRight:8}}>Modifica</button>
                   <button onClick={()=>{if(confirm('Eliminare '+d.nome+'?'))deleteEmployee(d.id)}} style={{background:'none',border:'none',color:'#EF4444',cursor:'pointer',fontSize:12}}>Elimina</button>
                 </td>
               </tr>
@@ -227,6 +229,11 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
           </tbody>
         </table>
       </Card>
+    </div>
+
+    {/* Timbrature + QR + Presenze reali */}
+    <div style={{marginTop:12}}>
+      <AttendanceView employees={employees} shifts={[]} sp={sp} sps={sps}/>
     </div>
 
     {/* Assistente Turni + Costi */}

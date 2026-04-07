@@ -2,6 +2,9 @@
   "regions": [
     "fra1"
   ],
+  "rewrites": [
+    { "source": "/timbra", "destination": "/index.html" }
+  ],
   "functions": {
     "api/*.js": {
       "regions": [
