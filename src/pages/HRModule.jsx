@@ -81,8 +81,8 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
 
   // Filtro per locale selezionato
   const locale = sp === 'all' ? null : sps.find(s => String(s.id) === sp)?.description || sp
-  const filteredEmps = locale ? employees.filter(e => e.locale === locale) : employees
-  const filteredDocs = locale ? empDocs.filter(d => { const emp = employees.find(e => e.id === d.employee_id); return !emp || emp.locale === locale }) : empDocs
+  const filteredEmps = locale ? employees.filter(e => (e.locale||'').split(',').some(l => l.trim() === locale)) : employees
+  const filteredDocs = locale ? empDocs.filter(d => { const emp = employees.find(e => e.id === d.employee_id); return !emp || (emp.locale||'').split(',').some(l => l.trim() === locale) }) : empDocs
 
   const now = new Date()
   const in30 = new Date(now); in30.setDate(in30.getDate()+30)
@@ -135,10 +135,21 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
             <input placeholder="Nome *" value={empForm.nome} onChange={e=>setEmpForm(p=>({...p,nome:e.target.value}))} style={formStyle}/>
             <input placeholder="Ruolo" value={empForm.ruolo} onChange={e=>setEmpForm(p=>({...p,ruolo:e.target.value}))} style={formStyle}/>
-            <select value={empForm.locale} onChange={e=>setEmpForm(p=>({...p,locale:e.target.value}))} style={formStyle}>
-              <option value="">Seleziona locale...</option>
-              {sps.map(s=><option key={s.id} value={s.description||s.name}>{s.description||s.name}</option>)}
-            </select>
+            <div style={{...formStyle,display:'flex',gap:12,alignItems:'center',padding:'8px 10px'}}>
+              <span style={{fontSize:11,color:'#64748b'}}>Locali:</span>
+              {sps.map(s=>{
+                const name = s.description||s.name
+                const locales = (empForm.locale||'').split(',').filter(Boolean)
+                const checked = locales.includes(name)
+                return <label key={s.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:'#e2e8f0',cursor:'pointer'}}>
+                  <input type="checkbox" checked={checked} onChange={()=>{
+                    const next = checked ? locales.filter(l=>l!==name) : [...locales, name]
+                    setEmpForm(p=>({...p,locale:next.join(',')}))
+                  }}/>
+                  {name}
+                </label>
+              })}
+            </div>
             <input placeholder="Telefono" value={empForm.telefono} onChange={e=>setEmpForm(p=>({...p,telefono:e.target.value}))} style={formStyle}/>
             <input placeholder="Email" value={empForm.email} onChange={e=>setEmpForm(p=>({...p,email:e.target.value}))} style={formStyle}/>
             <div style={{display:'flex',gap:8}}>

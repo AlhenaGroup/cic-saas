@@ -23,7 +23,7 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
 
   const iS = S.input
   const locale = sp === 'all' ? null : sps.find(s => String(s.id) === sp)?.description || sp
-  const localeEmps = locale ? employees.filter(e => e.locale === locale && e.stato === 'Attivo') : employees.filter(e => e.stato === 'Attivo')
+  const localeEmps = locale ? employees.filter(e => (e.locale||'').split(',').some(l => l.trim() === locale) && e.stato === 'Attivo') : employees.filter(e => e.stato === 'Attivo')
 
   const loadShifts = useCallback(async () => {
     let q = supabase.from('employee_shifts').select('*').eq('settimana', weekStart)

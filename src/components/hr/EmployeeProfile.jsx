@@ -123,10 +123,21 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
           ].map(([k,l])=>
             <input key={k} placeholder={l} value={form[k]||''} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} style={formStyle}/>
           )}
-          <select value={form.locale||''} onChange={e=>setForm(p=>({...p,locale:e.target.value}))} style={formStyle}>
-            <option value="">Seleziona locale...</option>
-            {sps.map(s=><option key={s.id} value={s.description||s.name}>{s.description||s.name}</option>)}
-          </select>
+          <div style={{...formStyle,display:'flex',gap:12,alignItems:'center',padding:'8px 10px'}}>
+            <span style={{fontSize:11,color:'#64748b'}}>Locali:</span>
+            {sps.map(s=>{
+              const name = s.description||s.name
+              const locales = (form.locale||'').split(',').filter(Boolean)
+              const checked = locales.includes(name)
+              return <label key={s.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:'#e2e8f0',cursor:'pointer'}}>
+                <input type="checkbox" checked={checked} onChange={()=>{
+                  const next = checked ? locales.filter(l=>l!==name) : [...locales, name]
+                  setForm(p=>({...p,locale:next.join(',')}))
+                }}/>
+                {name}
+              </label>
+            })}
+          </div>
           <input type="date" value={form.data_nascita||''} onChange={e=>setForm(p=>({...p,data_nascita:e.target.value}))} style={formStyle} title="Data nascita"/>
           <input type="date" value={form.data_assunzione||''} onChange={e=>setForm(p=>({...p,data_assunzione:e.target.value}))} style={formStyle} title="Data assunzione"/>
           <input type="date" value={form.data_fine_contratto||''} onChange={e=>setForm(p=>({...p,data_fine_contratto:e.target.value}))} style={formStyle} title="Fine contratto"/>
