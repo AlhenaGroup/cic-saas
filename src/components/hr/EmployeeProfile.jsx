@@ -14,6 +14,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
   const [showTimeOffForm, setShowTimeOffForm] = useState(false)
   const [timeOffForm, setTimeOffForm] = useState({tipo:'ferie',data_inizio:'',data_fine:'',ore:'',stato:'approvato',note:''})
   const [shifts, setShifts] = useState([])
+  const [attendance, setAttendance] = useState([])
 
   const iS = S.input
 
@@ -32,7 +33,12 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
     setShifts(data || [])
   }, [employee.id])
 
-  useEffect(() => { loadPayHistory(); loadTimeOff(); loadShifts() }, [loadPayHistory, loadTimeOff, loadShifts])
+  const loadAttendance = useCallback(async () => {
+    const { data } = await supabase.from('attendance').select('*').eq('employee_id', employee.id).order('timestamp', { ascending: false }).limit(200)
+    setAttendance(data || [])
+  }, [employee.id])
+
+  useEffect(() => { loadPayHistory(); loadTimeOff(); loadShifts(); loadAttendance() }, [loadPayHistory, loadTimeOff, loadShifts, loadAttendance])
 
   const startEdit = () => { setForm({...emp}); setEditing(true) }
   const saveEdit = async () => {
@@ -264,12 +270,60 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
     </>}
 
     {/* BANCA ORE */}
-    {subTab==='ore'&&<>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}}>
+    {subTab==='ore'&&(()=>{
+      // Calcola ore reali dalle timbrature raggruppate per giorno
+      const attByDay = {}
+      for (const a of attendance) {
+        const day = a.timestamp?.substring(0,10)
+        if (!day) continue
+        if (!attByDay[day]) attByDay[day] = []
+        attByDay[day].push(a)
+      }
+      let totRealHours = 0
+      const dailyHours = Object.entries(attByDay).map(([day, records]) => {
+        records.sort((a,b) => a.timestamp.localeCompare(b.timestamp))
+        let hours = 0, entrata = null
+        for (const r of records) {
+          if (r.tipo === 'entrata' && !entrata) entrata = r.timestamp
+          if (r.tipo === 'uscita' && entrata) { hours += (new Date(r.timestamp) - new Date(entrata)) / 3600000; entrata = null }
+        }
+        totRealHours += hours
+        const entrataR = records.find(r => r.tipo === 'entrata')
+        const uscitaR = [...records].reverse().find(r => r.tipo === 'uscita')
+        return { day, hours: Math.round(hours*10)/10, entrata: entrataR?.timestamp, uscita: uscitaR?.timestamp, locale: records[0]?.locale }
+      }).sort((a,b) => b.day.localeCompare(a.day))
+      totRealHours = Math.round(totRealHours*10)/10
+
+      return <>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:16}}>
         <KPI label="Ore contrattuali" icon="📄" value={emp.ore_contrattuali||'—'} sub="settimanali" accent='#3B82F6'/>
-        <KPI label="Ore da turni" icon="📅" value={shifts.reduce((s,sh)=>{const a=parseInt(sh.ora_inizio?.split(':')[0])||0;const b=parseInt(sh.ora_fine?.split(':')[0])||0;return s+(b>a?b-a:0)},0)+'h'} sub={shifts.length+' turni pianificati'} accent='#10B981'/>
+        <KPI label="Ore reali timbrate" icon="⏱️" value={totRealHours+'h'} sub={dailyHours.length+' giorni'} accent='#10B981'/>
+        <KPI label="Ore da turni" icon="📅" value={shifts.reduce((s,sh)=>{const a=parseInt(sh.ora_inizio?.split(':')[0])||0;const b=parseInt(sh.ora_fine?.split(':')[0])||0;return s+(b>a?b-a:0)},0)+'h'} sub={shifts.length+' turni'} accent='#8B5CF6'/>
         <KPI label="Tot. straordinario" icon="⚡" value={totStraordinario||'—'} sub="ore extra" accent='#F59E0B'/>
       </div>
+
+      {/* Timbrature reali per giorno */}
+      <Card title="Ore reali (da timbrature)" badge={totRealHours+'h totali'}>
+        {dailyHours.length === 0 ? (
+          <div style={{color:'#475569',textAlign:'center',padding:16,fontSize:13}}>Nessuna timbratura registrata.</div>
+        ) : (
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+              {['Data','Entrata','Uscita','Ore','Locale'].map(h=><th key={h} style={S.th}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {dailyHours.slice(0,30).map(d => <tr key={d.day}>
+                <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{new Date(d.day+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'})}</td>
+                <td style={{...S.td,color:'#10B981',fontWeight:600}}>{d.entrata ? new Date(d.entrata).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+                <td style={{...S.td,color:'#94a3b8'}}>{d.uscita ? new Date(d.uscita).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : 'in corso'}</td>
+                <td style={{...S.td,fontWeight:600,color:d.hours>0?'#e2e8f0':'#475569'}}>{d.hours>0?d.hours+'h':'—'}</td>
+                <td style={{...S.td,color:'#64748b',fontSize:11}}>{d.locale}</td>
+              </tr>)}
+            </tbody>
+          </table>
+        )}
+      </Card>
+      {dailyHours.length > 0 && <div style={{marginTop:12}}/>}
 
       {/* Turni pianificati */}
       {shifts.length > 0 && <Card title="Turni pianificati">
@@ -320,6 +374,6 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
           </table>
         )}
       </Card>
-    </>}
+    </>})()}
   </div>
 }
