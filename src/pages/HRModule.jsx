@@ -89,7 +89,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
 
   // Se un dipendente è selezionato, mostra il profilo
   if (selectedEmp) {
-    return <EmployeeProfile employee={selectedEmp} onClose={()=>setSelectedEmp(null)} onUpdate={loadEmployees}/>
+    return <EmployeeProfile employee={selectedEmp} onClose={()=>setSelectedEmp(null)} onUpdate={loadEmployees} sps={sps}/>
   }
 
   return <>
@@ -130,7 +130,10 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
             <input placeholder="Nome *" value={empForm.nome} onChange={e=>setEmpForm(p=>({...p,nome:e.target.value}))} style={formStyle}/>
             <input placeholder="Ruolo" value={empForm.ruolo} onChange={e=>setEmpForm(p=>({...p,ruolo:e.target.value}))} style={formStyle}/>
-            <input placeholder="Locale" value={empForm.locale} onChange={e=>setEmpForm(p=>({...p,locale:e.target.value}))} style={formStyle}/>
+            <select value={empForm.locale} onChange={e=>setEmpForm(p=>({...p,locale:e.target.value}))} style={formStyle}>
+              <option value="">Seleziona locale...</option>
+              {sps.map(s=><option key={s.id} value={s.description||s.name}>{s.description||s.name}</option>)}
+            </select>
             <input placeholder="Telefono" value={empForm.telefono} onChange={e=>setEmpForm(p=>({...p,telefono:e.target.value}))} style={formStyle}/>
             <input placeholder="Email" value={empForm.email} onChange={e=>setEmpForm(p=>({...p,email:e.target.value}))} style={formStyle}/>
             <div style={{display:'flex',gap:8}}>

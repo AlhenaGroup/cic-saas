@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, KPI, Card, fmt, fmtD, fmtN } from '../shared/styles.jsx'
 
-export default function EmployeeProfile({ employee, onClose, onUpdate }) {
+export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] }) {
   const [emp, setEmp] = useState(employee)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
@@ -111,12 +111,16 @@ export default function EmployeeProfile({ employee, onClose, onUpdate }) {
     {subTab==='info'&&<>
       {editing ? (
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-          {[['nome','Nome *'],['ruolo','Ruolo'],['locale','Locale'],['telefono','Telefono'],['email','Email'],['cf','Codice Fiscale'],
+          {[['nome','Nome *'],['ruolo','Ruolo'],['telefono','Telefono'],['email','Email'],['cf','Codice Fiscale'],
             ['indirizzo','Indirizzo'],['iban','IBAN'],['tipo_contratto','Tipo Contratto'],['livello','Livello CCNL'],
             ['ore_contrattuali','Ore settimanali'],['costo_orario','Costo orario €'],['retribuzione_lorda','Retribuzione lorda €']
           ].map(([k,l])=>
             <input key={k} placeholder={l} value={form[k]||''} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} style={formStyle}/>
           )}
+          <select value={form.locale||''} onChange={e=>setForm(p=>({...p,locale:e.target.value}))} style={formStyle}>
+            <option value="">Seleziona locale...</option>
+            {sps.map(s=><option key={s.id} value={s.description||s.name}>{s.description||s.name}</option>)}
+          </select>
           <input type="date" value={form.data_nascita||''} onChange={e=>setForm(p=>({...p,data_nascita:e.target.value}))} style={formStyle} title="Data nascita"/>
           <input type="date" value={form.data_assunzione||''} onChange={e=>setForm(p=>({...p,data_assunzione:e.target.value}))} style={formStyle} title="Data assunzione"/>
           <input type="date" value={form.data_fine_contratto||''} onChange={e=>setForm(p=>({...p,data_fine_contratto:e.target.value}))} style={formStyle} title="Fine contratto"/>
