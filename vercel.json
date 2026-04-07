@@ -2,6 +2,9 @@
   "regions": [
     "fra1"
   ],
+  "rewrites": [
+    { "source": "/timbra", "destination": "/index.html" }
+  ],
   "functions": {
     "api/*.js": {
       "regions": [
@@ -13,6 +16,10 @@
     {
       "path": "/api/sync-cron",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/reminder-cron",
+      "schedule": "0 7 * * *"
     }
   ]
 }

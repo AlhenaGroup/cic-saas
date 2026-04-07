@@ -3,8 +3,13 @@ import { supabase } from './lib/supabase'
 import AuthPage from './pages/AuthPage'
 import SetupPage from './pages/SetupPage'
 import DashboardPage from './pages/DashboardPage'
+import TimbraPage from './pages/TimbraPage'
 
 export default function App() {
+  // Routing: /timbra → pagina pubblica timbratura
+  if (window.location.pathname === '/timbra' || window.location.search.includes('timbra=1')) {
+    return <TimbraPage />
+  }
   const [session, setSession] = useState(undefined)
   const [settings, setSettings] = useState(null)
   const [loadingSettings, setLoadingSettings] = useState(false)
