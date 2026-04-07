@@ -123,15 +123,13 @@ export default function TimbraPage() {
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
         <button onClick={() => timbra('entrata')} disabled={loading}
-          style={{ flex: 1, height: 56, borderRadius: 12, border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer',
-            background: suggestedTipo === 'entrata' ? '#10B981' : '#1a1f2e', color: suggestedTipo === 'entrata' ? '#fff' : '#10B981',
-            border: '2px solid #10B981' }}>
+          style={{ flex: 1, height: 56, borderRadius: 12, border: '2px solid #10B981', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+            background: suggestedTipo === 'entrata' ? '#10B981' : '#1a1f2e', color: suggestedTipo === 'entrata' ? '#fff' : '#10B981' }}>
           ENTRATA
         </button>
         <button onClick={() => timbra('uscita')} disabled={loading}
-          style={{ flex: 1, height: 56, borderRadius: 12, border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer',
-            background: suggestedTipo === 'uscita' ? '#EF4444' : '#1a1f2e', color: suggestedTipo === 'uscita' ? '#fff' : '#EF4444',
-            border: '2px solid #EF4444' }}>
+          style={{ flex: 1, height: 56, borderRadius: 12, border: '2px solid #EF4444', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+            background: suggestedTipo === 'uscita' ? '#EF4444' : '#1a1f2e', color: suggestedTipo === 'uscita' ? '#fff' : '#EF4444' }}>
           USCITA
         </button>
       </div>
