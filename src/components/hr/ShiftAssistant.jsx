@@ -13,8 +13,8 @@ function weekMonday(offset = 0) {
 export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setStaffSchedule, saveSchedule }) {
   const [weekStart, setWeekStart] = useState(weekMonday())
   const [shifts, setShifts] = useState([])
-  const [editCell, setEditCell] = useState(null)
-  const [cellForm, setCellForm] = useState({ ora_inizio: '', ora_fine: '' })
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addForm, setAddForm] = useState({ employee_id: '', giorno: 0, ora_inizio: '18:00', ora_fine: '23:00' })
   const [costMonth, setCostMonth] = useState(new Date().toISOString().substring(0, 7))
   const [costFile, setCostFile] = useState(null)
   const [personnelCosts, setPersonnelCosts] = useState([])
@@ -39,30 +39,23 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
 
   useEffect(() => { loadShifts(); loadCosts() }, [loadShifts, loadCosts])
 
-  const getShift = (empId, day) => shifts.find(s => s.employee_id === empId && s.giorno === day)
-
-  const saveShift = async (empId, day) => {
-    if (!cellForm.ora_inizio || !cellForm.ora_fine) return
+  // Aggiungi turno dal form con tendine
+  const addShift = async () => {
+    if (!addForm.employee_id || !addForm.ora_inizio || !addForm.ora_fine) return
     const { data: { user } } = await supabase.auth.getUser()
-    const existing = getShift(empId, day)
-    if (existing) {
-      await supabase.from('employee_shifts').update({ ora_inizio: cellForm.ora_inizio, ora_fine: cellForm.ora_fine }).eq('id', existing.id)
-    } else {
-      await supabase.from('employee_shifts').insert({
-        user_id: user.id, employee_id: empId, locale: locale || '', settimana: weekStart, giorno: day,
-        ora_inizio: cellForm.ora_inizio, ora_fine: cellForm.ora_fine
-      })
-    }
-    setEditCell(null)
+    await supabase.from('employee_shifts').insert({
+      user_id: user.id, employee_id: addForm.employee_id, locale: locale || '',
+      settimana: weekStart, giorno: addForm.giorno,
+      ora_inizio: addForm.ora_inizio, ora_fine: addForm.ora_fine
+    })
     await loadShifts()
+    // Reset solo orari, mantieni dipendente per inserimento rapido
+    setAddForm(f => ({ ...f, ora_inizio: '18:00', ora_fine: '23:00' }))
   }
 
-  const deleteShift = async (empId, day) => {
-    const existing = getShift(empId, day)
-    if (existing) {
-      await supabase.from('employee_shifts').delete().eq('id', existing.id)
-      await loadShifts()
-    }
+  const deleteShift = async (id) => {
+    await supabase.from('employee_shifts').delete().eq('id', id)
+    await loadShifts()
   }
 
   // Auto-calcola presenze orarie dai turni
@@ -72,7 +65,7 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
       const startH = parseInt(s.ora_inizio?.split(':')[0])
       const endH = parseInt(s.ora_fine?.split(':')[0])
       if (isNaN(startH) || isNaN(endH)) continue
-      for (let h = startH; h < endH; h++) {
+      for (let h = startH; h < (endH < startH ? 24 : endH); h++) {
         const key = String(h).padStart(2, '0') + ':00'
         hourly[key] = (hourly[key] || 0) + 1
       }
@@ -86,8 +79,14 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
     const emp = employees.find(e => e.id === s.employee_id)
     const startH = parseInt(s.ora_inizio?.split(':')[0]) || 0
     const endH = parseInt(s.ora_fine?.split(':')[0]) || 0
-    const hours = endH - startH
+    const hours = endH > startH ? endH - startH : 0
     return sum + hours * (Number(emp?.costo_orario) || 0)
+  }, 0)
+
+  const totalHours = shifts.reduce((sum, s) => {
+    const a = parseInt(s.ora_inizio?.split(':')[0]) || 0
+    const b = parseInt(s.ora_fine?.split(':')[0]) || 0
+    return sum + (b > a ? b - a : 0)
   }, 0)
 
   // Salva costo personale mensile
@@ -118,16 +117,49 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
     return start.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' — ' + end.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
   }
 
+  const formStyle = { ...iS, marginBottom: 0 }
+
   return <>
+    {/* KPI turni */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 12 }}>
+      <KPI label="Turni questa settimana" icon="📅" value={shifts.length} sub="inseriti" accent='#3B82F6' />
+      <KPI label="Ore totali" icon="⏱️" value={totalHours + 'h'} sub="settimana" accent='#F59E0B' />
+      <KPI label="Costo stimato" icon="💶" value={weekCost > 0 ? fmtD(weekCost) : '—'} sub="settimana" accent='#10B981' />
+    </div>
+
     {/* Turni settimanali */}
     <Card title="Turni settimanali" extra={
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>◀</button>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
         <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>▶</button>
-        <button onClick={autoCalcPresenze} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Auto-presenze</button>
+        <button onClick={autoCalcPresenze} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Aggiorna presenze</button>
       </div>
     }>
+      {/* Form inserimento turno con tendine */}
+      <div style={{ background: '#131825', borderRadius: 8, padding: 12, marginBottom: 16, border: '1px solid #2a3042' }}>
+        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>Aggiungi turno</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={addForm.employee_id} onChange={e => setAddForm(p => ({ ...p, employee_id: e.target.value }))} style={{ ...formStyle, minWidth: 180 }}>
+            <option value="">Seleziona dipendente...</option>
+            {localeEmps.map(e => <option key={e.id} value={e.id}>{e.nome} ({e.ruolo || '—'})</option>)}
+          </select>
+          <select value={addForm.giorno} onChange={e => setAddForm(p => ({ ...p, giorno: Number(e.target.value) }))} style={{ ...formStyle, minWidth: 100 }}>
+            {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 11, color: '#64748b' }}>dalle</span>
+            <input type="time" value={addForm.ora_inizio} onChange={e => setAddForm(p => ({ ...p, ora_inizio: e.target.value }))} style={{ ...formStyle, width: 100 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 11, color: '#64748b' }}>alle</span>
+            <input type="time" value={addForm.ora_fine} onChange={e => setAddForm(p => ({ ...p, ora_fine: e.target.value }))} style={{ ...formStyle, width: 100 }} />
+          </div>
+          <button onClick={addShift} disabled={!addForm.employee_id} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>+ Aggiungi</button>
+        </div>
+      </div>
+
+      {/* Griglia riepilogativa */}
       {localeEmps.length === 0 ? (
         <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>Nessun dipendente attivo per questo locale.</div>
       ) : (
@@ -144,37 +176,20 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
                 const totHours = empShifts.reduce((s, sh) => {
                   const a = parseInt(sh.ora_inizio?.split(':')[0]) || 0
                   const b = parseInt(sh.ora_fine?.split(':')[0]) || 0
-                  return s + (b - a)
+                  return s + (b > a ? b - a : 0)
                 }, 0)
                 return <tr key={emp.id}>
                   <td style={{ ...S.td, fontWeight: 500, fontSize: 12 }}>{emp.nome}</td>
                   {DAYS.map((_, day) => {
-                    const shift = getShift(emp.id, day)
-                    const isEditing = editCell?.emp === emp.id && editCell?.day === day
-                    return <td key={day} style={{ ...S.td, textAlign: 'center', padding: '4px 2px', cursor: 'pointer', minWidth: 80 }}
-                      onClick={() => {
-                        if (!isEditing) {
-                          setEditCell({ emp: emp.id, day })
-                          setCellForm({ ora_inizio: shift?.ora_inizio?.substring(0, 5) || '', ora_fine: shift?.ora_fine?.substring(0, 5) || '' })
-                        }
-                      }}>
-                      {isEditing ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <input type="time" value={cellForm.ora_inizio} onChange={e => setCellForm(p => ({ ...p, ora_inizio: e.target.value }))} style={{ ...iS, fontSize: 10, padding: '2px 4px', textAlign: 'center' }} />
-                          <input type="time" value={cellForm.ora_fine} onChange={e => setCellForm(p => ({ ...p, ora_fine: e.target.value }))} style={{ ...iS, fontSize: 10, padding: '2px 4px', textAlign: 'center' }} />
-                          <div style={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-                            <button onClick={(e) => { e.stopPropagation(); saveShift(emp.id, day) }} style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: 4, fontSize: 9, padding: '2px 6px', cursor: 'pointer' }}>OK</button>
-                            {shift && <button onClick={(e) => { e.stopPropagation(); deleteShift(emp.id, day) }} style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 4, fontSize: 9, padding: '2px 6px', cursor: 'pointer' }}>X</button>}
-                            <button onClick={(e) => { e.stopPropagation(); setEditCell(null) }} style={{ background: '#2a3042', color: '#94a3b8', border: 'none', borderRadius: 4, fontSize: 9, padding: '2px 6px', cursor: 'pointer' }}>Esc</button>
-                          </div>
+                    const dayShifts = empShifts.filter(s => s.giorno === day)
+                    return <td key={day} style={{ ...S.td, textAlign: 'center', padding: '4px 2px', minWidth: 80 }}>
+                      {dayShifts.length > 0 ? dayShifts.map(s => (
+                        <div key={s.id} style={{ background: 'rgba(59,130,246,.15)', borderRadius: 4, padding: '3px 4px', fontSize: 10, marginBottom: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: '#3B82F6', fontWeight: 600 }}>{s.ora_inizio?.substring(0, 5)}-{s.ora_fine?.substring(0, 5)}</span>
+                          <button onClick={() => deleteShift(s.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 9, padding: 0, lineHeight: 1 }}>x</button>
                         </div>
-                      ) : shift ? (
-                        <div style={{ background: 'rgba(59,130,246,.15)', borderRadius: 4, padding: '4px 2px', fontSize: 11 }}>
-                          <div style={{ color: '#3B82F6', fontWeight: 600 }}>{shift.ora_inizio?.substring(0, 5)}</div>
-                          <div style={{ color: '#94a3b8', fontSize: 10 }}>{shift.ora_fine?.substring(0, 5)}</div>
-                        </div>
-                      ) : (
-                        <div style={{ color: '#2a3042', fontSize: 18 }}>+</div>
+                      )) : (
+                        <span style={{ color: '#1e2636', fontSize: 11 }}>—</span>
                       )}
                     </td>
                   })}
@@ -185,9 +200,6 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
           </table>
         </div>
       )}
-      {weekCost > 0 && <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', textAlign: 'right' }}>
-        Costo stimato settimana: <span style={{ color: '#F59E0B', fontWeight: 600 }}>{fmtD(weekCost)}</span>
-      </div>}
     </Card>
 
     {/* Costi personale per CE */}
