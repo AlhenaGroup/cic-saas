@@ -1,5 +1,33 @@
+const { GoogleAuth } = require('google-auth-library');
+
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://afdochrjbmxnhviidzpb.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZG9jaHJqYm14bmh2aWlkenBiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDkzMzk5MSwiZXhwIjoyMDkwNTA5OTkxfQ.odgLZGS_W1j5mSngmL3MGlJOKTzfAm3RjsdXhi5MEEA';
+
+// Google Sheets config
+const SHEETS = {
+  'REMEMBEER': '15T4oh553HBUZxJ_YmMacQQAGtzSD-s6SIc_gUWsmlxk',
+  'CASA DE AMICIS': '1SOcNEQgQ7SgpYBHtvcSb0OpIIrKU5fr9g9DomcdQAc4'
+};
+
+const GOOGLE_CREDS = process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON) : {
+  client_email: 'cic-sheets@cic-saas-proxy.iam.gserviceaccount.com',
+  private_key: process.env.GOOGLE_PRIVATE_KEY || ''
+};
+
+async function appendToSheet(locale, row) {
+  const sheetId = SHEETS[locale];
+  if (!sheetId || !GOOGLE_CREDS.private_key) return;
+  try {
+    const auth = new GoogleAuth({ credentials: GOOGLE_CREDS, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
+    const client = await auth.getClient();
+    const token = await client.getAccessToken();
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:F:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token.token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [row] })
+    });
+  } catch (e) { console.error('[SHEETS]', e.message); }
+}
 
 async function sbQuery(path, method = 'GET', body = null) {
   const opts = { method, headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } };
@@ -89,7 +117,13 @@ export default async function handler(req, res) {
           lat: lat || null, lng: lng || null, distanza_m: distanza
         }]);
 
-        return res.status(201).json({ ok: true, nome: emp.nome, tipo, distanza, timestamp: new Date().toISOString() });
+        // Scrivi su Google Sheets
+        const now = new Date();
+        const data = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const ora = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
+        appendToSheet(locale, [data, ora, emp.nome, tipo, '', locale]);
+
+        return res.status(201).json({ ok: true, nome: emp.nome, tipo, distanza, timestamp: now.toISOString() });
       }
 
       // Storico timbrature di oggi per un dipendente
