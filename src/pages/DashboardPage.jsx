@@ -6,6 +6,7 @@ import { fmt, fmtD, fmtN, pct, today, monthStart, prevPeriod, deltaFmt, C, S, KP
 import HRModule from './HRModule'
 import WarehouseModule from './WarehouseModule'
 import InvoiceTab from '../components/InvoiceTab'
+import ContoEconomico from '../components/ContoEconomico'
 
 export default function DashboardPage({ settings }) {
   const [token, setToken]         = useState(null)
@@ -683,56 +684,7 @@ export default function DashboardPage({ settings }) {
       </>})()}
 
       {/* ── CONTO ECONOMICO ── */}
-      {tab==='ce'&&<>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          <KPI label="Ricavi"    icon="💶" value={fmt(ce.ricavi)}   sub="totale venduto"      accent='#10B981' trend={8.3}/>
-          <KPI label="Food cost" icon="🍕" value={fmt(ce.foodCost)} sub={pct(ce.foodCost,ce.ricavi)+' dei ricavi'} accent='#F59E0B'/>
-          <KPI label="Bev. cost" icon="🍺" value={fmt(ce.bevCost)}  sub={pct(ce.bevCost,ce.ricavi)+' dei ricavi'}  accent='#3B82F6'/>
-          <KPI label="MOL"       icon="📊" value={fmt(ce.mol)}      sub={pct(ce.mol,ce.ricavi)+' margine'}         accent='#10B981' trend={ce.molPct-65}/>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          <Card title="Conto Economico">
-            <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['Voce','Importo','% Ricavi'].map(h=><th key={h} style={S.th}>{h}</th>)}
-              </tr></thead>
-              <tbody>
-                {[
-                  {label:'📈 RICAVI',        val:ce.ricavi,   bold:true, color:'#10B981'},
-                  {label:'🍕 Food cost',      val:-ce.foodCost, color:'#EF4444'},
-                  {label:'🍺 Beverage cost',  val:-ce.bevCost,  color:'#EF4444'},
-                  {label:'📦 Mat. consumo',   val:-ce.matCost,  color:'#EF4444'},
-                  {label:'👥 Personale',      val:-ce.persCost, color:'#EF4444'},
-                  {label:'🏗️ Struttura',      val:-ce.strCost,  color:'#EF4444'},
-                  {label:'── TOTALE COSTI',  val:-ce.totCosti, bold:true, color:'#EF4444'},
-                  {label:'📊 MOL',            val:ce.mol,       bold:true, color:'#10B981'},
-                ].map((r,i)=>(
-                  <tr key={i} style={{borderBottom:'1px solid #1a1f2e',background:r.bold?'#131825':'transparent'}}>
-                    <td style={{...S.td,fontWeight:r.bold?700:400}}>{r.label}</td>
-                    <td style={{...S.td,fontWeight:r.bold?700:500,color:r.color||'#e2e8f0'}}>{fmt(Math.abs(r.val))}</td>
-                    <td style={{...S.td,color:'#64748b'}}>{pct(Math.abs(r.val),ce.ricavi)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-          <Card title="Composizione costi">
-            <div style={{marginBottom:16}}>
-              {[
-                {label:'Food cost',     val:ce.foodCost, color:'#F59E0B'},
-                {label:'Beverage cost', val:ce.bevCost,  color:'#3B82F6'},
-                {label:'Mat. consumo',  val:ce.matCost,  color:'#8B5CF6'},
-                {label:'Struttura',     val:ce.strCost,  color:'#EC4899'},
-                {label:'Personale',     val:ce.persCost, color:'#10B981'},
-              ].map((r,i)=><Bar2 key={i} label={r.label} value={r.val} max={ce.totCosti||1} color={r.color} pct={ce.totCosti>0?(r.val/ce.totCosti*100).toFixed(1):0}/>)}
-            </div>
-            <div style={{borderTop:'1px solid #2a3042',paddingTop:12,display:'flex',justifyContent:'space-between',fontSize:13}}>
-              <span style={{color:'#94a3b8'}}>MOL %</span>
-              <span style={{color:'#10B981',fontWeight:700,fontSize:16}}>{ce.molPct?.toFixed(1)}%</span>
-            </div>
-          </Card>
-        </div>
-      </>}
+      {tab==='ce'&&<ContoEconomico ce={ce} from={from} to={to}/>}
 
       {/* ── PERSONALE ── */}
       {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps}/>}
