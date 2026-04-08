@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { getToken, getSalesPoints, getReportData, getFromDailyStats } from '../lib/cicApi'
 import { fmt, fmtD, fmtN, pct, today, monthStart, prevPeriod, deltaFmt, C, S, KPI, Card, Bar2, Tip, Loader } from '../components/shared/styles.jsx'
 import HRModule from './HRModule'
+import WarehouseModule from './WarehouseModule'
 
 export default function DashboardPage({ settings }) {
   const [token, setToken]         = useState(null)
@@ -113,7 +114,7 @@ export default function DashboardPage({ settings }) {
 
   const TABS=[['ov','📊 Panoramica'],['scontrini','🧾 Scontrini'],['cat','🏷️ Categorie'],
               ['iva','📋 IVA'],['rep','🏪 Reparti'],['susp','⚠️ Movimenti'],
-              ['fat','📄 Fatture'],['prod','⏱️ Produttività'],['ce','📊 Conto Econ.'],['hr','👥 Personale']]
+              ['fat','📄 Fatture'],['mag','📦 Magazzino'],['prod','⏱️ Produttività'],['ce','📊 Conto Econ.'],['hr','👥 Personale']]
 
   return <div style={{minHeight:'100vh',background:'#0f1420',fontFamily:"'DM Sans',system-ui,sans-serif",color:'#e2e8f0'}}>
     <style>{`
@@ -457,6 +458,9 @@ export default function DashboardPage({ settings }) {
           </div>
         </Card>
       </>}
+
+      {/* ── MAGAZZINO ── */}
+      {tab==='mag'&&<WarehouseModule sp={sp} sps={sps}/>}
 
       {/* ── PRODUTTIVITÀ ORARIA ── */}
       {tab==='prod'&&(()=>{
