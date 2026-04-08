@@ -19,12 +19,28 @@ export default function StockView() {
   const [transferLoc, setTransferLoc] = useState('')
   const [transferQty, setTransferQty] = useState('')
   const [loading, setLoading] = useState(false)
+  // Scarico da vendite
+  const [scaricoDaFrom, setScaricoDaFrom] = useState(new Date().toISOString().slice(0, 10))
+  const [scaricoDaTo, setScaricoDaTo] = useState(new Date().toISOString().slice(0, 10))
+  const [scaricoResult, setScaricoResult] = useState(null)
+  const [scaricoLoading, setScaricoLoading] = useState(false)
+  // Produzione semilavorati
+  const [recipes, setRecipes] = useState([])
+  const [selRecipe, setSelRecipe] = useState('')
+  const [prodQty, setProdQty] = useState('')
+  const [prodLog, setProdLog] = useState([])
+  const [prodLoading, setProdLoading] = useState(false)
 
   const load = useCallback(async () => {
     const { data: locs } = await supabase.from('warehouse_locations').select('*').order('nome')
     setLocations(locs || [])
     const { data: prods } = await supabase.from('warehouse_products').select('id, nome, unita_misura, ultimo_prezzo').eq('attivo', true)
     setProducts(prods || [])
+    const { data: recs } = await supabase.from('warehouse_recipes').select('id, nome, tipo').order('nome')
+    setRecipes(recs || [])
+    // Load recent production log
+    const { data: pLog } = await supabase.from('warehouse_movements').select('*').eq('fonte', 'produzione').order('created_at', { ascending: false }).limit(20)
+    setProdLog(pLog || [])
   }, [])
 
   const loadStock = useCallback(async () => {
@@ -103,6 +119,135 @@ export default function StockView() {
 
     setShowTransfer(null); setTransferLoc(''); setTransferQty('')
     await loadStock(); setLoading(false)
+  }
+
+  const doScaricoVendite = async () => {
+    if (!selLoc) { alert('Seleziona un magazzino'); return }
+    setScaricoLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      // Fetch daily_stats with receipt_details in date range
+      const { data: stats } = await supabase.from('daily_stats')
+        .select('receipt_details')
+        .gte('data', scaricoDaFrom).lte('data', scaricoDaTo)
+      if (!stats || stats.length === 0) { setScaricoResult({ piatti: 0, ingredienti: 0, valore: 0, error: 'Nessun dato vendite nel periodo' }); setScaricoLoading(false); return }
+
+      // Collect all sold items from receipt_details
+      const soldItems = {}
+      stats.forEach(s => {
+        const details = typeof s.receipt_details === 'string' ? JSON.parse(s.receipt_details) : (s.receipt_details || [])
+        ;(Array.isArray(details) ? details : []).forEach(d => {
+          const items = d.items || d.righe || []
+          items.forEach(item => {
+            const nome = (item.nome || item.descrizione || '').toLowerCase().trim()
+            if (nome) soldItems[nome] = (soldItems[nome] || 0) + (parseFloat(item.qty || item.quantita) || 1)
+          })
+        })
+      })
+
+      // Fetch all recipes with items
+      const { data: allRecipes } = await supabase.from('warehouse_recipes').select('id, nome')
+      const { data: recipeItems } = await supabase.from('warehouse_recipe_items').select('recipe_id, product_id, quantita')
+
+      let totalPiatti = 0, totalIngredienti = 0, totalValore = 0
+      const movements = []
+
+      for (const [nomePiatto, qtaVenduta] of Object.entries(soldItems)) {
+        const recipe = (allRecipes || []).find(r => r.nome.toLowerCase().trim() === nomePiatto)
+        if (!recipe) continue
+        totalPiatti += qtaVenduta
+        const items = (recipeItems || []).filter(ri => ri.recipe_id === recipe.id)
+        for (const ri of items) {
+          const qty = (ri.quantita || 0) * qtaVenduta
+          if (qty <= 0) continue
+          totalIngredienti++
+          const prod = prodMap[ri.product_id]
+          totalValore += qty * (prod?.ultimo_prezzo || 0)
+          movements.push({
+            user_id: user.id, product_id: ri.product_id, location_id: selLoc,
+            tipo: 'scarico', quantita: qty, fonte: 'vendita',
+            note: `Vendita ${nomePiatto} x${qtaVenduta}`,
+          })
+        }
+      }
+
+      // Insert movements in batches
+      if (movements.length > 0) {
+        for (let i = 0; i < movements.length; i += 50) {
+          await supabase.from('warehouse_movements').insert(movements.slice(i, i + 50))
+        }
+        // Update stock
+        const stockUpdates = {}
+        movements.forEach(m => {
+          stockUpdates[m.product_id] = (stockUpdates[m.product_id] || 0) + m.quantita
+        })
+        for (const [productId, qty] of Object.entries(stockUpdates)) {
+          const existing = stock.find(s => s.product_id === productId)
+          if (existing) {
+            await supabase.from('warehouse_stock').update({ quantita: (existing.quantita || 0) - qty }).eq('id', existing.id)
+          }
+        }
+      }
+
+      setScaricoResult({ piatti: totalPiatti, ingredienti: totalIngredienti, valore: totalValore })
+      await loadStock()
+    } catch (e) {
+      console.error(e)
+      setScaricoResult({ piatti: 0, ingredienti: 0, valore: 0, error: 'Errore: ' + e.message })
+    }
+    setScaricoLoading(false)
+  }
+
+  const doProduzione = async () => {
+    if (!selLoc || !selRecipe || !prodQty) { alert('Compila tutti i campi'); return }
+    const qty = parseFloat(prodQty) || 0
+    if (qty <= 0) return
+    setProdLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const recipe = recipes.find(r => r.id === selRecipe)
+      // Get recipe items (ingredients)
+      const { data: recipeItems } = await supabase.from('warehouse_recipe_items').select('product_id, quantita').eq('recipe_id', selRecipe)
+      // Get the product that this recipe produces (same name)
+      const semilavorato = products.find(p => p.nome.toLowerCase() === recipe?.nome?.toLowerCase())
+
+      // Scarico ingredienti
+      for (const ri of (recipeItems || [])) {
+        const ingredientQty = (ri.quantita || 0) * qty
+        if (ingredientQty <= 0) continue
+        await supabase.from('warehouse_movements').insert({
+          user_id: user.id, product_id: ri.product_id, location_id: selLoc,
+          tipo: 'scarico', quantita: ingredientQty, fonte: 'produzione',
+          note: `Produzione ${recipe?.nome} x${qty}`,
+        })
+        const existingStock = stock.find(s => s.product_id === ri.product_id)
+        if (existingStock) {
+          await supabase.from('warehouse_stock').update({ quantita: (existingStock.quantita || 0) - ingredientQty }).eq('id', existingStock.id)
+        }
+      }
+
+      // Carico semilavorato
+      if (semilavorato) {
+        await supabase.from('warehouse_movements').insert({
+          user_id: user.id, product_id: semilavorato.id, location_id: selLoc,
+          tipo: 'carico', quantita: qty, fonte: 'produzione',
+          note: `Produzione ${recipe?.nome} x${qty}`,
+        })
+        const existingStock = stock.find(s => s.product_id === semilavorato.id)
+        if (existingStock) {
+          await supabase.from('warehouse_stock').update({ quantita: (existingStock.quantita || 0) + qty }).eq('id', existingStock.id)
+        } else {
+          await supabase.from('warehouse_stock').insert({ user_id: user.id, product_id: semilavorato.id, location_id: selLoc, quantita: qty })
+        }
+      }
+
+      setSelRecipe(''); setProdQty('')
+      await loadStock(); await load()
+    } catch (e) {
+      console.error(e)
+      alert('Errore produzione: ' + e.message)
+    }
+    setProdLoading(false)
   }
 
   return <>
@@ -203,5 +348,82 @@ export default function StockView() {
         </div>
       </div>}
     </Card>}
+
+    {/* Scarico automatico da vendite */}
+    {selLoc && <div style={{ marginTop: 12 }}>
+      <Card title="Scarico automatico da vendite" badge="CiC">
+        <div style={{ display: 'flex', gap: 10, alignItems: 'end', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Da</div>
+            <input type="date" value={scaricoDaFrom} onChange={e => setScaricoDaFrom(e.target.value)} style={iS} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>A</div>
+            <input type="date" value={scaricoDaTo} onChange={e => setScaricoDaTo(e.target.value)} style={iS} />
+          </div>
+          <button onClick={doScaricoVendite} disabled={scaricoLoading} style={{ ...iS, background: '#EF4444', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>
+            {scaricoLoading ? 'Elaborazione...' : 'Scarica da vendite'}
+          </button>
+        </div>
+        {scaricoResult && <div style={{ marginTop: 12, padding: 12, background: '#131825', borderRadius: 8, border: '1px solid #2a3042' }}>
+          {scaricoResult.error
+            ? <div style={{ color: '#F59E0B', fontSize: 13 }}>{scaricoResult.error}</div>
+            : <div style={{ display: 'flex', gap: 24, fontSize: 13 }}>
+                <div><span style={{ color: '#64748b' }}>Piatti venduti:</span> <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{fmtN(scaricoResult.piatti)}</span></div>
+                <div><span style={{ color: '#64748b' }}>Ingredienti scaricati:</span> <span style={{ color: '#EF4444', fontWeight: 600 }}>{fmtN(scaricoResult.ingredienti)}</span></div>
+                <div><span style={{ color: '#64748b' }}>Valore:</span> <span style={{ color: '#F59E0B', fontWeight: 600 }}>{fmt(scaricoResult.valore)}</span></div>
+              </div>
+          }
+        </div>}
+      </Card>
+    </div>}
+
+    {/* Produzione semilavorati */}
+    {selLoc && <div style={{ marginTop: 12 }}>
+      <Card title="Produzione interna" badge={recipes.filter(r => r.tipo === 'semilavorato').length}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'end', flexWrap: 'wrap', marginBottom: 12 }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Ricetta semilavorato</div>
+            <select value={selRecipe} onChange={e => setSelRecipe(e.target.value)} style={{ ...iS, width: '100%' }}>
+              <option value="">Seleziona ricetta...</option>
+              {recipes.filter(r => r.tipo === 'semilavorato').map(r => <option key={r.id} value={r.id}>{r.nome}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Quantita</div>
+            <input type="number" step="0.01" min="0" placeholder="Qty" value={prodQty} onChange={e => setProdQty(e.target.value)} style={{ ...iS, width: 100 }} />
+          </div>
+          <button onClick={doProduzione} disabled={!selRecipe || !prodQty || prodLoading} style={{ ...iS, background: '#8B5CF6', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>
+            {prodLoading ? 'Produzione...' : 'Produci'}
+          </button>
+        </div>
+
+        {/* Production log */}
+        {prodLog.length > 0 && <>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>Log produzione recente</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+              {['Data', 'Prodotto', 'Tipo', 'Qty', 'Note'].map(h => <th key={h} style={S.th}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {prodLog.map(m => {
+                const p = prodMap[m.product_id]
+                return <tr key={m.id}>
+                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{new Date(m.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                  <td style={{ ...S.td, fontWeight: 500 }}>{p?.nome || '?'}</td>
+                  <td style={S.td}>
+                    <span style={S.badge(m.tipo === 'carico' ? '#10B981' : '#EF4444', m.tipo === 'carico' ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.12)')}>
+                      {m.tipo === 'carico' ? 'Carico' : 'Scarico'}
+                    </span>
+                  </td>
+                  <td style={{ ...S.td, fontWeight: 600 }}>{fmtN(m.quantita)} {p?.unita_misura || ''}</td>
+                  <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>{m.note || '-'}</td>
+                </tr>
+              })}
+            </tbody>
+          </table>
+        </>}
+      </Card>
+    </div>}
   </>
 }

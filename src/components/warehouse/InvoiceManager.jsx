@@ -21,6 +21,8 @@ export default function InvoiceManager() {
   const [matchSearch, setMatchSearch] = useState('')
   const [matchResults, setMatchResults] = useState([])
   const [matchingItem, setMatchingItem] = useState(null)
+  const [aliases, setAliases] = useState([])
+  const [autoMatched, setAutoMatched] = useState({})
   const [loading, setLoading] = useState(false)
 
   const load = useCallback(async () => {
@@ -28,6 +30,8 @@ export default function InvoiceManager() {
     setInvoices(inv || [])
     const { data: prods } = await supabase.from('warehouse_products').select('id, nome, categoria, unita_misura').eq('attivo', true).order('nome')
     setProducts(prods || [])
+    const { data: als } = await supabase.from('warehouse_aliases').select('id, product_id, alias')
+    setAliases(als || [])
   }, [])
 
   const loadItems = useCallback(async (invoiceId) => {
@@ -37,6 +41,7 @@ export default function InvoiceManager() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => { if (expanded) loadItems(expanded) }, [expanded, loadItems])
+  useEffect(() => { if (items.length > 0 && products.length > 0) autoMatchItems(items) }, [items, products, aliases])
 
   const saveInvoice = async () => {
     setLoading(true)
@@ -67,11 +72,60 @@ export default function InvoiceManager() {
     if (expanded) await loadItems(expanded)
   }
 
+  const fuzzyScore = (keywords, text) => {
+    if (!text) return 0
+    const lower = text.toLowerCase()
+    let score = 0, allMatch = true
+    for (const kw of keywords) {
+      if (lower.includes(kw)) { score += kw.length + 1 } else { allMatch = false }
+    }
+    // Bonus for exact full match
+    if (lower === keywords.join(' ')) score += 10
+    return allMatch ? score + keywords.length : score > 0 ? score * 0.5 : 0
+  }
+
   const searchProducts = async (q) => {
     setMatchSearch(q)
     if (q.length < 2) { setMatchResults([]); return }
-    const filtered = products.filter(p => p.nome.toLowerCase().includes(q.toLowerCase()))
-    setMatchResults(filtered.slice(0, 8))
+    const keywords = q.toLowerCase().split(/\s+/).filter(k => k.length >= 2)
+    if (keywords.length === 0) { setMatchResults([]); return }
+
+    const scored = products.map(p => {
+      const nameScore = fuzzyScore(keywords, p.nome)
+      // Check aliases for this product
+      const prodAliases = aliases.filter(a => a.product_id === p.id)
+      const aliasScore = prodAliases.reduce((best, a) => Math.max(best, fuzzyScore(keywords, a.alias)), 0)
+      const bestScore = Math.max(nameScore, aliasScore)
+      const matchedVia = aliasScore > nameScore ? 'alias' : 'nome'
+      return { ...p, score: bestScore, matchedVia }
+    }).filter(p => p.score > 0)
+
+    scored.sort((a, b) => b.score - a.score)
+    setMatchResults(scored.slice(0, 5))
+  }
+
+  const autoMatchItems = async (itemsList) => {
+    const matched = {}
+    for (const it of itemsList) {
+      if (it.stato_match === 'abbinato') continue
+      // Check if alias already exists
+      const existingAlias = aliases.find(a => a.alias.toLowerCase() === it.nome_fattura.toLowerCase())
+      if (existingAlias) {
+        matched[it.id] = existingAlias.product_id
+        continue
+      }
+      // Try fuzzy auto-match with high confidence
+      const keywords = it.nome_fattura.toLowerCase().split(/\s+/).filter(k => k.length >= 2)
+      if (keywords.length === 0) continue
+      const best = products.reduce((acc, p) => {
+        const s = fuzzyScore(keywords, p.nome)
+        return s > acc.score ? { product: p, score: s } : acc
+      }, { product: null, score: 0 })
+      if (best.product && best.score >= keywords.length * 3) {
+        matched[it.id] = best.product.id
+      }
+    }
+    setAutoMatched(matched)
   }
 
   const confirmMatch = async (item, product) => {
@@ -175,7 +229,14 @@ export default function InvoiceManager() {
                 <td style={S.td}>
                   {it.stato_match === 'abbinato'
                     ? <span style={{ fontSize: 12, color: '#10B981' }}>{products.find(p => p.id === it.product_id)?.nome || 'Abbinato'}</span>
-                    : <button onClick={() => { setMatchingItem(it); setMatchSearch(''); setMatchResults([]) }} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '3px 10px', fontWeight: 600, fontSize: 11 }}>Abbina</button>
+                    : autoMatched[it.id]
+                      ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={S.badge('#8B5CF6', 'rgba(139,92,246,.12)')}>suggerito</span>
+                          <span style={{ fontSize: 11, color: '#c4b5fd' }}>{products.find(p => p.id === autoMatched[it.id])?.nome}</span>
+                          <button onClick={() => confirmMatch(it, products.find(p => p.id === autoMatched[it.id]))} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '2px 8px', fontWeight: 600, fontSize: 10 }}>Conferma</button>
+                          <button onClick={() => { setMatchingItem(it); setMatchSearch(''); setMatchResults([]) }} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '2px 8px', fontSize: 10 }}>Altro</button>
+                        </span>
+                      : <button onClick={() => { setMatchingItem(it); setMatchSearch(''); setMatchResults([]) }} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '3px 10px', fontWeight: 600, fontSize: 11 }}>Abbina</button>
                   }
                 </td>
                 <td style={S.td}><button onClick={() => deleteItem(it.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}>X</button></td>
@@ -189,8 +250,11 @@ export default function InvoiceManager() {
           <div style={{ fontSize: 13, color: '#e2e8f0', marginBottom: 8 }}>Abbina "{matchingItem.nome_fattura}" a un prodotto:</div>
           <input placeholder="Cerca prodotto..." value={matchSearch} onChange={e => searchProducts(e.target.value)} style={{ ...formS, maxWidth: 300 }} autoFocus />
           {matchResults.map(p => (
-            <div key={p.id} onClick={() => confirmMatch(matchingItem, p)} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #2a3042', fontSize: 13, color: '#e2e8f0' }}>
-              <span style={{ fontWeight: 500 }}>{p.nome}</span> <span style={{ color: '#64748b', fontSize: 11 }}>({p.categoria} - {p.unita_misura})</span>
+            <div key={p.id} onClick={() => confirmMatch(matchingItem, p)} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #2a3042', fontSize: 13, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontWeight: 500 }}>{p.nome}</span>
+              <span style={{ color: '#64748b', fontSize: 11 }}>({p.categoria} - {p.unita_misura})</span>
+              {p.matchedVia === 'alias' && <span style={S.badge('#8B5CF6', 'rgba(139,92,246,.12)')}>alias</span>}
+              <span style={{ marginLeft: 'auto', fontSize: 10, color: '#475569' }}>score: {p.score.toFixed(0)}</span>
             </div>
           ))}
           <button onClick={() => setMatchingItem(null)} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '4px 12px', marginTop: 8, fontSize: 11 }}>Annulla</button>
