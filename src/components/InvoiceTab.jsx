@@ -11,22 +11,36 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
 
   const iS = S.input
 
+  const [sessionCookie, setSessionCookie] = useState(() => localStorage.getItem('cic_session_cookie') || '')
+  const [showCookieInput, setShowCookieInput] = useState(false)
+
   const loadCicInvoices = async () => {
+    if (!sessionCookie) { setShowCookieInput(true); return }
     setFatLoading(true)
     try {
-      const r = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list', sessionCookie: document.cookie }) })
+      const r = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list', sessionCookie }) })
       if (r.ok) {
         const d = await r.json()
         setCicInvoices(d.invoices || [])
+        if (d.invoices?.length) localStorage.setItem('cic_session_cookie', sessionCookie)
+      } else {
+        const d = await r.json().catch(() => ({}))
+        if (d.needsSession) setShowCookieInput(true)
       }
     } catch {}
     setFatLoading(false)
   }
 
+  const saveCookie = () => {
+    localStorage.setItem('cic_session_cookie', sessionCookie)
+    setShowCookieInput(false)
+    loadCicInvoices()
+  }
+
   const downloadXml = async (inv) => {
     setXmlLoading(true); setXmlContent(null)
     try {
-      const r = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'xml', sessionCookie: document.cookie, invoiceId: inv.id, spId: inv.salespoint_id }) })
+      const r = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'xml', sessionCookie, invoiceId: inv.id, spId: inv.salespoint_id }) })
       if (r.ok) {
         const d = await r.json()
         setXmlContent(d.xml)
@@ -73,10 +87,24 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
       <KPI label="Da assegnare" icon="📋" value={cicInvoices.filter(f => !localeMap[f.id] || localeMap[f.id] === 'Alhena Group').length} sub="senza locale" accent='#F97316' />
       <KPI label="Assegnate" icon="✓" value={cicInvoices.filter(f => localeMap[f.id] && localeMap[f.id] !== 'Alhena Group').length} sub="con locale" accent='#10B981' />
     </div>
+    {/* Cookie CiC input */}
+    {showCookieInput && <div style={{ ...S.card, marginBottom: 12, borderLeft: '3px solid #F59E0B' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Connessione a Cassa in Cloud</div>
+      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
+        Per caricare le fatture serve il cookie di sessione CiC. Apri <a href="https://fo.cassanova.com" target="_blank" style={{ color: '#F59E0B' }}>fo.cassanova.com</a>,
+        poi apri la console del browser (F12 → Console) e digita: <code style={{ background: '#0f1420', padding: '2px 6px', borderRadius: 4 }}>document.cookie</code> — copia il risultato e incollalo qui.
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input value={sessionCookie} onChange={e => setSessionCookie(e.target.value)} placeholder="Incolla il cookie di sessione CiC..." style={{ ...iS, flex: 1 }} />
+        <button onClick={saveCookie} disabled={!sessionCookie} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600 }}>Connetti</button>
+        <button onClick={() => setShowCookieInput(false)} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '6px 12px' }}>Chiudi</button>
+      </div>
+    </div>}
+
     <Card title="Fatture passive da CiC" badge={fatLoading ? 'Caricamento...' : cicInvoices.length + ' fatture'} extra={
       <div style={{ display: 'flex', gap: 8 }}>
         <input placeholder="🔍 Fornitore / N° doc..." value={fatSearch} onChange={e => setFatSearch(e.target.value)} style={{ ...iS, width: 200 }} />
-        <button onClick={loadCicInvoices} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '6px 16px', fontWeight: 600 }}>Aggiorna</button>
+        <button onClick={() => sessionCookie ? loadCicInvoices() : setShowCookieInput(true)} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '6px 16px', fontWeight: 600 }}>{sessionCookie ? 'Aggiorna' : 'Configura CiC'}</button>
       </div>
     }>
       <div style={{ overflowX: 'auto' }}>
