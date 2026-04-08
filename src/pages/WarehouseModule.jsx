@@ -10,14 +10,14 @@ import OrderManager from '../components/warehouse/OrderManager'
 import PriceAnalysis from '../components/warehouse/PriceAnalysis'
 
 const TABS = [
-  { key: 'cruscotto',  label: 'Cruscotto',  icon: '\u{1F4CA}' },
-  { key: 'fatture',    label: 'Fatture',     icon: '\u{1F9FE}' },
-  { key: 'prodotti',   label: 'Prodotti',    icon: '\u{1F4E6}' },
-  { key: 'ricette',    label: 'Ricette',     icon: '\u{1F373}' },
-  { key: 'giacenze',   label: 'Giacenze',    icon: '\u{1F3E0}' },
-  { key: 'inventario', label: 'Inventario',  icon: '\u{1F4CB}' },
-  { key: 'ordini',     label: 'Ordini',      icon: '\u{1F6D2}' },
-  { key: 'prezzi',     label: 'Prezzi',      icon: '\u{1F4B0}' },
+  { key: 'cruscotto',  label: 'Cruscotto',  icon: '📊' },
+  { key: 'fatture',    label: 'Fatture',     icon: '🧾' },
+  { key: 'prodotti',   label: 'Prodotti',    icon: '📦' },
+  { key: 'ricette',    label: 'Ricette',     icon: '🍳' },
+  { key: 'giacenze',   label: 'Giacenze',    icon: '🏠' },
+  { key: 'inventario', label: 'Inventario',  icon: '📋' },
+  { key: 'ordini',     label: 'Ordini',      icon: '🛒' },
+  { key: 'prezzi',     label: 'Prezzi',      icon: '💰' },
 ]
 
 export default function WarehouseModule({ sp, sps }) {
