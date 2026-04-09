@@ -144,17 +144,53 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                     {DAYS.map((_, day) => {
                       const att = getAttendanceForDay(emp.id, day)
                       totOre += att.ore
-                      const bgColor = att.entrata && att.uscita ? 'rgba(16,185,129,.12)' : att.incompleta ? 'rgba(245,158,11,.12)' : 'transparent'
-                      const borderColor = att.entrata && att.uscita ? '#10B981' : att.incompleta ? '#F59E0B' : 'transparent'
-                      return <td key={day} style={{ ...S.td, textAlign: 'center', padding: '4px 2px', minWidth: 80 }}>
+                      const date = new Date(weekStart)
+                      date.setDate(date.getDate() + day)
+                      const ds = date.toISOString().split('T')[0]
+                      const dayRecs = attendance.filter(a => a.employee_id === emp.id && a.timestamp?.startsWith(ds))
+                      const entrataRec = dayRecs.find(r => r.tipo === 'entrata')
+                      const uscitaRec = [...dayRecs].filter(r => r.tipo === 'uscita').pop()
+
+                      const updateTime = async (id, oldTs, newTime) => {
+                        if (!newTime || !id) return
+                        const newTs = ds + 'T' + newTime + ':00'
+                        await supabase.from('attendance').update({ timestamp: newTs }).eq('id', id)
+                        loadAttendance()
+                      }
+                      const addEntry = async () => {
+                        await supabase.from('attendance').insert({ employee_id: emp.id, timestamp: ds + 'T09:00:00', tipo: 'entrata', locale: emp.locale?.split(',')[0] || '' })
+                        loadAttendance()
+                      }
+                      const addExit = async () => {
+                        await supabase.from('attendance').insert({ employee_id: emp.id, timestamp: ds + 'T18:00:00', tipo: 'uscita', locale: emp.locale?.split(',')[0] || '' })
+                        loadAttendance()
+                      }
+                      const deleteDay = async () => {
+                        for (const r of dayRecs) await supabase.from('attendance').delete().eq('id', r.id)
+                        loadAttendance()
+                      }
+
+                      const bgColor = att.entrata && att.uscita ? 'rgba(16,185,129,.08)' : att.incompleta ? 'rgba(245,158,11,.08)' : 'transparent'
+                      return <td key={day} style={{ ...S.td, textAlign: 'center', padding: '3px 2px', minWidth: 90, background: bgColor }}>
                         {att.entrata ? (
-                          <div style={{ background: bgColor, borderRadius: 4, padding: '3px 4px', fontSize: 10, borderLeft: '2px solid ' + borderColor }}>
-                            <div style={{ color: '#10B981', fontWeight: 600 }}>{att.entrata}</div>
-                            <div style={{ color: att.uscita ? '#94a3b8' : '#F59E0B' }}>{att.uscita || 'in corso'}</div>
-                            {att.ore > 0 && <div style={{ color: '#F59E0B', fontWeight: 600, fontSize: 9 }}>{att.ore}h</div>}
+                          <div style={{ fontSize: 10 }}>
+                            <input type="time" defaultValue={entrataRec ? new Date(entrataRec.timestamp).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : ''}
+                              onBlur={e => updateTime(entrataRec?.id, entrataRec?.timestamp, e.target.value)}
+                              style={{ ...iS, width: 68, fontSize: 10, padding: '1px 3px', color: '#10B981', fontWeight: 600, textAlign: 'center' }} />
+                            {att.uscita ? (
+                              <input type="time" defaultValue={uscitaRec ? new Date(uscitaRec.timestamp).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : ''}
+                                onBlur={e => updateTime(uscitaRec?.id, uscitaRec?.timestamp, e.target.value)}
+                                style={{ ...iS, width: 68, fontSize: 10, padding: '1px 3px', color: '#94a3b8', textAlign: 'center', marginTop: 2 }} />
+                            ) : (
+                              <button onClick={addExit} style={{ display: 'block', margin: '2px auto 0', fontSize: 8, color: '#F59E0B', background: 'transparent', border: '1px solid #F59E0B33', borderRadius: 3, padding: '1px 6px', cursor: 'pointer' }}>+usc</button>
+                            )}
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, marginTop: 1 }}>
+                              {att.ore > 0 && <span style={{ color: '#F59E0B', fontWeight: 700, fontSize: 9 }}>{att.ore}h</span>}
+                              <button onClick={deleteDay} style={{ background: 'none', border: 'none', color: '#47556966', cursor: 'pointer', fontSize: 9, padding: 0 }}>✕</button>
+                            </div>
                           </div>
                         ) : (
-                          <span style={{ color: '#1e2636', fontSize: 11 }}>—</span>
+                          <button onClick={addEntry} style={{ background: 'transparent', border: '1px dashed #2a304266', borderRadius: 4, color: '#475569', cursor: 'pointer', fontSize: 10, padding: '6px 4px', width: '100%' }} title="Aggiungi timbratura">+</button>
                         )}
                       </td>
                     })}
