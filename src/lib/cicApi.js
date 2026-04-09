@@ -91,20 +91,17 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
     if (row.z_number) zNumber = row.z_number;
     if (row.fiscal_close_time) fiscalCloseTime = row.fiscal_close_time;
 
-    // Fix: se fiscal_close_time è prima dell'ultima comanda, è un dato sbagliato
-    // (la riconciliazione potrebbe essere del giorno precedente)
+    // Fix: la chiusura cassa è il MAX tra fiscal_close_time e l'ultima comanda
+    // Se la riconciliazione è prima dell'ultima comanda, il locale ha chiuso dopo
+    const toMin = t => { if (!t) return -1; const [h,m] = t.split(':').map(Number); return h < 6 ? (24+h)*60+m : h*60+m; };
     const latestActivity = [row.last_receipt_time, row.last_kitchen_time, row.last_bar_time]
-      .filter(Boolean).sort().pop();
-    if (fiscalCloseTime && latestActivity) {
-      // Converti in minuti per confronto (gestisce after-midnight: 00:xx > 23:xx)
-      const toMin = t => { const [h,m] = t.split(':').map(Number); return h * 60 + m; };
-      const closeMin = toMin(fiscalCloseTime);
-      const latestMin = toMin(latestActivity);
-      // Se la chiusura è significativamente prima dell'ultima attività (e non è after-midnight)
-      // Es: chiusura 20:27 ma ultima comanda 22:03 → sbagliato
-      if (closeMin < latestMin && latestMin - closeMin > 10 && latestMin < 1440) {
-        fiscalCloseTime = null; // rimuovi dato incoerente
-      }
+      .filter(Boolean).reduce((best, t) => toMin(t) > toMin(best) ? t : best, null);
+    if (latestActivity && fiscalCloseTime && toMin(latestActivity) > toMin(fiscalCloseTime)) {
+      // L'ultima comanda è DOPO la riconciliazione → la vera chiusura è l'ultima comanda
+      fiscalCloseTime = latestActivity;
+    }
+    if (!fiscalCloseTime && latestActivity) {
+      fiscalCloseTime = latestActivity;
     }
 
     // Trend giornaliero (con coperti)
