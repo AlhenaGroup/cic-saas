@@ -149,6 +149,24 @@ export default async function handler(req, res) {
         return res.status(200).json({ dept, cat, tax, trend, hour, reconc });
       }
 
+      case 'logs': {
+        const { sessionCookie: logCookie, from: logFrom, to: logTo, limit: logLimit = 200, start: logStart = 0 } = body;
+        if (!logCookie) return res.status(400).json({ error: 'sessionCookie required', needsSession: true });
+        const logFilter = JSON.stringify({
+          datetimeFrom: logFrom + 'T00:00:00.000',
+          datetimeTo: logTo + 'T23:59:59.999',
+          platform: ['CASSANOVA', 'COMANDI', 'MYCASSANOVA'],
+          level: ['INFO']
+        });
+        const logs = await foGet(logCookie, '/logs', {
+          filter: logFilter,
+          limit: logLimit,
+          sorts: JSON.stringify({ datetime: -1 }),
+          start: logStart
+        });
+        return res.status(200).json(logs);
+      }
+
       case 'webhooks_list': {
         const data = await cicGet(token, '/webhooks', { start: 0, limit: 20 });
         return res.status(200).json(data);
