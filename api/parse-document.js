@@ -8,13 +8,13 @@ async function downloadFile(filePath) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-function parsePDF(buffer) {
-  const pdfParse = require('pdf-parse');
+async function parsePDF(buffer) {
+  const pdfParse = (await import('pdf-parse')).default;
   return pdfParse(buffer).then(data => data.text);
 }
 
-function parseExcel(buffer) {
-  const XLSX = require('xlsx');
+async function parseExcel(buffer) {
+  const XLSX = (await import('xlsx')).default;
   const wb = XLSX.read(buffer, { type: 'buffer' });
   const texts = [];
   for (const name of wb.SheetNames) {
@@ -24,8 +24,8 @@ function parseExcel(buffer) {
   return texts.join('\n');
 }
 
-function parseWord(buffer) {
-  const mammoth = require('mammoth');
+async function parseWord(buffer) {
+  const mammoth = (await import('mammoth')).default;
   return mammoth.extractRawText({ buffer }).then(r => r.value);
 }
 
