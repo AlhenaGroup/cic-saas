@@ -258,7 +258,23 @@ function SuggestedSchedule({ sp, sps }) {
   const [grid, setGrid] = useState({}) // { dayIndex: { hour: { ricavi, staff } } }
   const [soglia, setSoglia] = useState(50)
   const [loading, setLoading] = useState(false)
+  // Preparazioni: ore fisse per cucina/sala/pulizie per giorno (personale aggiuntivo a incassi zero)
+  const [prep, setPrep] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cic_prep_hours') || '{}') } catch { return {} }
+  })
   const HOURS = Array.from({ length: 18 }, (_, i) => (i + 8) % 24) // 8:00 → 01:00
+  const PREP_CATS = [
+    { key: 'cucina', label: 'Prep. cucina', icon: '👨‍🍳', color: '#F59E0B' },
+    { key: 'sala', label: 'Prep. sala', icon: '🍽️', color: '#3B82F6' },
+    { key: 'pulizie', label: 'Pulizie', icon: '🧹', color: '#8B5CF6' },
+  ]
+  const updatePrep = (day, hour, cat, val) => {
+    const k = `${day}-${hour}-${cat}`
+    const next = { ...prep, [k]: Number(val) || 0 }
+    setPrep(next)
+    localStorage.setItem('cic_prep_hours', JSON.stringify(next))
+  }
+  const getPrep = (day, hour) => PREP_CATS.reduce((s, c) => s + (prep[`${day}-${hour}-${c.key}`] || 0), 0)
 
   const localeName = sp === 'all' ? null : sps.find(s => String(s.id) === String(sp))?.description || sps.find(s => String(s.id) === String(sp))?.name || null
 
@@ -298,8 +314,9 @@ function SuggestedSchedule({ sp, sps }) {
 
   const getCell = (day, hour) => {
     const cell = grid[day]?.[hour]
-    if (!cell || cell.ricavi <= 0) return { ricavi: 0, staff: 0 }
-    return { ricavi: cell.ricavi, staff: Math.max(1, Math.ceil(cell.ricavi / soglia)) }
+    const prepStaff = getPrep(day, hour)
+    const revenueStaff = cell && cell.ricavi > 0 ? Math.max(1, Math.ceil(cell.ricavi / soglia)) : 0
+    return { ricavi: cell?.ricavi || 0, staff: revenueStaff + prepStaff, revenueStaff, prepStaff }
   }
 
   const staffColor = n => n === 0 ? '#1a1f2e' : n <= 2 ? 'rgba(16,185,129,.15)' : n <= 4 ? 'rgba(245,158,11,.15)' : 'rgba(239,68,68,.15)'
@@ -337,7 +354,8 @@ function SuggestedSchedule({ sp, sps }) {
       DAYS.forEach((_, di) => {
         const c = getCell(di, h)
         const cls = c.staff === 0 ? '' : c.staff <= 2 ? 'g' : c.staff <= 4 ? 'y' : 'r'
-        html += `<td class="${cls}"><div class="staff">${c.staff || '—'}</div><div class="rev">${c.ricavi > 0 ? Math.round(c.ricavi) + '€' : ''}</div></td>`
+        const prepNote = c.prepStaff > 0 && c.revenueStaff === 0 ? '<div class="rev" style="color:#7c3aed">prep</div>' : ''
+        html += `<td class="${cls}"><div class="staff">${c.staff || '—'}</div><div class="rev">${c.ricavi > 0 ? Math.round(c.ricavi) + '€' : ''}</div>${prepNote}</td>`
       })
       html += `</tr>`
     })
@@ -365,6 +383,45 @@ function SuggestedSchedule({ sp, sps }) {
       <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
         Basato sugli incassi della settimana precedente ({prevMonday} → {prevSunday}) {localeName ? `per ${localeName}` : ''} — {daysWithData} giorni con dati
       </div>
+
+      {/* Preparazioni budget */}
+      <div style={{ background: '#131825', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #2a3042' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Budget preparazioni (personale a locale chiuso)</div>
+        <div style={{ fontSize: 10, color: '#64748b', marginBottom: 8 }}>Inserisci il numero di persone per preparazione cucina, sala e pulizie nelle fasce orarie senza incassi</div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+              <th style={{ ...S.th, fontSize: 9, width: 80 }}>Categoria</th>
+              <th style={{ ...S.th, fontSize: 9, width: 40 }}>Ora</th>
+              {DAYS.map(d => <th key={d} style={{ ...S.th, fontSize: 9 }}>{d}</th>)}
+            </tr></thead>
+            <tbody>
+              {PREP_CATS.map(cat => {
+                // Mostra solo le ore tipiche di preparazione (prima apertura e dopo chiusura)
+                const prepHours = HOURS.filter(h => h < 12 || h >= 23 || h === 0 || h === 1)
+                return prepHours.map(h => {
+                  const hStr = String(h).padStart(2, '0') + ':00'
+                  const hasVal = DAYS.some((_, di) => prep[`${di}-${h}-${cat.key}`] > 0)
+                  return <tr key={cat.key + '-' + h} style={{ borderBottom: '1px solid #1a1f2e', display: hasVal || h === prepHours[0] ? '' : 'none' }}>
+                    {h === prepHours[0] && <td rowSpan={1} style={{ ...S.td, fontSize: 10, color: cat.color, fontWeight: 600 }}>{cat.icon} {cat.label}</td>}
+                    {h !== prepHours[0] && <td style={{ ...S.td, fontSize: 10, color: cat.color }}>{cat.label}</td>}
+                    <td style={{ ...S.td, fontSize: 10, color: '#94a3b8' }}>{hStr}</td>
+                    {DAYS.map((_, di) => (
+                      <td key={di} style={{ ...S.td, padding: '2px 1px' }}>
+                        <input type="number" min="0" max="10" value={prep[`${di}-${h}-${cat.key}`] || ''}
+                          onChange={e => updatePrep(di, h, cat.key, e.target.value)} placeholder="0"
+                          style={{ ...iS, width: 30, fontSize: 10, padding: '1px 2px', textAlign: 'center', color: cat.color }} />
+                      </td>
+                    ))}
+                  </tr>
+                })
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ fontSize: 9, color: '#475569', marginTop: 4 }}>Le preparazioni vengono sommate al personale consigliato nella tabella sotto. I dati si salvano in automatico.</div>
+      </div>
+
       {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#F59E0B', fontSize: 12 }}>Caricamento dati settimana precedente...</div> : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -384,6 +441,7 @@ function SuggestedSchedule({ sp, sps }) {
                     return <td key={di} style={{ ...S.td, background: staffColor(c.staff), textAlign: 'center', padding: '4px 2px' }}>
                       <div style={{ fontSize: 16, fontWeight: 700, color: staffTextColor(c.staff) }}>{c.staff || '—'}</div>
                       {c.ricavi > 0 && <div style={{ fontSize: 9, color: '#64748b', marginTop: 1 }}>{Math.round(c.ricavi)}€</div>}
+                      {c.prepStaff > 0 && c.revenueStaff === 0 && <div style={{ fontSize: 8, color: '#8B5CF6', marginTop: 1 }}>prep</div>}
                     </td>
                   })}
                 </tr>
@@ -401,6 +459,7 @@ function SuggestedSchedule({ sp, sps }) {
         <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(16,185,129,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> 1-2 persone</span>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(245,158,11,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> 3-4 persone</span>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(239,68,68,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> 5+ persone</span>
+        <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(139,92,246,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> preparazioni</span>
       </div>
     </Card>
   </div>
