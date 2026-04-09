@@ -170,16 +170,18 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                         loadAttendance()
                       }
 
+                      const entrataVal = entrataRec ? entrataRec.timestamp.substring(11, 16) : ''
+                      const uscitaVal = uscitaRec ? uscitaRec.timestamp.substring(11, 16) : ''
                       const bgColor = att.entrata && att.uscita ? 'rgba(16,185,129,.08)' : att.incompleta ? 'rgba(245,158,11,.08)' : 'transparent'
                       return <td key={day} style={{ ...S.td, textAlign: 'center', padding: '3px 2px', minWidth: 90, background: bgColor }}>
                         {att.entrata ? (
                           <div style={{ fontSize: 10 }}>
-                            <input type="time" defaultValue={entrataRec ? new Date(entrataRec.timestamp).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : ''}
-                              onBlur={e => updateTime(entrataRec?.id, entrataRec?.timestamp, e.target.value)}
+                            <input type="time" key={'e-'+entrataRec?.id+'-'+entrataVal} defaultValue={entrataVal}
+                              onChange={e => { if (e.target.value) updateTime(entrataRec?.id, entrataRec?.timestamp, e.target.value) }}
                               style={{ ...iS, width: 68, fontSize: 10, padding: '1px 3px', color: '#10B981', fontWeight: 600, textAlign: 'center' }} />
                             {att.uscita ? (
-                              <input type="time" defaultValue={uscitaRec ? new Date(uscitaRec.timestamp).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : ''}
-                                onBlur={e => updateTime(uscitaRec?.id, uscitaRec?.timestamp, e.target.value)}
+                              <input type="time" key={'u-'+uscitaRec?.id+'-'+uscitaVal} defaultValue={uscitaVal}
+                                onChange={e => { if (e.target.value) updateTime(uscitaRec?.id, uscitaRec?.timestamp, e.target.value) }}
                                 style={{ ...iS, width: 68, fontSize: 10, padding: '1px 3px', color: '#94a3b8', textAlign: 'center', marginTop: 2 }} />
                             ) : (
                               <button onClick={addExit} style={{ display: 'block', margin: '2px auto 0', fontSize: 8, color: '#F59E0B', background: 'transparent', border: '1px solid #F59E0B33', borderRadius: 3, padding: '1px 6px', cursor: 'pointer' }}>+usc</button>
