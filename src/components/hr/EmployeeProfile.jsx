@@ -313,23 +313,71 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
         <KPI label="Tot. straordinario" icon="⚡" value={totStraordinario||'—'} sub="ore extra" accent='#F59E0B'/>
       </div>
 
-      {/* Timbrature reali per giorno */}
-      <Card title="Ore reali (da timbrature)" badge={totRealHours+'h totali'}>
+      {/* Timbrature reali per giorno — editabili */}
+      <Card title="Ore reali (da timbrature)" badge={totRealHours+'h totali'} extra={
+        <button onClick={() => {
+          const today = new Date().toISOString().split('T')[0]
+          const newRec = { employee_id: employee.id, timestamp: today+'T09:00:00', tipo: 'entrata', locale: emp.locale?.split(',')[0] || '' }
+          supabase.from('attendance').insert(newRec).then(() => loadAttendance())
+        }} style={{...S.input,background:'#3B82F6',color:'#fff',border:'none',padding:'4px 12px',fontWeight:600,fontSize:11}}>+ Aggiungi ore</button>
+      }>
         {dailyHours.length === 0 ? (
-          <div style={{color:'#475569',textAlign:'center',padding:16,fontSize:13}}>Nessuna timbratura registrata.</div>
+          <div style={{color:'#475569',textAlign:'center',padding:16,fontSize:13}}>Nessuna timbratura registrata. Clicca "+ Aggiungi ore" per inserire manualmente.</div>
         ) : (
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-              {['Data','Entrata','Uscita','Ore','Locale'].map(h=><th key={h} style={S.th}>{h}</th>)}
+              {['Data','Entrata','Uscita','Ore','Locale',''].map(h=><th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
             <tbody>
-              {dailyHours.slice(0,30).map(d => <tr key={d.day}>
-                <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{new Date(d.day+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'})}</td>
-                <td style={{...S.td,color:'#10B981',fontWeight:600}}>{d.entrata ? new Date(d.entrata).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : '—'}</td>
-                <td style={{...S.td,color:'#94a3b8'}}>{d.uscita ? new Date(d.uscita).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : 'in corso'}</td>
-                <td style={{...S.td,fontWeight:600,color:d.hours>0?'#e2e8f0':'#475569'}}>{d.hours>0?d.hours+'h':'—'}</td>
-                <td style={{...S.td,color:'#64748b',fontSize:11}}>{d.locale}</td>
-              </tr>)}
+              {dailyHours.slice(0,30).map(d => {
+                const entrataTime = d.entrata ? new Date(d.entrata).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : ''
+                const uscitaTime = d.uscita ? new Date(d.uscita).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : ''
+                const entrataId = attendance.find(a => a.timestamp === d.entrata)?.id
+                const uscitaId = attendance.find(a => a.timestamp === d.uscita)?.id
+
+                const updateTime = async (id, timestamp, newTime) => {
+                  if (!newTime || !id) return
+                  const day = timestamp.substring(0,10)
+                  const newTs = day + 'T' + newTime + ':00'
+                  await supabase.from('attendance').update({ timestamp: newTs }).eq('id', id)
+                  loadAttendance()
+                }
+
+                const addExit = async () => {
+                  const day = d.day
+                  await supabase.from('attendance').insert({ employee_id: employee.id, timestamp: day+'T18:00:00', tipo: 'uscita', locale: d.locale || '' })
+                  loadAttendance()
+                }
+
+                const deleteDay = async () => {
+                  const dayRecords = attendance.filter(a => a.timestamp?.startsWith(d.day) && a.employee_id === employee.id)
+                  for (const r of dayRecords) {
+                    await supabase.from('attendance').delete().eq('id', r.id)
+                  }
+                  loadAttendance()
+                }
+
+                return <tr key={d.day}>
+                  <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{new Date(d.day+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'2-digit'})}</td>
+                  <td style={S.td}>
+                    <input type="time" value={entrataTime} onChange={e => updateTime(entrataId, d.entrata, e.target.value)}
+                      style={{...S.input,width:80,fontSize:12,padding:'2px 6px',color:'#10B981',fontWeight:600}} />
+                  </td>
+                  <td style={S.td}>
+                    {d.uscita ? (
+                      <input type="time" value={uscitaTime} onChange={e => updateTime(uscitaId, d.uscita, e.target.value)}
+                        style={{...S.input,width:80,fontSize:12,padding:'2px 6px',color:'#94a3b8'}} />
+                    ) : (
+                      <button onClick={addExit} style={{...S.input,fontSize:10,padding:'2px 8px',color:'#F59E0B',border:'1px solid #F59E0B',background:'transparent'}}>+ Uscita</button>
+                    )}
+                  </td>
+                  <td style={{...S.td,fontWeight:600,color:d.hours>0?'#e2e8f0':'#475569'}}>{d.hours>0?d.hours+'h':'—'}</td>
+                  <td style={{...S.td,color:'#64748b',fontSize:11}}>{d.locale}</td>
+                  <td style={S.td}>
+                    <button onClick={deleteDay} style={{background:'transparent',border:'none',color:'#475569',cursor:'pointer',fontSize:14}} title="Elimina">🗑️</button>
+                  </td>
+                </tr>
+              })}
             </tbody>
           </table>
         )}
