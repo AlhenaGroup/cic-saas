@@ -254,24 +254,26 @@ export default function DashboardPage({ settings }) {
           <KPI label="N° scontrini" value={fmtN(data?.scontrini)} sub="emessi" accent='#3B82F6'/>
           <KPI label="Medio" value={fmtD(data?.medio)} sub="per scontrino" accent='#10B981'/>
         </div>
-        <Card title="Lista scontrini" extra={
+        <Card title="Lista scontrini" badge={recs.length + ' comande'} extra={
           <input placeholder="🔍 Cerca..." value={recSearch} onChange={e=>setRecSearch(e.target.value)} style={{...iS,width:220}}/>
         }>
           <div style={{overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['N°','Data','Ora','Locale','Articoli','Totale','Pagamento'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                {['N°','Data','Apertura','Chiusura','Locale','Tavolo','Cop.','Articoli','Totale'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {recs.filter(r=>!recSearch||r.locale?.toLowerCase().includes(recSearch.toLowerCase())||r.id.includes(recSearch)).slice(0,30).map((r,i)=>(
+                {recs.filter(r=>!recSearch||r.locale?.toLowerCase().includes(recSearch.toLowerCase())||r.id.includes(recSearch)||(r.tavolo||'').toLowerCase().includes(recSearch.toLowerCase())).slice(0,100).map((r,i)=>(
                   <tr key={i}>
                     <td style={{...S.td,color:'#475569',fontWeight:600}}>{r.id}</td>
                     <td style={S.td}>{r.date}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{r.time}</td>
+                    <td style={{...S.td,color:'#10B981',fontWeight:500}}>{r.time||'—'}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{r.chiusura||'—'}</td>
                     <td style={S.td}>{r.locale}</td>
+                    <td style={{...S.td,color:'#F59E0B'}}>{r.tavolo||'—'}</td>
+                    <td style={{...S.td,color:'#94a3b8'}}>{r.coperti||'—'}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{r.items} art.</td>
                     <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{fmtD(r.total)}</td>
-                    <td style={S.td}><span style={S.badge(r.payment==='Carta'?'#3B82F6':r.payment==='Satispay'?'#8B5CF6':'#10B981',r.payment==='Carta'?'rgba(59,130,246,.15)':r.payment==='Satispay'?'rgba(139,92,246,.15)':'rgba(16,185,129,.15)')}>{r.payment}</span></td>
                   </tr>
                 ))}
               </tbody>
