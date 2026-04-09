@@ -110,23 +110,6 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
       <KPI label="Scadenze" icon="📅" value={scadProssime.length} sub="nei prossimi 30gg" accent='#F59E0B'/>
     </div>
 
-    {/* Presenze per fascia oraria */}
-    <Card title="Presenze per fascia oraria" badge="→ Produttività" extra={
-      <button onClick={saveSchedule} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'4px 12px',fontWeight:600,fontSize:11}}>Salva presenze</button>
-    }>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
-        {Array.from({length:16},(_,i)=>{
-          const h = i+8, key = String(h).padStart(2,'0')+':00'
-          return <div key={h} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0'}}>
-            <span style={{fontSize:12,color:'#94a3b8',width:45,fontWeight:500}}>{key}</span>
-            <input type="number" min="0" max="20" value={staffSchedule[key]||''} placeholder="0"
-              onChange={e=>setStaffSchedule(prev=>({...prev,[key]:Number(e.target.value)||0}))}
-              style={{...iS,width:50,textAlign:'center',fontSize:13,padding:'4px 6px'}}/>
-          </div>
-        })}
-      </div>
-    </Card>
-
     {/* Dipendenti CRUD */}
     <div style={{marginTop:12}}>
       <Card title="Dipendenti" extra={
