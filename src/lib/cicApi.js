@@ -113,6 +113,23 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
     copertoMedio: totalCoperti > 0 ? totale / totalCoperti : 0,
     depts, cats, taxes, trend, prodOre,
     receiptDetails: rows.flatMap(r => r.receipt_details || []).sort((a,b) => (a.aperturaComanda||a.ora||'').localeCompare(b.aperturaComanda||b.ora||'')),
+    // Costruisci scontriniList dai dati reali (receipt_details per giorno)
+    scontriniList: rows.flatMap(r => {
+      const dateStr = typeof r.date === 'string' ? r.date.substring(0,10) : r.date;
+      const spName = r.salespoint_name || 'LOCALE';
+      return (r.receipt_details || []).map((rd, i) => ({
+        id: 'S' + String(i+1).padStart(4,'0'),
+        date: dateStr,
+        time: rd.aperturaComanda || rd.chiusuraComanda || '—',
+        items: (rd.items || []).length,
+        total: rd.totale || 0,
+        payment: '—',
+        locale: spName,
+        tavolo: rd.tavolo || null,
+        coperti: rd.coperti || null,
+        chiusura: rd.chiusuraComanda || null,
+      }));
+    }).sort((a,b) => (b.date + b.time).localeCompare(a.date + a.time)),
     firstReceiptTime, lastReceiptTime, lastKitchenTime, lastBarTime, zNumber, fiscalCloseTime,
     isDemo: false
   };
