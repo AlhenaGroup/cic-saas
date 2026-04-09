@@ -130,6 +130,12 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
         chiusura: rd.chiusuraComanda || null,
       }));
     }).sort((a,b) => (b.date + b.time).localeCompare(a.date + a.time)),
+    // Monitoring events (annulli, sconti, ecc.) dai dati sincronizzati
+    monitoringEvents: rows.flatMap(r => {
+      const dateStr = typeof r.date === 'string' ? r.date.substring(0,10) : r.date;
+      const spName = r.salespoint_name || 'LOCALE';
+      return (r.monitoring_events || []).map(ev => ({ ...ev, date: dateStr, locale: spName }));
+    }).sort((a,b) => (b.datetime || '').localeCompare(a.datetime || '')),
     firstReceiptTime, lastReceiptTime, lastKitchenTime, lastBarTime, zNumber, fiscalCloseTime,
     isDemo: false
   };
