@@ -247,5 +247,161 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
         </table>
       </Card>
     </div>
+
+    {/* ── ORARI CONSIGLIATI ── */}
+    <SuggestedSchedule sp={sp} sps={sps} />
   </>
+}
+
+// Componente separato per evitare problemi con hooks
+function SuggestedSchedule({ sp, sps }) {
+  const [grid, setGrid] = useState({}) // { dayIndex: { hour: { ricavi, staff } } }
+  const [soglia, setSoglia] = useState(50)
+  const [loading, setLoading] = useState(false)
+  const HOURS = Array.from({ length: 18 }, (_, i) => (i + 8) % 24) // 8:00 → 01:00
+
+  const localeName = sp === 'all' ? null : sps.find(s => String(s.id) === String(sp))?.description || sps.find(s => String(s.id) === String(sp))?.name || null
+
+  const prevMonday = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() - d.getDay() - 6) // lunedì scorso
+    return d.toISOString().split('T')[0]
+  })()
+  const prevSunday = (() => {
+    const d = new Date(prevMonday)
+    d.setDate(d.getDate() + 6)
+    return d.toISOString().split('T')[0]
+  })()
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      let query = supabase.from('daily_stats').select('date, hourly_records, salespoint_name').gte('date', prevMonday).lte('date', prevSunday)
+      if (localeName) query = query.eq('salespoint_name', localeName)
+      const { data: rows } = await query
+      const g = {}
+      for (const row of (rows || [])) {
+        const d = new Date(row.date + 'T12:00:00')
+        const dow = d.getDay() // 0=dom
+        const dayIdx = dow === 0 ? 6 : dow - 1 // 0=lun, 6=dom
+        if (!g[dayIdx]) g[dayIdx] = {}
+        for (const hr of (row.hourly_records || [])) {
+          if (!g[dayIdx][hr.hour]) g[dayIdx][hr.hour] = { ricavi: 0 }
+          g[dayIdx][hr.hour].ricavi += hr.ricavi || 0
+        }
+      }
+      setGrid(g)
+      setLoading(false)
+    }
+    load()
+  }, [prevMonday, prevSunday, localeName])
+
+  const getCell = (day, hour) => {
+    const cell = grid[day]?.[hour]
+    if (!cell || cell.ricavi <= 0) return { ricavi: 0, staff: 0 }
+    return { ricavi: cell.ricavi, staff: Math.max(1, Math.ceil(cell.ricavi / soglia)) }
+  }
+
+  const staffColor = n => n === 0 ? '#1a1f2e' : n <= 2 ? 'rgba(16,185,129,.15)' : n <= 4 ? 'rgba(245,158,11,.15)' : 'rgba(239,68,68,.15)'
+  const staffTextColor = n => n === 0 ? '#475569' : n <= 2 ? '#10B981' : n <= 4 ? '#F59E0B' : '#EF4444'
+
+  // Totali per giorno
+  const dayTotals = DAYS.map((_, di) => HOURS.reduce((s, h) => s + getCell(di, h).staff, 0))
+  const totalStaff = dayTotals.reduce((s, v) => s + v, 0)
+  const daysWithData = Object.keys(grid).length
+
+  const printPDF = () => {
+    const locale = localeName || 'Tutti i locali'
+    let html = `<html><head><title>Orari Consigliati - ${locale}</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+      h1 { font-size: 18px; margin-bottom: 4px; }
+      h2 { font-size: 13px; color: #666; font-weight: normal; margin-bottom: 16px; }
+      table { border-collapse: collapse; width: 100%; font-size: 11px; }
+      th { background: #f1f5f9; padding: 6px 4px; border: 1px solid #ddd; text-align: center; font-weight: 600; }
+      td { padding: 4px; border: 1px solid #ddd; text-align: center; }
+      .staff { font-weight: 700; font-size: 14px; }
+      .rev { font-size: 9px; color: #888; }
+      .g { background: #d1fae5; } .y { background: #fef3c7; } .r { background: #fee2e2; }
+      .tot { background: #e2e8f0; font-weight: 700; }
+      .footer { margin-top: 16px; font-size: 10px; color: #999; }
+    </style></head><body>
+    <h1>📋 Orari Consigliati - ${locale}</h1>
+    <h2>Basato su incassi settimana ${prevMonday} → ${prevSunday} | Soglia: ${soglia}€/h per persona</h2>
+    <table><thead><tr><th>Ora</th>`
+    DAYS.forEach(d => { html += `<th>${d}</th>` })
+    html += `</tr></thead><tbody>`
+    HOURS.forEach(h => {
+      const hStr = String(h).padStart(2, '0') + ':00'
+      html += `<tr><td><b>${hStr}</b></td>`
+      DAYS.forEach((_, di) => {
+        const c = getCell(di, h)
+        const cls = c.staff === 0 ? '' : c.staff <= 2 ? 'g' : c.staff <= 4 ? 'y' : 'r'
+        html += `<td class="${cls}"><div class="staff">${c.staff || '—'}</div><div class="rev">${c.ricavi > 0 ? Math.round(c.ricavi) + '€' : ''}</div></td>`
+      })
+      html += `</tr>`
+    })
+    html += `<tr class="tot"><td><b>TOTALE</b></td>`
+    dayTotals.forEach(t => { html += `<td class="tot">${t}</td>` })
+    html += `</tr></tbody></table>
+    <div class="footer">Generato da CIC Dashboard — ${new Date().toLocaleDateString('it-IT')} | Totale ore personale settimanali: ${totalStaff}h</div>
+    </body></html>`
+    const w = window.open('', '_blank')
+    w.document.write(html)
+    w.document.close()
+    w.print()
+  }
+
+  const iS = S.input
+
+  return <div style={{ marginTop: 12 }}>
+    <Card title="Orari consigliati" badge={loading ? 'Caricamento...' : totalStaff + 'h personale'} extra={
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: '#64748b' }}>Soglia €/h:</span>
+        <input type="number" value={soglia} onChange={e => setSoglia(Number(e.target.value) || 50)} style={{ ...iS, width: 55, textAlign: 'center', fontSize: 12 }} />
+        <button onClick={printPDF} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>📄 Scarica PDF</button>
+      </div>
+    }>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
+        Basato sugli incassi della settimana precedente ({prevMonday} → {prevSunday}) {localeName ? `per ${localeName}` : ''} — {daysWithData} giorni con dati
+      </div>
+      {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#F59E0B', fontSize: 12 }}>Caricamento dati settimana precedente...</div> : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead><tr style={{ borderBottom: '2px solid #2a3042' }}>
+              <th style={{ ...S.th, width: 60 }}>Ora</th>
+              {DAYS.map(d => <th key={d} style={S.th}>{d}</th>)}
+            </tr></thead>
+            <tbody>
+              {HOURS.map(h => {
+                const hStr = String(h).padStart(2, '0') + ':00'
+                const hasAny = DAYS.some((_, di) => getCell(di, h).staff > 0)
+                if (!hasAny) return null
+                return <tr key={h} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                  <td style={{ ...S.td, fontWeight: 600, color: '#e2e8f0' }}>{hStr}</td>
+                  {DAYS.map((_, di) => {
+                    const c = getCell(di, h)
+                    return <td key={di} style={{ ...S.td, background: staffColor(c.staff), textAlign: 'center', padding: '4px 2px' }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: staffTextColor(c.staff) }}>{c.staff || '—'}</div>
+                      {c.ricavi > 0 && <div style={{ fontSize: 9, color: '#64748b', marginTop: 1 }}>{Math.round(c.ricavi)}€</div>}
+                    </td>
+                  })}
+                </tr>
+              })}
+              {/* Riga totale */}
+              <tr style={{ borderTop: '2px solid #2a3042', background: '#131825' }}>
+                <td style={{ ...S.td, fontWeight: 700, color: '#e2e8f0' }}>TOT</td>
+                {dayTotals.map((t, i) => <td key={i} style={{ ...S.td, textAlign: 'center', fontWeight: 700, color: '#F59E0B', fontSize: 14 }}>{t}</td>)}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#64748b' }}>
+        <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(16,185,129,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> 1-2 persone</span>
+        <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(245,158,11,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> 3-4 persone</span>
+        <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(239,68,68,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> 5+ persone</span>
+      </div>
+    </Card>
+  </div>
 }
