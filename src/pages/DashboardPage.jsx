@@ -386,7 +386,7 @@ export default function DashboardPage({ settings }) {
       </>}
 
       {/* ── MOVIMENTI / MONITORING LOG ── */}
-      {tab==='susp'&&<MonitoringTab from={from} to={to}/>}
+      {tab==='susp'&&<MonitoringTab events={data?.monitoringEvents||[]}/>}
 
       {false&&(()=>{ return null
         const [monLogs, setMonLogs] = useState([])

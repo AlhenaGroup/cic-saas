@@ -152,6 +152,7 @@ async function getReceipts(token, date, filterSp, openHour = 10) {
 
   const sorts = encodeURIComponent(JSON.stringify([{ key: 'date', direction: 1 }]));
   const all = [];
+  const refunds = []; // Receipt annullati/resi — per monitoring
 
   // Fetch da entrambi i giorni di calendario
   for (const d of [date, nextDateStr]) {
@@ -163,20 +164,73 @@ async function getReceipts(token, date, filterSp, openHour = 10) {
       const data = await res.json();
       const page = data.receipts || [];
       for (const r of page) {
-        if (r.document?.idSalesPoint !== filterSp || r.document?.refund) continue;
+        if (r.document?.idSalesPoint !== filterSp) continue;
         const h = r.datetime ? parseInt(r.datetime.match(/T(\d{2})/)?.[1]) : null;
         if (h == null) continue;
-        // Giorno di calendario = date → prendi solo da openHour in poi
-        // Giorno successivo = nextDate → prendi solo prima di openHour (dopo mezzanotte)
-        if (d === date && h >= openHour) all.push(r);
-        if (d === nextDateStr && h < openHour) all.push(r);
+        const inRange = (d === date && h >= openHour) || (d === nextDateStr && h < openHour);
+        if (!inRange) continue;
+        if (r.document?.refund) {
+          refunds.push(r); // Traccia annulli separatamente
+        } else {
+          all.push(r);
+        }
       }
       if (page.length < 100) break;
       start += 100;
       await new Promise(r => setTimeout(r, 150));
     }
   }
-  return all;
+  return { receipts: all, refunds };
+}
+
+// Estrai monitoring events dai receipt (annulli, sconti, ecc.)
+function extractMonitoringEvents(receipts, refunds) {
+  const events = [];
+  const toTime = (dt) => {
+    if (!dt) return '—';
+    try {
+      const d = new Date(dt);
+      return d.toLocaleTimeString('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch { return '—'; }
+  };
+
+  // 1. Annulli/Resi (refund receipts)
+  for (const r of refunds) {
+    const doc = r.document || {};
+    events.push({
+      type: 'Eliminazione Documento',
+      datetime: r.datetime,
+      time: toTime(r.datetime),
+      user: doc.operator?.username || doc.operator?.name || '—',
+      description: `Scontrino ${r.number || '—'} - totale: ${(doc.amount || 0).toFixed(2)}€`,
+      amount: doc.amount || 0,
+      severity: 'high',
+    });
+  }
+
+  // 2. Sconti applicati sugli items
+  for (const r of receipts) {
+    const doc = r.document || {};
+    const items = doc.items || [];
+    for (const item of items) {
+      if (item.discount && item.discount > 0) {
+        const pct = item.discountPercentage || (item.discount / (item.totalPrice + item.discount) * 100);
+        events.push({
+          type: 'Applicazione/Modifica Sconto',
+          datetime: r.datetime,
+          time: toTime(r.datetime),
+          user: doc.operator?.username || doc.operator?.name || '—',
+          description: `[prodotto: ${item.description || item.name || '—'} - sconto ${pct > 0 ? pct.toFixed(0) + '%' : (item.discount || 0).toFixed(2) + '€'} - documento: Scontrino ${r.number || '—'}${doc.orderSummary?.tableName ? ' - tavolo: ' + doc.orderSummary.tableName : ''}]`,
+          amount: item.discount,
+          severity: pct > 30 ? 'medium' : 'low',
+        });
+      }
+    }
+  }
+
+  // Ordina per datetime desc
+  events.sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
+  return events;
 }
 
 // Reparti cucina/pizzeria per rilevare ultima comanda cucina
@@ -300,6 +354,7 @@ async function saveDailyStats(sp, date, agg) {
     cat_records: agg.cat_records,
     hourly_records: agg.hourly_records,
     receipt_details: agg.receipt_details,
+    monitoring_events: agg.monitoring_events || [],
     bill_count: agg.bill_count,
     revenue: agg.revenue,
     first_receipt_time: agg.first_receipt_time,
@@ -376,9 +431,11 @@ export default async function handler(req, res) {
 
       for (const date of days) {
         try {
-          const receipts = await getReceipts(token, date, sp.filterSp, sp.openHour);
-          if (receipts.length === 0) continue; // salta giorni senza vendite
+          const { receipts, refunds } = await getReceipts(token, date, sp.filterSp, sp.openHour);
+          if (receipts.length === 0 && refunds.length === 0) continue; // salta giorni senza vendite
           const agg = aggregateReceipts(receipts, dynamicCatNames, prodNames, sp.openHour);
+          // Genera monitoring events da refund + sconti nei receipt
+          agg.monitoring_events = extractMonitoringEvents(receipts, refunds);
           // Chiusura cassa reale dalla reconciliation
           const reconc = await getReconciliation(token, date, sp.filterSp);
           if (reconc) {
