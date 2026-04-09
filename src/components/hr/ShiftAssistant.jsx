@@ -4,6 +4,17 @@ import { S, KPI, Card, fmt, fmtD } from '../shared/styles.jsx'
 
 const DAYS = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
 
+// Calcola ore lavorate da ora_inizio e ora_fine (gestisce superamento mezzanotte)
+function calcShiftHours(inizio, fine) {
+  if (!inizio || !fine) return 0
+  const [h1, m1] = inizio.split(':').map(Number)
+  const [h2, m2] = fine.split(':').map(Number)
+  let startMin = h1 * 60 + (m1 || 0)
+  let endMin = h2 * 60 + (m2 || 0)
+  if (endMin <= startMin) endMin += 24 * 60 // dopo mezzanotte
+  return Math.round((endMin - startMin) / 60 * 10) / 10 // arrotonda a 0.1h
+}
+
 function weekMonday(offset = 0) {
   const d = new Date()
   d.setDate(d.getDate() - d.getDay() + 1 + offset * 7)
@@ -77,17 +88,11 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
   // Calcola costo settimanale
   const weekCost = shifts.reduce((sum, s) => {
     const emp = employees.find(e => e.id === s.employee_id)
-    const startH = parseInt(s.ora_inizio?.split(':')[0]) || 0
-    const endH = parseInt(s.ora_fine?.split(':')[0]) || 0
-    const hours = endH > startH ? endH - startH : 0
+    const hours = calcShiftHours(s.ora_inizio, s.ora_fine)
     return sum + hours * (Number(emp?.costo_orario) || 0)
   }, 0)
 
-  const totalHours = shifts.reduce((sum, s) => {
-    const a = parseInt(s.ora_inizio?.split(':')[0]) || 0
-    const b = parseInt(s.ora_fine?.split(':')[0]) || 0
-    return sum + (b > a ? b - a : 0)
-  }, 0)
+  const totalHours = shifts.reduce((sum, s) => sum + calcShiftHours(s.ora_inizio, s.ora_fine), 0)
 
   // Salva costo personale mensile
   const saveCost = async () => {
@@ -174,9 +179,7 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
               {localeEmps.map(emp => {
                 const empShifts = shifts.filter(s => s.employee_id === emp.id)
                 const totHours = empShifts.reduce((s, sh) => {
-                  const a = parseInt(sh.ora_inizio?.split(':')[0]) || 0
-                  const b = parseInt(sh.ora_fine?.split(':')[0]) || 0
-                  return s + (b > a ? b - a : 0)
+                  return s + calcShiftHours(sh.ora_inizio, sh.ora_fine)
                 }, 0)
                 return <tr key={emp.id}>
                   <td style={{ ...S.td, fontWeight: 500, fontSize: 12 }}>{emp.nome}</td>
