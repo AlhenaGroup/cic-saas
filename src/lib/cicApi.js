@@ -91,19 +91,6 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
     if (row.z_number) zNumber = row.z_number;
     if (row.fiscal_close_time) fiscalCloseTime = row.fiscal_close_time;
 
-    // Fix: la chiusura cassa è il MAX tra fiscal_close_time e l'ultima comanda
-    // Se la riconciliazione è prima dell'ultima comanda, il locale ha chiuso dopo
-    const toMin = t => { if (!t) return -1; const [h,m] = t.split(':').map(Number); return h < 6 ? (24+h)*60+m : h*60+m; };
-    const latestActivity = [row.last_receipt_time, row.last_kitchen_time, row.last_bar_time]
-      .filter(Boolean).reduce((best, t) => toMin(t) > toMin(best) ? t : best, null);
-    if (latestActivity && fiscalCloseTime && toMin(latestActivity) > toMin(fiscalCloseTime)) {
-      // L'ultima comanda è DOPO la riconciliazione → la vera chiusura è l'ultima comanda
-      fiscalCloseTime = latestActivity;
-    }
-    if (!fiscalCloseTime && latestActivity) {
-      fiscalCloseTime = latestActivity;
-    }
-
     // Trend giornaliero (con coperti)
     if (!trendMap[dateStr]) trendMap[dateStr] = { date: dateStr, ricavi: 0, coperti: 0 };
     trendMap[dateStr].ricavi += Number(row.revenue) || 0;
