@@ -249,12 +249,12 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
     </div>
 
     {/* ── ORARI CONSIGLIATI ── */}
-    <SuggestedSchedule sp={sp} sps={sps} />
+    <SuggestedSchedule sp={sp} sps={sps} employees={employees} />
   </>
 }
 
 // Componente separato per evitare problemi con hooks
-function SuggestedSchedule({ sp, sps }) {
+function SuggestedSchedule({ sp, sps, employees = [] }) {
   const [grid, setGrid] = useState({}) // { dayIndex: { hour: { ricavi, staff } } }
   const [soglia, setSoglia] = useState(50)
   const [loading, setLoading] = useState(false)
@@ -290,6 +290,7 @@ function SuggestedSchedule({ sp, sps }) {
   const getPrepByArea = (day, hour, area) => PREP_CATS.filter(c => c.area === area).reduce((s, c) => s + (prep[`${day}-${hour}-${c.key}`] || 0), 0)
 
   const localeName = sp === 'all' ? null : sps.find(s => String(s.id) === String(sp))?.description || sps.find(s => String(s.id) === String(sp))?.name || null
+  const localeEmps = localeName ? employees.filter(e => (e.locale||'').split(',').some(l => l.trim() === localeName) && e.stato === 'Attivo') : employees.filter(e => e.stato === 'Attivo')
 
   const prevMonday = (() => {
     const d = new Date()
@@ -342,8 +343,21 @@ function SuggestedSchedule({ sp, sps }) {
   const totalStaff = dayTotals.reduce((s, v) => s + v, 0)
   const daysWithData = Object.keys(grid).length
 
+  // Raccogli note pulizie per il PDF
+  const getPrepNotesForPDF = () => {
+    const notes = []
+    DAYS.forEach((d, di) => {
+      PREP_CATS.filter(c => c.hasNote).forEach(cat => {
+        const note = prepNotes[`${di}-${cat.key}-note`]
+        if (note) notes.push({ day: d, cat: cat.label, note })
+      })
+    })
+    return notes
+  }
+
   const printPDF = () => {
     const locale = localeName || 'Tutti i locali'
+    const notes = getPrepNotesForPDF()
     let html = `<html><head><title>Orari Consigliati - ${locale}</title>
     <style>
       body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
@@ -354,9 +368,13 @@ function SuggestedSchedule({ sp, sps }) {
       td { padding: 4px; border: 1px solid #ddd; text-align: center; }
       .staff { font-weight: 700; font-size: 14px; }
       .rev { font-size: 9px; color: #888; }
-      .g { background: #d1fae5; } .y { background: #fef3c7; } .r { background: #fee2e2; }
+      .area { font-size: 8px; }
+      .g { background: #d1fae5; } .y { background: #fef3c7; } .r { background: #fee2e2; } .p { background: #ede9fe; }
       .tot { background: #e2e8f0; font-weight: 700; }
-      .footer { margin-top: 16px; font-size: 10px; color: #999; }
+      .legend { margin-top: 16px; border-top: 1px solid #ddd; padding-top: 8px; }
+      .legend h3 { font-size: 12px; margin-bottom: 6px; }
+      .legend-item { font-size: 10px; margin-bottom: 3px; color: #555; }
+      .footer { margin-top: 12px; font-size: 9px; color: #999; }
     </style></head><body>
     <h1>📋 Orari Consigliati - ${locale}</h1>
     <h2>Basato su incassi settimana ${prevMonday} → ${prevSunday} | Soglia: ${soglia}€/h per persona</h2>
@@ -368,21 +386,131 @@ function SuggestedSchedule({ sp, sps }) {
       html += `<tr><td><b>${hStr}</b></td>`
       DAYS.forEach((_, di) => {
         const c = getCell(di, h)
-        const cls = c.staff === 0 ? '' : c.staff <= 2 ? 'g' : c.staff <= 4 ? 'y' : 'r'
-        const prepNote = c.prepStaff > 0 && c.revenueStaff === 0 ? '<div class="rev" style="color:#7c3aed">prep</div>' : ''
-        html += `<td class="${cls}"><div class="staff">${c.staff || '—'}</div><div class="rev">${c.ricavi > 0 ? Math.round(c.ricavi) + '€' : ''}</div>${prepNote}</td>`
+        const cls = c.staff === 0 ? '' : c.prepStaff > 0 && c.revenueStaff === 0 ? 'p' : c.staff <= 2 ? 'g' : c.staff <= 4 ? 'y' : 'r'
+        html += `<td class="${cls}"><div class="staff">${c.staff || '—'}</div>`
+        if (c.ricavi > 0) html += `<div class="rev">${Math.round(c.ricavi)}€</div>`
+        if (c.prepCucina > 0 || c.prepSala > 0) html += `<div class="area">${c.prepCucina > 0 ? '🍳' + c.prepCucina : ''} ${c.prepSala > 0 ? '🍽️' + c.prepSala : ''}</div>`
+        html += `</td>`
       })
       html += `</tr>`
     })
     html += `<tr class="tot"><td><b>TOTALE</b></td>`
     dayTotals.forEach(t => { html += `<td class="tot">${t}</td>` })
-    html += `</tr></tbody></table>
-    <div class="footer">Generato da CIC Dashboard — ${new Date().toLocaleDateString('it-IT')} | Totale ore personale settimanali: ${totalStaff}h</div>
+    html += `</tr></tbody></table>`
+    // Legenda pulizie
+    if (notes.length > 0) {
+      html += `<div class="legend"><h3>🧹 Pulizie programmate</h3>`
+      notes.forEach(n => { html += `<div class="legend-item"><b>${n.day}</b> — ${n.cat}: ${n.note}</div>` })
+      html += `</div>`
+    }
+    html += `<div class="footer">Generato da CIC Dashboard — ${new Date().toLocaleDateString('it-IT')} | Totale ore personale: ${totalStaff}h | 🍳=cucina 🍽️=sala</div>
     </body></html>`
     const w = window.open('', '_blank')
     w.document.write(html)
     w.document.close()
     w.print()
+  }
+
+  const downloadExcel = async () => {
+    const XLSX = (await import('xlsx')).default
+    const locale = localeName || 'Tutti i locali'
+    const wb = XLSX.utils.book_new()
+
+    // Separa dipendenti cucina e sala
+    const cucinaEmps = localeEmps.filter(e => (e.ruolo || '').toLowerCase().match(/cucin|pizz|chef|cuoco|lava/))
+    const salaEmps = localeEmps.filter(e => !(e.ruolo || '').toLowerCase().match(/cucin|pizz|chef|cuoco|lava/))
+    const allEmps = localeEmps
+
+    // Per ogni giorno della settimana, crea un foglio
+    DAYS.forEach((dayName, di) => {
+      const hourLabels = HOURS.map(h => String(h).padStart(2, '0') + ':00')
+      const suggested = HOURS.map(h => getCell(di, h))
+
+      // Header: Riga 1 = Titolo
+      const rows = []
+      rows.push([`ORARI ${dayName.toUpperCase()} — ${locale}`, '', ...hourLabels.map(() => ''), '', 'Soglia: ' + soglia + '€/h'])
+
+      // Riga 2 = Consigliati
+      rows.push(['CONSIGLIATI', '', ...suggested.map(c => c.staff || 0), '', 'Tot: ' + suggested.reduce((s, c) => s + c.staff, 0)])
+
+      // Riga 3 = Dettaglio cucina/sala
+      rows.push(['  di cui cucina', '', ...HOURS.map(h => getCell(di, h).prepCucina + (getCell(di, h).revenueStaff > 0 ? Math.ceil(getCell(di, h).revenueStaff / 2) : 0))])
+      rows.push(['  di cui sala', '', ...HOURS.map(h => getCell(di, h).prepSala + (getCell(di, h).revenueStaff > 0 ? Math.floor(getCell(di, h).revenueStaff / 2) : 0))])
+
+      // Riga vuota
+      rows.push([])
+
+      // Sezione CUCINA
+      rows.push(['CUCINA', 'Ruolo', ...hourLabels])
+      // Righe precompilate per ogni dipendente cucina + righe vuote
+      const maxCucina = Math.max(cucinaEmps.length, Math.max(...HOURS.map(h => getCell(di, h).prepCucina + (getCell(di, h).revenueStaff > 0 ? Math.ceil(getCell(di, h).revenueStaff / 2) : 0)), 0) + 2)
+      for (let i = 0; i < maxCucina; i++) {
+        const emp = cucinaEmps[i]
+        rows.push([emp ? emp.nome : '', emp ? emp.ruolo : '', ...hourLabels.map(() => '')])
+      }
+
+      // Riga vuota
+      rows.push([])
+
+      // Sezione SALA
+      rows.push(['SALA', 'Ruolo', ...hourLabels])
+      const maxSala = Math.max(salaEmps.length, Math.max(...HOURS.map(h => getCell(di, h).prepSala + (getCell(di, h).revenueStaff > 0 ? Math.floor(getCell(di, h).revenueStaff / 2) : 0)), 0) + 2)
+      for (let i = 0; i < maxSala; i++) {
+        const emp = salaEmps[i]
+        rows.push([emp ? emp.nome : '', emp ? emp.ruolo : '', ...hourLabels.map(() => '')])
+      }
+
+      // Note pulizie
+      const dayNotes = PREP_CATS.filter(c => c.hasNote).map(c => prepNotes[`${di}-${c.key}-note`]).filter(Boolean)
+      if (dayNotes.length > 0) {
+        rows.push([])
+        rows.push(['PULIZIE:', ...dayNotes])
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(rows)
+
+      // Larghezza colonne
+      ws['!cols'] = [{ wch: 20 }, { wch: 12 }, ...hourLabels.map(() => ({ wch: 6 }))]
+
+      // Data validation per tendina nomi dipendenti
+      // XLSX.js non supporta data validation nativa, ma possiamo aggiungere un foglio "Dipendenti" come riferimento
+
+      XLSX.utils.book_append_sheet(wb, ws, dayName)
+    })
+
+    // Foglio riassunto settimanale
+    const summaryRows = [['RIEPILOGO SETTIMANALE — ' + locale], []]
+    summaryRows.push(['Ora', ...DAYS])
+    HOURS.forEach(h => {
+      summaryRows.push([String(h).padStart(2, '0') + ':00', ...DAYS.map((_, di) => getCell(di, h).staff || 0)])
+    })
+    summaryRows.push(['TOTALE', ...dayTotals])
+    summaryRows.push([])
+    summaryRows.push(['Tot. ore settimanali:', totalStaff])
+
+    // Note pulizie
+    const allNotes = getPrepNotesForPDF()
+    if (allNotes.length > 0) {
+      summaryRows.push([])
+      summaryRows.push(['PULIZIE PROGRAMMATE:'])
+      allNotes.forEach(n => summaryRows.push([n.day, n.cat, n.note]))
+    }
+
+    const summaryWs = XLSX.utils.aoa_to_sheet(summaryRows)
+    summaryWs['!cols'] = [{ wch: 12 }, ...DAYS.map(() => ({ wch: 8 }))]
+    XLSX.utils.book_append_sheet(wb, summaryWs, 'Riepilogo')
+
+    // Foglio lista dipendenti (per riferimento tendina)
+    const empRows = [['Nome', 'Ruolo', 'Area', 'Locale']]
+    allEmps.forEach(e => {
+      const area = (e.ruolo || '').toLowerCase().match(/cucin|pizz|chef|cuoco|lava/) ? 'Cucina' : 'Sala'
+      empRows.push([e.nome, e.ruolo || '', area, e.locale || ''])
+    })
+    const empWs = XLSX.utils.aoa_to_sheet(empRows)
+    empWs['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 8 }, { wch: 15 }]
+    XLSX.utils.book_append_sheet(wb, empWs, 'Dipendenti')
+
+    XLSX.writeFile(wb, `Orari_${locale.replace(/\s/g, '_')}_${prevMonday}.xlsx`)
   }
 
   const iS = S.input
@@ -392,7 +520,8 @@ function SuggestedSchedule({ sp, sps }) {
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: '#64748b' }}>Soglia €/h:</span>
         <input type="number" value={soglia} onChange={e => setSoglia(Number(e.target.value) || 50)} style={{ ...iS, width: 55, textAlign: 'center', fontSize: 12 }} />
-        <button onClick={printPDF} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>📄 Scarica PDF</button>
+        <button onClick={printPDF} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>📄 PDF</button>
+        <button onClick={downloadExcel} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>📊 Excel</button>
       </div>
     }>
       <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
