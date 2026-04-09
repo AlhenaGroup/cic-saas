@@ -135,8 +135,10 @@ async function getReconciliation(token, date, filterSp) {
     // Prendi l'ultima (più recente) — è quella di chiusura serale
     const rec = recs.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
     if (!rec.date) return null;
+    // Converti in ora italiana (Europe/Rome) — su Vercel il server è UTC
     const dt = new Date(rec.date);
-    return { time: String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0'), zNumber: rec.number };
+    const itTime = dt.toLocaleTimeString('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hour12: false });
+    return { time: itTime, zNumber: rec.number };
   } catch { return null; }
 }
 
