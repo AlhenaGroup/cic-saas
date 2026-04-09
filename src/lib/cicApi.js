@@ -91,6 +91,22 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
     if (row.z_number) zNumber = row.z_number;
     if (row.fiscal_close_time) fiscalCloseTime = row.fiscal_close_time;
 
+    // Fix: se fiscal_close_time è prima dell'ultima comanda, è un dato sbagliato
+    // (la riconciliazione potrebbe essere del giorno precedente)
+    const latestActivity = [row.last_receipt_time, row.last_kitchen_time, row.last_bar_time]
+      .filter(Boolean).sort().pop();
+    if (fiscalCloseTime && latestActivity) {
+      // Converti in minuti per confronto (gestisce after-midnight: 00:xx > 23:xx)
+      const toMin = t => { const [h,m] = t.split(':').map(Number); return h * 60 + m; };
+      const closeMin = toMin(fiscalCloseTime);
+      const latestMin = toMin(latestActivity);
+      // Se la chiusura è significativamente prima dell'ultima attività (e non è after-midnight)
+      // Es: chiusura 20:27 ma ultima comanda 22:03 → sbagliato
+      if (closeMin < latestMin && latestMin - closeMin > 10 && latestMin < 1440) {
+        fiscalCloseTime = null; // rimuovi dato incoerente
+      }
+    }
+
     // Trend giornaliero (con coperti)
     if (!trendMap[dateStr]) trendMap[dateStr] = { date: dateStr, ricavi: 0, coperti: 0 };
     trendMap[dateStr].ricavi += Number(row.revenue) || 0;

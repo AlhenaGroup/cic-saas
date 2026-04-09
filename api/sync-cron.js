@@ -115,15 +115,26 @@ async function fetchCategoryNames(token) {
 }
 
 // Fetch chiusura cassa (reconciliation) per una data
+// Cerca sia nel giorno stesso che nel giorno dopo (per chiusure after-midnight)
 async function getReconciliation(token, date, filterSp) {
   try {
-    const dateQ = encodeURIComponent('"' + date + '"');
-    const url = `${CIC_BASE}/reconciliations?start=0&limit=10&datetimeFrom=${dateQ}&datetimeTo=${dateQ}`;
+    // Cerca riconciliazioni nella finestra dal giorno stesso fino al giorno dopo
+    // (la chiusura cassa dell'8 aprile potrebbe essere registrata il 9 aprile alle 01:00)
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + 1);
+    const nextDateStr = nextDate.toISOString().split('T')[0];
+    const dateFromQ = encodeURIComponent('"' + date + '"');
+    const dateToQ = encodeURIComponent('"' + nextDateStr + '"');
+    const url = `${CIC_BASE}/reconciliations?start=0&limit=10&datetimeFrom=${dateFromQ}&datetimeTo=${dateToQ}`;
     const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' } });
     if (!res.ok) return null;
     const d = await res.json();
-    const rec = (d.reconciliations || []).find(r => r.idSalesPoint === filterSp);
-    if (!rec || !rec.date) return null;
+    // Filtra per locale e prendi l'ultima riconciliazione (quella di chiusura serale)
+    const recs = (d.reconciliations || []).filter(r => r.idSalesPoint === filterSp);
+    if (!recs.length) return null;
+    // Prendi l'ultima (più recente) — è quella di chiusura serale
+    const rec = recs.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    if (!rec.date) return null;
     const dt = new Date(rec.date);
     return { time: String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0'), zNumber: rec.number };
   } catch { return null; }
