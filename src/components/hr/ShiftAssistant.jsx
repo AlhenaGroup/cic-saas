@@ -258,15 +258,21 @@ function SuggestedSchedule({ sp, sps }) {
   const [grid, setGrid] = useState({}) // { dayIndex: { hour: { ricavi, staff } } }
   const [soglia, setSoglia] = useState(50)
   const [loading, setLoading] = useState(false)
-  // Preparazioni: ore fisse per cucina/sala/pulizie per giorno (personale aggiuntivo a incassi zero)
   const [prep, setPrep] = useState(() => {
     try { return JSON.parse(localStorage.getItem('cic_prep_hours') || '{}') } catch { return {} }
   })
-  const HOURS = Array.from({ length: 18 }, (_, i) => (i + 8) % 24) // 8:00 → 01:00
+  const [prepNotes, setPrepNotes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cic_prep_notes') || '{}') } catch { return {} }
+  })
+  // Ore: 12:00 → 04:00 (dopo mezzanotte)
+  const HOURS = Array.from({ length: 17 }, (_, i) => (i + 12) % 24) // 12,13,...,23,0,1,2,3,4
   const PREP_CATS = [
-    { key: 'cucina', label: 'Prep. cucina', icon: '👨‍🍳', color: '#F59E0B' },
-    { key: 'sala', label: 'Prep. sala', icon: '🍽️', color: '#3B82F6' },
-    { key: 'pulizie', label: 'Pulizie', icon: '🧹', color: '#8B5CF6' },
+    { key: 'prep_cucina', label: 'Prep. cucina', icon: '👨‍🍳', color: '#F59E0B', area: 'cucina' },
+    { key: 'prep_sala', label: 'Prep. sala', icon: '🍽️', color: '#3B82F6', area: 'sala' },
+    { key: 'pulizie_cucina', label: 'Pulizie cucina', icon: '🧹', color: '#8B5CF6', area: 'cucina' },
+    { key: 'pulizie_sala', label: 'Pulizie sala', icon: '🧹', color: '#10B981', area: 'sala' },
+    { key: 'pulizie_str_cucina', label: 'Pulizie straord. cucina', icon: '✨', color: '#EC4899', area: 'cucina', hasNote: true },
+    { key: 'pulizie_str_sala', label: 'Pulizie straord. sala', icon: '✨', color: '#F97316', area: 'sala', hasNote: true },
   ]
   const updatePrep = (day, hour, cat, val) => {
     const k = `${day}-${hour}-${cat}`
@@ -274,7 +280,14 @@ function SuggestedSchedule({ sp, sps }) {
     setPrep(next)
     localStorage.setItem('cic_prep_hours', JSON.stringify(next))
   }
+  const updatePrepNote = (day, hour, cat, note) => {
+    const k = `${day}-${hour}-${cat}-note`
+    const next = { ...prepNotes, [k]: note }
+    setPrepNotes(next)
+    localStorage.setItem('cic_prep_notes', JSON.stringify(next))
+  }
   const getPrep = (day, hour) => PREP_CATS.reduce((s, c) => s + (prep[`${day}-${hour}-${c.key}`] || 0), 0)
+  const getPrepByArea = (day, hour, area) => PREP_CATS.filter(c => c.area === area).reduce((s, c) => s + (prep[`${day}-${hour}-${c.key}`] || 0), 0)
 
   const localeName = sp === 'all' ? null : sps.find(s => String(s.id) === String(sp))?.description || sps.find(s => String(s.id) === String(sp))?.name || null
 
@@ -315,8 +328,10 @@ function SuggestedSchedule({ sp, sps }) {
   const getCell = (day, hour) => {
     const cell = grid[day]?.[hour]
     const prepStaff = getPrep(day, hour)
+    const prepCucina = getPrepByArea(day, hour, 'cucina')
+    const prepSala = getPrepByArea(day, hour, 'sala')
     const revenueStaff = cell && cell.ricavi > 0 ? Math.max(1, Math.ceil(cell.ricavi / soglia)) : 0
-    return { ricavi: cell?.ricavi || 0, staff: revenueStaff + prepStaff, revenueStaff, prepStaff }
+    return { ricavi: cell?.ricavi || 0, staff: revenueStaff + prepStaff, revenueStaff, prepStaff, prepCucina, prepSala }
   }
 
   const staffColor = n => n === 0 ? '#1a1f2e' : n <= 2 ? 'rgba(16,185,129,.15)' : n <= 4 ? 'rgba(245,158,11,.15)' : 'rgba(239,68,68,.15)'
@@ -386,48 +401,60 @@ function SuggestedSchedule({ sp, sps }) {
 
       {/* Preparazioni budget */}
       <div style={{ background: '#131825', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #2a3042' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Budget preparazioni (personale a locale chiuso)</div>
-        <div style={{ fontSize: 10, color: '#64748b', marginBottom: 8 }}>Inserisci il numero di persone per preparazione cucina, sala e pulizie nelle fasce orarie senza incassi</div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
-            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-              <th style={{ ...S.th, fontSize: 9, width: 80 }}>Categoria</th>
-              <th style={{ ...S.th, fontSize: 9, width: 40 }}>Ora</th>
-              {DAYS.map(d => <th key={d} style={{ ...S.th, fontSize: 9 }}>{d}</th>)}
-            </tr></thead>
-            <tbody>
-              {PREP_CATS.map(cat => {
-                // Mostra solo le ore tipiche di preparazione (prima apertura e dopo chiusura)
-                const prepHours = HOURS.filter(h => h < 12 || h >= 23 || h === 0 || h === 1)
-                return prepHours.map(h => {
-                  const hStr = String(h).padStart(2, '0') + ':00'
-                  const hasVal = DAYS.some((_, di) => prep[`${di}-${h}-${cat.key}`] > 0)
-                  return <tr key={cat.key + '-' + h} style={{ borderBottom: '1px solid #1a1f2e', display: hasVal || h === prepHours[0] ? '' : 'none' }}>
-                    {h === prepHours[0] && <td rowSpan={1} style={{ ...S.td, fontSize: 10, color: cat.color, fontWeight: 600 }}>{cat.icon} {cat.label}</td>}
-                    {h !== prepHours[0] && <td style={{ ...S.td, fontSize: 10, color: cat.color }}>{cat.label}</td>}
-                    <td style={{ ...S.td, fontSize: 10, color: '#94a3b8' }}>{hStr}</td>
-                    {DAYS.map((_, di) => (
-                      <td key={di} style={{ ...S.td, padding: '2px 1px' }}>
-                        <input type="number" min="0" max="10" value={prep[`${di}-${h}-${cat.key}`] || ''}
-                          onChange={e => updatePrep(di, h, cat.key, e.target.value)} placeholder="0"
-                          style={{ ...iS, width: 30, fontSize: 10, padding: '1px 2px', textAlign: 'center', color: cat.color }} />
-                      </td>
-                    ))}
-                  </tr>
-                })
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ fontSize: 9, color: '#475569', marginTop: 4 }}>Le preparazioni vengono sommate al personale consigliato nella tabella sotto. I dati si salvano in automatico.</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Budget preparazioni e pulizie</div>
+        <div style={{ fontSize: 10, color: '#64748b', marginBottom: 8 }}>Inserisci il numero di persone per ogni categoria. Le ore vengono sommate alla tabella orari consigliati.</div>
+        {PREP_CATS.map(cat => {
+          const hasAnyValue = HOURS.some(h => DAYS.some((_, di) => prep[`${di}-${h}-${cat.key}`] > 0))
+          return <div key={cat.key} style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, cursor: 'pointer' }}
+              onClick={() => { const el = document.getElementById('prep-' + cat.key); if (el) el.style.display = el.style.display === 'none' ? '' : 'none' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: cat.color }}>{cat.icon} {cat.label}</span>
+              <span style={{ fontSize: 9, color: '#475569' }}>({cat.area})</span>
+              <span style={{ fontSize: 9, color: '#475569' }}>▼</span>
+            </div>
+            <div id={'prep-' + cat.key} style={{ display: hasAnyValue ? '' : 'none', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                <thead><tr><th style={{ ...S.th, fontSize: 8, width: 40 }}>Ora</th>
+                  {DAYS.map(d => <th key={d} style={{ ...S.th, fontSize: 8 }}>{d}</th>)}
+                </tr></thead>
+                <tbody>
+                  {HOURS.map(h => <tr key={h} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                    <td style={{ ...S.td, fontSize: 9, color: '#94a3b8', padding: '1px 4px' }}>{String(h).padStart(2,'0')}:00</td>
+                    {DAYS.map((_, di) => <td key={di} style={{ ...S.td, padding: '1px' }}>
+                      <input type="number" min="0" max="10" value={prep[`${di}-${h}-${cat.key}`] || ''}
+                        onChange={e => updatePrep(di, h, cat.key, e.target.value)} placeholder="0"
+                        style={{ ...iS, width: 28, fontSize: 9, padding: '1px 2px', textAlign: 'center', color: cat.color }} />
+                    </td>)}
+                  </tr>)}
+                </tbody>
+              </table>
+              {cat.hasNote && <div style={{ marginTop: 4, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {DAYS.map((d, di) => {
+                  const noteKey = `${di}-${cat.key}-note`
+                  return <input key={di} value={prepNotes[noteKey] || ''} onChange={e => {
+                    const next = { ...prepNotes, [noteKey]: e.target.value }
+                    setPrepNotes(next); localStorage.setItem('cic_prep_notes', JSON.stringify(next))
+                  }} placeholder={d + ': tipo pulizia...'} style={{ ...iS, flex: 1, minWidth: 90, fontSize: 9, padding: '2px 4px', color: cat.color }} />
+                })}
+              </div>}
+            </div>
+          </div>
+        })}
+        <div style={{ fontSize: 9, color: '#475569', marginTop: 4 }}>Clicca su una categoria per espandere/chiudere. I dati si salvano in automatico.</div>
       </div>
 
       {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#F59E0B', fontSize: 12 }}>Caricamento dati settimana precedente...</div> : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead><tr style={{ borderBottom: '2px solid #2a3042' }}>
-              <th style={{ ...S.th, width: 60 }}>Ora</th>
-              {DAYS.map(d => <th key={d} style={S.th}>{d}</th>)}
+              <th style={{ ...S.th, width: 50 }}>Ora</th>
+              {DAYS.map(d => <th key={d} style={S.th} colSpan={1}>{d}</th>)}
+            </tr>
+            <tr style={{ borderBottom: '1px solid #2a3042' }}>
+              <th style={{ ...S.th, fontSize: 8 }}></th>
+              {DAYS.map(d => <th key={d} style={{ ...S.th, fontSize: 8, padding: '2px' }}>
+                <span style={{ color: '#F59E0B' }}>🍳</span> <span style={{ color: '#3B82F6' }}>🍽️</span> <span style={{ color: '#94a3b8' }}>Tot</span>
+              </th>)}
             </tr></thead>
             <tbody>
               {HOURS.map(h => {
@@ -435,13 +462,17 @@ function SuggestedSchedule({ sp, sps }) {
                 const hasAny = DAYS.some((_, di) => getCell(di, h).staff > 0)
                 if (!hasAny) return null
                 return <tr key={h} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                  <td style={{ ...S.td, fontWeight: 600, color: '#e2e8f0' }}>{hStr}</td>
+                  <td style={{ ...S.td, fontWeight: 600, color: '#e2e8f0', fontSize: 11 }}>{hStr}</td>
                   {DAYS.map((_, di) => {
                     const c = getCell(di, h)
-                    return <td key={di} style={{ ...S.td, background: staffColor(c.staff), textAlign: 'center', padding: '4px 2px' }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: staffTextColor(c.staff) }}>{c.staff || '—'}</div>
-                      {c.ricavi > 0 && <div style={{ fontSize: 9, color: '#64748b', marginTop: 1 }}>{Math.round(c.ricavi)}€</div>}
-                      {c.prepStaff > 0 && c.revenueStaff === 0 && <div style={{ fontSize: 8, color: '#8B5CF6', marginTop: 1 }}>prep</div>}
+                    return <td key={di} style={{ ...S.td, background: staffColor(c.staff), textAlign: 'center', padding: '2px 1px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 3, fontSize: 10 }}>
+                        {c.prepCucina > 0 && <span style={{ color: '#F59E0B', fontWeight: 700 }}>{c.prepCucina}</span>}
+                        {c.prepSala > 0 && <span style={{ color: '#3B82F6', fontWeight: 700 }}>{c.prepSala}</span>}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: staffTextColor(c.staff) }}>{c.staff || '—'}</div>
+                      {c.ricavi > 0 && <div style={{ fontSize: 8, color: '#64748b' }}>{Math.round(c.ricavi)}€</div>}
+                      {c.prepStaff > 0 && c.revenueStaff === 0 && <div style={{ fontSize: 7, color: '#8B5CF6' }}>prep</div>}
                     </td>
                   })}
                 </tr>
