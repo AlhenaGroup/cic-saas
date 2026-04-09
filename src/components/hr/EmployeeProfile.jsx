@@ -2,6 +2,17 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, KPI, Card, fmt, fmtD, fmtN } from '../shared/styles.jsx'
 
+// Calcola ore lavorate da ora_inizio e ora_fine (gestisce superamento mezzanotte)
+function calcShiftHours(inizio, fine) {
+  if (!inizio || !fine) return 0
+  const [h1, m1] = inizio.split(':').map(Number)
+  const [h2, m2] = fine.split(':').map(Number)
+  let startMin = h1 * 60 + (m1 || 0)
+  let endMin = h2 * 60 + (m2 || 0)
+  if (endMin <= startMin) endMin += 24 * 60
+  return Math.round((endMin - startMin) / 60 * 10) / 10
+}
+
 export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] }) {
   const [emp, setEmp] = useState(employee)
   const [editing, setEditing] = useState(false)
@@ -298,7 +309,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:16}}>
         <KPI label="Ore contrattuali" icon="📄" value={emp.ore_contrattuali||'—'} sub="settimanali" accent='#3B82F6'/>
         <KPI label="Ore reali timbrate" icon="⏱️" value={totRealHours+'h'} sub={dailyHours.length+' giorni'} accent='#10B981'/>
-        <KPI label="Ore da turni" icon="📅" value={shifts.reduce((s,sh)=>{const a=parseInt(sh.ora_inizio?.split(':')[0])||0;const b=parseInt(sh.ora_fine?.split(':')[0])||0;return s+(b>a?b-a:0)},0)+'h'} sub={shifts.length+' turni'} accent='#8B5CF6'/>
+        <KPI label="Ore da turni" icon="📅" value={shifts.reduce((s,sh)=>s+calcShiftHours(sh.ora_inizio,sh.ora_fine),0)+'h'} sub={shifts.length+' turni'} accent='#8B5CF6'/>
         <KPI label="Tot. straordinario" icon="⚡" value={totStraordinario||'—'} sub="ore extra" accent='#F59E0B'/>
       </div>
 
@@ -333,14 +344,14 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
           </tr></thead>
           <tbody>
             {shifts.slice(0,20).map(sh=>{
-              const a=parseInt(sh.ora_inizio?.split(':')[0])||0, b=parseInt(sh.ora_fine?.split(':')[0])||0
+              const hours = calcShiftHours(sh.ora_inizio, sh.ora_fine)
               const days=['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
               return <tr key={sh.id}>
                 <td style={{...S.td,color:'#F59E0B',fontWeight:600}}>{sh.settimana}</td>
                 <td style={{...S.td,fontWeight:500}}>{days[sh.giorno]||sh.giorno}</td>
                 <td style={{...S.td,color:'#10B981'}}>{sh.ora_inizio?.substring(0,5)}</td>
                 <td style={{...S.td,color:'#94a3b8'}}>{sh.ora_fine?.substring(0,5)}</td>
-                <td style={{...S.td,fontWeight:600}}>{b>a?b-a:0}h</td>
+                <td style={{...S.td,fontWeight:600}}>{hours}h</td>
                 <td style={{...S.td,color:'#64748b',fontSize:11}}>{sh.locale}</td>
               </tr>
             })}
