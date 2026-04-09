@@ -412,7 +412,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
   }
 
   const downloadExcel = async () => {
-    const XLSX = (await import('xlsx')).default
+    const XLSX = await import('xlsx')
     const locale = localeName || 'Tutti i locali'
     const wb = XLSX.utils.book_new()
 
