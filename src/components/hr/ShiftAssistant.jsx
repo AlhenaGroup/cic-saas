@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../../lib/supabase'
 import { S, KPI, Card, fmt, fmtD } from '../shared/styles.jsx'
 
@@ -411,8 +412,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
     w.print()
   }
 
-  const downloadExcel = async () => {
-    const XLSX = (await import('xlsx')).default
+  const downloadExcel = () => {
     const locale = localeName || 'Tutti i locali'
     const wb = XLSX.utils.book_new()
 
