@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { S, KPI, Card, Bar2, fmt, fmtD, fmtN, pct } from './shared/styles.jsx'
 
 // Regole di categorizzazione automatica per fornitore/prodotto
-const CATEGORY_RULES = {
+export const CATEGORY_RULES = {
   food: {
     label: '🍕 Food cost',
     color: '#F59E0B',
@@ -41,7 +41,7 @@ const CATEGORY_RULES = {
   },
 }
 
-function categorizeItem(fornitore, descrizione) {
+export function categorizeItem(fornitore, descrizione) {
   const forn = (fornitore || '').toLowerCase()
   const desc = (descrizione || '').toLowerCase()
 

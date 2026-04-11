@@ -6,6 +6,7 @@ import { fmt, fmtD, fmtN, pct, today, monthStart, prevPeriod, deltaFmt, C, S, KP
 import HRModule from './HRModule'
 import WarehouseModule from './WarehouseModule'
 import MarketingModule from './MarketingModule'
+import BudgetModule from './BudgetModule'
 import InvoiceTab from '../components/InvoiceTab'
 import ContoEconomico from '../components/ContoEconomico'
 import MonitoringTab from '../components/MonitoringTab'
@@ -138,7 +139,7 @@ export default function DashboardPage({ settings }) {
 
   const TABS=[['ov','📊 Panoramica'],['scontrini','🧾 Scontrini'],['cat','🏷️ Categorie'],
               ['iva','📋 IVA'],['rep','🏪 Reparti'],['susp','⚠️ Movimenti'],
-              ['fat','📄 Fatture'],['mag','📦 Magazzino'],['prod','⏱️ Produttività'],['ce','📊 Conto Econ.'],['hr','👥 Personale'],['mkt','📣 Marketing']]
+              ['fat','📄 Fatture'],['mag','📦 Magazzino'],['prod','⏱️ Produttività'],['ce','📊 Conto Econ.'],['bud','💰 Budget'],['hr','👥 Personale'],['mkt','📣 Marketing']]
 
   return <div style={{minHeight:'100vh',background:'#0f1420',fontFamily:"'DM Sans',system-ui,sans-serif",color:'#e2e8f0'}}>
     <style>{`
@@ -847,6 +848,8 @@ export default function DashboardPage({ settings }) {
 
       {/* ── CONTO ECONOMICO ── */}
       {tab==='ce'&&<ContoEconomico ce={ce} from={from} to={to}/>}
+
+      {tab==='bud'&&<BudgetModule sp={sp} sps={sps} from={from} to={to}/>}
 
       {/* ── PERSONALE ── */}
       {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps}/>}

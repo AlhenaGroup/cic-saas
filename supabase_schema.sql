@@ -98,3 +98,72 @@ CREATE POLICY "Users see own plat customers"   ON plateform_customers FOR SELECT
 CREATE POLICY "Users insert own plat customers" ON plateform_customers FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users update own plat customers" ON plateform_customers FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users delete own plat customers" ON plateform_customers FOR DELETE USING (auth.uid() = user_id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- BUDGET, FORECAST & SIMULATORE DIREZIONALE (Fase 1)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Budget mensile per locale (1 record per user × locale × anno × mese)
+CREATE TABLE IF NOT EXISTS budget_periods (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  locale TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+  status TEXT NOT NULL DEFAULT 'draft',
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, locale, year, month)
+);
+CREATE INDEX IF NOT EXISTS idx_budget_periods_user ON budget_periods(user_id, locale, year, month);
+ALTER TABLE budget_periods ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users see own budget periods"   ON budget_periods FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users insert own budget periods" ON budget_periods FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users update own budget periods" ON budget_periods FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users delete own budget periods" ON budget_periods FOR DELETE USING (auth.uid() = user_id);
+
+-- Righe del budget: una per categoria (ricavi, food, beverage, materiali, personale, struttura)
+CREATE TABLE IF NOT EXISTS budget_rows (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  budget_period_id UUID REFERENCES budget_periods(id) ON DELETE CASCADE NOT NULL,
+  category TEXT NOT NULL,
+  subcategory TEXT,
+  amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  driver_type TEXT,
+  driver_config JSONB DEFAULT '{}',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_budget_rows_period ON budget_rows(budget_period_id, category);
+ALTER TABLE budget_rows ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users see own budget rows" ON budget_rows FOR SELECT
+  USING (EXISTS (SELECT 1 FROM budget_periods p WHERE p.id = budget_period_id AND p.user_id = auth.uid()));
+CREATE POLICY "Users insert own budget rows" ON budget_rows FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM budget_periods p WHERE p.id = budget_period_id AND p.user_id = auth.uid()));
+CREATE POLICY "Users update own budget rows" ON budget_rows FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM budget_periods p WHERE p.id = budget_period_id AND p.user_id = auth.uid()));
+CREATE POLICY "Users delete own budget rows" ON budget_rows FOR DELETE
+  USING (EXISTS (SELECT 1 FROM budget_periods p WHERE p.id = budget_period_id AND p.user_id = auth.uid()));
+
+-- Scenari del simulatore (base + leve salvate per uso futuro)
+CREATE TABLE IF NOT EXISTS budget_scenarios (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  locale TEXT NOT NULL,
+  base_source TEXT NOT NULL DEFAULT 'consuntivo',
+  base_values JSONB NOT NULL DEFAULT '{}',
+  levers JSONB NOT NULL DEFAULT '[]',
+  simulated_values JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_budget_scenarios_user ON budget_scenarios(user_id, locale);
+ALTER TABLE budget_scenarios ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users see own scenarios"   ON budget_scenarios FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users insert own scenarios" ON budget_scenarios FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users update own scenarios" ON budget_scenarios FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users delete own scenarios" ON budget_scenarios FOR DELETE USING (auth.uid() = user_id);
