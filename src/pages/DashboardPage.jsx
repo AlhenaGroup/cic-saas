@@ -5,6 +5,7 @@ import { getToken, getSalesPoints, getReportData, getFromDailyStats } from '../l
 import { fmt, fmtD, fmtN, pct, today, monthStart, prevPeriod, deltaFmt, C, S, KPI, Card, Bar2, Tip, Loader } from '../components/shared/styles.jsx'
 import HRModule from './HRModule'
 import WarehouseModule from './WarehouseModule'
+import MarketingModule from './MarketingModule'
 import InvoiceTab from '../components/InvoiceTab'
 import ContoEconomico from '../components/ContoEconomico'
 import MonitoringTab from '../components/MonitoringTab'
@@ -117,7 +118,7 @@ export default function DashboardPage({ settings }) {
 
   const TABS=[['ov','📊 Panoramica'],['scontrini','🧾 Scontrini'],['cat','🏷️ Categorie'],
               ['iva','📋 IVA'],['rep','🏪 Reparti'],['susp','⚠️ Movimenti'],
-              ['fat','📄 Fatture'],['mag','📦 Magazzino'],['prod','⏱️ Produttività'],['ce','📊 Conto Econ.'],['hr','👥 Personale']]
+              ['fat','📄 Fatture'],['mag','📦 Magazzino'],['prod','⏱️ Produttività'],['ce','📊 Conto Econ.'],['hr','👥 Personale'],['mkt','📣 Marketing']]
 
   return <div style={{minHeight:'100vh',background:'#0f1420',fontFamily:"'DM Sans',system-ui,sans-serif",color:'#e2e8f0'}}>
     <style>{`
@@ -821,6 +822,9 @@ export default function DashboardPage({ settings }) {
 
       {/* ── PERSONALE ── */}
       {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps}/>}
+
+      {/* ── MARKETING ── */}
+      {tab==='mkt'&&<MarketingModule sp={sp} sps={sps} from={from} to={to}/>}
 
       </>}
     </div>
