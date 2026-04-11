@@ -60,7 +60,7 @@ export default function Reputation({ sp, sps, from, to }) {
 
   // ─── Google OAuth popup flow ─────────────────────────────────────────────
   const connectGoogle = () => {
-    const popup = window.open('/api/google-oauth?action=start', 'google-oauth', 'width=520,height=640,left=' + (window.innerWidth - 520) / 2 + ',top=' + (window.innerHeight - 640) / 2)
+    const popup = window.open('/api/reputation?action=oauth-start', 'google-oauth', 'width=520,height=640,left=' + (window.innerWidth - 520) / 2 + ',top=' + (window.innerHeight - 640) / 2)
     const listener = (e) => {
       if (!e.data || typeof e.data !== 'object') return
       if (e.data.type === 'google-oauth-success') {
@@ -95,7 +95,7 @@ export default function Reputation({ sp, sps, from, to }) {
     setLoading(l => ({ ...l, google: true })); setError('')
     try {
       // 1. Lista accounts
-      const accRes = await fetch('/api/google-reviews', {
+      const accRes = await fetch('/api/reputation', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'list-accounts', refreshToken: rt })
       })
@@ -111,7 +111,7 @@ export default function Reputation({ sp, sps, from, to }) {
       // 2. Per ogni account, lista le locations
       const allLocs = []
       for (const acc of accounts) {
-        const locRes = await fetch('/api/google-reviews', {
+        const locRes = await fetch('/api/reputation', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'list-locations', refreshToken: rt, accountName: acc.name })
         })
@@ -127,7 +127,7 @@ export default function Reputation({ sp, sps, from, to }) {
       for (const loc of allLocs) {
         if (!loc.placeId) continue
         try {
-          const pdRes = await fetch('/api/google-reviews', {
+          const pdRes = await fetch('/api/reputation', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'place-details', placeId: loc.placeId })
           })
@@ -149,9 +149,9 @@ export default function Reputation({ sp, sps, from, to }) {
     if (!url) return
     setLoading(l => ({ ...l, ['ta_' + label]: true })); setError('')
     try {
-      const r = await fetch('/api/tripadvisor', {
+      const r = await fetch('/api/reputation', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ action: 'tripadvisor', url })
       })
       const data = await r.json()
       if (data.blocked) {
