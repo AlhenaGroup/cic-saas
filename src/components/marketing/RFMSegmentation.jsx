@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { S, Card, KPI, fmt, fmtN } from '../shared/styles.jsx'
+import { idbGet, idbSet, idbDelete } from '../../lib/idbCache.js'
 
 // ─── Segmentazione RFM ─────────────────────────────────────────────────────
 // Recency   = giorni dall'ultima visita (lower = better)
@@ -46,13 +47,16 @@ function classifyCustomer(c) {
   return 'one_timer'
 }
 
-// ─── Storage keys ──────────────────────────────────────────────────────────
+// ─── Storage ───────────────────────────────────────────────────────────────
+// Token + locations map → localStorage (piccoli, pochi byte)
+// Customers cache (potenzialmente decine di MB) → IndexedDB
 const LS_TOKEN     = 'cic_plateform_token'
 const LS_LOCATIONS = 'cic_plateform_locations'     // map {id: {name, lastSync, count}}
-const LS_CACHE     = 'cic_plateform_cache_v2'      // array of customers (all locations merged)
-// legacy keys (v1 → auto-migration)
+const IDB_CACHE    = 'plateform_cache_v3'          // array di clienti in IndexedDB
+// legacy keys (localStorage) per migration automatica
+const LS_CACHE_LEGACY_V2 = 'cic_plateform_cache_v2'
+const LS_CACHE_LEGACY_V1 = 'cic_plateform_cache'
 const LS_LOCATION_LEGACY = 'cic_plateform_location_id'
-const LS_CACHE_LEGACY    = 'cic_plateform_cache'
 
 function loadLocations() {
   try {
@@ -64,50 +68,60 @@ function loadLocations() {
 function saveLocations(map) {
   try { localStorage.setItem(LS_LOCATIONS, JSON.stringify(map)) } catch {}
 }
-function loadCache() {
-  try {
-    const arr = JSON.parse(localStorage.getItem(LS_CACHE) || 'null')
-    if (Array.isArray(arr)) return arr
-  } catch {}
+
+async function loadCache() {
+  const arr = await idbGet(IDB_CACHE)
+  if (Array.isArray(arr)) return arr
   return []
 }
-function saveCache(arr) {
-  try { localStorage.setItem(LS_CACHE, JSON.stringify(arr)) } catch (e) { console.error('cache save failed', e) }
+async function saveCache(arr) {
+  return idbSet(IDB_CACHE, arr)
 }
 
-// Auto-migrazione dal vecchio formato (single locationID) al nuovo (map)
-function migrateLegacy() {
-  const newCache = loadCache()
-  const newLocations = loadLocations()
-  if (newCache.length > 0 || Object.keys(newLocations).length > 0) return { migrated: false }
+// Auto-migrazione (eseguita una sola volta all'avvio del componente)
+async function migrateLegacy() {
+  const currentCache = await loadCache()
+  if (currentCache.length > 0) return { migrated: false, reason: 'v3 already has data' }
 
-  const legacyLoc = localStorage.getItem(LS_LOCATION_LEGACY)
-  let legacyCache = null
-  try { legacyCache = JSON.parse(localStorage.getItem(LS_CACHE_LEGACY) || 'null') } catch {}
-  if (!legacyLoc || !legacyCache?.customers) return { migrated: false }
-
-  // Salva il contenuto nel nuovo formato
-  const list = legacyCache.customers || []
-  saveCache(list)
-  saveLocations({
-    [legacyLoc]: {
-      name: 'Locale ' + legacyLoc,
-      lastSync: legacyCache.syncedAt || new Date().toISOString(),
-      count: list.length
+  // 1. Prova migration dal v2 (localStorage) — se supera 5MB era troncato, ma se c'è qualcosa lo salvo
+  try {
+    const v2 = JSON.parse(localStorage.getItem(LS_CACHE_LEGACY_V2) || 'null')
+    if (Array.isArray(v2) && v2.length > 0) {
+      await saveCache(v2)
+      localStorage.removeItem(LS_CACHE_LEGACY_V2)
+      return { migrated: true, from: 'v2', count: v2.length }
     }
-  })
-  // Non cancelliamo i legacy subito, lasciamo come backup per una PR
-  return { migrated: true, count: list.length }
+  } catch {}
+
+  // 2. Prova migration dal v1 (singolo oggetto {customers, ...})
+  try {
+    const v1 = JSON.parse(localStorage.getItem(LS_CACHE_LEGACY_V1) || 'null')
+    const legacyLoc = localStorage.getItem(LS_LOCATION_LEGACY)
+    if (v1?.customers && Array.isArray(v1.customers) && v1.customers.length > 0) {
+      await saveCache(v1.customers)
+      if (legacyLoc && Object.keys(loadLocations()).length === 0) {
+        saveLocations({
+          [legacyLoc]: {
+            name: 'Locale ' + legacyLoc,
+            lastSync: v1.syncedAt || new Date().toISOString(),
+            count: v1.customers.length
+          }
+        })
+      }
+      localStorage.removeItem(LS_CACHE_LEGACY_V1)
+      return { migrated: true, from: 'v1', count: v1.customers.length }
+    }
+  } catch {}
+
+  return { migrated: false }
 }
 
 // ─── Componente ────────────────────────────────────────────────────────────
 export default function RFMSegmentation({ sp, sps, from, to }) {
-  // migration on mount (prima di inizializzare lo state)
-  useEffect(() => { migrateLegacy() }, [])
-
   const [token,     setToken]     = useState(() => localStorage.getItem(LS_TOKEN) || '')
   const [locations, setLocations] = useState(() => loadLocations())
-  const [cache,     setCache]     = useState(() => loadCache())
+  const [cache,     setCache]     = useState([])
+  const [cacheLoading, setCacheLoading] = useState(true)
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
   const [progress,  setProgress]  = useState(null) // { locId, page, maxPages }
@@ -122,14 +136,25 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
 
   const iS = S.input
 
-  // Persistenza
+  // Load iniziale: migration + cache async da IndexedDB
+  useEffect(() => {
+    (async () => {
+      await migrateLegacy()
+      const loaded = await loadCache()
+      setCache(loaded)
+      setCacheLoading(false)
+      // Se non ci sono locali configurati o token, mostra il setup
+      const locs = loadLocations()
+      setLocations(locs)
+      if (!localStorage.getItem(LS_TOKEN) || Object.keys(locs).length === 0) {
+        setShowSetup(true)
+      }
+    })()
+  }, [])
+
+  // Persistenza token + locations (localStorage OK, sono piccoli)
   useEffect(() => { if (token) localStorage.setItem(LS_TOKEN, token) }, [token])
   useEffect(() => { saveLocations(locations) }, [locations])
-
-  // Mostra setup automaticamente se mancano token o locali
-  useEffect(() => {
-    if (!token || Object.keys(locations).length === 0) setShowSetup(true)
-  }, [token, locations])
 
   // ─── Sync di un singolo locale ───────────────────────────────────────────
   const syncLocation = useCallback(async (locId, locName) => {
@@ -163,10 +188,11 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
       }
 
       // Aggiorna cache: rimuove i vecchi record di questo locale, aggiunge i nuovi
-      const currentCache = loadCache()
+      // Lettura async da IndexedDB (fonte autorevole) + merge + save
+      const currentCache = await loadCache()
       const filtered = currentCache.filter(c => Number(c.locationID) !== Number(locId))
       const newCache = [...filtered, ...locCustomers]
-      saveCache(newCache)
+      await saveCache(newCache)
       setCache(newCache)
 
       // Aggiorna metadata locale
@@ -205,13 +231,14 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
     syncLocation(id, name)
   }
 
-  const removeLocation = (locId) => {
+  const removeLocation = async (locId) => {
     if (!confirm('Rimuovere questo locale e i suoi clienti dalla cache?')) return
     const newLocations = { ...locations }
     delete newLocations[locId]
     setLocations(newLocations)
-    const newCache = loadCache().filter(c => Number(c.locationID) !== Number(locId))
-    saveCache(newCache)
+    const current = await loadCache()
+    const newCache = current.filter(c => Number(c.locationID) !== Number(locId))
+    await saveCache(newCache)
     setCache(newCache)
   }
 
