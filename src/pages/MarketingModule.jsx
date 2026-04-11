@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { S, Card } from '../components/shared/styles.jsx'
+import MarketingTasks from '../components/marketing/MarketingTasks.jsx'
 
 // [id, label, description shown in placeholder]
 const SUBS = [
@@ -11,7 +12,10 @@ const SUBS = [
   ['task', '✅ Task',          'Promemoria marketing con priorità, scadenze e task auto-generati']
 ]
 
-export default function MarketingModule({ sp, sps, from, to }) {
+// Sub-tab implementate vs placeholder
+const IMPLEMENTED = new Set(['task'])
+
+export default function MarketingModule({ sp, sps, from, to, onTasksChange }) {
   const [sub, setSub] = useState(() => localStorage.getItem('cic_mkt_sub') || 'task')
   useEffect(() => { localStorage.setItem('cic_mkt_sub', sub) }, [sub])
 
@@ -62,34 +66,38 @@ export default function MarketingModule({ sp, sps, from, to }) {
       🗓 {from} → {to}
     </div>
 
-    {/* Placeholder section — verrà sostituita dalle PR successive */}
-    <Card title={current[1]} badge="🚧 In sviluppo">
-      <div style={{ padding: '32px 8px', textAlign: 'center' }}>
-        <div style={{ fontSize: 56, marginBottom: 14, opacity: .3 }}>{bigIcon}</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>
-          {shortTitle}
+    {/* Sezione attiva — implementata vs placeholder */}
+    {sub === 'task' && <MarketingTasks sp={sp} sps={sps} from={from} to={to} onTasksChange={onTasksChange} />}
+
+    {!IMPLEMENTED.has(sub) && (
+      <Card title={current[1]} badge="🚧 In sviluppo">
+        <div style={{ padding: '32px 8px', textAlign: 'center' }}>
+          <div style={{ fontSize: 56, marginBottom: 14, opacity: .3 }}>{bigIcon}</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>
+            {shortTitle}
+          </div>
+          <div style={{
+            fontSize: 12,
+            color: '#64748b',
+            maxWidth: 520,
+            margin: '0 auto',
+            lineHeight: 1.5
+          }}>
+            {current[2]}
+          </div>
+          <div style={{
+            fontSize: 11,
+            color: '#475569',
+            marginTop: 20,
+            padding: '6px 14px',
+            border: '1px dashed #2a3042',
+            borderRadius: 6,
+            display: 'inline-block'
+          }}>
+            Questa sezione sarà disponibile nelle prossime release
+          </div>
         </div>
-        <div style={{
-          fontSize: 12,
-          color: '#64748b',
-          maxWidth: 520,
-          margin: '0 auto',
-          lineHeight: 1.5
-        }}>
-          {current[2]}
-        </div>
-        <div style={{
-          fontSize: 11,
-          color: '#475569',
-          marginTop: 20,
-          padding: '6px 14px',
-          border: '1px dashed #2a3042',
-          borderRadius: 6,
-          display: 'inline-block'
-        }}>
-          Questa sezione sarà disponibile nelle prossime release
-        </div>
-      </div>
-    </Card>
+      </Card>
+    )}
   </>
 }

@@ -112,9 +112,29 @@ export default function DashboardPage({ settings }) {
   const ce     = data?.ce||{}
   const isDemo = data?.isDemo===true
 
+  // ─── Marketing tasks urgent badge ────────────────────────────────────────
+  const [mktUrgentCount, setMktUrgentCount] = useState(0)
+  const loadMktBadge = useCallback(async () => {
+    try {
+      const today = new Date()
+      const tomorrow = new Date(today.getTime() + 86400000)
+      const tomorrowStr = tomorrow.toISOString().slice(0, 10)
+      const { count } = await supabase
+        .from('marketing_tasks')
+        .select('id', { count: 'exact', head: true })
+        .eq('stato', 'open')
+        .not('scadenza', 'is', null)
+        .lte('scadenza', tomorrowStr)
+      setMktUrgentCount(count || 0)
+    } catch { /* tabella non ancora presente: fallback silenzioso */ }
+  }, [])
+  useEffect(() => { loadMktBadge() }, [loadMktBadge])
+  // Refresh del badge quando si torna sulla tab marketing o si lascia la tab
+  useEffect(() => { if (tab === 'mkt' || tab === 'ov') loadMktBadge() }, [tab, loadMktBadge])
+
   const iS = S.input
   const tS = (t) => ({padding:'8px 16px',borderRadius:6,fontSize:13,fontWeight:500,cursor:'pointer',border:'none',
-    background:tab===t?'#F59E0B':'transparent',color:tab===t?'#0f1420':'#64748b',transition:'all .2s'})
+    background:tab===t?'#F59E0B':'transparent',color:tab===t?'#0f1420':'#64748b',transition:'all .2s',position:'relative'})
 
   const TABS=[['ov','📊 Panoramica'],['scontrini','🧾 Scontrini'],['cat','🏷️ Categorie'],
               ['iva','📋 IVA'],['rep','🏪 Reparti'],['susp','⚠️ Movimenti'],
@@ -156,7 +176,15 @@ export default function DashboardPage({ settings }) {
 
     {/* Tabs nav */}
     <div style={{background:'#131825',borderBottom:'1px solid #1e2636',padding:'0 1.5rem',display:'flex',gap:2,overflowX:'auto'}}>
-      {TABS.map(([t,l])=><button key={t} onClick={()=>setTab(t)} style={tS(t)}>{l}</button>)}
+      {TABS.map(([t,l])=>(
+        <button key={t} onClick={()=>setTab(t)} style={tS(t)}>
+          {l}
+          {t==='mkt'&&mktUrgentCount>0&&<span style={{
+            marginLeft:6,background:'#EF4444',color:'#fff',borderRadius:10,
+            padding:'1px 7px',fontSize:10,fontWeight:700,verticalAlign:'middle'
+          }}>{mktUrgentCount}</span>}
+        </button>
+      ))}
     </div>
 
     <div style={{padding:'1.5rem',maxWidth:1400,margin:'0 auto'}}>
@@ -824,7 +852,7 @@ export default function DashboardPage({ settings }) {
       {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps}/>}
 
       {/* ── MARKETING ── */}
-      {tab==='mkt'&&<MarketingModule sp={sp} sps={sps} from={from} to={to}/>}
+      {tab==='mkt'&&<MarketingModule sp={sp} sps={sps} from={from} to={to} onTasksChange={loadMktBadge}/>}
 
       </>}
     </div>
