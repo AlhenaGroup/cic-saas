@@ -2,11 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { S, Card, KPI, fmt, fmtN } from '../shared/styles.jsx'
 
 // ─── Segmentazione RFM ─────────────────────────────────────────────────────
-// Recency  = giorni dall'ultima visita (lower = better)
+// Recency   = giorni dall'ultima visita (lower = better)
 // Frequency = numero visite totali
 // Monetary  = totale speso
 //
-// 6 segmenti configurati come lo spec dello user:
+// 6 segmenti:
 //   🟢 champion   — F>=5  AND R<=30  AND M>=100
 //   🔵 loyal      — F>=3  AND R<=60
 //   🟡 at_risk    — F>=2  AND R>=60  AND R<=180
@@ -42,87 +42,178 @@ function classifyCustomer(c) {
   if (R > 180)                         return 'lost'
   if (createdDays < 30 && F === 1)    return 'new'
   if (F === 1)                         return 'one_timer'
-  // fallback per casi edge (es. F=2 con R bassa non catturato sopra)
   if (F >= 2 && R <= 60)              return 'loyal'
   return 'one_timer'
 }
 
 // ─── Storage keys ──────────────────────────────────────────────────────────
-const LS_TOKEN    = 'cic_plateform_token'
-const LS_LOCATION = 'cic_plateform_location_id'
-const LS_CACHE    = 'cic_plateform_cache'
+const LS_TOKEN     = 'cic_plateform_token'
+const LS_LOCATIONS = 'cic_plateform_locations'     // map {id: {name, lastSync, count}}
+const LS_CACHE     = 'cic_plateform_cache_v2'      // array of customers (all locations merged)
+// legacy keys (v1 → auto-migration)
+const LS_LOCATION_LEGACY = 'cic_plateform_location_id'
+const LS_CACHE_LEGACY    = 'cic_plateform_cache'
 
-function loadCache() {
-  try { return JSON.parse(localStorage.getItem(LS_CACHE) || 'null') } catch { return null }
+function loadLocations() {
+  try {
+    const m = JSON.parse(localStorage.getItem(LS_LOCATIONS) || 'null')
+    if (m && typeof m === 'object') return m
+  } catch {}
+  return {}
 }
-function saveCache(data) {
-  try { localStorage.setItem(LS_CACHE, JSON.stringify(data)) } catch (e) { console.error('cache save failed', e) }
+function saveLocations(map) {
+  try { localStorage.setItem(LS_LOCATIONS, JSON.stringify(map)) } catch {}
+}
+function loadCache() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(LS_CACHE) || 'null')
+    if (Array.isArray(arr)) return arr
+  } catch {}
+  return []
+}
+function saveCache(arr) {
+  try { localStorage.setItem(LS_CACHE, JSON.stringify(arr)) } catch (e) { console.error('cache save failed', e) }
+}
+
+// Auto-migrazione dal vecchio formato (single locationID) al nuovo (map)
+function migrateLegacy() {
+  const newCache = loadCache()
+  const newLocations = loadLocations()
+  if (newCache.length > 0 || Object.keys(newLocations).length > 0) return { migrated: false }
+
+  const legacyLoc = localStorage.getItem(LS_LOCATION_LEGACY)
+  let legacyCache = null
+  try { legacyCache = JSON.parse(localStorage.getItem(LS_CACHE_LEGACY) || 'null') } catch {}
+  if (!legacyLoc || !legacyCache?.customers) return { migrated: false }
+
+  // Salva il contenuto nel nuovo formato
+  const list = legacyCache.customers || []
+  saveCache(list)
+  saveLocations({
+    [legacyLoc]: {
+      name: 'Locale ' + legacyLoc,
+      lastSync: legacyCache.syncedAt || new Date().toISOString(),
+      count: list.length
+    }
+  })
+  // Non cancelliamo i legacy subito, lasciamo come backup per una PR
+  return { migrated: true, count: list.length }
 }
 
 // ─── Componente ────────────────────────────────────────────────────────────
 export default function RFMSegmentation({ sp, sps, from, to }) {
-  const [token,   setToken]   = useState(() => localStorage.getItem(LS_TOKEN) || '')
-  const [locationID, setLocationID] = useState(() => localStorage.getItem(LS_LOCATION) || '')
-  const [cache,   setCache]   = useState(() => loadCache())
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
-  const [progress, setProgress] = useState(null) // { page, maxPages }
-  const [filter,  setFilter]  = useState('all')  // all | champion | loyal | at_risk | lost | new | one_timer
-  const [search,  setSearch]  = useState('')
-  const [showSetup, setShowSetup] = useState(!token || !locationID)
+  // migration on mount (prima di inizializzare lo state)
+  useEffect(() => { migrateLegacy() }, [])
+
+  const [token,     setToken]     = useState(() => localStorage.getItem(LS_TOKEN) || '')
+  const [locations, setLocations] = useState(() => loadLocations())
+  const [cache,     setCache]     = useState(() => loadCache())
+  const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState('')
+  const [progress,  setProgress]  = useState(null) // { locId, page, maxPages }
+  const [filter,    setFilter]    = useState('all')
+  const [locFilter, setLocFilter] = useState('all') // filtro per locale
+  const [search,    setSearch]    = useState('')
+  const [showSetup, setShowSetup] = useState(false)
+
+  // Campi form add-location
+  const [newLocId,   setNewLocId]   = useState('')
+  const [newLocName, setNewLocName] = useState('')
 
   const iS = S.input
 
-  // Persist token + location
+  // Persistenza
   useEffect(() => { if (token) localStorage.setItem(LS_TOKEN, token) }, [token])
-  useEffect(() => { if (locationID) localStorage.setItem(LS_LOCATION, locationID) }, [locationID])
+  useEffect(() => { saveLocations(locations) }, [locations])
 
-  // ─── Sync Plateform ───────────────────────────────────────────────────────
-  const doSync = useCallback(async () => {
-    if (!token || !locationID) { setShowSetup(true); return }
-    setLoading(true); setError(''); setProgress({ page: 0, maxPages: 1 })
+  // Mostra setup automaticamente se mancano token o locali
+  useEffect(() => {
+    if (!token || Object.keys(locations).length === 0) setShowSetup(true)
+  }, [token, locations])
+
+  // ─── Sync di un singolo locale ───────────────────────────────────────────
+  const syncLocation = useCallback(async (locId, locName) => {
+    if (!token) { setError('Token richiesto'); return }
+    setLoading(true); setError('')
+    setProgress({ locId, page: 0, maxPages: 1 })
     try {
-      // Prima chiamata: scopri quante pagine
+      // Pagina 1
       const r0 = await fetch('/api/plateform', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list-page', token, locationID, page: 1 })
+        body: JSON.stringify({ action: 'list-page', token, locationID: locId, page: 1 })
       })
       const j0 = await r0.json()
       if (!r0.ok) throw new Error(j0.error || 'Errore sync pagina 1')
       const maxPages = j0.maxPages || 1
-      const total = j0.totalRecords || 0
-      setProgress({ page: 1, maxPages })
-      let allCustomers = [...(j0.list || [])]
+      const totalRecords = j0.totalRecords || 0
+      setProgress({ locId, page: 1, maxPages })
 
-      // Itera le pagine successive
-      for (let p = 2; p <= maxPages && p <= 100; p++) {
-        setProgress({ page: p, maxPages })
+      const locCustomers = [...(j0.list || [])]
+      for (let p = 2; p <= maxPages && p <= 200; p++) {
+        setProgress({ locId, page: p, maxPages })
         const r = await fetch('/api/plateform', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'list-page', token, locationID, page: p })
+          body: JSON.stringify({ action: 'list-page', token, locationID: locId, page: p })
         })
         const j = await r.json()
-        if (!r.ok) throw new Error(j.error || 'Errore sync pagina ' + p)
-        allCustomers.push(...(j.list || []))
+        if (!r.ok) throw new Error(j.error || 'Errore pagina ' + p)
+        locCustomers.push(...(j.list || []))
       }
 
-      const newCache = {
-        customers: allCustomers,
-        totalRecords: total,
-        syncedAt: new Date().toISOString(),
-        locationID
-      }
+      // Aggiorna cache: rimuove i vecchi record di questo locale, aggiunge i nuovi
+      const currentCache = loadCache()
+      const filtered = currentCache.filter(c => Number(c.locationID) !== Number(locId))
+      const newCache = [...filtered, ...locCustomers]
       saveCache(newCache)
       setCache(newCache)
+
+      // Aggiorna metadata locale
+      setLocations(prev => ({
+        ...prev,
+        [locId]: {
+          name: locName || prev[locId]?.name || ('Locale ' + locId),
+          lastSync: new Date().toISOString(),
+          count: locCustomers.length,
+          totalRecords
+        }
+      }))
       setShowSetup(false)
     } catch (e) {
-      setError(e.message)
+      setError('Sync fallito: ' + e.message)
     }
     setLoading(false)
     setProgress(null)
-  }, [token, locationID])
+  }, [token])
+
+  const syncAll = useCallback(async () => {
+    const entries = Object.entries(locations)
+    for (const [locId, meta] of entries) {
+      await syncLocation(locId, meta.name)
+    }
+  }, [locations, syncLocation])
+
+  const addLocation = () => {
+    const id = newLocId.trim()
+    const name = newLocName.trim() || ('Locale ' + id)
+    if (!id || isNaN(Number(id))) { setError('ID locale non valido'); return }
+    if (locations[id]) { setError('Locale già presente'); return }
+    setLocations(prev => ({ ...prev, [id]: { name, lastSync: null, count: 0 } }))
+    setNewLocId(''); setNewLocName(''); setError('')
+    // Auto-sync subito
+    syncLocation(id, name)
+  }
+
+  const removeLocation = (locId) => {
+    if (!confirm('Rimuovere questo locale e i suoi clienti dalla cache?')) return
+    const newLocations = { ...locations }
+    delete newLocations[locId]
+    setLocations(newLocations)
+    const newCache = loadCache().filter(c => Number(c.locationID) !== Number(locId))
+    saveCache(newCache)
+    setCache(newCache)
+  }
 
   const doTest = async () => {
     if (!token) return
@@ -136,24 +227,24 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
       const j = await r.json()
       if (!r.ok) throw new Error(j.error || 'Test fallito')
       if (!j.ok) throw new Error('Token non valido: ' + (j.message || ''))
-      setError('✓ Connessione OK. Ora clicca "Sincronizza tutto".')
-    } catch (e) {
-      setError(e.message)
-    }
+      setError('✓ Connessione OK.')
+    } catch (e) { setError(e.message) }
     setLoading(false)
   }
 
   // ─── RFM compute ─────────────────────────────────────────────────────────
   const classified = useMemo(() => {
-    if (!cache?.customers) return []
-    return cache.customers.map(c => ({
+    const list = locFilter === 'all'
+      ? cache
+      : cache.filter(c => Number(c.locationID) === Number(locFilter))
+    return list.map(c => ({
       ...c,
       __segment: classifyCustomer(c),
       __recency: daysSince(c.lastReserve || c.lastSeen),
       __frequency: Number(c.visit || 0),
       __monetary: Number(c.reserveTotalAmount || 0)
     }))
-  }, [cache])
+  }, [cache, locFilter])
 
   const counts = useMemo(() => {
     const c = { champion: 0, loyal: 0, at_risk: 0, lost: 0, new: 0, one_timer: 0 }
@@ -163,18 +254,15 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
 
   const sources = useMemo(() => {
     const s = {}
-    classified.forEach(r => {
-      const src = r.source || 'sconosciuto'
-      s[src] = (s[src] || 0) + 1
-    })
+    classified.forEach(r => { const src = r.source || 'sconosciuto'; s[src] = (s[src] || 0) + 1 })
     return s
   }, [classified])
 
-  const contattabili = useMemo(() => {
-    return classified.filter(c =>
-      c.flagMarketing === 1 && c.flagUnsubscribe !== 1 && c.flagBlacklist !== 1
-    ).length
-  }, [classified])
+  const contattabili = useMemo(() => classified.filter(c =>
+    c.flagMarketing === 1 && c.flagUnsubscribe !== 1 && c.flagBlacklist !== 1
+  ).length, [classified])
+
+  const totalSpesa = useMemo(() => classified.reduce((a, c) => a + c.__monetary, 0), [classified])
 
   const filtered = useMemo(() => {
     let list = classified
@@ -188,14 +276,13 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
         (c.mobile || '').includes(q)
       )
     }
-    return list.slice(0, 500) // limit table rows for perf
+    return list.slice(0, 500)
   }, [classified, filter, search])
 
-  // ─── Export CSV ──────────────────────────────────────────────────────────
   const exportCsv = () => {
     const rows = filter === 'all' ? classified : classified.filter(c => c.__segment === filter)
     if (!rows.length) return
-    const header = ['nome', 'cognome', 'email', 'telefono', 'visite', 'ultima_visita', 'totale_speso', 'coperto_medio', 'segmento', 'marketing', 'source', 'tags']
+    const header = ['nome', 'cognome', 'email', 'telefono', 'locale_id', 'visite', 'ultima_visita', 'totale_speso', 'coperto_medio', 'segmento', 'marketing', 'source', 'tags']
     const lines = [header.join(',')]
     rows.forEach(r => {
       lines.push([
@@ -203,6 +290,7 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
         (r.lastname || '').replace(/,/g, ';'),
         r.email || '',
         r.mobile || '',
+        r.locationID || '',
         r.__frequency,
         (r.lastReserve || r.lastSeen || '').substring(0, 10),
         (r.__monetary || 0).toFixed(2),
@@ -217,29 +305,29 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `clienti_${filter}_${new Date().toISOString().substring(0, 10)}.csv`
+    const locSuffix = locFilter === 'all' ? 'tutti' : `loc${locFilter}`
+    a.download = `clienti_${locSuffix}_${filter}_${new Date().toISOString().substring(0, 10)}.csv`
     a.click()
   }
 
-  // ─── Render ──────────────────────────────────────────────────────────────
-
-  // Setup pannello (prima volta o quando manca qualcosa)
+  // ─── Render: setup pannello ──────────────────────────────────────────────
   if (showSetup) {
     return <>
-      <Card title="⚙️ Configurazione Plateform" badge="Prima sincronizzazione">
+      <Card title="⚙️ Configurazione Plateform" badge={Object.keys(locations).length ? 'Aggiungi locali' : 'Prima sincronizzazione'}>
         <div style={{ padding: '8px 4px' }}>
           <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 16, lineHeight: 1.6 }}>
-            Per sincronizzare i clienti da Plateform in modo automatico servono due dati che copi una volta sola dal tuo browser:
+            Puoi sincronizzare <strong>più locali Plateform</strong> contemporaneamente. Ogni locale ha il suo <strong>locationID</strong> (numero visibile in alto a destra su admin.plateform.app, es. "Casa De Amicis (2129)" o "Remembeer (3287)").
           </div>
 
-          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8, fontWeight: 600 }}>
+          {/* Token */}
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>
             1️⃣ Token di accesso Plateform
           </div>
           <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, lineHeight: 1.5 }}>
             Apri <a href="https://admin.plateform.app/vue/customers" target="_blank" rel="noreferrer" style={{ color: '#F59E0B' }}>admin.plateform.app</a> →
             premi <code style={{ background: '#0f1420', padding: '2px 6px', borderRadius: 4 }}>F12</code> →
-            tab <strong>Application</strong> → <strong>Cookies</strong> → <strong>https://admin.plateform.app</strong> →
-            cerca la riga <code style={{ background: '#0f1420', padding: '2px 6px', borderRadius: 4 }}>user-panel</code> e copia il suo <strong>Value</strong> (32 caratteri).
+            <strong> Application</strong> → <strong>Cookies</strong> →
+            cerca <code style={{ background: '#0f1420', padding: '2px 6px', borderRadius: 4 }}>user-panel</code> e copia il Value (32 car.).
           </div>
           <input
             type="password"
@@ -249,19 +337,67 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
             style={{ ...iS, width: '100%', marginBottom: 16 }}
           />
 
-          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8, fontWeight: 600 }}>
-            2️⃣ ID del locale Plateform
+          {/* Locali già configurati */}
+          {Object.keys(locations).length > 0 && <>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>
+              📍 Locali configurati
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              {Object.entries(locations).map(([id, meta]) => (
+                <div key={id} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 12px', background: '#0f1420', borderRadius: 6, marginBottom: 6,
+                  border: '1px solid #1e2636'
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, color: '#f1f5f9', fontWeight: 600 }}>{meta.name} <span style={{ color: '#64748b', fontWeight: 400 }}>(#{id})</span></div>
+                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>
+                      {meta.lastSync
+                        ? `${meta.count} clienti · ultimo sync ${new Date(meta.lastSync).toLocaleString('it-IT')}`
+                        : 'Mai sincronizzato'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => syncLocation(id, meta.name)}
+                    disabled={loading}
+                    style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '4px 10px', fontSize: 10, fontWeight: 700, cursor: loading ? 'wait' : 'pointer' }}
+                  >
+                    {loading && progress?.locId === id ? `${progress.page}/${progress.maxPages}` : '⚡ Sync'}
+                  </button>
+                  <button
+                    onClick={() => removeLocation(id)}
+                    disabled={loading}
+                    title="Rimuovi"
+                    style={{ background: 'none', border: '1px solid #2a3042', color: '#EF4444', padding: '3px 8px', fontSize: 10, borderRadius: 4, cursor: 'pointer' }}
+                  >🗑</button>
+                </div>
+              ))}
+            </div>
+          </>}
+
+          {/* Form aggiungi nuovo locale */}
+          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>
+            ➕ Aggiungi nuovo locale
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, lineHeight: 1.5 }}>
-            In alto a destra su Plateform vedi il nome del locale seguito da un numero tra parentesi, es. "Casa De Amicis (<strong>2129</strong>)". Incolla solo il numero.
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <input
+              placeholder="Location ID (es. 3287)"
+              value={newLocId}
+              onChange={e => setNewLocId(e.target.value.trim())}
+              style={{ ...iS, width: 180 }}
+            />
+            <input
+              placeholder="Nome (es. REMEMBEER)"
+              value={newLocName}
+              onChange={e => setNewLocName(e.target.value)}
+              style={{ ...iS, flex: 1 }}
+            />
+            <button
+              onClick={addLocation}
+              disabled={!token || !newLocId || loading}
+              style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600, cursor: loading ? 'wait' : 'pointer', opacity: (!token || !newLocId || loading) ? 0.5 : 1 }}
+            >Aggiungi + Sync</button>
           </div>
-          <input
-            type="text"
-            placeholder="es. 2129"
-            value={locationID}
-            onChange={e => setLocationID(e.target.value.trim())}
-            style={{ ...iS, width: 200, marginBottom: 16 }}
-          />
 
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button
@@ -271,17 +407,17 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
             >
               {loading ? '…' : '🧪 Testa connessione'}
             </button>
-            <button
-              onClick={doSync}
-              disabled={!token || !locationID || loading}
-              style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '8px 16px', fontWeight: 600, cursor: loading ? 'wait' : 'pointer', opacity: (!token || !locationID || loading) ? 0.5 : 1 }}
-            >
-              {loading ? (progress ? `Pagina ${progress.page}/${progress.maxPages}…` : 'Sync…') : '⚡ Sincronizza tutto'}
-            </button>
-            {cache && <button
-              onClick={() => setShowSetup(false)}
-              style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '8px 14px', cursor: 'pointer' }}
-            >Annulla</button>}
+            {Object.keys(locations).length > 0 && <>
+              <button
+                onClick={syncAll}
+                disabled={loading}
+                style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '8px 16px', fontWeight: 600, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.5 : 1 }}
+              >⚡ Sincronizza tutti</button>
+              <button
+                onClick={() => setShowSetup(false)}
+                style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '8px 14px', cursor: 'pointer' }}
+              >← Torna alla vista</button>
+            </>}
           </div>
 
           {error && <div style={{
@@ -296,28 +432,32 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
     </>
   }
 
-  // Vista principale RFM
+  // ─── Render: vista principale ────────────────────────────────────────────
+  const allLocIds = Object.keys(locations)
+  const totalCustomers = cache.length
+
   return <>
     {/* Banner stato sync */}
-    {cache && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-      <span>✓ <strong style={{ color: '#94a3b8' }}>{cache.customers.length}</strong> clienti sincronizzati da Plateform</span>
-      <span>·</span>
-      <span>Ultimo sync: {new Date(cache.syncedAt).toLocaleString('it-IT')}</span>
-      <span>·</span>
-      <span>Location ID: {cache.locationID}</span>
+    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <span>✓ <strong style={{ color: '#94a3b8' }}>{totalCustomers}</strong> clienti su {allLocIds.length} {allLocIds.length === 1 ? 'locale' : 'locali'}</span>
+      {allLocIds.map(id => (
+        <span key={id} style={{ color: '#64748b' }}>
+          · <strong style={{ color: '#cbd5e1' }}>{locations[id].name}</strong>: {locations[id].count} clienti
+        </span>
+      ))}
       <div style={{ flex: 1 }} />
       <button
         onClick={() => setShowSetup(true)}
         style={{ ...iS, color: '#94a3b8', border: '1px solid #2a3042', padding: '3px 10px', fontSize: 10, cursor: 'pointer' }}
-      >⚙️ Configurazione</button>
+      >⚙️ Gestisci locali</button>
       <button
-        onClick={doSync}
+        onClick={syncAll}
         disabled={loading}
         style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '3px 12px', fontSize: 10, fontWeight: 700, cursor: loading ? 'wait' : 'pointer' }}
       >
-        {loading ? (progress ? `${progress.page}/${progress.maxPages}` : '…') : '⚡ Ri-sincronizza'}
+        {loading && progress ? `${progress.locId}: ${progress.page}/${progress.maxPages}` : '⚡ Ri-sincronizza tutti'}
       </button>
-    </div>}
+    </div>
 
     {error && !error.startsWith('✓') && <div style={{
       background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)',
@@ -354,17 +494,23 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
       </div>
       <div style={{ ...S.card, padding: 14, borderLeft: '3px solid #F59E0B' }}>
         <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Totale spesa CRM</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>
-          {fmt(classified.reduce((a, c) => a + c.__monetary, 0))}
-        </div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>{fmt(totalSpesa)}</div>
         <div style={{ fontSize: 11, color: '#94a3b8' }}>cumulativo su {classified.length} clienti</div>
       </div>
     </div>
 
-    {/* Filtro segmento + search + export */}
+    {/* Filtri: locale + segmento + ricerca + export */}
     <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* Filtro locale */}
+      <select value={locFilter} onChange={e => setLocFilter(e.target.value)} style={iS}>
+        <option value="all">📍 Tutti i locali ({totalCustomers})</option>
+        {allLocIds.map(id => (
+          <option key={id} value={id}>{locations[id].name} ({locations[id].count || 0})</option>
+        ))}
+      </select>
+      {/* Filtro segmento */}
       <select value={filter} onChange={e => setFilter(e.target.value)} style={iS}>
-        <option value="all">📋 Tutti ({classified.length})</option>
+        <option value="all">📋 Tutti segmenti ({classified.length})</option>
         {Object.entries(SEGMENTS).map(([k, v]) => (
           <option key={k} value={k}>{v.label} ({counts[k] || 0})</option>
         ))}
@@ -373,7 +519,7 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
         placeholder="🔍 Cerca nome, email, telefono..."
         value={search}
         onChange={e => setSearch(e.target.value)}
-        style={{ ...iS, width: 260 }}
+        style={{ ...iS, width: 240 }}
       />
       <div style={{ flex: 1 }} />
       <button
@@ -388,17 +534,18 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-            {['Nome', 'Contatto', 'Visite', 'Ultima', 'Speso', 'Segmento', 'Flag'].map(h =>
+            {['Nome', 'Contatto', 'Locale', 'Visite', 'Ultima', 'Speso', 'Segmento', 'Flag'].map(h =>
               <th key={h} style={S.th}>{h}</th>
             )}
           </tr></thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} style={{ ...S.td, textAlign: 'center', color: '#64748b', padding: 20 }}>
+              <tr><td colSpan={8} style={{ ...S.td, textAlign: 'center', color: '#64748b', padding: 20 }}>
                 Nessun cliente corrispondente ai filtri.
               </td></tr>
             ) : filtered.map((c, i) => {
               const seg = SEGMENTS[c.__segment] || SEGMENTS.one_timer
+              const locMeta = locations[String(c.locationID)]
               return (
                 <tr key={c.elasticCustomerID || i} style={{ borderBottom: '1px solid #1a1f2e' }}>
                   <td style={{ ...S.td, fontWeight: 500 }}>
@@ -408,6 +555,9 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
                   <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
                     <div>{c.email || '—'}</div>
                     <div>{c.mobile || '—'}</div>
+                  </td>
+                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
+                    {locMeta?.name || ('Loc ' + c.locationID)}
                   </td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{c.__frequency}</td>
                   <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
