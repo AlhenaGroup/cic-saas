@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { S, Card } from '../components/shared/styles.jsx'
 import MarketingTasks from '../components/marketing/MarketingTasks.jsx'
+import RFMSegmentation from '../components/marketing/RFMSegmentation.jsx'
 
 // [id, label, description shown in placeholder]
 const SUBS = [
@@ -13,7 +14,7 @@ const SUBS = [
 ]
 
 // Sub-tab implementate vs placeholder
-const IMPLEMENTED = new Set(['task'])
+const IMPLEMENTED = new Set(['task', 'crm'])
 
 export default function MarketingModule({ sp, sps, from, to, onTasksChange }) {
   const [sub, setSub] = useState(() => localStorage.getItem('cic_mkt_sub') || 'task')
@@ -68,6 +69,7 @@ export default function MarketingModule({ sp, sps, from, to, onTasksChange }) {
 
     {/* Sezione attiva — implementata vs placeholder */}
     {sub === 'task' && <MarketingTasks sp={sp} sps={sps} from={from} to={to} onTasksChange={onTasksChange} />}
+    {sub === 'crm'  && <RFMSegmentation sp={sp} sps={sps} from={from} to={to} />}
 
     {!IMPLEMENTED.has(sub) && (
       <Card title={current[1]} badge="🚧 In sviluppo">
