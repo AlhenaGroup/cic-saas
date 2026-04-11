@@ -129,6 +129,7 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
   const [locFilter, setLocFilter] = useState('all') // filtro per locale
   const [search,    setSearch]    = useState('')
   const [showSetup, setShowSetup] = useState(false)
+  const [onlyMulti, setOnlyMulti] = useState(false)  // solo clienti multi-locale
 
   // Campi form add-location
   const [newLocId,   setNewLocId]   = useState('')
@@ -259,19 +260,56 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
     setLoading(false)
   }
 
+  // ─── Cross-locale analysis ───────────────────────────────────────────────
+  // Trova i clienti che hanno prenotato/visitato più di un locale.
+  // Match key: email (prioritario se presente e non vuota), altrimenti mobile.
+  // Restituisce: Map<key, { locationIDs: Set<number>, records: [...] }>
+  const crossLocale = useMemo(() => {
+    const byKey = new Map()
+    for (const c of cache) {
+      const email = (c.email || '').trim().toLowerCase()
+      const mobile = String(c.mobile || '').replace(/\s+/g, '').trim()
+      const key = email || (mobile ? 'tel:' + mobile : null)
+      if (!key) continue
+      let entry = byKey.get(key)
+      if (!entry) {
+        entry = { locationIDs: new Set(), records: [] }
+        byKey.set(key, entry)
+      }
+      entry.locationIDs.add(Number(c.locationID))
+      entry.records.push(c)
+    }
+    // Tengo solo quelli con 2+ locali
+    const multiKeys = new Set()
+    for (const [key, entry] of byKey) {
+      if (entry.locationIDs.size >= 2) multiKeys.add(key)
+    }
+    return { byKey, multiKeys }
+  }, [cache])
+
+  // Helper: è un cliente multi-locale?
+  const isMultiLocale = useCallback((c) => {
+    const email = (c.email || '').trim().toLowerCase()
+    const mobile = String(c.mobile || '').replace(/\s+/g, '').trim()
+    const key = email || (mobile ? 'tel:' + mobile : null)
+    return key && crossLocale.multiKeys.has(key)
+  }, [crossLocale])
+
   // ─── RFM compute ─────────────────────────────────────────────────────────
   const classified = useMemo(() => {
-    const list = locFilter === 'all'
+    let list = locFilter === 'all'
       ? cache
       : cache.filter(c => Number(c.locationID) === Number(locFilter))
+    if (onlyMulti) list = list.filter(c => isMultiLocale(c))
     return list.map(c => ({
       ...c,
       __segment: classifyCustomer(c),
       __recency: daysSince(c.lastReserve || c.lastSeen),
       __frequency: Number(c.visit || 0),
-      __monetary: Number(c.reserveTotalAmount || 0)
+      __monetary: Number(c.reserveTotalAmount || 0),
+      __isMulti: isMultiLocale(c)
     }))
-  }, [cache, locFilter])
+  }, [cache, locFilter, onlyMulti, isMultiLocale])
 
   const counts = useMemo(() => {
     const c = { champion: 0, loyal: 0, at_risk: 0, lost: 0, new: 0, one_timer: 0 }
@@ -291,6 +329,19 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
 
   const totalSpesa = useMemo(() => classified.reduce((a, c) => a + c.__monetary, 0), [classified])
 
+  // Conteggio totale clienti multi-locale (distinti per chiave, non per record)
+  const multiLocaleCount = crossLocale.multiKeys.size
+  // Breakdown per numero di locali frequentati (2, 3, ...)
+  const multiBreakdown = useMemo(() => {
+    const b = {}
+    for (const key of crossLocale.multiKeys) {
+      const entry = crossLocale.byKey.get(key)
+      const n = entry.locationIDs.size
+      b[n] = (b[n] || 0) + 1
+    }
+    return b
+  }, [crossLocale])
+
   const filtered = useMemo(() => {
     let list = classified
     if (filter !== 'all') list = list.filter(c => c.__segment === filter)
@@ -309,15 +360,23 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
   const exportCsv = () => {
     const rows = filter === 'all' ? classified : classified.filter(c => c.__segment === filter)
     if (!rows.length) return
-    const header = ['nome', 'cognome', 'email', 'telefono', 'locale_id', 'visite', 'ultima_visita', 'totale_speso', 'coperto_medio', 'segmento', 'marketing', 'source', 'tags']
+    const header = ['nome', 'cognome', 'email', 'telefono', 'locale_id', 'locali_frequentati', 'multi_locale', 'visite', 'ultima_visita', 'totale_speso', 'coperto_medio', 'segmento', 'marketing', 'source', 'tags']
     const lines = [header.join(',')]
     rows.forEach(r => {
+      const email = (r.email || '').trim().toLowerCase()
+      const mobile = String(r.mobile || '').replace(/\s+/g, '').trim()
+      const key = email || (mobile ? 'tel:' + mobile : null)
+      const entry = key ? crossLocale.byKey.get(key) : null
+      const locIds = entry ? [...entry.locationIDs] : [Number(r.locationID)]
+      const locNames = locIds.map(id => locations[String(id)]?.name || ('Loc ' + id)).join('|')
       lines.push([
         (r.name || '').replace(/,/g, ';'),
         (r.lastname || '').replace(/,/g, ';'),
         r.email || '',
         r.mobile || '',
         r.locationID || '',
+        locNames,
+        r.__isMulti ? 'SI' : 'NO',
         r.__frequency,
         (r.lastReserve || r.lastSeen || '').substring(0, 10),
         (r.__monetary || 0).toFixed(2),
@@ -333,7 +392,8 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     const locSuffix = locFilter === 'all' ? 'tutti' : `loc${locFilter}`
-    a.download = `clienti_${locSuffix}_${filter}_${new Date().toISOString().substring(0, 10)}.csv`
+    const multiSuffix = onlyMulti ? '_MULTI' : ''
+    a.download = `clienti_${locSuffix}_${filter}${multiSuffix}_${new Date().toISOString().substring(0, 10)}.csv`
     a.click()
   }
 
@@ -502,11 +562,22 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
     </div>
 
     {/* Stats riassuntive */}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
       <div style={{ ...S.card, padding: 14, borderLeft: '3px solid #10B981' }}>
         <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Contattabili</div>
         <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>{fmtN(contattabili)}</div>
-        <div style={{ fontSize: 11, color: '#94a3b8' }}>con consenso marketing, non in blacklist</div>
+        <div style={{ fontSize: 11, color: '#94a3b8' }}>consenso marketing, non blacklist</div>
+      </div>
+      <div
+        style={{ ...S.card, padding: 14, borderLeft: '3px solid #8B5CF6', cursor: 'pointer', outline: onlyMulti ? '2px solid #8B5CF6' : 'none' }}
+        onClick={() => setOnlyMulti(v => !v)}
+        title="Clicca per filtrare solo i clienti che frequentano più di un locale"
+      >
+        <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>🌐 Multi-locale {onlyMulti && '✓'}</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>{fmtN(multiLocaleCount)}</div>
+        <div style={{ fontSize: 11, color: '#94a3b8' }}>
+          {Object.entries(multiBreakdown).sort(([a], [b]) => Number(a) - Number(b)).map(([n, count]) => `${count} in ${n}`).join(' · ') || 'clienti in 2+ locali'}
+        </div>
       </div>
       <div style={{ ...S.card, padding: 14, borderLeft: '3px solid #3B82F6' }}>
         <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>Canali acquisizione</div>
@@ -561,7 +632,7 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-            {['Nome', 'Contatto', 'Locale', 'Visite', 'Ultima', 'Speso', 'Segmento', 'Flag'].map(h =>
+            {['Nome', 'Contatto', 'Locali', 'Visite', 'Ultima', 'Speso', 'Segmento', 'Flag'].map(h =>
               <th key={h} style={S.th}>{h}</th>
             )}
           </tr></thead>
@@ -572,19 +643,33 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
               </td></tr>
             ) : filtered.map((c, i) => {
               const seg = SEGMENTS[c.__segment] || SEGMENTS.one_timer
-              const locMeta = locations[String(c.locationID)]
+              // Calcola tutti i locali frequentati da questo cliente (unificato per email/mobile)
+              const email = (c.email || '').trim().toLowerCase()
+              const mobile = String(c.mobile || '').replace(/\s+/g, '').trim()
+              const key = email || (mobile ? 'tel:' + mobile : null)
+              const entry = key ? crossLocale.byKey.get(key) : null
+              const locIds = entry ? [...entry.locationIDs] : [Number(c.locationID)]
               return (
-                <tr key={c.elasticCustomerID || i} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                <tr key={c.elasticCustomerID || i} style={{ borderBottom: '1px solid #1a1f2e', background: c.__isMulti ? 'rgba(139,92,246,.04)' : 'transparent' }}>
                   <td style={{ ...S.td, fontWeight: 500 }}>
                     {c.name} {c.lastname}
                     {c.flagVip === 1 && <span style={{ marginLeft: 6, fontSize: 10 }}>⭐</span>}
+                    {c.__isMulti && <span style={{ marginLeft: 6, fontSize: 10 }} title="Multi-locale">🌐</span>}
                   </td>
                   <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
                     <div>{c.email || '—'}</div>
                     <div>{c.mobile || '—'}</div>
                   </td>
-                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
-                    {locMeta?.name || ('Loc ' + c.locationID)}
+                  <td style={{ ...S.td, fontSize: 10 }}>
+                    {locIds.map(id => {
+                      const meta = locations[String(id)]
+                      return <span key={id} style={{
+                        display: 'inline-block', padding: '2px 6px', marginRight: 3, marginBottom: 2,
+                        borderRadius: 4, background: c.__isMulti ? 'rgba(139,92,246,.15)' : '#1a1f2e',
+                        color: c.__isMulti ? '#c4b5fd' : '#94a3b8',
+                        border: '1px solid ' + (c.__isMulti ? 'rgba(139,92,246,.3)' : '#2a3042')
+                      }}>{meta?.name || ('Loc ' + id)}</span>
+                    })}
                   </td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{c.__frequency}</td>
                   <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
