@@ -114,14 +114,18 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
 
   // Filtra fatture warehouse per locale selezionato
   const whFiltered = whInvoices.filter(inv => {
-    if (selectedLocaleName && inv.locale && inv.locale !== selectedLocaleName) return false
+    // Se locale selezionato, mostra solo fatture assegnate a quel locale (escludi non assegnate e altri locali)
+    if (selectedLocaleName && inv.locale !== selectedLocaleName) return false
     if (fatSearch && !inv.fornitore?.toLowerCase().includes(fatSearch.toLowerCase()) && !inv.numero?.includes(fatSearch)) return false
     return true
   })
 
   // Filtra fatture CiC per locale selezionato + ricerca
   const filtered = cicInvoices.filter(f => {
-    if (selectedLocaleName && localeMap[f.id] && localeMap[f.id] !== 'Alhena Group' && localeMap[f.id] !== selectedLocaleName) return false
+    if (selectedLocaleName) {
+      const assigned = localeMap[f.id]
+      if (!assigned || assigned === 'Alhena Group' || assigned !== selectedLocaleName) return false
+    }
     if (fatSearch && !f.sender?.name?.toLowerCase().includes(fatSearch.toLowerCase()) && !f.number?.includes(fatSearch)) return false
     return true
   })
