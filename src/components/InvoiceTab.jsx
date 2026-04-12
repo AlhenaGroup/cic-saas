@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { S, KPI, Card, fmt, fmtD } from './shared/styles.jsx'
 import { handleInvoiceFile } from '../lib/invoiceParsers.js'
 
-export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
+export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
   const [cicInvoices, setCicInvoices] = useState([])
   const [fatLoading, setFatLoading] = useState(false)
   const [localeMap, setLocaleMap] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_invoice_locales') || '{}') } catch { return {} } })
@@ -109,16 +109,28 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
 
   useEffect(() => { loadCicInvoices() }, [])
 
+  // Risolvi nome locale dal sp selezionato
+  const selectedLocaleName = (!sp || sp === 'all') ? null : (sps.find(s => String(s.id) === String(sp))?.description || sps.find(s => String(s.id) === String(sp))?.name || null)
+
+  // Filtra fatture warehouse per locale selezionato
+  const whFiltered = whInvoices.filter(inv => {
+    if (selectedLocaleName && inv.locale && inv.locale !== selectedLocaleName) return false
+    if (fatSearch && !inv.fornitore?.toLowerCase().includes(fatSearch.toLowerCase()) && !inv.numero?.includes(fatSearch)) return false
+    return true
+  })
+
+  // Filtra fatture CiC per locale selezionato + ricerca
   const filtered = cicInvoices.filter(f => {
+    if (selectedLocaleName && localeMap[f.id] && localeMap[f.id] !== 'Alhena Group' && localeMap[f.id] !== selectedLocaleName) return false
     if (fatSearch && !f.sender?.name?.toLowerCase().includes(fatSearch.toLowerCase()) && !f.number?.includes(fatSearch)) return false
     return true
   })
 
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.25rem' }}>
-      <KPI label="Caricate" icon="📤" value={whInvoices.length} sub="da file" accent='#F59E0B' />
+      <KPI label="Caricate" icon="📤" value={whFiltered.length} sub={selectedLocaleName || 'tutti'} accent='#F59E0B' />
       <KPI label="Da assegnare" icon="📋" value={whInvoices.filter(inv => !inv.locale).length} sub="senza locale" accent='#F97316' />
-      <KPI label="Fatture CiC" icon="📄" value={cicInvoices.length} sub="da Cassa in Cloud" accent='#3B82F6' />
+      <KPI label="Fatture CiC" icon="📄" value={filtered.length} sub={selectedLocaleName || 'tutti'} accent='#3B82F6' />
       <KPI label="Assegnate CiC" icon="✓" value={cicInvoices.filter(f => localeMap[f.id] && localeMap[f.id] !== 'Alhena Group').length} sub="con locale" accent='#10B981' />
     </div>
     {/* Cookie CiC input */}
@@ -290,22 +302,24 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
     </Card>
 
     {/* Fatture caricate (da file → warehouse_invoices) */}
-    <Card title="Fatture caricate" badge={whInvoices.length || 0} extra={
+    <Card title="Fatture caricate" badge={whFiltered.length + (selectedLocaleName ? ' · ' + selectedLocaleName : '')} extra={
       <button onClick={loadWhInvoices} disabled={whLoading}
         style={{ ...iS, background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8', padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
       >{whLoading ? '...' : 'Aggiorna'}</button>
     }>
-      {whInvoices.length === 0 && !whLoading && (
-        <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>Nessuna fattura caricata. Usa "📤 Seleziona file" qui sopra per importare.</div>
+      {whFiltered.length === 0 && !whLoading && (
+        <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>
+          {whInvoices.length === 0 ? 'Nessuna fattura caricata. Usa "📤 Seleziona file" qui sopra per importare.' : `Nessuna fattura per ${selectedLocaleName || 'questo filtro'}.`}
+        </div>
       )}
-      {whInvoices.length > 0 && (
+      {whFiltered.length > 0 && (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
               {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Totale', 'Stato', 'Locale'].map(h => <th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
             <tbody>
-              {whInvoices.map(inv => {
+              {whFiltered.map(inv => {
                 const sc = inv.stato === 'completa' ? { c: '#10B981', bg: 'rgba(16,185,129,.12)' }
                   : inv.stato === 'parziale' ? { c: '#3B82F6', bg: 'rgba(59,130,246,.12)' }
                   : { c: '#F59E0B', bg: 'rgba(245,158,11,.12)' }
