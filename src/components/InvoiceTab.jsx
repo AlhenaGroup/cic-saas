@@ -15,6 +15,11 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState(null)
   const fileInputRef = { current: null }
+  // Fatture caricate (da Supabase warehouse_invoices)
+  const [whInvoices, setWhInvoices] = useState([])
+  const [whItems, setWhItems] = useState([])
+  const [whExpanded, setWhExpanded] = useState(null)
+  const [whLoading, setWhLoading] = useState(false)
 
   const iS = S.input
 
@@ -43,6 +48,27 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
     setShowCookieInput(false)
     loadCicInvoices()
   }
+
+  // ─── Warehouse invoices (caricate da file) ──────────────────────
+  const loadWhInvoices = async () => {
+    setWhLoading(true)
+    const { data } = await supabase.from('warehouse_invoices').select('*').order('data', { ascending: false })
+    setWhInvoices(data || [])
+    setWhLoading(false)
+  }
+
+  const loadWhItems = async (invoiceId) => {
+    const { data } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', invoiceId).order('id')
+    setWhItems(data || [])
+  }
+
+  const updateWhLocale = async (invId, locale) => {
+    await supabase.from('warehouse_invoices').update({ locale }).eq('id', invId)
+    setWhInvoices(prev => prev.map(inv => inv.id === invId ? { ...inv, locale } : inv))
+  }
+
+  useEffect(() => { loadWhInvoices() }, [])
+  useEffect(() => { if (whExpanded) loadWhItems(whExpanded) }, [whExpanded])
 
   const downloadXml = async (inv) => {
     setXmlLoading(true); setXmlContent(null)
@@ -89,10 +115,11 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
   })
 
   return <>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.25rem' }}>
-      <KPI label="Totale fatture" icon="📄" value={cicInvoices.length} sub="da CiC" accent='#3B82F6' />
-      <KPI label="Da assegnare" icon="📋" value={cicInvoices.filter(f => !localeMap[f.id] || localeMap[f.id] === 'Alhena Group').length} sub="senza locale" accent='#F97316' />
-      <KPI label="Assegnate" icon="✓" value={cicInvoices.filter(f => localeMap[f.id] && localeMap[f.id] !== 'Alhena Group').length} sub="con locale" accent='#10B981' />
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.25rem' }}>
+      <KPI label="Caricate" icon="📤" value={whInvoices.length} sub="da file" accent='#F59E0B' />
+      <KPI label="Da assegnare" icon="📋" value={whInvoices.filter(inv => !inv.locale).length} sub="senza locale" accent='#F97316' />
+      <KPI label="Fatture CiC" icon="📄" value={cicInvoices.length} sub="da Cassa in Cloud" accent='#3B82F6' />
+      <KPI label="Assegnate CiC" icon="✓" value={cicInvoices.filter(f => localeMap[f.id] && localeMap[f.id] !== 'Alhena Group').length} sub="con locale" accent='#10B981' />
     </div>
     {/* Cookie CiC input */}
     {showCookieInput && <div style={{ ...S.card, marginBottom: 12, borderLeft: '3px solid #F59E0B' }}>
@@ -187,9 +214,10 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
                   } catch (err) { errors.push(`${preview.fornitore || preview._filename}: ${err.message}`) }
                 }
                 setUploadPreviews([])
+                await loadWhInvoices()
                 setUploadMsg(errors.length > 0
                   ? { ok: false, text: `${saved} salvate, ${errors.length} errori: ${errors.join(' · ')}` }
-                  : { ok: true, text: `${saved} fatture salvate con ${totalRows} righe (visibile in Magazzino → Fatture)` })
+                  : { ok: true, text: `${saved} fatture salvate con ${totalRows} righe` })
                 setUploading(false)
               }} disabled={uploading}
                 style={{ background: '#0f1420', border: 'none', color: '#10B981', padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
@@ -257,6 +285,70 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
               )}
             </div>
           })}
+        </div>
+      )}
+    </Card>
+
+    {/* Fatture caricate (da file → warehouse_invoices) */}
+    <Card title="Fatture caricate" badge={whInvoices.length || 0} extra={
+      <button onClick={loadWhInvoices} disabled={whLoading}
+        style={{ ...iS, background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8', padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+      >{whLoading ? '...' : 'Aggiorna'}</button>
+    }>
+      {whInvoices.length === 0 && !whLoading && (
+        <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>Nessuna fattura caricata. Usa "📤 Seleziona file" qui sopra per importare.</div>
+      )}
+      {whInvoices.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+              {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Totale', 'Stato', 'Locale'].map(h => <th key={h} style={S.th}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {whInvoices.map(inv => {
+                const sc = inv.stato === 'completa' ? { c: '#10B981', bg: 'rgba(16,185,129,.12)' }
+                  : inv.stato === 'parziale' ? { c: '#3B82F6', bg: 'rgba(59,130,246,.12)' }
+                  : { c: '#F59E0B', bg: 'rgba(245,158,11,.12)' }
+                return <><tr key={inv.id}
+                  onClick={() => { setWhExpanded(whExpanded === inv.id ? null : inv.id); if (whExpanded !== inv.id) setWhItems([]) }}
+                  style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: whExpanded === inv.id ? '#131825' : 'transparent' }}>
+                  <td style={{ ...S.td, width: 24, color: '#64748b' }}>{whExpanded === inv.id ? '▼' : '▶'}</td>
+                  <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{inv.data}</td>
+                  <td style={{ ...S.td, fontWeight: 500 }}>{inv.fornitore || '—'}</td>
+                  <td style={{ ...S.td, color: '#94a3b8' }}>{inv.numero || '—'}</td>
+                  <td style={S.td}><span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>{inv.tipo_doc}</span></td>
+                  <td style={{ ...S.td, fontWeight: 600 }}>{fmt(inv.totale)}</td>
+                  <td style={S.td}><span style={S.badge(sc.c, sc.bg)}>{inv.stato}</span></td>
+                  <td style={S.td} onClick={e => e.stopPropagation()}>
+                    <select value={inv.locale || ''} onChange={e => updateWhLocale(inv.id, e.target.value)} style={{ ...iS, fontSize: 11, padding: '3px 6px' }}>
+                      <option value="">— assegna —</option>
+                      {sps.map(s => <option key={s.id} value={s.description || s.name}>{s.description || s.name}</option>)}
+                    </select>
+                  </td>
+                </tr>
+                {whExpanded === inv.id && <tr key={'wh-d-' + inv.id}><td colSpan={8} style={{ padding: '8px 14px 12px 38px', background: '#131825' }}>
+                  {whItems.length === 0 && <div style={{ color: '#475569', fontSize: 12, padding: 8 }}>Nessuna riga</div>}
+                  {whItems.length > 0 && (
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr>
+                        {['Descrizione', 'Qty', 'UM', 'Prezzo unit.', 'Totale'].map(h => <th key={h} style={{ ...S.th, fontSize: 10, padding: '6px 8px' }}>{h}</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {whItems.map(it => <tr key={it.id}>
+                          <td style={{ ...S.td, fontSize: 12, fontWeight: 500, padding: '6px 8px' }}>{it.nome_fattura}</td>
+                          <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{it.quantita}</td>
+                          <td style={{ ...S.td, fontSize: 11, color: '#64748b', padding: '6px 8px' }}>{it.unita || '—'}</td>
+                          <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{it.prezzo_unitario ? fmt(it.prezzo_unitario) : '—'}</td>
+                          <td style={{ ...S.td, fontSize: 12, fontWeight: 600, padding: '6px 8px' }}>{fmt(it.prezzo_totale)}</td>
+                        </tr>)}
+                      </tbody>
+                    </table>
+                  )}
+                </td></tr>}
+                </>
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </Card>
