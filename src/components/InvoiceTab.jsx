@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 import { S, KPI, Card, fmt, fmtD } from './shared/styles.jsx'
+import { handleInvoiceFile } from '../lib/invoiceParsers.js'
 
 export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
   const [cicInvoices, setCicInvoices] = useState([])
@@ -8,6 +10,11 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
   const [expandedFat, setExpandedFat] = useState(null)
   const [xmlContent, setXmlContent] = useState(null)
   const [xmlLoading, setXmlLoading] = useState(false)
+  // Upload file state
+  const [uploadPreview, setUploadPreview] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadMsg, setUploadMsg] = useState(null)
+  const fileInputRef = { current: null }
 
   const iS = S.input
 
@@ -100,6 +107,150 @@ export default function InvoiceTab({ sps, fatSearch, setFatSearch }) {
         <button onClick={() => setShowCookieInput(false)} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '6px 12px' }}>Chiudi</button>
       </div>
     </div>}
+
+    {/* Upload file fattura */}
+    <Card title="📤 Carica fattura da file" badge="XML · CSV · PDF" extra={
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={() => { if (fileInputRef.current) fileInputRef.current.click() }}
+          disabled={uploading}
+          style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '6px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+        >{uploading ? '...' : '📤 Seleziona file'}</button>
+        <input
+          type="file"
+          accept=".xml,.csv,.pdf"
+          ref={el => fileInputRef.current = el}
+          style={{ display: 'none' }}
+          onChange={async (e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (!file) return
+            setUploading(true); setUploadMsg(null)
+            try {
+              const parsed = await handleInvoiceFile(file)
+              setUploadPreview(parsed)
+            } catch (err) {
+              setUploadMsg({ ok: false, text: err.message })
+            } finally { setUploading(false) }
+          }}
+        />
+      </div>
+    }>
+      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
+        Carica una fattura, DDT o nota di credito in formato XML (FatturaPA), CSV o PDF. Le righe verranno lette automaticamente e salvate nel magazzino.
+      </div>
+
+      {uploadMsg && (
+        <div style={{
+          marginBottom: 12, padding: '8px 12px', borderRadius: 6,
+          background: uploadMsg.ok ? 'rgba(16,185,129,.1)' : 'rgba(239,68,68,.1)',
+          border: `1px solid ${uploadMsg.ok ? '#10B981' : '#EF4444'}`,
+          color: uploadMsg.ok ? '#10B981' : '#EF4444', fontSize: 12,
+        }}>{uploadMsg.text}</div>
+      )}
+
+      {uploadPreview && (
+        <div style={{ background: '#131825', borderRadius: 8, padding: 16, border: '1px solid #F59E0B' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>Anteprima fattura</div>
+            <span style={S.badge(
+              uploadPreview.format === 'PDF' ? '#F59E0B' : '#10B981',
+              uploadPreview.format === 'PDF' ? 'rgba(245,158,11,.15)' : 'rgba(16,185,129,.15)'
+            )}>{uploadPreview.format} {uploadPreview.format === 'PDF' ? '⚠ verifica' : '✓'}</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) auto', gap: 10, marginBottom: 14 }}>
+            <div>
+              <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Fornitore</label>
+              <input value={uploadPreview.fornitore} onChange={e => setUploadPreview(p => ({ ...p, fornitore: e.target.value }))} style={{ ...iS, width: '100%', marginBottom: 8 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Data</label>
+              <input type="date" value={uploadPreview.data} onChange={e => setUploadPreview(p => ({ ...p, data: e.target.value }))} style={{ ...iS, width: '100%', marginBottom: 8 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Numero</label>
+              <input value={uploadPreview.numero} onChange={e => setUploadPreview(p => ({ ...p, numero: e.target.value }))} style={{ ...iS, width: '100%', marginBottom: 8 }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Tipo</label>
+              <select value={uploadPreview.tipo_doc} onChange={e => setUploadPreview(p => ({ ...p, tipo_doc: e.target.value }))} style={{ ...iS, width: '100%', marginBottom: 8 }}>
+                <option value="fattura">Fattura</option>
+                <option value="nota_credito">Nota di credito</option>
+                <option value="ddt">DDT</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom: 10, fontSize: 12, color: '#94a3b8' }}>
+            {uploadPreview.righe.filter(r => r.selected).length} righe selezionate · Totale: <strong style={{ color: '#F59E0B' }}>{fmt(uploadPreview.righe.filter(r => r.selected).reduce((s, r) => s + (Number(r.prezzo_totale) || 0), 0))}</strong>
+          </div>
+          <div style={{ maxHeight: 280, overflowY: 'auto', marginBottom: 12 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+                <th style={{ ...S.th, width: 30 }}></th>
+                <th style={S.th}>Descrizione</th>
+                <th style={S.th}>Qty</th>
+                <th style={S.th}>UM</th>
+                <th style={S.th}>Prezzo unit.</th>
+                <th style={S.th}>Totale</th>
+              </tr></thead>
+              <tbody>
+                {uploadPreview.righe.map((r, i) => (
+                  <tr key={i} style={{ opacity: r.selected ? 1 : 0.4 }}>
+                    <td style={S.td}>
+                      <input type="checkbox" checked={r.selected} onChange={() => {
+                        setUploadPreview(p => ({ ...p, righe: p.righe.map((rr, j) => j === i ? { ...rr, selected: !rr.selected } : rr) }))
+                      }} style={{ accentColor: '#F59E0B' }} />
+                    </td>
+                    <td style={{ ...S.td, fontSize: 12, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome_fattura}</td>
+                    <td style={{ ...S.td, fontSize: 12 }}>{r.quantita || '—'}</td>
+                    <td style={{ ...S.td, fontSize: 12, color: '#64748b' }}>{r.unita || '—'}</td>
+                    <td style={{ ...S.td, fontSize: 12 }}>{r.prezzo_unitario ? fmt(r.prezzo_unitario) : '—'}</td>
+                    <td style={{ ...S.td, fontSize: 12, fontWeight: 600 }}>{fmt(r.prezzo_totale)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={() => { setUploadPreview(null); setUploadMsg(null) }}
+              style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '6px 14px', fontSize: 12 }}>Annulla</button>
+            <button onClick={async () => {
+              setUploading(true); setUploadMsg(null)
+              try {
+                const { data: { user } } = await supabase.auth.getUser()
+                const selectedRows = uploadPreview.righe.filter(r => r.selected)
+                const totale = selectedRows.reduce((s, r) => s + (Number(r.prezzo_totale) || 0), 0)
+                const { data: inv, error: invErr } = await supabase.from('warehouse_invoices').insert({
+                  user_id: user.id, data: uploadPreview.data || new Date().toISOString().split('T')[0],
+                  numero: uploadPreview.numero || '', fornitore: uploadPreview.fornitore || '',
+                  locale: '', totale: Math.round(totale * 100) / 100,
+                  tipo_doc: uploadPreview.tipo_doc || 'fattura', stato: 'bozza',
+                }).select('id').single()
+                if (invErr) throw new Error(invErr.message)
+                if (selectedRows.length > 0) {
+                  const { error: itErr } = await supabase.from('warehouse_invoice_items').insert(
+                    selectedRows.map(r => ({
+                      invoice_id: inv.id, nome_fattura: r.nome_fattura,
+                      quantita: Number(r.quantita) || 0, unita: r.unita || '',
+                      prezzo_unitario: Number(r.prezzo_unitario) || 0,
+                      prezzo_totale: Number(r.prezzo_totale) || 0, stato_match: 'non_abbinato',
+                    }))
+                  )
+                  if (itErr) throw new Error(itErr.message)
+                }
+                setUploadMsg({ ok: true, text: `Fattura salvata con ${selectedRows.length} righe (visibile in Magazzino → Fatture)` })
+                setUploadPreview(null)
+              } catch (err) {
+                setUploadMsg({ ok: false, text: err.message })
+              } finally { setUploading(false) }
+            }} disabled={uploading || !uploadPreview.righe.some(r => r.selected)}
+              style={{
+                ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 700, fontSize: 12,
+                cursor: uploadPreview.righe.some(r => r.selected) ? 'pointer' : 'not-allowed',
+              }}>{uploading ? 'Salvataggio...' : '💾 Salva fattura + righe'}</button>
+          </div>
+        </div>
+      )}
+    </Card>
 
     <Card title="Fatture passive da CiC" badge={fatLoading ? 'Caricamento...' : cicInvoices.length + ' fatture'} extra={
       <div style={{ display: 'flex', gap: 8 }}>
