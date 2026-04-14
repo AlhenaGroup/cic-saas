@@ -164,7 +164,10 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.25rem' }}>
       <KPI label="Fatture" icon="📄" value={tsFiltered.length} sub={tsLoading ? 'caricamento...' : (selectedLocaleName || 'tutti')} accent='#3B82F6' />
       <KPI label="Da assegnare" icon="📋" value={unassignedCount} sub="senza locale" accent='#F97316' />
-      <KPI label="Totale importo" icon="💰" value={fmtD(tsFiltered.reduce((s, f) => s + (f.detail?.totalAmount || 0), 0))} sub={tsFiltered.length + ' fatture'} accent='#10B981' />
+      <KPI label="Totale importo" icon="💰" value={fmtD(tsFiltered.reduce((s, f) => {
+        const isNC = f.detail?.td === 'TD04' || f.detail?.td === 'TD05'
+        return s + (isNC ? -Math.abs(f.detail?.totalAmount || 0) : (f.detail?.totalAmount || 0))
+      }, 0))} sub={tsFiltered.length + ' fatture'} accent='#10B981' />
     </div>
 
     {tsError && (
@@ -344,15 +347,20 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
             {tsFiltered.length === 0 && !tsLoading && <tr><td colSpan={9} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessuna fattura nel periodo selezionato.</td></tr>}
             {[...tsFiltered].sort((a, b) => (b.docDate || '').localeCompare(a.docDate || '')).slice(0, 100).map((f, i) => {
               const isExpanded = expandedTs === f.hubId
+              const isNotaCredito = f.detail?.td === 'TD04' || f.detail?.td === 'TD05'
+              const displayAmount = f.detail?.totalAmount != null ? (isNotaCredito ? -Math.abs(f.detail.totalAmount) : f.detail.totalAmount) : null
               return <><tr key={f.hubId || i}
                 onClick={() => { setExpandedTs(isExpanded ? null : f.hubId); if (!isExpanded) setTsXmlContent(null) }}
-                style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: isExpanded ? '#131825' : 'transparent' }}>
+                style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: isExpanded ? '#131825' : (isNotaCredito ? 'rgba(16,185,129,.04)' : 'transparent') }}>
                 <td style={{ ...S.td, width: 24, color: '#64748b' }}>{isExpanded ? '▼' : '▶'}</td>
                 <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{f.docDate}</td>
                 <td style={{ ...S.td, fontWeight: 500 }}>{f.senderName || '—'}</td>
                 <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{f.docId || '—'}</td>
-                <td style={S.td}><span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>{f.detail?.td || 'TD01'}</span></td>
-                <td style={{ ...S.td, fontWeight: 600 }}>{f.detail?.totalAmount != null ? fmt(f.detail.totalAmount) : '—'}</td>
+                <td style={S.td}><span style={S.badge(
+                  isNotaCredito ? '#10B981' : '#3B82F6',
+                  isNotaCredito ? 'rgba(16,185,129,.12)' : 'rgba(59,130,246,.12)'
+                )}>{f.detail?.td || 'TD01'}{isNotaCredito ? ' NC' : ''}</span></td>
+                <td style={{ ...S.td, fontWeight: 600, color: isNotaCredito ? '#10B981' : undefined }}>{displayAmount != null ? fmt(displayAmount) : '—'}</td>
                 <td style={S.td}><span style={S.badge(
                   f.currentStatusName === 'A_DISPOSIZIONE' ? '#10B981' : '#F59E0B',
                   f.currentStatusName === 'A_DISPOSIZIONE' ? 'rgba(16,185,129,.12)' : 'rgba(245,158,11,.12)'

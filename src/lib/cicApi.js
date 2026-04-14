@@ -171,7 +171,7 @@ export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPo
         (invItems||[]).forEach(it => {
           const desc = (it.nome_fattura||'').toLowerCase().trim();
           const amt = Number(it.prezzo_totale)||0;
-          if (amt <= 0) return;
+          if (amt === 0) return; // Nota credito (TD04): importo negativo, va sottratto
           // Priorita 1: mappatura appresa
           let cat = learned[desc] || null;
           // Priorita 2: regex su nome prodotto

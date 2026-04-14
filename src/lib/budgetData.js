@@ -154,7 +154,7 @@ export async function fetchConsuntivo(locale, year, month, sps = []) {
     const fornitore = inv?.fornitore || ''
     const { category } = categorizeItem(fornitore, it.nome_fattura || '')
     const amount = Number(it.prezzo_totale) || 0
-    if (amount <= 0) return
+    if (amount === 0) return
     invWithItems.add(it.invoice_id)
     if (category === 'food') food += amount
     else if (category === 'beverage') beverage += amount
@@ -169,7 +169,7 @@ export async function fetchConsuntivo(locale, year, month, sps = []) {
     if (invWithItems.has(inv.id)) return
     const { category } = categorizeItem(inv.fornitore || '', '')
     const amount = Number(inv.totale) || 0
-    if (amount <= 0) return
+    if (amount === 0) return
     if (category === 'food') food += amount
     else if (category === 'beverage') beverage += amount
     else if (category === 'materiali') materiali += amount

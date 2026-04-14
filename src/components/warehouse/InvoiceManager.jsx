@@ -131,14 +131,16 @@ export default function InvoiceManager({ sp, sps }) {
 
       const { data: { user } } = await supabase.auth.getUser()
       const locale = tsLocaleMap[tsInv.hubId] || ''
+      const isNotaCredito = tsInv.detail?.td === 'TD04' || tsInv.detail?.td === 'TD05'
+      const sign = isNotaCredito ? -1 : 1
       const { data: inv, error: invErr } = await supabase.from('warehouse_invoices').insert({
         user_id: user.id,
         data: tsInv.docDate || new Date().toISOString().split('T')[0],
         numero: tsInv.docId || '',
         fornitore: tsInv.senderName || '',
         locale,
-        totale: tsInv.detail?.totalAmount || 0,
-        tipo_doc: tsInv.detail?.td === 'TD04' ? 'nota_credito' : 'fattura',
+        totale: (tsInv.detail?.totalAmount || 0) * sign,
+        tipo_doc: isNotaCredito ? 'nota_credito' : 'fattura',
         stato: 'bozza',
       }).select('id').single()
       if (invErr) throw new Error(invErr.message)
@@ -150,8 +152,8 @@ export default function InvoiceManager({ sp, sps }) {
             nome_fattura: l.descrizione,
             quantita: parseFloat(l.quantita) || 0,
             unita: l.um || '',
-            prezzo_unitario: parseFloat(l.prezzoUnitario) || 0,
-            prezzo_totale: parseFloat(l.prezzoTotale) || 0,
+            prezzo_unitario: (parseFloat(l.prezzoUnitario) || 0) * sign,
+            prezzo_totale: (parseFloat(l.prezzoTotale) || 0) * sign,
             stato_match: 'non_abbinato',
           }))
         )
