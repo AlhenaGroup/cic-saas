@@ -4,40 +4,40 @@ import { S, KPI, Card, Bar2, fmt, fmtD, fmtN, pct } from './shared/styles.jsx'
 
 // Regole di categorizzazione automatica per fornitore/prodotto
 export const CATEGORY_RULES = {
-  food: {
-    label: '🍕 Food cost',
-    color: '#F59E0B',
-    bg: 'rgba(245,158,11,.12)',
-    fornitori: /metro|partesa|davide|ortofrutta|food|carne|pesce|frutta|verdur|macell|salum|panific|latt|uova|farin|riso|pasta|olio|formagg/i,
-    prodotti: /carne|pesce|frutta|verdur|insalata|pomodor|mozzarell|formagg|prosciutt|salame|farina|riso|pasta|olio|burro|uova|pane|latte|patate|cipoll|aglio|fungh|legu|salsa/i,
-  },
   beverage: {
     label: '🍺 Beverage cost',
     color: '#3B82F6',
     bg: 'rgba(59,130,246,.12)',
-    fornitori: /beverage|nobile|birr|vin|spirit|drink|coca|bevand|campari|aperol|martini|peroni|heineken|moretti/i,
-    prodotti: /birra|vino|spirit|cocktail|coca.?cola|fanta|sprite|acqua.*min|succo|prosecco|spumante|amaro|grappa|whisky|vodka|gin|rum|tonic|aperol|campari|spritz/i,
+    fornitori: /\b(nobile|birr|vin|spirit|drink|bevand|campari|aperol|martini|peroni|heineken|moretti)\b/i,
+    prodotti: /birra|vino|spirit|cocktail|coca.?cola|fanta|sprite|acqua.*min|succo|prosecco|spumante|amaro|grappa|whisky|vodka|gin|rum|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor/i,
   },
   materiali: {
     label: '📦 Mat. consumo',
     color: '#8B5CF6',
     bg: 'rgba(139,92,246,.12)',
-    fornitori: /consumo|materiale|packagin|carta|plastica|detersiv|clean|igien|monous/i,
-    prodotti: /tovaglio|piatt|bicchier|posate|busta|sacchett|pellicol|alluminio|detersiv|sapone|carta|guant|mascherina|contenitor|vaschett/i,
+    fornitori: /\b(consumo|materiale|packagin|plastica|detersiv|clean|igien|monous)\b/i,
+    prodotti: /tovaglio|piatt|bicchier|posate|busta|sacchett|pellicol|alluminio|detersiv|sapone|carta.*igien|guant|mascherina|contenitor|vaschett|monous/i,
   },
   struttura: {
     label: '🏗️ Struttura',
     color: '#EC4899',
     bg: 'rgba(236,72,153,.12)',
-    fornitori: /hera|enel|gas|acqua|affitto|manutenzione|assicuraz|telecom|tim|vodafone|fastweb|rent|locazione|condomin|riparazion/i,
-    prodotti: /energia|gas|acqua|affitto|canone|manutenzione|riparazione|assicurazione|telefon|internet|pulizia|smaltimento|rifiut/i,
+    fornitori: /\b(hera|enel|gas|acqua|affitto|manutenzione|assicuraz|telecom|tim|vodafone|fastweb|iliad|rent|locazione|condomin|riparazion|satiswelfare|welfare)\b/i,
+    prodotti: /energia|gas\b|acqua\b|affitto|canone|manutenzione|riparazione|assicurazione|telefon|internet|pulizia|smaltimento|rifiut|noleggio|utenz/i,
   },
   personale: {
     label: '👥 Personale',
     color: '#10B981',
     bg: 'rgba(16,185,129,.12)',
-    fornitori: /personale|consulen|paga|lavoro|inps|inail|studio.*commerc|paghe|stipend/i,
+    fornitori: /\b(personale|consulen|paga|lavoro|inps|inail|studio.*commerc|paghe|stipend)\b/i,
     prodotti: /stipendio|contribut|inps|inail|tfr|consulenza.*lavoro|busta.*paga/i,
+  },
+  food: {
+    label: '🍕 Food cost',
+    color: '#F59E0B',
+    bg: 'rgba(245,158,11,.12)',
+    fornitori: /\b(metro|partesa|davide|meini|ortofrutta|carne|pesce|frutta|verdur|macell|salum|panific|depaoli|masselli|caglio)\b/i,
+    prodotti: /carne|pesce|frutta|verdur|insalata|pomodor|mozzarell|formagg|prosciutt|salame|farina|riso|pasta\b|olio|burro|uova|pane\b|latte|patate|cipoll|aglio|fungh|legu|salsa|sugo|pizza|impasto|condiment|spezie|zucchero|sale\b|aceto|maionese|ketchup/i,
   },
 }
 
@@ -45,11 +45,23 @@ export function categorizeItem(fornitore, descrizione) {
   const forn = (fornitore || '').toLowerCase()
   const desc = (descrizione || '').toLowerCase()
 
-  for (const [key, rule] of Object.entries(CATEGORY_RULES)) {
-    if (rule.fornitori.test(forn) || rule.prodotti.test(desc)) {
-      return { category: key, confidence: rule.fornitori.test(forn) && rule.prodotti.test(desc) ? 'alta' : rule.fornitori.test(forn) ? 'media' : 'bassa' }
+  // PRIORITA 1: classifica per nome prodotto/descrizione (piu specifico)
+  // Questo gestisce correttamente fornitori misti come PARTESA (food + beverage)
+  if (desc) {
+    for (const [key, rule] of Object.entries(CATEGORY_RULES)) {
+      if (rule.prodotti.test(desc)) {
+        return { category: key, confidence: rule.fornitori.test(forn) ? 'alta' : 'media' }
+      }
     }
   }
+
+  // PRIORITA 2: classifica per fornitore (se il prodotto non matcha nulla)
+  for (const [key, rule] of Object.entries(CATEGORY_RULES)) {
+    if (rule.fornitori.test(forn)) {
+      return { category: key, confidence: 'bassa' }
+    }
+  }
+
   return { category: 'altro', confidence: 'nessuna' }
 }
 
