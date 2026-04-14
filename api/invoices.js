@@ -126,15 +126,15 @@ export default async function handler(req, res) {
         const allInvoices = []
         for (const owner of owners) {
           try {
-            let page = await tsListInvoices(token, owner.cf, { from, continuationToken: ct })
-            const invoices = page._embedded?.invoiceList || []
+            let resp = await tsListInvoices(token, owner.cf, { from, continuationToken: ct })
+            const invoices = resp._embedded?.invoiceList || []
             invoices.forEach(inv => { inv._locale = owner.name })
             allInvoices.push(...invoices)
-            // Pagina successiva (max 50 pagine = ~1000 fatture)
+            // Pagina successiva — paginazione in resp.page.hasNext / resp.page.continuationToken
             let pages = 1
-            while (page.hasNext && page.continuationToken && pages < 50) {
-              page = await tsListInvoices(token, owner.cf, { from, continuationToken: page.continuationToken })
-              const more = page._embedded?.invoiceList || []
+            while (resp.page?.hasNext && resp.page?.continuationToken && pages < 50) {
+              resp = await tsListInvoices(token, owner.cf, { from, continuationToken: resp.page.continuationToken })
+              const more = resp._embedded?.invoiceList || []
               more.forEach(inv => { inv._locale = owner.name })
               allInvoices.push(...more)
               pages++
