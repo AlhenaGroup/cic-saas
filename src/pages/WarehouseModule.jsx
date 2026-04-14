@@ -12,9 +12,13 @@ import PriceAnalysis from '../components/warehouse/PriceAnalysis'
 const TABS = [
   { key: 'cruscotto',  label: 'Cruscotto',  icon: '📊' },
   { key: 'fatture',    label: 'Fatture',     icon: '🧾' },
-  { key: 'prodotti',   label: 'Prodotti',    icon: '🍕', sub: 'venduti su CiC' },
-  { key: 'articoli',   label: 'Articoli',    icon: '📦', sub: 'acquistati' },
+  { key: 'prodotti',   label: 'Prodotti',    icon: '🍕' },
+  { key: 'articoli',   label: 'Articoli',    icon: '📦' },
   { key: 'ricette',    label: 'Ricette',     icon: '🍳' },
+  { key: 'giacenze',   label: 'Giacenze',    icon: '🏠' },
+  { key: 'inventario', label: 'Inventario',  icon: '📋' },
+  { key: 'ordini',     label: 'Ordini',      icon: '🛒' },
+  { key: 'prezzi',     label: 'Prezzi',      icon: '💰' },
 ]
 
 export default function WarehouseModule({ sp, sps }) {
@@ -41,6 +45,10 @@ export default function WarehouseModule({ sp, sps }) {
     {tab === 'prodotti'   && <ProdottiCiC sp={sp} sps={sps} />}
     {tab === 'articoli'   && <ProductManager sp={sp} sps={sps} />}
     {tab === 'ricette'    && <RecipeManager sp={sp} sps={sps} />}
+    {tab === 'giacenze'   && <StockView sp={sp} sps={sps} />}
+    {tab === 'inventario' && <InventoryManager sp={sp} sps={sps} />}
+    {tab === 'ordini'     && <OrderManager sp={sp} sps={sps} />}
+    {tab === 'prezzi'     && <PriceAnalysis sp={sp} sps={sps} />}
   </>
 }
 
