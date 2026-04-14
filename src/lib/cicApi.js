@@ -148,17 +148,67 @@ export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPo
     if (daily && daily.totale > 0) {
       const demo = generateDemoData(from, to, salesPoints);
       const result = { ...demo, ...daily };
-      // Fetch costi personale per CE
+      // ─── CE reale: costi da warehouse_invoices + personnel_costs ───
       try {
-        const { data: pcRows } = await supabase.from('personnel_costs').select('costo_totale').gte('mese', from.substring(0,7)+'-01').lte('mese', to.substring(0,7)+'-01');
-        const persCost = (pcRows||[]).reduce((s,r) => s + Number(r.costo_totale||0), 0);
-        if (persCost > 0 && result.ce) {
-          result.ce = { ...result.ce, persCost, totCosti: result.ce.foodCost+result.ce.bevCost+result.ce.matCost+persCost+result.ce.strCost+(result.ce.altCost||0) };
-          result.ce.mol = result.ce.ricavi - result.ce.totCosti;
-          result.ce.molPct = result.ce.ricavi > 0 ? result.ce.mol/result.ce.ricavi*100 : 0;
-          result.ce.persPct = result.ce.ricavi > 0 ? persCost/result.ce.ricavi*100 : 0;
-        }
-      } catch(e) { /* personnel_costs non disponibile */ }
+        const ricavi = daily.totale;
+        // Costi da fatture warehouse (classificate per fornitore/prodotto)
+        // Carica mappature apprese
+        const { data: mappings } = await supabase.from('category_mappings').select('nome_prodotto, category');
+        const learned = {};
+        (mappings||[]).forEach(m => { learned[(m.nome_prodotto||'').toLowerCase().trim()] = m.category; });
+
+        // Carica righe fatture nel periodo
+        const { data: invItems } = await supabase.from('warehouse_invoice_items')
+          .select('nome_fattura, prezzo_totale, warehouse_invoices!inner(fornitore, data)')
+          .gte('warehouse_invoices.data', from)
+          .lte('warehouse_invoices.data', to);
+
+        let foodCost=0, bevCost=0, matCost=0, strCost=0, altCost=0;
+        // Regex per classificazione (stesse di ContoEconomico.jsx)
+        const bevRx = /birra|vino|spirit|cocktail|coca.?cola|fanta|sprite|acqua.*min|succo|prosecco|spumante|amaro|grappa|whisky|vodka|gin|rum|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor|bottiglia|lattina|fusto|keg/i;
+        const matRx = /tovaglio|piatt|bicchier|posate|busta|sacchett|pellicol|alluminio|detersiv|sapone|carta|guant|mascherina|contenitor|vaschett|monous|rotolo|dispenser|igienizz/i;
+        const strRx = /energia|gas\b|elettric|acqua\b|affitto|canone|manutenzione|riparazione|assicurazione|telefon|internet|pulizia|smaltimento|rifiut|noleggio|utenz|rata\b|leasing|consulenz|commercialist|notai|avvocat|bollo|tribut/i;
+        const persRx = /stipendio|contribut|inps|inail|tfr|consulenza.*lavoro|busta.*paga|cedolino|retribuz/i;
+        const foodRx = /carne|pesce|frutta|verdur|insalata|pomodor|mozzarell|formagg|prosciutt|salame|farina|riso|pasta\b|olio|burro|uova|pane\b|latte|patate|cipoll|aglio|fungh|legu|salsa|sugo|pizza|impasto|condiment|spezie|zucchero|sale\b|aceto|maionese|ketchup|pollo|manzo|maiale|salmone|tonno|gamberi|basilico|origano|pepe|limone|arancia|pomodoro|pangrattato|lievito|semola|grana|parmigia|pecorino|ricotta|mascarpone|panna|besciamella/i;
+
+        (invItems||[]).forEach(it => {
+          const desc = (it.nome_fattura||'').toLowerCase().trim();
+          const amt = Number(it.prezzo_totale)||0;
+          if (amt <= 0) return;
+          // Priorita 1: mappatura appresa
+          if (learned[desc]) {
+            const cat = learned[desc];
+            if (cat==='food') foodCost+=amt; else if (cat==='beverage') bevCost+=amt;
+            else if (cat==='materiali') matCost+=amt; else if (cat==='struttura') strCost+=amt;
+            else altCost+=amt;
+            return;
+          }
+          // Priorita 2: regex su nome prodotto
+          if (bevRx.test(desc)) bevCost+=amt;
+          else if (matRx.test(desc)) matCost+=amt;
+          else if (strRx.test(desc)) strCost+=amt;
+          else if (persRx.test(desc)) { /* personale gestito sotto */ }
+          else if (foodRx.test(desc)) foodCost+=amt;
+          else altCost+=amt;
+        });
+
+        // Personale da personnel_costs
+        let persCost = 0;
+        try {
+          const { data: pcRows } = await supabase.from('personnel_costs').select('costo_totale').gte('mese', from.substring(0,7)+'-01').lte('mese', to.substring(0,7)+'-01');
+          persCost = (pcRows||[]).reduce((s,r) => s + Number(r.costo_totale||0), 0);
+        } catch(e) {}
+
+        const totCosti = foodCost+bevCost+matCost+persCost+strCost+altCost;
+        const mol = ricavi - totCosti;
+        result.ce = {
+          ricavi, foodCost, bevCost, matCost, persCost, strCost, altCost, totCosti, mol,
+          molPct: ricavi > 0 ? mol/ricavi*100 : 0,
+          foodPct: ricavi > 0 ? foodCost/ricavi*100 : 0,
+          bevPct: ricavi > 0 ? bevCost/ricavi*100 : 0,
+          persPct: ricavi > 0 ? persCost/ricavi*100 : 0,
+        };
+      } catch(e) { console.warn('[CE real]', e.message); }
       return result;
     }
   } catch(e) { console.warn('[daily_stats]', e.message); }
