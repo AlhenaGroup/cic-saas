@@ -267,6 +267,12 @@ export default function InvoiceManager({ sp, sps }) {
     }
   }, [items, products, aliases])
 
+  // ─── Nome articolo interno ──────────────────────────────────────
+  const saveNomeArticolo = async (itemId, nome) => {
+    await supabase.from('warehouse_invoice_items').update({ nome_articolo: nome }).eq('id', itemId)
+    setItems(prev => prev.map(it => it.id === itemId ? { ...it, nome_articolo: nome } : it))
+  }
+
   const confirmMatch = async (item, product) => {
     await supabase.from('warehouse_invoice_items').update({ product_id: product.id, stato_match: 'abbinato' }).eq('id', item.id)
     if (item.nome_fattura && item.nome_fattura.toLowerCase() !== product.nome.toLowerCase()) {
@@ -361,53 +367,31 @@ export default function InvoiceManager({ sp, sps }) {
               {/* Se importato: mostra righe warehouse con match prodotti */}
               {whInvoice && (
                 <>
-                  <div style={{ fontSize: 12, color: '#10B981', marginBottom: 8 }}>✓ Importata nel magazzino — abbina i prodotti</div>
-
-                  {/* Add item form */}
-                  <div style={{ background: '#0f1420', borderRadius: 8, padding: 10, marginBottom: 10, border: '1px solid #2a3042' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto', gap: 6, alignItems: 'end' }}>
-                      <input placeholder="Nome in fattura" value={itemForm.nome_fattura} onChange={e => setItemForm(p => ({ ...p, nome_fattura: e.target.value }))} style={formS} />
-                      <input placeholder="Qty" type="number" step="0.01" value={itemForm.quantita} onChange={e => setItemForm(p => ({ ...p, quantita: e.target.value }))} style={formS} />
-                      <input placeholder="Unita" value={itemForm.unita} onChange={e => setItemForm(p => ({ ...p, unita: e.target.value }))} style={formS} />
-                      <input placeholder="P. unit." type="number" step="0.01" value={itemForm.prezzo_unitario} onChange={e => setItemForm(p => ({ ...p, prezzo_unitario: e.target.value }))} style={formS} />
-                      <input placeholder="Totale" type="number" step="0.01" value={itemForm.prezzo_totale} onChange={e => setItemForm(p => ({ ...p, prezzo_totale: e.target.value }))} style={formS} />
-                      <button onClick={addItem} disabled={!itemForm.nome_fattura || loading} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 12px', fontWeight: 600, marginBottom: 8 }}>+</button>
-                    </div>
-                  </div>
+                  <div style={{ fontSize: 12, color: '#10B981', marginBottom: 8 }}>✓ Importata nel magazzino — assegna il nome articolo interno</div>
 
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-                      {['Nome fattura', 'Qty', 'UM', 'P. unit.', 'Totale', 'Stato', 'Prodotto', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 10, padding: '6px 8px' }}>{h}</th>)}
+                      {['Descrizione fattura', 'Nome articolo', 'Qty', 'UM', 'P. unit.', 'Totale'].map(h => <th key={h} style={{ ...S.th, fontSize: 10, padding: '6px 8px' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
-                      {items.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
+                      {items.length === 0 && <tr><td colSpan={6} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
                       {items.map(it => (
                         <tr key={it.id}>
-                          <td style={{ ...S.td, fontWeight: 500, fontSize: 12, padding: '6px 8px' }}>{it.nome_fattura}</td>
+                          <td style={{ ...S.td, fontSize: 12, padding: '6px 8px', color: '#94a3b8' }}>{it.nome_fattura}</td>
+                          <td style={{ ...S.td, padding: '6px 8px' }}>
+                            <input
+                              value={it.nome_articolo || ''}
+                              placeholder={it.nome_fattura?.split(' ').slice(1).join(' ') || 'Nome interno...'}
+                              onBlur={e => { if (e.target.value !== (it.nome_articolo || '')) saveNomeArticolo(it.id, e.target.value) }}
+                              onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
+                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: e.target.value } : x))}
+                              style={{ ...iS, fontSize: 11, padding: '3px 6px', width: '100%', fontWeight: 600, color: it.nome_articolo ? '#F59E0B' : '#475569' }}
+                            />
+                          </td>
                           <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{it.quantita}</td>
                           <td style={{ ...S.td, color: '#94a3b8', fontSize: 12, padding: '6px 8px' }}>{it.unita}</td>
                           <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{fmt(it.prezzo_unitario)}</td>
                           <td style={{ ...S.td, fontWeight: 600, fontSize: 12, padding: '6px 8px' }}>{fmt(it.prezzo_totale)}</td>
-                          <td style={{ ...S.td, padding: '6px 8px' }}>
-                            <span style={S.badge(
-                              it.stato_match === 'abbinato' ? '#10B981' : '#F59E0B',
-                              it.stato_match === 'abbinato' ? 'rgba(16,185,129,.12)' : 'rgba(245,158,11,.12)'
-                            )}>{it.stato_match === 'abbinato' ? 'Abbinato' : 'Non abbinato'}</span>
-                          </td>
-                          <td style={{ ...S.td, padding: '6px 8px' }}>
-                            {it.stato_match === 'abbinato'
-                              ? <span style={{ fontSize: 11, color: '#10B981' }}>{products.find(p => p.id === it.product_id)?.nome || 'Abbinato'}</span>
-                              : autoMatched[it.id]
-                                ? <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <span style={S.badge('#8B5CF6', 'rgba(139,92,246,.12)')}>suggerito</span>
-                                    <span style={{ fontSize: 10, color: '#c4b5fd' }}>{products.find(p => p.id === autoMatched[it.id])?.nome}</span>
-                                    <button onClick={() => confirmMatch(it, products.find(p => p.id === autoMatched[it.id]))} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '2px 6px', fontWeight: 600, fontSize: 9 }}>OK</button>
-                                    <button onClick={() => { setMatchingItem(it); setMatchSearch(''); setMatchResults([]) }} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '2px 6px', fontSize: 9 }}>?</button>
-                                  </span>
-                                : <button onClick={() => { setMatchingItem(it); setMatchSearch(''); setMatchResults([]) }} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '2px 8px', fontWeight: 600, fontSize: 10 }}>Abbina</button>
-                            }
-                          </td>
-                          <td style={{ ...S.td, padding: '6px 8px' }}><button onClick={() => deleteItem(it.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>X</button></td>
                         </tr>
                       ))}
                     </tbody>

@@ -184,3 +184,6 @@ CREATE POLICY "Users see own mappings" ON category_mappings FOR SELECT USING (au
 CREATE POLICY "Users insert own mappings" ON category_mappings FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users update own mappings" ON category_mappings FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users delete own mappings" ON category_mappings FOR DELETE USING (auth.uid() = user_id);
+
+-- Colonna nome_articolo per mappare descrizione fornitore → nome interno
+ALTER TABLE warehouse_invoice_items ADD COLUMN IF NOT EXISTS nome_articolo TEXT;
