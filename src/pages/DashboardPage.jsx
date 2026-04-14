@@ -578,7 +578,7 @@ export default function DashboardPage({ settings }) {
       })()}
 
       {/* ── FATTURE PASSIVE ── */}
-      {tab==='fat'&&<InvoiceTab sp={sp} sps={sps} fatSearch={fatSearch} setFatSearch={setFatSearch}/>}
+      {tab==='fat'&&<InvoiceTab sp={sp} sps={sps} from={from} to={to} fatSearch={fatSearch} setFatSearch={setFatSearch}/>}
 
       {/* vecchio tab fatture rimosso - ora usa InvoiceTab */}
       {false&&(()=>{

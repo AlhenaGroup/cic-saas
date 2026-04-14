@@ -1,30 +1,27 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
 import { S, KPI, Card, fmt, fmtD } from './shared/styles.jsx'
 import { handleInvoiceFile } from '../lib/invoiceParsers.js'
+import { supabase } from '../lib/supabase'
 
-export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
-  // TS Digital invoices (fonte primaria, no cookie)
+export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch }) {
+  // TS Digital invoices
   const [tsInvoices, setTsInvoices] = useState([])
   const [tsLoading, setTsLoading] = useState(false)
   const [tsError, setTsError] = useState(null)
   const [expandedTs, setExpandedTs] = useState(null)
   const [tsXmlContent, setTsXmlContent] = useState(null)
   const [tsXmlLoading, setTsXmlLoading] = useState(false)
+  // Locale assignment (localStorage persisted)
+  const [tsLocaleMap, setTsLocaleMap] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_ts_invoice_locales') || '{}') } catch { return {} } })
   // Upload file state (multi-file)
   const [uploadPreviews, setUploadPreviews] = useState([])
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState(null)
   const fileInputRef = { current: null }
-  // Fatture caricate (da Supabase warehouse_invoices)
-  const [whInvoices, setWhInvoices] = useState([])
-  const [whItems, setWhItems] = useState([])
-  const [whExpanded, setWhExpanded] = useState(null)
-  const [whLoading, setWhLoading] = useState(false)
 
   const iS = S.input
 
-  // ─── TS Digital: carica fatture passive via API diretta ──────────
+  // ─── TS Digital: carica fatture passive ────────────────────────────
   const loadTsInvoices = async () => {
     setTsLoading(true)
     setTsError(null)
@@ -41,33 +38,20 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
         const d = await r.json().catch(() => ({}))
         setTsError(d.error || 'Errore ' + r.status)
       }
-    } catch (e) {
-      setTsError(e.message)
-    }
+    } catch (e) { setTsError(e.message) }
     setTsLoading(false)
   }
 
-  // ─── Warehouse invoices (caricate da file) ──────────────────────
-  const loadWhInvoices = async () => {
-    setWhLoading(true)
-    const { data } = await supabase.from('warehouse_invoices').select('*').order('data', { ascending: false })
-    setWhInvoices(data || [])
-    setWhLoading(false)
+  useEffect(() => { loadTsInvoices() }, [])
+
+  // ─── Locale assignment ─────────────────────────────────────────────
+  const setTsInvoiceLocale = (hubId, locale) => {
+    const newMap = { ...tsLocaleMap, [hubId]: locale }
+    setTsLocaleMap(newMap)
+    localStorage.setItem('cic_ts_invoice_locales', JSON.stringify(newMap))
   }
 
-  const loadWhItems = async (invoiceId) => {
-    const { data } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', invoiceId).order('id')
-    setWhItems(data || [])
-  }
-
-  const updateWhLocale = async (invId, locale) => {
-    await supabase.from('warehouse_invoices').update({ locale }).eq('id', invId)
-    setWhInvoices(prev => prev.map(inv => inv.id === invId ? { ...inv, locale } : inv))
-  }
-
-  useEffect(() => { loadWhInvoices() }, [])
-  useEffect(() => { if (whExpanded) loadWhItems(whExpanded) }, [whExpanded])
-
+  // ─── XML download ──────────────────────────────────────────────────
   const downloadTsXml = async (inv) => {
     setTsXmlLoading(true); setTsXmlContent(null)
     try {
@@ -106,32 +90,34 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
     return lines
   }
 
-  useEffect(() => { loadTsInvoices() }, [])
-
-  // Risolvi nome locale dal sp selezionato
+  // ─── Filtri ────────────────────────────────────────────────────────
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps.find(s => String(s.id) === String(sp))?.description || sps.find(s => String(s.id) === String(sp))?.name || null)
 
-  // Filtra fatture warehouse per locale selezionato
-  const whFiltered = whInvoices.filter(inv => {
-    // Se locale selezionato, mostra solo fatture assegnate a quel locale (escludi non assegnate e altri locali)
-    if (selectedLocaleName && inv.locale !== selectedLocaleName) return false
-    if (fatSearch && !inv.fornitore?.toLowerCase().includes(fatSearch.toLowerCase()) && !inv.numero?.includes(fatSearch)) return false
-    return true
-  })
-
-  // Filtra fatture TS Digital per locale selezionato + ricerca
   const tsFiltered = tsInvoices.filter(f => {
-    if (selectedLocaleName && f._locale && f._locale !== selectedLocaleName) return false
+    // Filtro date (from/to dalla dashboard)
+    if (from && f.docDate && f.docDate < from) return false
+    if (to && f.docDate && f.docDate > to) return false
+    // Filtro locale
+    if (selectedLocaleName) {
+      const assigned = tsLocaleMap[f.hubId]
+      if (!assigned || assigned !== selectedLocaleName) return false
+    }
+    // Filtro ricerca
     if (fatSearch && !f.senderName?.toLowerCase().includes(fatSearch.toLowerCase()) && !f.docId?.includes(fatSearch)) return false
     return true
   })
 
+  const unassignedCount = tsInvoices.filter(f => {
+    if (from && f.docDate && f.docDate < from) return false
+    if (to && f.docDate && f.docDate > to) return false
+    return !tsLocaleMap[f.hubId]
+  }).length
+
   return <>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.25rem' }}>
-      <KPI label="TS Digital" icon="📄" value={tsFiltered.length} sub={tsLoading ? 'caricamento...' : (selectedLocaleName || 'tutti')} accent='#3B82F6' />
-      <KPI label="Caricate" icon="📤" value={whFiltered.length} sub="da file" accent='#F59E0B' />
-      <KPI label="Da assegnare" icon="📋" value={whInvoices.filter(inv => !inv.locale).length} sub="senza locale" accent='#F97316' />
-      <KPI label="Totale" icon="✓" value={tsFiltered.length + whFiltered.length} sub="fatture visibili" accent='#10B981' />
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.25rem' }}>
+      <KPI label="Fatture" icon="📄" value={tsFiltered.length} sub={tsLoading ? 'caricamento...' : (selectedLocaleName || 'tutti')} accent='#3B82F6' />
+      <KPI label="Da assegnare" icon="📋" value={unassignedCount} sub="senza locale" accent='#F97316' />
+      <KPI label="Totale importo" icon="💰" value={fmtD(tsFiltered.reduce((s, f) => s + (f.detail?.totalAmount || 0), 0))} sub={tsFiltered.length + ' fatture'} accent='#10B981' />
     </div>
 
     {tsError && (
@@ -176,7 +162,7 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
       </div>
     }>
       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
-        Seleziona una o piu fatture, DDT o note di credito (XML, CSV, PDF). Le righe verranno lette e salvate nel magazzino.
+        Seleziona una o piu fatture, DDT o note di credito (XML, CSV, PDF). Le righe verranno salvate nel magazzino.
       </div>
 
       {uploadMsg && (
@@ -219,10 +205,9 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
                   } catch (err) { errors.push(`${preview.fornitore || preview._filename}: ${err.message}`) }
                 }
                 setUploadPreviews([])
-                await loadWhInvoices()
                 setUploadMsg(errors.length > 0
                   ? { ok: false, text: `${saved} salvate, ${errors.length} errori: ${errors.join(' · ')}` }
-                  : { ok: true, text: `${saved} fatture salvate con ${totalRows} righe` })
+                  : { ok: true, text: `${saved} fatture salvate con ${totalRows} righe (visibili in Magazzino → Fatture)` })
                 setUploading(false)
               }} disabled={uploading}
                 style={{ background: '#0f1420', border: 'none', color: '#10B981', padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
@@ -294,73 +279,7 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
       )}
     </Card>
 
-    {/* Fatture caricate (da file → warehouse_invoices) */}
-    <Card title="Fatture caricate" badge={whFiltered.length + (selectedLocaleName ? ' · ' + selectedLocaleName : '')} extra={
-      <button onClick={loadWhInvoices} disabled={whLoading}
-        style={{ ...iS, background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8', padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
-      >{whLoading ? '...' : 'Aggiorna'}</button>
-    }>
-      {whFiltered.length === 0 && !whLoading && (
-        <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>
-          {whInvoices.length === 0 ? 'Nessuna fattura caricata. Usa "📤 Seleziona file" qui sopra per importare.' : `Nessuna fattura per ${selectedLocaleName || 'questo filtro'}.`}
-        </div>
-      )}
-      {whFiltered.length > 0 && (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-              {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Totale', 'Stato', 'Locale'].map(h => <th key={h} style={S.th}>{h}</th>)}
-            </tr></thead>
-            <tbody>
-              {whFiltered.map(inv => {
-                const sc = inv.stato === 'completa' ? { c: '#10B981', bg: 'rgba(16,185,129,.12)' }
-                  : inv.stato === 'parziale' ? { c: '#3B82F6', bg: 'rgba(59,130,246,.12)' }
-                  : { c: '#F59E0B', bg: 'rgba(245,158,11,.12)' }
-                return <><tr key={inv.id}
-                  onClick={() => { setWhExpanded(whExpanded === inv.id ? null : inv.id); if (whExpanded !== inv.id) setWhItems([]) }}
-                  style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: whExpanded === inv.id ? '#131825' : 'transparent' }}>
-                  <td style={{ ...S.td, width: 24, color: '#64748b' }}>{whExpanded === inv.id ? '▼' : '▶'}</td>
-                  <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{inv.data}</td>
-                  <td style={{ ...S.td, fontWeight: 500 }}>{inv.fornitore || '—'}</td>
-                  <td style={{ ...S.td, color: '#94a3b8' }}>{inv.numero || '—'}</td>
-                  <td style={S.td}><span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>{inv.tipo_doc}</span></td>
-                  <td style={{ ...S.td, fontWeight: 600 }}>{fmt(inv.totale)}</td>
-                  <td style={S.td}><span style={S.badge(sc.c, sc.bg)}>{inv.stato}</span></td>
-                  <td style={S.td} onClick={e => e.stopPropagation()}>
-                    <select value={inv.locale || ''} onChange={e => updateWhLocale(inv.id, e.target.value)} style={{ ...iS, fontSize: 11, padding: '3px 6px' }}>
-                      <option value="">— assegna —</option>
-                      {sps.map(s => <option key={s.id} value={s.description || s.name}>{s.description || s.name}</option>)}
-                    </select>
-                  </td>
-                </tr>
-                {whExpanded === inv.id && <tr key={'wh-d-' + inv.id}><td colSpan={8} style={{ padding: '8px 14px 12px 38px', background: '#131825' }}>
-                  {whItems.length === 0 && <div style={{ color: '#475569', fontSize: 12, padding: 8 }}>Nessuna riga</div>}
-                  {whItems.length > 0 && (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead><tr>
-                        {['Descrizione', 'Qty', 'UM', 'Prezzo unit.', 'Totale'].map(h => <th key={h} style={{ ...S.th, fontSize: 10, padding: '6px 8px' }}>{h}</th>)}
-                      </tr></thead>
-                      <tbody>
-                        {whItems.map(it => <tr key={it.id}>
-                          <td style={{ ...S.td, fontSize: 12, fontWeight: 500, padding: '6px 8px' }}>{it.nome_fattura}</td>
-                          <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{it.quantita}</td>
-                          <td style={{ ...S.td, fontSize: 11, color: '#64748b', padding: '6px 8px' }}>{it.unita || '—'}</td>
-                          <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{it.prezzo_unitario ? fmt(it.prezzo_unitario) : '—'}</td>
-                          <td style={{ ...S.td, fontSize: 12, fontWeight: 600, padding: '6px 8px' }}>{fmt(it.prezzo_totale)}</td>
-                        </tr>)}
-                      </tbody>
-                    </table>
-                  )}
-                </td></tr>}
-                </>
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </Card>
-
-    {/* Fatture TS Digital (API diretta, no cookie) */}
+    {/* Fatture TS Digital */}
     <Card title="Fatture passive — TS Digital" badge={tsLoading ? 'Caricamento...' : tsFiltered.length + ' fatture'} extra={
       <div style={{ display: 'flex', gap: 8 }}>
         <input placeholder="🔍 Fornitore / N° doc..." value={fatSearch} onChange={e => setFatSearch(e.target.value)} style={{ ...iS, width: 200 }} />
@@ -372,10 +291,10 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-            {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Importo', 'Stato', 'XML'].map(h => <th key={h} style={S.th}>{h}</th>)}
+            {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Importo', 'Stato', 'Locale', 'XML'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {tsFiltered.length === 0 && !tsLoading && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessuna fattura trovata.</td></tr>}
+            {tsFiltered.length === 0 && !tsLoading && <tr><td colSpan={9} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessuna fattura nel periodo selezionato.</td></tr>}
             {tsFiltered.slice(0, 100).map((f, i) => {
               const isExpanded = expandedTs === f.hubId
               return <><tr key={f.hubId || i}
@@ -392,10 +311,16 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
                   f.currentStatusName === 'A_DISPOSIZIONE' ? 'rgba(16,185,129,.12)' : 'rgba(245,158,11,.12)'
                 )}>{f.currentStatusName === 'A_DISPOSIZIONE' ? 'Ricevuta' : (f.currentStatusName || '—')}</span></td>
                 <td style={S.td} onClick={e => e.stopPropagation()}>
+                  <select value={tsLocaleMap[f.hubId] || ''} onChange={e => setTsInvoiceLocale(f.hubId, e.target.value)} style={{ ...iS, fontSize: 11, padding: '3px 6px' }}>
+                    <option value="">— assegna —</option>
+                    {sps.map(s => <option key={s.id} value={s.description || s.name}>{s.description || s.name}</option>)}
+                  </select>
+                </td>
+                <td style={S.td} onClick={e => e.stopPropagation()}>
                   <button onClick={() => downloadTsXml(f)} style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11 }}>XML</button>
                 </td>
               </tr>
-              {isExpanded && <tr key={'ts-d-' + (f.hubId || i)}><td colSpan={8} style={{ padding: '8px 14px 12px 38px', background: '#131825' }}>
+              {isExpanded && <tr key={'ts-d-' + (f.hubId || i)}><td colSpan={9} style={{ padding: '8px 14px 12px 38px', background: '#131825' }}>
                 {!tsXmlContent && !tsXmlLoading && <button onClick={() => downloadTsXml(f)} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 14px', fontWeight: 600, fontSize: 12 }}>Carica dettaglio fattura (XML)</button>}
                 {tsXmlLoading && <div style={{ padding: 12, color: '#F59E0B', fontSize: 12 }}>Caricamento XML...</div>}
                 {tsXmlContent && tsXmlContent.length > 100 && (() => {
