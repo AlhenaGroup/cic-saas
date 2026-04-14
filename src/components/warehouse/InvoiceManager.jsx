@@ -267,10 +267,14 @@ export default function InvoiceManager({ sp, sps }) {
     }
   }, [items, products, aliases])
 
-  // ─── Nome articolo interno ──────────────────────────────────────
+  // ─── Nome articolo interno + UM ─────────────────────────────────
   const saveNomeArticolo = async (itemId, nome) => {
     await supabase.from('warehouse_invoice_items').update({ nome_articolo: nome }).eq('id', itemId)
     setItems(prev => prev.map(it => it.id === itemId ? { ...it, nome_articolo: nome } : it))
+  }
+  const saveUnita = async (itemId, unita) => {
+    await supabase.from('warehouse_invoice_items').update({ unita }).eq('id', itemId)
+    setItems(prev => prev.map(it => it.id === itemId ? { ...it, unita } : it))
   }
 
   const confirmMatch = async (item, product) => {
@@ -389,7 +393,15 @@ export default function InvoiceManager({ sp, sps }) {
                             />
                           </td>
                           <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{it.quantita}</td>
-                          <td style={{ ...S.td, color: '#94a3b8', fontSize: 12, padding: '6px 8px' }}>{it.unita}</td>
+                          <td style={{ ...S.td, padding: '6px 8px' }}>
+                            <select value={it.unita || ''} onChange={e => saveUnita(it.id, e.target.value)}
+                              style={{ ...iS, fontSize: 10, padding: '2px 4px', width: 60, color: '#e2e8f0' }}>
+                              <option value="">—</option>
+                              <option value="KG">KG</option>
+                              <option value="LT">LT</option>
+                              <option value="PZ">PZ</option>
+                            </select>
+                          </td>
                           <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{fmt(it.prezzo_unitario)}</td>
                           <td style={{ ...S.td, fontWeight: 600, fontSize: 12, padding: '6px 8px' }}>{fmt(it.prezzo_totale)}</td>
                         </tr>
