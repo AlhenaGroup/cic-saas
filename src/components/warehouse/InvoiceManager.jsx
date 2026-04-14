@@ -28,18 +28,30 @@ export default function InvoiceManager({ sp, sps }) {
   const [matchingItem, setMatchingItem] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  // ─── Load TS Digital invoices ──────────────────────────────────────
-  const loadTsInvoices = async () => {
+  // ─── Load TS Digital invoices (paginato, 1 pagina) ──────────────
+  const [tsPage, setTsPage] = useState(0)
+  const [tsPages, setTsPagesArr] = useState([null])
+  const [tsHasNext, setTsHasNext] = useState(false)
+
+  const loadTsPage = async (pageIdx) => {
     setTsLoading(true)
     try {
+      // Refresh localeMap da localStorage (l'utente potrebbe aver assegnato nel tab Fatture)
+      try { setTsLocaleMap(JSON.parse(localStorage.getItem('cic_ts_invoice_locales') || '{}')) } catch {}
+      const ct = tsPages[pageIdx] || null
       const r = await fetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ts-list' }),
+        body: JSON.stringify({ action: 'ts-list', continuationToken: ct }),
       })
       if (r.ok) {
         const d = await r.json()
         setTsInvoices(d.invoices || [])
+        setTsHasNext(d.hasNext || false)
+        if (d.hasNext && d.continuationToken) {
+          setTsPagesArr(prev => { const next = [...prev]; next[pageIdx + 1] = d.continuationToken; return next })
+        }
+        setTsPage(pageIdx)
       }
     } catch (e) { console.warn('[InvoiceManager] TS load:', e.message) }
     setTsLoading(false)
@@ -52,7 +64,7 @@ export default function InvoiceManager({ sp, sps }) {
     setAliases(als || [])
   }, [])
 
-  useEffect(() => { loadTsInvoices(); loadProducts() }, [loadProducts])
+  useEffect(() => { loadTsPage(0); loadProducts() }, [loadProducts])
 
   // Refresh locale map when localStorage changes (cross-tab sync)
   useEffect(() => {
@@ -68,12 +80,8 @@ export default function InvoiceManager({ sp, sps }) {
 
   const tsFiltered = [...tsInvoices].filter(f => {
     const assigned = tsLocaleMap[f.hubId]
-    if (selectedLocaleName) {
-      if (!assigned || assigned !== selectedLocaleName) return false
-    } else {
-      // "Tutti i locali": mostra solo le assegnate
-      if (!assigned) return false
-    }
+    if (!assigned) return false // mostra solo le assegnate
+    if (selectedLocaleName && assigned !== selectedLocaleName && assigned !== 'Alhena Group') return false
     return true
   }).sort((a, b) => (b.docDate || '').localeCompare(a.docDate || ''))
 
@@ -271,10 +279,12 @@ export default function InvoiceManager({ sp, sps }) {
 
   // ─── Render ────────────────────────────────────────────────────────
   return <>
-    <Card title="Fatture TS Digital" badge={tsLoading ? '...' : tsFiltered.length + (selectedLocaleName ? ' · ' + selectedLocaleName : ' assegnate')} extra={
-      <button onClick={loadTsInvoices} disabled={tsLoading}
-        style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '5px 14px', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-      >{tsLoading ? '...' : 'Aggiorna'}</button>
+    <Card title="Fatture TS Digital" badge={tsLoading ? '...' : `${tsFiltered.length} assegnate · Pag. ${tsPage + 1}`} extra={
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={() => loadTsPage(tsPage)} disabled={tsLoading}
+          style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '5px 14px', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+        >{tsLoading ? '...' : 'Aggiorna'}</button>
+      </div>
     }>
       {tsFiltered.length === 0 && !tsLoading && (
         <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>
@@ -421,6 +431,22 @@ export default function InvoiceManager({ sp, sps }) {
           })}
         </tbody>
       </table>
+
+      {/* Paginazione */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: '0 4px' }}>
+        <button onClick={() => loadTsPage(tsPage - 1)} disabled={tsPage === 0 || tsLoading}
+          style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: tsPage === 0 ? 'not-allowed' : 'pointer',
+            background: tsPage === 0 ? '#1a1f2e' : '#3B82F6', color: tsPage === 0 ? '#475569' : '#fff', border: 'none' }}
+        >← Precedente</button>
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>
+          Pagina <strong style={{ color: '#e2e8f0' }}>{tsPage + 1}</strong>
+          {' · '}{tsFiltered.length} assegnate su {tsInvoices.length}
+        </span>
+        <button onClick={() => loadTsPage(tsPage + 1)} disabled={!tsHasNext || tsLoading}
+          style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: !tsHasNext ? 'not-allowed' : 'pointer',
+            background: !tsHasNext ? '#1a1f2e' : '#3B82F6', color: !tsHasNext ? '#475569' : '#fff', border: 'none' }}
+        >Successiva →</button>
+      </div>
     </Card>
   </>
 }
