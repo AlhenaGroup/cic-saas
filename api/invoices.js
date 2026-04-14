@@ -118,33 +118,22 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
-      // ─── TS Digital: lista fatture passive da tutte le aziende ─────
+      // ─── TS Digital: una pagina di fatture (il client pagina in loop) ─
       case 'ts-list': {
         const { from, continuationToken: ct, ownerId: explicitOwner } = req.body
         const token = await getTsToken()
-        const owners = explicitOwner ? [{ cf: explicitOwner, name: explicitOwner }] : TS_OWNERS
-        const allInvoices = []
-        for (const owner of owners) {
-          try {
-            let resp = await tsListInvoices(token, owner.cf, { from, continuationToken: ct })
-            const invoices = resp._embedded?.invoiceList || []
-            invoices.forEach(inv => { inv._locale = owner.name })
-            allInvoices.push(...invoices)
-            // Pagina successiva — paginazione in resp.page.hasNext / resp.page.continuationToken
-            let pages = 1
-            while (resp.page?.hasNext && resp.page?.continuationToken && pages < 50) {
-              resp = await tsListInvoices(token, owner.cf, { from, continuationToken: resp.page.continuationToken })
-              const more = resp._embedded?.invoiceList || []
-              more.forEach(inv => { inv._locale = owner.name })
-              allInvoices.push(...more)
-              pages++
-            }
-          } catch (e) {
-            console.warn(`[TS] ${owner.name}:`, e.message)
-          }
-        }
-        allInvoices.sort((a, b) => (b.lastTimestamp || 0) - (a.lastTimestamp || 0))
-        return res.status(200).json({ invoices: allInvoices, total: allInvoices.length, source: 'ts-digital' })
+        const owner = explicitOwner || TS_OWNERS[0]?.cf
+        const ownerName = TS_OWNERS.find(o => o.cf === owner)?.name || owner
+        const resp = await tsListInvoices(token, owner, { from, continuationToken: ct })
+        const invoices = resp._embedded?.invoiceList || []
+        invoices.forEach(inv => { inv._locale = ownerName })
+        return res.status(200).json({
+          invoices,
+          hasNext: resp.page?.hasNext || false,
+          continuationToken: resp.page?.continuationToken || null,
+          total: invoices.length,
+          source: 'ts-digital',
+        })
       }
 
       // ─── TS Digital: scarica XML/PDF di una fattura ───────────────

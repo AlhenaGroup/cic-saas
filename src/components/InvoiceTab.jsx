@@ -26,18 +26,28 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     setTsLoading(true)
     setTsError(null)
     try {
-      const r = await fetch('/api/invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ts-list' }),
-      })
-      if (r.ok) {
+      const all = []
+      let ct = null
+      let pages = 0
+      // Pagina lato client fino a esaurimento (max 100 pagine = 2000 fatture)
+      do {
+        const r = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'ts-list', continuationToken: ct }),
+        })
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}))
+          setTsError(d.error || 'Errore ' + r.status)
+          break
+        }
         const d = await r.json()
-        setTsInvoices(d.invoices || [])
-      } else {
-        const d = await r.json().catch(() => ({}))
-        setTsError(d.error || 'Errore ' + r.status)
-      }
+        all.push(...(d.invoices || []))
+        ct = d.hasNext ? d.continuationToken : null
+        pages++
+        // Aggiorna progressivamente la lista visibile
+        setTsInvoices([...all])
+      } while (ct && pages < 100)
     } catch (e) { setTsError(e.message) }
     setTsLoading(false)
   }
