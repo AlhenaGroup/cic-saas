@@ -8,7 +8,7 @@ export const CATEGORY_RULES = {
     label: '🍺 Beverage cost',
     color: '#3B82F6',
     bg: 'rgba(59,130,246,.12)',
-    prodotti: /birr|vin[oa]|spirit|cocktail|coca.?col|fanta|sprite|acqua.*min|succ[ohi]|prosecc|spumant|amar[oie]|grapp|whisk|vodka|gin\b|rum\b|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor|bottigli|lattin|fusto|keg|chinotto|gassosa|cedrata|limonat|aranciata|energy|redbull|red bull|monster|schweppes|sanbitter|crodino|vermouth|negroni|mojito|daiquiri|sangria|champagn|lambrusco|chianti|barolo|barbera|moscato|nebbiolo|merlot|cabernet|chardonnay|sauvignon|pinot|syrah|primitivo|nero.*avola|montepulciano|trebbiano|malvasia|verdicchio|ribolla/i,
+    prodotti: /birr|vin[oa]|spirit|cocktail|coca.?col|fanta|sprite|acqua.*min|succ[ohi]|prosecc|spumant|amar[oie]|grapp|whisk|vodka|gin\b|rum\b|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor|bottigli|lattin|fusto|keg|chinotto|gassosa|cedrata|limonat|aranciata|energy|redbull|red bull|monster|schweppes|sanbitter|crodino|vermouth|negroni|mojito|daiquiri|sangria|champagn|lambrusco|chianti|barolo|barbera|moscato|nebbiolo|merlot|cabernet|chardonnay|sauvignon|pinot|syrah|primitivo|nero.*avola|montepulciano|trebbiano|malvasia|verdicchio|ribolla|sciropp|the\b|te\b|tea\b|tisana|infuso|camomilla|caffe|espresso|cappuccin|orzata|cedro|menta|sambuc|limoncell|genepy|mirto|fernet|jager|bailey|kahlua|cointreau|maraschino|angostura|bitter|soda|seltz|tequila|mezcal|sake|pisco|absinth|vernacc/i,
   },
   materiali: {
     label: '📦 Mat. consumo',
@@ -20,7 +20,7 @@ export const CATEGORY_RULES = {
     label: '🏗️ Struttura',
     color: '#EC4899',
     bg: 'rgba(236,72,153,.12)',
-    prodotti: /energi|gas\b|elettri|acqua\b|affitt|canon[ei]|manutenz|riparaz|assicuraz|telefon|internet|pulizi|smaltiment|rifiut|noleggi|utenz|rata\b|leasing|consulenz|commercialist|notai|avvocat|boll[oi]|tribut|fiber|fibra|adsl|sim\b|telefonia|luce\b|metano|gpl|gasolio|diesel/i,
+    prodotti: /energi|gas\b|elettri|acqua\b|affitt|canon[ei]|manutenz|riparaz|assicuraz|telefon|internet|pulizi|smaltiment|rifiut|noleggi|utenz|rata\b|leasing|consulenz|commercialist|notai|avvocat|boll[oi]|tribut|fiber|fibra|adsl|sim\b|telefonia|luce\b|metano|gpl|gasolio|diesel|cauzion|spes[ea]|commission|bancari|bonico|postaliz|francobol|corriere|spedizion|trasport|facchinag|multa|sanzione|penale|tassa|imposit|diritti|marca.*bollo|vidimaz/i,
   },
   personale: {
     label: '👥 Personale',
