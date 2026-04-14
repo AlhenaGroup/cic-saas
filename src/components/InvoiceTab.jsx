@@ -16,6 +16,10 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
   const [tsXmlLoading, setTsXmlLoading] = useState(false)
   // Locale assignment (localStorage persisted)
   const [tsLocaleMap, setTsLocaleMap] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_ts_invoice_locales') || '{}') } catch { return {} } })
+  // Item-level locale overrides: "hubId:lineIdx" → locale (quando diverso dalla fattura)
+  const [tsItemLocaleMap, setTsItemLocaleMap] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_ts_item_locales') || '{}') } catch { return {} } })
+  // Parsed XML lines per invoice espansa
+  const [expandedLines, setExpandedLines] = useState([])
   // Upload file state (multi-file)
   const [uploadPreviews, setUploadPreviews] = useState([])
   const [uploading, setUploading] = useState(false)
@@ -106,9 +110,35 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
 
   // ─── Locale assignment ─────────────────────────────────────────────
   const setTsInvoiceLocale = (hubId, locale) => {
+    // Assegna locale alla fattura
     const newMap = { ...tsLocaleMap, [hubId]: locale }
     setTsLocaleMap(newMap)
     localStorage.setItem('cic_ts_invoice_locales', JSON.stringify(newMap))
+    // Reset tutti gli item-level overrides di questa fattura al nuovo locale
+    const newItemMap = { ...tsItemLocaleMap }
+    Object.keys(newItemMap).forEach(k => { if (k.startsWith(hubId + ':')) delete newItemMap[k] })
+    setTsItemLocaleMap(newItemMap)
+    localStorage.setItem('cic_ts_item_locales', JSON.stringify(newItemMap))
+  }
+
+  // Assegna locale a una singola riga (override item-level)
+  const setTsItemLocale = (hubId, lineIdx, locale) => {
+    const key = hubId + ':' + lineIdx
+    const invoiceLocale = tsLocaleMap[hubId] || ''
+    const newItemMap = { ...tsItemLocaleMap }
+    if (locale === invoiceLocale || !locale) {
+      // Stessa della fattura → rimuovi override
+      delete newItemMap[key]
+    } else {
+      newItemMap[key] = locale
+    }
+    setTsItemLocaleMap(newItemMap)
+    localStorage.setItem('cic_ts_item_locales', JSON.stringify(newItemMap))
+  }
+
+  // Helper: locale effettivo di una riga
+  const getItemLocale = (hubId, lineIdx) => {
+    return tsItemLocaleMap[hubId + ':' + lineIdx] || tsLocaleMap[hubId] || ''
   }
 
   // ─── XML download ──────────────────────────────────────────────────
@@ -350,7 +380,17 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
               const isNotaCredito = f.detail?.td === 'TD04' || f.detail?.td === 'TD05'
               const displayAmount = f.detail?.totalAmount != null ? (isNotaCredito ? -Math.abs(f.detail.totalAmount) : f.detail.totalAmount) : null
               return <><tr key={f.hubId || i}
-                onClick={() => { setExpandedTs(isExpanded ? null : f.hubId); if (!isExpanded) setTsXmlContent(null) }}
+                onClick={async () => {
+                  if (isExpanded) { setExpandedTs(null); setExpandedLines([]); setTsXmlContent(null); return }
+                  setExpandedTs(f.hubId); setExpandedLines([]); setTsXmlContent(null)
+                  // Auto-scarica XML e parsa righe
+                  setTsXmlLoading(true)
+                  try {
+                    const r = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'ts-download', hubId: f.hubId, ownerId: f.ownerId, format: 'XML' }) })
+                    if (r.ok) { const d = await r.json(); setTsXmlContent(d.content); setExpandedLines(parseXmlLines(d.content)) }
+                  } catch {} finally { setTsXmlLoading(false) }
+                }}
                 style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: isExpanded ? '#131825' : (isNotaCredito ? 'rgba(16,185,129,.04)' : 'transparent') }}>
                 <td style={{ ...S.td, width: 24, color: '#64748b' }}>{isExpanded ? '▼' : '▶'}</td>
                 <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{f.docDate}</td>
@@ -377,33 +417,44 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                 </td>
               </tr>
               {isExpanded && <tr key={'ts-d-' + (f.hubId || i)}><td colSpan={9} style={{ padding: '8px 14px 12px 38px', background: '#131825' }}>
-                {!tsXmlContent && !tsXmlLoading && <button onClick={() => downloadTsXml(f)} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 14px', fontWeight: 600, fontSize: 12 }}>Carica dettaglio fattura (XML)</button>}
-                {tsXmlLoading && <div style={{ padding: 12, color: '#F59E0B', fontSize: 12 }}>Caricamento XML...</div>}
-                {tsXmlContent && tsXmlContent.length > 100 && (() => {
-                  const lines = parseXmlLines(tsXmlContent)
-                  return lines.length > 0 ? <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontSize: 12, color: '#64748b' }}>{lines.length} righe</span>
-                      <button onClick={() => saveTsXmlFile(f)} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>Scarica XML</button>
-                    </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead><tr>
-                        {['Descrizione', 'Qty', 'UM', 'Prezzo unit.', 'Prezzo tot.', 'IVA %'].map(h => <th key={h} style={{ ...S.th, fontSize: 10, padding: '6px 8px' }}>{h}</th>)}
-                      </tr></thead>
-                      <tbody>
-                        {lines.map((l, j) => <tr key={j}>
+                {tsXmlLoading && <div style={{ padding: 12, color: '#F59E0B', fontSize: 12 }}>Caricamento righe...</div>}
+                {expandedLines.length > 0 && <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: '#64748b' }}>
+                      {expandedLines.length} righe — locale default: <strong style={{ color: '#F59E0B' }}>{tsLocaleMap[f.hubId] || 'non assegnato'}</strong>
+                    </span>
+                    <button onClick={() => saveTsXmlFile(f)} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>Scarica XML</button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead><tr>
+                      {['Descrizione', 'Qty', 'UM', 'P. unit.', 'P. tot.', 'IVA', 'Locale'].map(h => <th key={h} style={{ ...S.th, fontSize: 10, padding: '6px 8px' }}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {expandedLines.map((l, j) => {
+                        const itemLocale = getItemLocale(f.hubId, j)
+                        const isOverridden = !!tsItemLocaleMap[f.hubId + ':' + j]
+                        return <tr key={j} style={{ background: isOverridden ? 'rgba(245,158,11,.06)' : 'transparent' }}>
                           <td style={{ ...S.td, fontSize: 12, fontWeight: 500, padding: '6px 8px' }}>{l.descrizione}</td>
                           <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{l.quantita}</td>
                           <td style={{ ...S.td, fontSize: 11, color: '#64748b', padding: '6px 8px' }}>{l.um}</td>
                           <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{l.prezzoUnitario ? Number(l.prezzoUnitario).toFixed(2) + ' €' : ''}</td>
                           <td style={{ ...S.td, fontSize: 12, fontWeight: 600, padding: '6px 8px' }}>{l.prezzoTotale ? Number(l.prezzoTotale).toFixed(2) + ' €' : ''}</td>
                           <td style={{ ...S.td, fontSize: 11, color: '#94a3b8', padding: '6px 8px' }}>{l.aliquotaIVA}%</td>
-                        </tr>)}
-                      </tbody>
-                    </table>
-                  </> : <div style={{ padding: 8, fontSize: 12, color: '#94a3b8' }}>XML caricato ma nessuna riga trovata.</div>
-                })()}
-                {tsXmlContent && tsXmlContent.length <= 100 && <div style={{ padding: 8, fontSize: 12, color: '#EF4444' }}>{tsXmlContent}</div>}
+                          <td style={{ ...S.td, padding: '6px 8px' }} onClick={e => e.stopPropagation()}>
+                            <select value={itemLocale} onChange={e => setTsItemLocale(f.hubId, j, e.target.value)}
+                              style={{ ...iS, fontSize: 10, padding: '2px 4px', width: 110, background: isOverridden ? 'rgba(245,158,11,.15)' : undefined }}>
+                              <option value="">— default —</option>
+                              <option value="Alhena Group">Alhena Group</option>
+                              {sps.map(s => <option key={s.id} value={s.description || s.name}>{s.description || s.name}</option>)}
+                            </select>
+                          </td>
+                        </tr>
+                      })}
+                    </tbody>
+                  </table>
+                </>}
+                {!tsXmlLoading && expandedLines.length === 0 && tsXmlContent && <div style={{ padding: 8, fontSize: 12, color: '#94a3b8' }}>Nessuna riga trovata nel XML.</div>}
+                {!tsXmlLoading && !tsXmlContent && <div style={{ padding: 8, fontSize: 12, color: '#64748b' }}>Caricamento...</div>}
               </td></tr>}
               </>
             })}
