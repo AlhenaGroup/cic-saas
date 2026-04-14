@@ -132,14 +132,13 @@ export default function InvoiceManager({ sp, sps }) {
       const { data: { user } } = await supabase.auth.getUser()
       const locale = tsLocaleMap[tsInv.hubId] || ''
       const isNotaCredito = tsInv.detail?.td === 'TD04' || tsInv.detail?.td === 'TD05'
-      const sign = isNotaCredito ? -1 : 1
       const { data: inv, error: invErr } = await supabase.from('warehouse_invoices').insert({
         user_id: user.id,
         data: tsInv.docDate || new Date().toISOString().split('T')[0],
         numero: tsInv.docId || '',
         fornitore: tsInv.senderName || '',
         locale,
-        totale: (tsInv.detail?.totalAmount || 0) * sign,
+        totale: isNotaCredito ? -Math.abs(tsInv.detail?.totalAmount || 0) : Math.abs(tsInv.detail?.totalAmount || 0),
         tipo_doc: isNotaCredito ? 'nota_credito' : 'fattura',
         stato: 'bozza',
       }).select('id').single()
@@ -152,8 +151,9 @@ export default function InvoiceManager({ sp, sps }) {
             nome_fattura: l.descrizione,
             quantita: parseFloat(l.quantita) || 0,
             unita: l.um || '',
-            prezzo_unitario: (parseFloat(l.prezzoUnitario) || 0) * sign,
-            prezzo_totale: (parseFloat(l.prezzoTotale) || 0) * sign,
+            // Nota credito: importo negativo (XML ha sempre prezzi positivi)
+            prezzo_unitario: isNotaCredito ? -Math.abs(parseFloat(l.prezzoUnitario) || 0) : Math.abs(parseFloat(l.prezzoUnitario) || 0),
+            prezzo_totale: isNotaCredito ? -Math.abs(parseFloat(l.prezzoTotale) || 0) : Math.abs(parseFloat(l.prezzoTotale) || 0),
             stato_match: 'non_abbinato',
           }))
         )
