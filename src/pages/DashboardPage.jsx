@@ -150,7 +150,7 @@ export default function DashboardPage({ settings }) {
       @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
       @keyframes spin{to{transform:rotate(360deg)}}
       *{box-sizing:border-box} input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.4)}
-      select option{background:#1a1f2e} ::-webkit-scrollbar{width:5px;height:5px}
+      select option{background:#1a1f2e;color:#e2e8f0} ::-webkit-scrollbar{width:5px;height:5px}
       ::-webkit-scrollbar-track{background:#0f1420} ::-webkit-scrollbar-thumb{background:#2a3042;border-radius:3px}
       tr:hover td{background:#1e2636!important}
     `}</style>
