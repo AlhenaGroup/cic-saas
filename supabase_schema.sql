@@ -167,3 +167,20 @@ CREATE POLICY "Users see own scenarios"   ON budget_scenarios FOR SELECT USING (
 CREATE POLICY "Users insert own scenarios" ON budget_scenarios FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users update own scenarios" ON budget_scenarios FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "Users delete own scenarios" ON budget_scenarios FOR DELETE USING (auth.uid() = user_id);
+
+-- Mappature categorie apprese (nome_prodotto → categoria CE)
+CREATE TABLE IF NOT EXISTS category_mappings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  nome_prodotto TEXT NOT NULL,
+  category TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, nome_prodotto)
+);
+CREATE INDEX IF NOT EXISTS idx_catmap_user ON category_mappings(user_id);
+ALTER TABLE category_mappings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users see own mappings" ON category_mappings FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users insert own mappings" ON category_mappings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users update own mappings" ON category_mappings FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users delete own mappings" ON category_mappings FOR DELETE USING (auth.uid() = user_id);

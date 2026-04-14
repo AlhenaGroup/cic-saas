@@ -8,60 +8,66 @@ export const CATEGORY_RULES = {
     label: '🍺 Beverage cost',
     color: '#3B82F6',
     bg: 'rgba(59,130,246,.12)',
-    fornitori: /\b(nobile|birr|vin|spirit|drink|bevand|campari|aperol|martini|peroni|heineken|moretti)\b/i,
-    prodotti: /birra|vino|spirit|cocktail|coca.?cola|fanta|sprite|acqua.*min|succo|prosecco|spumante|amaro|grappa|whisky|vodka|gin|rum|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor/i,
+    prodotti: /birra|vino|spirit|cocktail|coca.?cola|fanta|sprite|acqua.*min|succo|prosecco|spumante|amaro|grappa|whisky|vodka|gin|rum|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor|bottiglia|lattina|fusto|keg/i,
   },
   materiali: {
     label: '📦 Mat. consumo',
     color: '#8B5CF6',
     bg: 'rgba(139,92,246,.12)',
-    fornitori: /\b(consumo|materiale|packagin|plastica|detersiv|clean|igien|monous)\b/i,
-    prodotti: /tovaglio|piatt|bicchier|posate|busta|sacchett|pellicol|alluminio|detersiv|sapone|carta.*igien|guant|mascherina|contenitor|vaschett|monous/i,
+    prodotti: /tovaglio|piatt|bicchier|posate|busta|sacchett|pellicol|alluminio|detersiv|sapone|carta|guant|mascherina|contenitor|vaschett|monous|rotolo|dispenser|igienizz/i,
   },
   struttura: {
     label: '🏗️ Struttura',
     color: '#EC4899',
     bg: 'rgba(236,72,153,.12)',
-    fornitori: /\b(hera|enel|gas|acqua|affitto|manutenzione|assicuraz|telecom|tim|vodafone|fastweb|iliad|rent|locazione|condomin|riparazion|satiswelfare|welfare)\b/i,
-    prodotti: /energia|gas\b|acqua\b|affitto|canone|manutenzione|riparazione|assicurazione|telefon|internet|pulizia|smaltimento|rifiut|noleggio|utenz/i,
+    prodotti: /energia|gas\b|elettric|acqua\b|affitto|canone|manutenzione|riparazione|assicurazione|telefon|internet|pulizia|smaltimento|rifiut|noleggio|utenz|rata\b|leasing|consulenz|commercialist|notai|avvocat|bollo|tribut/i,
   },
   personale: {
     label: '👥 Personale',
     color: '#10B981',
     bg: 'rgba(16,185,129,.12)',
-    fornitori: /\b(personale|consulen|paga|lavoro|inps|inail|studio.*commerc|paghe|stipend)\b/i,
-    prodotti: /stipendio|contribut|inps|inail|tfr|consulenza.*lavoro|busta.*paga/i,
+    prodotti: /stipendio|contribut|inps|inail|tfr|consulenza.*lavoro|busta.*paga|cedolino|retribuz/i,
   },
   food: {
     label: '🍕 Food cost',
     color: '#F59E0B',
     bg: 'rgba(245,158,11,.12)',
-    fornitori: /\b(metro|partesa|davide|meini|ortofrutta|carne|pesce|frutta|verdur|macell|salum|panific|depaoli|masselli|caglio)\b/i,
-    prodotti: /carne|pesce|frutta|verdur|insalata|pomodor|mozzarell|formagg|prosciutt|salame|farina|riso|pasta\b|olio|burro|uova|pane\b|latte|patate|cipoll|aglio|fungh|legu|salsa|sugo|pizza|impasto|condiment|spezie|zucchero|sale\b|aceto|maionese|ketchup/i,
+    prodotti: /carne|pesce|frutta|verdur|insalata|pomodor|mozzarell|formagg|prosciutt|salame|farina|riso|pasta\b|olio|burro|uova|pane\b|latte|patate|cipoll|aglio|fungh|legu|salsa|sugo|pizza|impasto|condiment|spezie|zucchero|sale\b|aceto|maionese|ketchup|pollo|manzo|maiale|salmone|tonno|gamberi|basilico|origano|pepe|limone|arancia|pomodoro|pangrattato|lievito|semola|grana|parmigia|pecorino|ricotta|mascarpone|panna|besciamella/i,
   },
 }
 
-export function categorizeItem(fornitore, descrizione) {
-  const forn = (fornitore || '').toLowerCase()
-  const desc = (descrizione || '').toLowerCase()
+// ─── Mappature apprese: nome_prodotto → categoria (Supabase) ────────
+// Quando l'utente corregge una categoria, il nome viene salvato su DB.
+// La prossima volta che lo stesso nome appare (anche per un altro utente
+// dello stesso account), viene classificato automaticamente.
 
-  // PRIORITA 1: classifica per nome prodotto/descrizione (piu specifico)
-  // Questo gestisce correttamente fornitori misti come PARTESA (food + beverage)
+// Cache in-memory per evitare query ripetute durante il render
+let _learnedCache = null
+
+export function setLearnedCache(map) { _learnedCache = map }
+export function getLearnedCategories() { return _learnedCache || {} }
+
+export function categorizeItem(fornitore, descrizione) {
+  const desc = (descrizione || '').toLowerCase().trim()
+
+  // PRIORITA 1: mappatura appresa dal DB (l'utente ha corretto questo nome)
+  if (desc) {
+    const learned = getLearnedCategories()
+    if (learned[desc]) {
+      return { category: learned[desc], confidence: 'appresa' }
+    }
+  }
+
+  // PRIORITA 2: classifica per nome prodotto/descrizione con regex
   if (desc) {
     for (const [key, rule] of Object.entries(CATEGORY_RULES)) {
       if (rule.prodotti.test(desc)) {
-        return { category: key, confidence: rule.fornitori.test(forn) ? 'alta' : 'media' }
+        return { category: key, confidence: 'media' }
       }
     }
   }
 
-  // PRIORITA 2: classifica per fornitore (se il prodotto non matcha nulla)
-  for (const [key, rule] of Object.entries(CATEGORY_RULES)) {
-    if (rule.fornitori.test(forn)) {
-      return { category: key, confidence: 'bassa' }
-    }
-  }
-
+  // Nessun match: "altro"
   return { category: 'altro', confidence: 'nessuna' }
 }
 
@@ -69,17 +75,22 @@ export default function ContoEconomico({ ce, from, to }) {
   const [invoices, setInvoices] = useState([])
   const [invoiceItems, setInvoiceItems] = useState([])
   const [loading, setLoading] = useState(false)
-  const [activeFilter, setActiveFilter] = useState('tutte') // tutte, food, beverage, materiali, struttura, personale, altro
-  const [overrides, setOverrides] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('cic_ce_category_overrides') || '{}') } catch { return {} }
-  })
+  const [activeFilter, setActiveFilter] = useState('tutte')
+  const [overrides, setOverrides] = useState({})
 
   const loadInvoices = useCallback(async () => {
     setLoading(true)
-    const { data: invs } = await supabase.from('warehouse_invoices').select('*').order('data', { ascending: false })
-    const { data: items } = await supabase.from('warehouse_invoice_items').select('*, warehouse_invoices!inner(fornitore, data, locale, numero)')
+    const [{ data: invs }, { data: items }, { data: mappings }] = await Promise.all([
+      supabase.from('warehouse_invoices').select('*').order('data', { ascending: false }),
+      supabase.from('warehouse_invoice_items').select('*, warehouse_invoices!inner(fornitore, data, locale, numero)'),
+      supabase.from('category_mappings').select('nome_prodotto, category'),
+    ])
     setInvoices(invs || [])
     setInvoiceItems(items || [])
+    // Carica mappature apprese nel cache globale
+    const learned = {}
+    ;(mappings || []).forEach(m => { learned[m.nome_prodotto.toLowerCase().trim()] = m.category })
+    setLearnedCache(learned)
     setLoading(false)
   }, [])
 
@@ -136,15 +147,33 @@ export default function ContoEconomico({ ce, from, to }) {
     ? categorizedInvoices.filter(i => !i._hasItems)
     : categorizedInvoices.filter(i => !i._hasItems && i._cat === activeFilter)
 
-  // Override categoria
-  const setCategory = (itemId, newCat) => {
-    const newOverrides = { ...overrides, [itemId]: newCat }
-    setOverrides(newOverrides)
-    localStorage.setItem('cic_ce_category_overrides', JSON.stringify(newOverrides))
+  // Override categoria + impara per il futuro (salva su Supabase)
+  const setCategory = async (itemId, newCat) => {
+    setOverrides(prev => ({ ...prev, [itemId]: newCat }))
+    // Impara: salva nome_prodotto → categoria su DB per auto-classificazione futura
+    const item = categorizedItems.find(it => it.id === itemId)
+    if (item && item.nome_fattura) {
+      const key = item.nome_fattura.toLowerCase().trim()
+      // Aggiorna cache in-memory
+      const learned = getLearnedCategories()
+      learned[key] = newCat
+      setLearnedCache({ ...learned })
+      // Salva su Supabase (upsert)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from('category_mappings').upsert({
+          user_id: user.id,
+          nome_prodotto: key,
+          category: newCat,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,nome_prodotto' })
+      }
+    }
   }
 
   const confidenceBadge = (conf) => {
     const colors = {
+      appresa: { c: '#10B981', bg: 'rgba(16,185,129,.12)', label: 'Appresa ✓' },
       alta: { c: '#10B981', bg: 'rgba(16,185,129,.12)', label: 'Auto ✓' },
       media: { c: '#F59E0B', bg: 'rgba(245,158,11,.12)', label: 'Auto ~' },
       bassa: { c: '#EF4444', bg: 'rgba(239,68,68,.12)', label: 'Auto ?' },
@@ -375,11 +404,23 @@ export default function ContoEconomico({ ce, from, to }) {
                     </td>
                     <td style={S.td}>{confidenceBadge(inv._confidence)}</td>
                     <td style={S.td}>
-                      <select value={inv._cat} onChange={e => {
-                        // Per fatture senza righe, salviamo con prefix 'inv-'
-                        const newOverrides = { ...overrides, ['inv-' + inv.id]: e.target.value }
-                        setOverrides(newOverrides)
-                        localStorage.setItem('cic_ce_category_overrides', JSON.stringify(newOverrides))
+                      <select value={inv._cat} onChange={async e => {
+                        const newCat = e.target.value
+                        setOverrides(prev => ({ ...prev, ['inv-' + inv.id]: newCat }))
+                        // Impara per fornitore (per fatture senza righe)
+                        if (inv.fornitore) {
+                          const key = inv.fornitore.toLowerCase().trim()
+                          const learned = getLearnedCategories()
+                          learned[key] = newCat
+                          setLearnedCache({ ...learned })
+                          const { data: { user } } = await supabase.auth.getUser()
+                          if (user) {
+                            await supabase.from('category_mappings').upsert({
+                              user_id: user.id, nome_prodotto: key, category: newCat,
+                              updated_at: new Date().toISOString(),
+                            }, { onConflict: 'user_id,nome_prodotto' })
+                          }
+                        }
                       }} style={{ ...iS, fontSize: 10, padding: '2px 6px', width: 100 }}>
                         {Object.entries(voceLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                       </select>
