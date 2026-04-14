@@ -4,12 +4,13 @@ import { S, KPI, Card, fmt, fmtD } from './shared/styles.jsx'
 import { handleInvoiceFile } from '../lib/invoiceParsers.js'
 
 export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
-  const [cicInvoices, setCicInvoices] = useState([])
-  const [fatLoading, setFatLoading] = useState(false)
-  const [localeMap, setLocaleMap] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_invoice_locales') || '{}') } catch { return {} } })
-  const [expandedFat, setExpandedFat] = useState(null)
-  const [xmlContent, setXmlContent] = useState(null)
-  const [xmlLoading, setXmlLoading] = useState(false)
+  // TS Digital invoices (fonte primaria, no cookie)
+  const [tsInvoices, setTsInvoices] = useState([])
+  const [tsLoading, setTsLoading] = useState(false)
+  const [tsError, setTsError] = useState(null)
+  const [expandedTs, setExpandedTs] = useState(null)
+  const [tsXmlContent, setTsXmlContent] = useState(null)
+  const [tsXmlLoading, setTsXmlLoading] = useState(false)
   // Upload file state (multi-file)
   const [uploadPreviews, setUploadPreviews] = useState([])
   const [uploading, setUploading] = useState(false)
@@ -23,30 +24,27 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
 
   const iS = S.input
 
-  const [sessionCookie, setSessionCookie] = useState(() => localStorage.getItem('cic_session_cookie') || '')
-  const [showCookieInput, setShowCookieInput] = useState(false)
-
-  const loadCicInvoices = async () => {
-    if (!sessionCookie) { setShowCookieInput(true); return }
-    setFatLoading(true)
+  // ─── TS Digital: carica fatture passive via API diretta ──────────
+  const loadTsInvoices = async () => {
+    setTsLoading(true)
+    setTsError(null)
     try {
-      const r = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list', sessionCookie }) })
+      const r = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ts-list' }),
+      })
       if (r.ok) {
         const d = await r.json()
-        setCicInvoices(d.invoices || [])
-        if (d.invoices?.length) localStorage.setItem('cic_session_cookie', sessionCookie)
+        setTsInvoices(d.invoices || [])
       } else {
         const d = await r.json().catch(() => ({}))
-        if (d.needsSession) setShowCookieInput(true)
+        setTsError(d.error || 'Errore ' + r.status)
       }
-    } catch {}
-    setFatLoading(false)
-  }
-
-  const saveCookie = () => {
-    localStorage.setItem('cic_session_cookie', sessionCookie)
-    setShowCookieInput(false)
-    loadCicInvoices()
+    } catch (e) {
+      setTsError(e.message)
+    }
+    setTsLoading(false)
   }
 
   // ─── Warehouse invoices (caricate da file) ──────────────────────
@@ -70,28 +68,29 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
   useEffect(() => { loadWhInvoices() }, [])
   useEffect(() => { if (whExpanded) loadWhItems(whExpanded) }, [whExpanded])
 
-  const downloadXml = async (inv) => {
-    setXmlLoading(true); setXmlContent(null)
+  const downloadTsXml = async (inv) => {
+    setTsXmlLoading(true); setTsXmlContent(null)
     try {
-      const r = await fetch('/api/invoices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'xml', sessionCookie, invoiceId: inv.id, spId: inv.salespoint_id }) })
+      const r = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ts-download', hubId: inv.hubId, ownerId: inv.ownerId, format: 'XML' }),
+      })
       if (r.ok) {
         const d = await r.json()
-        setXmlContent(d.xml)
-      } else { setXmlContent('XML non disponibile al momento.') }
-    } catch { setXmlContent('Errore nel download XML.') }
-    setXmlLoading(false)
+        setTsXmlContent(d.content)
+      } else { setTsXmlContent('XML non disponibile.') }
+    } catch { setTsXmlContent('Errore download XML.') }
+    setTsXmlLoading(false)
   }
 
-  const saveXmlFile = (inv) => {
-    if (!xmlContent || xmlContent.length < 100) return
-    const blob = new Blob([xmlContent], { type: 'application/xml' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (inv.filename || inv.number + '.xml'); a.click()
-  }
-
-  const setInvoiceLocale = (invId, locale) => {
-    const newMap = { ...localeMap, [invId]: locale }
-    setLocaleMap(newMap)
-    localStorage.setItem('cic_invoice_locales', JSON.stringify(newMap))
+  const saveTsXmlFile = (inv) => {
+    if (!tsXmlContent || tsXmlContent.length < 100) return
+    const blob = new Blob([tsXmlContent], { type: 'application/xml' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = inv.fileName || inv.docId + '.xml'
+    a.click()
   }
 
   const parseXmlLines = (xml) => {
@@ -107,7 +106,7 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
     return lines
   }
 
-  useEffect(() => { loadCicInvoices() }, [])
+  useEffect(() => { loadTsInvoices() }, [])
 
   // Risolvi nome locale dal sp selezionato
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps.find(s => String(s.id) === String(sp))?.description || sps.find(s => String(s.id) === String(sp))?.name || null)
@@ -120,36 +119,26 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
     return true
   })
 
-  // Filtra fatture CiC per locale selezionato + ricerca
-  const filtered = cicInvoices.filter(f => {
-    if (selectedLocaleName) {
-      const assigned = localeMap[f.id]
-      if (!assigned || assigned === 'Alhena Group' || assigned !== selectedLocaleName) return false
-    }
-    if (fatSearch && !f.sender?.name?.toLowerCase().includes(fatSearch.toLowerCase()) && !f.number?.includes(fatSearch)) return false
+  // Filtra fatture TS Digital per locale selezionato + ricerca
+  const tsFiltered = tsInvoices.filter(f => {
+    if (selectedLocaleName && f._locale && f._locale !== selectedLocaleName) return false
+    if (fatSearch && !f.senderName?.toLowerCase().includes(fatSearch.toLowerCase()) && !f.docId?.includes(fatSearch)) return false
     return true
   })
 
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: '1.25rem' }}>
-      <KPI label="Caricate" icon="📤" value={whFiltered.length} sub={selectedLocaleName || 'tutti'} accent='#F59E0B' />
+      <KPI label="TS Digital" icon="📄" value={tsFiltered.length} sub={tsLoading ? 'caricamento...' : (selectedLocaleName || 'tutti')} accent='#3B82F6' />
+      <KPI label="Caricate" icon="📤" value={whFiltered.length} sub="da file" accent='#F59E0B' />
       <KPI label="Da assegnare" icon="📋" value={whInvoices.filter(inv => !inv.locale).length} sub="senza locale" accent='#F97316' />
-      <KPI label="Fatture CiC" icon="📄" value={filtered.length} sub={selectedLocaleName || 'tutti'} accent='#3B82F6' />
-      <KPI label="Assegnate CiC" icon="✓" value={cicInvoices.filter(f => localeMap[f.id] && localeMap[f.id] !== 'Alhena Group').length} sub="con locale" accent='#10B981' />
+      <KPI label="Totale" icon="✓" value={tsFiltered.length + whFiltered.length} sub="fatture visibili" accent='#10B981' />
     </div>
-    {/* Cookie CiC input */}
-    {showCookieInput && <div style={{ ...S.card, marginBottom: 12, borderLeft: '3px solid #F59E0B' }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Connessione a Cassa in Cloud</div>
-      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
-        Per caricare le fatture serve il cookie di sessione CiC. Apri <a href="https://fo.cassanova.com" target="_blank" style={{ color: '#F59E0B' }}>fo.cassanova.com</a>,
-        poi apri la console del browser (F12 → Console) e digita: <code style={{ background: '#0f1420', padding: '2px 6px', borderRadius: 4 }}>document.cookie</code> — copia il risultato e incollalo qui.
+
+    {tsError && (
+      <div style={{ ...S.card, marginBottom: 12, borderLeft: '3px solid #EF4444', fontSize: 12, color: '#EF4444' }}>
+        Errore TS Digital: {tsError}
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input value={sessionCookie} onChange={e => setSessionCookie(e.target.value)} placeholder="Incolla il cookie di sessione CiC..." style={{ ...iS, flex: 1 }} />
-        <button onClick={saveCookie} disabled={!sessionCookie} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600 }}>Connetti</button>
-        <button onClick={() => setShowCookieInput(false)} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '6px 12px' }}>Chiudi</button>
-      </div>
-    </div>}
+    )}
 
     {/* Upload file fatture (multi-file) */}
     <Card title="📤 Carica fatture da file" badge="XML · CSV · PDF" extra={
@@ -371,50 +360,54 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
       )}
     </Card>
 
-    <Card title="Fatture passive da CiC" badge={fatLoading ? 'Caricamento...' : cicInvoices.length + ' fatture'} extra={
+    {/* Fatture TS Digital (API diretta, no cookie) */}
+    <Card title="Fatture passive — TS Digital" badge={tsLoading ? 'Caricamento...' : tsFiltered.length + ' fatture'} extra={
       <div style={{ display: 'flex', gap: 8 }}>
         <input placeholder="🔍 Fornitore / N° doc..." value={fatSearch} onChange={e => setFatSearch(e.target.value)} style={{ ...iS, width: 200 }} />
-        <button onClick={() => sessionCookie ? loadCicInvoices() : setShowCookieInput(true)} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '6px 16px', fontWeight: 600 }}>{sessionCookie ? 'Aggiorna' : 'Configura CiC'}</button>
+        <button onClick={loadTsInvoices} disabled={tsLoading} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>
+          {tsLoading ? '...' : 'Aggiorna'}
+        </button>
       </div>
     }>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-            {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Stato', 'Locale', 'XML'].map(h => <th key={h} style={S.th}>{h}</th>)}
+            {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Importo', 'Stato', 'XML'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {cicInvoices.length === 0 && !fatLoading && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessuna fattura. Clicca "Aggiorna" per caricare da CiC. Serve essere loggati su fo.cassanova.com nella stessa sessione browser.</td></tr>}
-            {filtered.slice(0, 50).map((f, i) => <>
-              <tr key={f.id || i} onClick={() => { setExpandedFat(expandedFat === f.id ? null : f.id); if (expandedFat !== f.id) setXmlContent(null) }} style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e' }}>
-                <td style={{ ...S.td, width: 24, color: '#64748b' }}>{expandedFat === f.id ? '▼' : '▶'}</td>
-                <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{f.date}</td>
-                <td style={{ ...S.td, fontWeight: 500 }}>{f.sender?.name || '—'}</td>
-                <td style={{ ...S.td, color: '#94a3b8' }}>{f.number}</td>
-                <td style={S.td}><span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>{f.doc_type || 'TD01'}</span></td>
-                <td style={S.td}><span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>{f.current_status?.name || '—'}</span></td>
+            {tsFiltered.length === 0 && !tsLoading && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessuna fattura trovata.</td></tr>}
+            {tsFiltered.slice(0, 100).map((f, i) => {
+              const isExpanded = expandedTs === f.hubId
+              return <><tr key={f.hubId || i}
+                onClick={() => { setExpandedTs(isExpanded ? null : f.hubId); if (!isExpanded) setTsXmlContent(null) }}
+                style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: isExpanded ? '#131825' : 'transparent' }}>
+                <td style={{ ...S.td, width: 24, color: '#64748b' }}>{isExpanded ? '▼' : '▶'}</td>
+                <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{f.docDate}</td>
+                <td style={{ ...S.td, fontWeight: 500 }}>{f.senderName || '—'}</td>
+                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{f.docId || '—'}</td>
+                <td style={S.td}><span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>{f.detail?.td || 'TD01'}</span></td>
+                <td style={{ ...S.td, fontWeight: 600 }}>{f.detail?.totalAmount != null ? fmt(f.detail.totalAmount) : '—'}</td>
+                <td style={S.td}><span style={S.badge(
+                  f.currentStatusName === 'A_DISPOSIZIONE' ? '#10B981' : '#F59E0B',
+                  f.currentStatusName === 'A_DISPOSIZIONE' ? 'rgba(16,185,129,.12)' : 'rgba(245,158,11,.12)'
+                )}>{f.currentStatusName === 'A_DISPOSIZIONE' ? 'Ricevuta' : (f.currentStatusName || '—')}</span></td>
                 <td style={S.td} onClick={e => e.stopPropagation()}>
-                  <select value={localeMap[f.id] || 'Alhena Group'} onChange={e => setInvoiceLocale(f.id, e.target.value)} style={{ ...iS, fontSize: 11, padding: '3px 6px' }}>
-                    <option value="Alhena Group">Alhena Group</option>
-                    {sps.map(s => <option key={s.id} value={s.description || s.name}>{s.description || s.name}</option>)}
-                  </select>
-                </td>
-                <td style={S.td} onClick={e => e.stopPropagation()}>
-                  <button onClick={() => downloadXml(f)} style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11 }}>Scarica</button>
+                  <button onClick={() => downloadTsXml(f)} style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11 }}>XML</button>
                 </td>
               </tr>
-              {expandedFat === f.id && <tr key={'d' + (f.id || i)}><td colSpan={8} style={{ padding: '8px 14px 12px 38px', background: '#131825' }}>
-                {!xmlContent && !xmlLoading && <button onClick={() => downloadXml(f)} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 14px', fontWeight: 600, fontSize: 12 }}>Carica dettaglio fattura (XML)</button>}
-                {xmlLoading && <div style={{ padding: 12, color: '#F59E0B', fontSize: 12 }}>Caricamento XML...</div>}
-                {xmlContent && xmlContent.length > 100 && (() => {
-                  const lines = parseXmlLines(xmlContent)
+              {isExpanded && <tr key={'ts-d-' + (f.hubId || i)}><td colSpan={8} style={{ padding: '8px 14px 12px 38px', background: '#131825' }}>
+                {!tsXmlContent && !tsXmlLoading && <button onClick={() => downloadTsXml(f)} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 14px', fontWeight: 600, fontSize: 12 }}>Carica dettaglio fattura (XML)</button>}
+                {tsXmlLoading && <div style={{ padding: 12, color: '#F59E0B', fontSize: 12 }}>Caricamento XML...</div>}
+                {tsXmlContent && tsXmlContent.length > 100 && (() => {
+                  const lines = parseXmlLines(tsXmlContent)
                   return lines.length > 0 ? <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <span style={{ fontSize: 12, color: '#64748b' }}>{lines.length} righe</span>
-                      <button onClick={() => saveXmlFile(f)} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>Scarica XML</button>
+                      <button onClick={() => saveTsXmlFile(f)} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>Scarica XML</button>
                     </div>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead><tr>
-                        {['Descrizione', 'Qtà', 'UM', 'Prezzo unit.', 'Prezzo tot.', 'IVA %'].map(h => <th key={h} style={{ ...S.th, fontSize: 10, padding: '6px 8px' }}>{h}</th>)}
+                        {['Descrizione', 'Qty', 'UM', 'Prezzo unit.', 'Prezzo tot.', 'IVA %'].map(h => <th key={h} style={{ ...S.th, fontSize: 10, padding: '6px 8px' }}>{h}</th>)}
                       </tr></thead>
                       <tbody>
                         {lines.map((l, j) => <tr key={j}>
@@ -427,11 +420,12 @@ export default function InvoiceTab({ sp, sps, fatSearch, setFatSearch }) {
                         </tr>)}
                       </tbody>
                     </table>
-                  </> : <div style={{ padding: 8, fontSize: 12, color: '#94a3b8' }}>XML caricato ma nessuna riga articolo trovata.</div>
+                  </> : <div style={{ padding: 8, fontSize: 12, color: '#94a3b8' }}>XML caricato ma nessuna riga trovata.</div>
                 })()}
-                {xmlContent && xmlContent.length <= 100 && <div style={{ padding: 8, fontSize: 12, color: '#EF4444' }}>{xmlContent}</div>}
+                {tsXmlContent && tsXmlContent.length <= 100 && <div style={{ padding: 8, fontSize: 12, color: '#EF4444' }}>{tsXmlContent}</div>}
               </td></tr>}
-            </>)}
+              </>
+            })}
           </tbody>
         </table>
       </div>
