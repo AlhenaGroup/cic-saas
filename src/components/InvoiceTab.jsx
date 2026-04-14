@@ -4,10 +4,13 @@ import { handleInvoiceFile } from '../lib/invoiceParsers.js'
 import { supabase } from '../lib/supabase'
 
 export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch }) {
-  // TS Digital invoices
+  // TS Digital invoices (paginazione server-side)
   const [tsInvoices, setTsInvoices] = useState([])
   const [tsLoading, setTsLoading] = useState(false)
   const [tsError, setTsError] = useState(null)
+  const [tsPage, setTsPage] = useState(0)
+  const [tsPages, setTsPages] = useState([null]) // array di continuationToken per ogni pagina (index 0 = null = prima pagina)
+  const [tsHasNext, setTsHasNext] = useState(false)
   const [expandedTs, setExpandedTs] = useState(null)
   const [tsXmlContent, setTsXmlContent] = useState(null)
   const [tsXmlLoading, setTsXmlLoading] = useState(false)
@@ -22,41 +25,38 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
   const iS = S.input
 
   // ─── TS Digital: carica fatture passive ────────────────────────────
-  const loadTsInvoices = async () => {
+  const loadTsPage = async (pageIdx) => {
     setTsLoading(true)
     setTsError(null)
     try {
-      const seen = new Map() // hubId → invoice (deduplica)
-      let ct = null
-      let pages = 0
-      do {
-        const r = await fetch('/api/invoices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'ts-list', continuationToken: ct }),
-        })
-        if (!r.ok) {
-          const d = await r.json().catch(() => ({}))
-          setTsError(d.error || 'Errore ' + r.status)
-          break
-        }
+      const ct = tsPages[pageIdx] || null
+      const r = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ts-list', continuationToken: ct }),
+      })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}))
+        setTsError(d.error || 'Errore ' + r.status)
+      } else {
         const d = await r.json()
-        let newCount = 0
-        for (const inv of (d.invoices || [])) {
-          if (!seen.has(inv.hubId)) { seen.set(inv.hubId, inv); newCount++ }
+        setTsInvoices(d.invoices || [])
+        setTsHasNext(d.hasNext || false)
+        // Salva il continuationToken per la pagina successiva
+        if (d.hasNext && d.continuationToken) {
+          setTsPages(prev => {
+            const next = [...prev]
+            next[pageIdx + 1] = d.continuationToken
+            return next
+          })
         }
-        ct = d.hasNext ? d.continuationToken : null
-        pages++
-        // Aggiorna progressivamente
-        setTsInvoices([...seen.values()])
-        // Se nessuna fattura nuova in questa pagina, fermati (fine reale)
-        if (newCount === 0) break
-      } while (ct && pages < 100)
+        setTsPage(pageIdx)
+      }
     } catch (e) { setTsError(e.message) }
     setTsLoading(false)
   }
 
-  useEffect(() => { loadTsInvoices() }, [])
+  useEffect(() => { loadTsPage(0) }, [])
 
   // ─── HERA auto-assign per POD/PDR ─────────────────────────────────
   const HERA_POD_MAP = {
@@ -150,28 +150,15 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     return lines
   }
 
-  // ─── Filtri ────────────────────────────────────────────────────────
+  // ─── Filtri (sulla pagina corrente) ──────────────────────────────
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps.find(s => String(s.id) === String(sp))?.description || sps.find(s => String(s.id) === String(sp))?.name || null)
 
   const tsFiltered = tsInvoices.filter(f => {
-    // Filtro date (from/to dalla dashboard)
-    if (from && f.docDate && f.docDate < from) return false
-    if (to && f.docDate && f.docDate > to) return false
-    // Filtro locale: mostra fatture del locale + fatture "Alhena Group" (costi di gruppo)
-    if (selectedLocaleName) {
-      const assigned = tsLocaleMap[f.hubId]
-      if (!assigned || (assigned !== selectedLocaleName && assigned !== 'Alhena Group')) return false
-    }
-    // Filtro ricerca
     if (fatSearch && !f.senderName?.toLowerCase().includes(fatSearch.toLowerCase()) && !f.docId?.includes(fatSearch)) return false
     return true
   })
 
-  const unassignedCount = tsInvoices.filter(f => {
-    if (from && f.docDate && f.docDate < from) return false
-    if (to && f.docDate && f.docDate > to) return false
-    return !tsLocaleMap[f.hubId]
-  }).length
+  const unassignedCount = tsInvoices.filter(f => !tsLocaleMap[f.hubId]).length
 
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.25rem' }}>
@@ -340,11 +327,11 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     </Card>
 
     {/* Fatture TS Digital */}
-    <Card title="Fatture passive — TS Digital" badge={tsLoading ? 'Caricamento...' : tsFiltered.length + ' fatture'} extra={
-      <div style={{ display: 'flex', gap: 8 }}>
+    <Card title="Fatture passive — TS Digital" badge={tsLoading ? 'Caricamento...' : `Pagina ${tsPage + 1}`} extra={
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <input placeholder="🔍 Fornitore / N° doc..." value={fatSearch} onChange={e => setFatSearch(e.target.value)} style={{ ...iS, width: 200 }} />
-        <button onClick={loadTsInvoices} disabled={tsLoading} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>
-          {tsLoading ? '...' : 'Aggiorna'}
+        <button onClick={() => loadTsPage(0)} disabled={tsLoading} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 12px', fontWeight: 600, fontSize: 12 }}>
+          {tsLoading ? '...' : 'Ricarica'}
         </button>
       </div>
     }>
@@ -414,6 +401,27 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Paginazione */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: '0 4px' }}>
+        <button
+          onClick={() => loadTsPage(tsPage - 1)}
+          disabled={tsPage === 0 || tsLoading}
+          style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: tsPage === 0 ? 'not-allowed' : 'pointer',
+            background: tsPage === 0 ? '#1a1f2e' : '#3B82F6', color: tsPage === 0 ? '#475569' : '#fff', border: 'none' }}
+        >← Precedente</button>
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>
+          Pagina <strong style={{ color: '#e2e8f0' }}>{tsPage + 1}</strong>
+          {' · '}{tsInvoices.length} fatture
+          {tsInvoices.length > 0 && ` · ${tsInvoices[0]?.docDate || '?'} → ${tsInvoices[tsInvoices.length-1]?.docDate || '?'}`}
+        </span>
+        <button
+          onClick={() => loadTsPage(tsPage + 1)}
+          disabled={!tsHasNext || tsLoading}
+          style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: !tsHasNext ? 'not-allowed' : 'pointer',
+            background: !tsHasNext ? '#1a1f2e' : '#3B82F6', color: !tsHasNext ? '#475569' : '#fff', border: 'none' }}
+        >Successiva →</button>
       </div>
     </Card>
   </>
