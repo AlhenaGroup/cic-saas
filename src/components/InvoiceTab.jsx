@@ -26,10 +26,9 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     setTsLoading(true)
     setTsError(null)
     try {
-      const all = []
+      const seen = new Map() // hubId → invoice (deduplica)
       let ct = null
       let pages = 0
-      // Pagina lato client fino a esaurimento (max 100 pagine = 2000 fatture)
       do {
         const r = await fetch('/api/invoices', {
           method: 'POST',
@@ -42,11 +41,16 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
           break
         }
         const d = await r.json()
-        all.push(...(d.invoices || []))
+        let newCount = 0
+        for (const inv of (d.invoices || [])) {
+          if (!seen.has(inv.hubId)) { seen.set(inv.hubId, inv); newCount++ }
+        }
         ct = d.hasNext ? d.continuationToken : null
         pages++
-        // Aggiorna progressivamente la lista visibile
-        setTsInvoices([...all])
+        // Aggiorna progressivamente
+        setTsInvoices([...seen.values()])
+        // Se nessuna fattura nuova in questa pagina, fermati (fine reale)
+        if (newCount === 0) break
       } while (ct && pages < 100)
     } catch (e) { setTsError(e.message) }
     setTsLoading(false)
