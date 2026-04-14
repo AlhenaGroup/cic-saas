@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { CATEGORY_RULES } from '../components/ContoEconomico.jsx'
 
 
 const PROXY = '/api/cic';
@@ -164,32 +165,26 @@ export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPo
           .lte('warehouse_invoices.data', to);
 
         let foodCost=0, bevCost=0, matCost=0, strCost=0, altCost=0;
-        // Regex per classificazione (stesse di ContoEconomico.jsx)
-        const bevRx = /birra|vino|spirit|cocktail|coca.?cola|fanta|sprite|acqua.*min|succo|prosecco|spumante|amaro|grappa|whisky|vodka|gin|rum|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor|bottiglia|lattina|fusto|keg/i;
-        const matRx = /tovaglio|piatt|bicchier|posate|busta|sacchett|pellicol|alluminio|detersiv|sapone|carta|guant|mascherina|contenitor|vaschett|monous|rotolo|dispenser|igienizz/i;
-        const strRx = /energia|gas\b|elettric|acqua\b|affitto|canone|manutenzione|riparazione|assicurazione|telefon|internet|pulizia|smaltimento|rifiut|noleggio|utenz|rata\b|leasing|consulenz|commercialist|notai|avvocat|bollo|tribut/i;
-        const persRx = /stipendio|contribut|inps|inail|tfr|consulenza.*lavoro|busta.*paga|cedolino|retribuz/i;
-        const foodRx = /carne|pesce|frutta|verdur|insalata|pomodor|mozzarell|formagg|prosciutt|salame|farina|riso|pasta\b|olio|burro|uova|pane\b|latte|patate|cipoll|aglio|fungh|legu|salsa|sugo|pizza|impasto|condiment|spezie|zucchero|sale\b|aceto|maionese|ketchup|pollo|manzo|maiale|salmone|tonno|gamberi|basilico|origano|pepe|limone|arancia|pomodoro|pangrattato|lievito|semola|grana|parmigia|pecorino|ricotta|mascarpone|panna|besciamella/i;
+        // Usa stesse regex di CATEGORY_RULES (importate da ContoEconomico)
+        const catOrder = ['beverage','materiali','struttura','personale','food'];
 
         (invItems||[]).forEach(it => {
           const desc = (it.nome_fattura||'').toLowerCase().trim();
           const amt = Number(it.prezzo_totale)||0;
           if (amt <= 0) return;
           // Priorita 1: mappatura appresa
-          if (learned[desc]) {
-            const cat = learned[desc];
-            if (cat==='food') foodCost+=amt; else if (cat==='beverage') bevCost+=amt;
-            else if (cat==='materiali') matCost+=amt; else if (cat==='struttura') strCost+=amt;
-            else altCost+=amt;
-            return;
-          }
+          let cat = learned[desc] || null;
           // Priorita 2: regex su nome prodotto
-          if (bevRx.test(desc)) bevCost+=amt;
-          else if (matRx.test(desc)) matCost+=amt;
-          else if (strRx.test(desc)) strCost+=amt;
-          else if (persRx.test(desc)) { /* personale gestito sotto */ }
-          else if (foodRx.test(desc)) foodCost+=amt;
-          else altCost+=amt;
+          if (!cat) {
+            for (const k of catOrder) {
+              if (CATEGORY_RULES[k]?.prodotti?.test(desc)) { cat = k; break; }
+            }
+          }
+          if (cat==='food') foodCost+=amt;
+          else if (cat==='beverage') bevCost+=amt;
+          else if (cat==='materiali') matCost+=amt;
+          else if (cat==='struttura') strCost+=amt;
+          else if (cat!=='personale') altCost+=amt;
         });
 
         // Personale da personnel_costs

@@ -8,31 +8,32 @@ export const CATEGORY_RULES = {
     label: '🍺 Beverage cost',
     color: '#3B82F6',
     bg: 'rgba(59,130,246,.12)',
-    prodotti: /birra|vino|spirit|cocktail|coca.?cola|fanta|sprite|acqua.*min|succo|prosecco|spumante|amaro|grappa|whisky|vodka|gin|rum|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor|bottiglia|lattina|fusto|keg/i,
+    prodotti: /birr|vin[oa]|spirit|cocktail|coca.?col|fanta|sprite|acqua.*min|succ[ohi]|prosecc|spumant|amar[oie]|grapp|whisk|vodka|gin\b|rum\b|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor|bottigli|lattin|fusto|keg|chinotto|gassosa|cedrata|limonat|aranciata|energy|redbull|red bull|monster|schweppes|sanbitter|crodino|vermouth|negroni|mojito|daiquiri|sangria|champagn|lambrusco|chianti|barolo|barbera|moscato|nebbiolo|merlot|cabernet|chardonnay|sauvignon|pinot|syrah|primitivo|nero.*avola|montepulciano|trebbiano|malvasia|verdicchio|ribolla/i,
   },
   materiali: {
     label: '📦 Mat. consumo',
     color: '#8B5CF6',
     bg: 'rgba(139,92,246,.12)',
-    prodotti: /tovaglio|piatt|bicchier|posate|busta|sacchett|pellicol|alluminio|detersiv|sapone|carta|guant|mascherina|contenitor|vaschett|monous|rotolo|dispenser|igienizz/i,
+    prodotti: /tovagli|piatt|bicchier|posat[eai]|bust[ae]|sacchett|pellic|allumini|detersiv|sapon|carta|guant|mascherin|contenitor|vaschett|monous|rotol|dispenser|igienizz|bobina|film|cling|doypak|stagnola|candegg|sgrassat|detergent|spugn|scope|paletta|secchi|mocio|sacco|nettezza|imballag|scotch|nastro.*ades/i,
   },
   struttura: {
     label: '🏗️ Struttura',
     color: '#EC4899',
     bg: 'rgba(236,72,153,.12)',
-    prodotti: /energia|gas\b|elettric|acqua\b|affitto|canone|manutenzione|riparazione|assicurazione|telefon|internet|pulizia|smaltimento|rifiut|noleggio|utenz|rata\b|leasing|consulenz|commercialist|notai|avvocat|bollo|tribut/i,
+    prodotti: /energi|gas\b|elettri|acqua\b|affitt|canon[ei]|manutenz|riparaz|assicuraz|telefon|internet|pulizi|smaltiment|rifiut|noleggi|utenz|rata\b|leasing|consulenz|commercialist|notai|avvocat|boll[oi]|tribut|fiber|fibra|adsl|sim\b|telefonia|luce\b|metano|gpl|gasolio|diesel/i,
   },
   personale: {
     label: '👥 Personale',
     color: '#10B981',
     bg: 'rgba(16,185,129,.12)',
-    prodotti: /stipendio|contribut|inps|inail|tfr|consulenza.*lavoro|busta.*paga|cedolino|retribuz/i,
+    prodotti: /stipendi|contribut|inps|inail|tfr|consulenza.*lavoro|busta.*paga|cedolin|retribuz/i,
   },
   food: {
     label: '🍕 Food cost',
     color: '#F59E0B',
     bg: 'rgba(245,158,11,.12)',
-    prodotti: /carne|pesce|frutta|verdur|insalata|pomodor|mozzarell|formagg|prosciutt|salame|farina|riso|pasta\b|olio|burro|uova|pane\b|latte|patate|cipoll|aglio|fungh|legu|salsa|sugo|pizza|impasto|condiment|spezie|zucchero|sale\b|aceto|maionese|ketchup|pollo|manzo|maiale|salmone|tonno|gamberi|basilico|origano|pepe|limone|arancia|pomodoro|pangrattato|lievito|semola|grana|parmigia|pecorino|ricotta|mascarpone|panna|besciamella/i,
+    // Match parziale: "mortad" matcha mortadella, "olive" matcha olive, "provol" matcha provola
+    prodotti: /carn[ei]|pesc[ei]|frutt|verdur|insal|pomodo|mozzar|formag|prosciut|mortad|salam[ei]|farin|riso\b|pasta\b|oli[ov]|burro|uov[ao]|pane\b|latt[ei]|patat|cipol|aglio|fungh|legum|sals[ae]|sugo|pizza|impast|condim|spezi|zuccher|sale\b|acet|maiones|ketchup|poll[oia]|manz|maial|salmon|tonn[oi]|gamber|basili|origan|pepe\b|limon|aranci|pangrat|lievit|semol|grana\b|parmig|pecori|ricott|mascarpon|panna|bescia|wurst|bacon|pancett|guancial|lonz[ao]|coppa\b|bresaol|speck|arrosto|scamor|provol|stracchi|gorgonzol|taleggi|asiago|fontina|emmental|brie|caciott|burgat|roquefort|crescenz|squacquer|raviol|gnocch|tortell|cappellett|lasagn|cannelon|piadina|focacc|grissini|cracker|crostini|bruschett|tarall|oliv[eao]|capperi|carciof|melanzane|zucchin|peperoni|brocco|cavolfi|spinac|bieto|rucol|lattug|radicchi|finocchi|sedano|carota|rapa|barbabiet|asparag|pisell|fagiol|cec[ie]|lenticchi|soia|tofu|seitan|noc[ie]|mandorl|pistacch|arachid|nocci|pinoli|uvetta|datteri|fichi|prugne|albicocc|cilieg|fragol|lampon|mirtin|gelat|sorbett|tirami|pannacoita|crostata|crema|cioccol|vanig|cannella|noce.*moscata|anice|zafferan|curcum|paprik|peperonc|tabasco|senap|worces|soia\b|tamari|wasabi|miso|dashi|nori|kombu|sesamo|semi.*girasol|semi.*zucca|semi.*lin|surgelat|congelat|sottovuot|affettat|macinat|filetto|costata|braciola|costol|lombat|scamone|fesa\b|noce\b|girello|ossobuc|stinco|agnello|capretto|coniglio|vitello|anatra|tacchino|quagli|fagiano|cervo|cinghiale|sgombr|acciug|alice|sardina|merluzzo|nasello|orata|branzino|spigol|trota|pesce.*spada|polpo|calamari|seppi|cozze|vongol|cannocc|scampi|aragost|astice|ricci.*mare/i,
   },
 }
 
