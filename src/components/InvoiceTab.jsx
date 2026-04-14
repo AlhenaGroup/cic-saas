@@ -16,10 +16,14 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
   const [tsXmlLoading, setTsXmlLoading] = useState(false)
   // Locale assignment (localStorage persisted)
   const [tsLocaleMap, setTsLocaleMap] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_ts_invoice_locales') || '{}') } catch { return {} } })
+  // Auto-assigned (non confermate dall'utente) — hubId set
+  const [tsAutoAssigned, setTsAutoAssigned] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_ts_auto_assigned') || '{}') } catch { return {} } })
   // Item-level locale overrides: "hubId:lineIdx" → locale (quando diverso dalla fattura)
   const [tsItemLocaleMap, setTsItemLocaleMap] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_ts_item_locales') || '{}') } catch { return {} } })
   // Parsed XML lines per invoice espansa
   const [expandedLines, setExpandedLines] = useState([])
+  // Filtro "solo da assegnare"
+  const [showOnlyUnassigned, setShowOnlyUnassigned] = useState(false)
   // Upload file state (multi-file)
   const [uploadPreviews, setUploadPreviews] = useState([])
   const [uploading, setUploading] = useState(false)
@@ -81,6 +85,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     const heraInvs = invoices.filter(f => /hera/i.test(f.senderName || '') && !currentMap[f.hubId])
     if (heraInvs.length === 0) return currentMap
     let updated = { ...currentMap }
+    const autoNew = {}
     for (const inv of heraInvs) {
       // Scarica XML per trovare POD/PDR
       try {
@@ -92,13 +97,18 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
         const { content: xml } = await r.json()
         // Cerca POD o PDR nel XML
         for (const [code, locale] of Object.entries(HERA_POD_MAP)) {
-          if (xml && xml.includes(code)) { updated[inv.hubId] = locale; break }
+          if (xml && xml.includes(code)) { updated[inv.hubId] = locale; autoNew[inv.hubId] = true; break }
         }
       } catch {}
     }
     if (Object.keys(updated).length > Object.keys(currentMap).length) {
       setTsLocaleMap(updated)
       localStorage.setItem('cic_ts_invoice_locales', JSON.stringify(updated))
+      // Segna come auto-assigned
+      const autoMap = JSON.parse(localStorage.getItem('cic_ts_auto_assigned') || '{}')
+      Object.assign(autoMap, autoNew)
+      setTsAutoAssigned(autoMap)
+      localStorage.setItem('cic_ts_auto_assigned', JSON.stringify(autoMap))
     }
     return updated
   }
@@ -110,10 +120,15 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
 
   // ─── Locale assignment ─────────────────────────────────────────────
   const setTsInvoiceLocale = (hubId, locale) => {
-    // Assegna locale alla fattura
+    // Assegna locale alla fattura (manuale = conferma)
     const newMap = { ...tsLocaleMap, [hubId]: locale }
     setTsLocaleMap(newMap)
     localStorage.setItem('cic_ts_invoice_locales', JSON.stringify(newMap))
+    // Conferma: rimuovi da auto-assigned
+    const newAuto = { ...tsAutoAssigned }
+    delete newAuto[hubId]
+    setTsAutoAssigned(newAuto)
+    localStorage.setItem('cic_ts_auto_assigned', JSON.stringify(newAuto))
     // Reset tutti gli item-level overrides di questa fattura al nuovo locale
     const newItemMap = { ...tsItemLocaleMap }
     Object.keys(newItemMap).forEach(k => { if (k.startsWith(hubId + ':')) delete newItemMap[k] })
@@ -184,16 +199,20 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps.find(s => String(s.id) === String(sp))?.description || sps.find(s => String(s.id) === String(sp))?.name || null)
 
   const tsFiltered = tsInvoices.filter(f => {
+    if (showOnlyUnassigned && tsLocaleMap[f.hubId]) return false
     if (fatSearch && !f.senderName?.toLowerCase().includes(fatSearch.toLowerCase()) && !f.docId?.includes(fatSearch)) return false
     return true
   })
 
   const unassignedCount = tsInvoices.filter(f => !tsLocaleMap[f.hubId]).length
+  const autoCount = tsInvoices.filter(f => tsAutoAssigned[f.hubId]).length
 
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.25rem' }}>
-      <KPI label="Fatture" icon="📄" value={tsFiltered.length} sub={tsLoading ? 'caricamento...' : (selectedLocaleName || 'tutti')} accent='#3B82F6' />
-      <KPI label="Da assegnare" icon="📋" value={unassignedCount} sub="senza locale" accent='#F97316' />
+      <KPI label="Fatture" icon="📄" value={tsFiltered.length} sub={tsLoading ? 'caricamento...' : (showOnlyUnassigned ? 'solo da assegnare' : (selectedLocaleName || 'tutti'))} accent='#3B82F6' />
+      <div onClick={() => setShowOnlyUnassigned(!showOnlyUnassigned)} style={{ cursor: 'pointer' }}>
+        <KPI label={showOnlyUnassigned ? '✓ Filtro attivo' : 'Da assegnare'} icon="📋" value={unassignedCount} sub={showOnlyUnassigned ? 'click per mostrare tutte' : 'click per filtrare'} accent={showOnlyUnassigned ? '#10B981' : '#F97316'} />
+      </div>
       <KPI label="Totale importo" icon="💰" value={fmtD(tsFiltered.reduce((s, f) => {
         const isNC = f.detail?.td === 'TD04' || f.detail?.td === 'TD05'
         return s + (isNC ? -Math.abs(f.detail?.totalAmount || 0) : (f.detail?.totalAmount || 0))
@@ -406,11 +425,16 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                   f.currentStatusName === 'A_DISPOSIZIONE' ? 'rgba(16,185,129,.12)' : 'rgba(245,158,11,.12)'
                 )}>{f.currentStatusName === 'A_DISPOSIZIONE' ? 'Ricevuta' : (f.currentStatusName || '—')}</span></td>
                 <td style={S.td} onClick={e => e.stopPropagation()}>
-                  <select value={tsLocaleMap[f.hubId] || ''} onChange={e => setTsInvoiceLocale(f.hubId, e.target.value)} style={{ ...iS, fontSize: 11, padding: '3px 6px' }}>
+                  <select value={tsLocaleMap[f.hubId] || ''} onChange={e => setTsInvoiceLocale(f.hubId, e.target.value)}
+                    style={{ ...iS, fontSize: 11, padding: '3px 6px',
+                      color: tsAutoAssigned[f.hubId] ? '#F59E0B' : '#e2e8f0',
+                      borderColor: tsAutoAssigned[f.hubId] ? '#F59E0B' : '#2a3042',
+                    }}>
                     <option value="">— assegna —</option>
                     <option value="Alhena Group">Alhena Group (tutti)</option>
                     {sps.map(s => <option key={s.id} value={s.description || s.name}>{s.description || s.name}</option>)}
                   </select>
+                  {tsAutoAssigned[f.hubId] && <span style={{ fontSize: 9, color: '#F59E0B', display: 'block', marginTop: 2 }}>auto</span>}
                 </td>
                 <td style={S.td} onClick={e => e.stopPropagation()}>
                   <button onClick={() => downloadTsXml(f)} style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11 }}>XML</button>
