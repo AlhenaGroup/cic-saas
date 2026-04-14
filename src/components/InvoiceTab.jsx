@@ -295,7 +295,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
           </tr></thead>
           <tbody>
             {tsFiltered.length === 0 && !tsLoading && <tr><td colSpan={9} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessuna fattura nel periodo selezionato.</td></tr>}
-            {tsFiltered.slice(0, 100).map((f, i) => {
+            {[...tsFiltered].sort((a, b) => (b.docDate || '').localeCompare(a.docDate || '')).slice(0, 100).map((f, i) => {
               const isExpanded = expandedTs === f.hubId
               return <><tr key={f.hubId || i}
                 onClick={() => { setExpandedTs(isExpanded ? null : f.hubId); if (!isExpanded) setTsXmlContent(null) }}
