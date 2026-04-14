@@ -442,7 +442,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                           <td style={{ ...S.td, fontSize: 11, color: '#94a3b8', padding: '6px 8px' }}>{l.aliquotaIVA}%</td>
                           <td style={{ ...S.td, padding: '6px 8px' }} onClick={e => e.stopPropagation()}>
                             <select value={itemLocale} onChange={e => setTsItemLocale(f.hubId, j, e.target.value)}
-                              style={{ ...iS, fontSize: 10, padding: '2px 4px', width: 110, background: isOverridden ? 'rgba(245,158,11,.15)' : undefined }}>
+                              style={{ ...iS, fontSize: 10, padding: '2px 4px', width: 110, background: isOverridden ? 'rgba(245,158,11,.2)' : '#0f1420', color: '#e2e8f0' }}>
                               <option value="">— default —</option>
                               <option value="Alhena Group">Alhena Group</option>
                               {sps.map(s => <option key={s.id} value={s.description || s.name}>{s.description || s.name}</option>)}
