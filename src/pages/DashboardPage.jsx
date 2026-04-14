@@ -16,7 +16,11 @@ export default function DashboardPage({ settings }) {
   const [from,  setFrom]          = useState(() => localStorage.getItem('cic_from') || monthStart())
   const [to,    setTo]            = useState(() => localStorage.getItem('cic_to') || today())
   const [sp,    setSp]            = useState(() => localStorage.getItem('cic_sp') || 'all')
-  const [sps,   setSps]           = useState(Array.isArray(settings?.sales_points)?settings.sales_points:[])
+  const [sps,   setSps]           = useState(() => {
+    const raw = Array.isArray(settings?.sales_points) ? settings.sales_points : []
+    // Rinomina FIORIO → BIANCOLATTE
+    return raw.map(s => ({...s, description: s.description === 'FIORIO' ? 'BIANCOLATTE' : s.description, name: s.name === 'FIORIO' ? 'BIANCOLATTE' : s.name }))
+  })
   const [data,  setData]          = useState(null)
   const [loading,setLoading]      = useState(true)
   const [error,  setError]        = useState('')

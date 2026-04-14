@@ -13,7 +13,7 @@ const TS_APP_VERSION = '1.0.0'
 
 // Codici fiscali delle aziende (ownerId per TS Digital)
 const TS_OWNERS = [
-  { cf: 'FSCSMN98H12G674S', name: 'FIORIO' },
+  { cf: 'FSCSMN98H12G674S', name: 'BIANCOLATTE' },
   // Aggiungi qui altri CF per REMEMBEER / CASA DE AMICIS se diversi
 ]
 
@@ -130,9 +130,9 @@ export default async function handler(req, res) {
             const invoices = page._embedded?.invoiceList || []
             invoices.forEach(inv => { inv._locale = owner.name })
             allInvoices.push(...invoices)
-            // Pagina successiva (max 5 pagine per sicurezza)
+            // Pagina successiva (max 50 pagine = ~1000 fatture)
             let pages = 1
-            while (page.hasNext && page.continuationToken && pages < 5) {
+            while (page.hasNext && page.continuationToken && pages < 50) {
               page = await tsListInvoices(token, owner.cf, { from, continuationToken: page.continuationToken })
               const more = page._embedded?.invoiceList || []
               more.forEach(inv => { inv._locale = owner.name })

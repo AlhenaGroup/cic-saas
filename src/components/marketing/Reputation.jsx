@@ -177,7 +177,7 @@ export default function Reputation({ sp, sps, from, to }) {
     setTaUrls(prev => ({ ...prev, [label]: url }))
   }
   const addTaLocation = () => {
-    const label = prompt('Nome del locale (es. FIORIO):')
+    const label = prompt('Nome del locale (es. BIANCOLATTE):')
     if (!label) return
     setTaUrls(prev => ({ ...prev, [label]: '' }))
   }

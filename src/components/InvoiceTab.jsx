@@ -44,6 +44,52 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
 
   useEffect(() => { loadTsInvoices() }, [])
 
+  // ─── HERA auto-assign per POD/PDR ─────────────────────────────────
+  const HERA_POD_MAP = {
+    'IT001E01488580': 'Alhena Group',      // Laboratorio
+    'IT001E01490244': 'CASA DE AMICIS',
+    'IT001E04347093': 'REMEMBEER',
+    'IT001E01490223': 'BIANCOLATTE',
+    '15910000041301': 'Alhena Group',      // Ufficio amm. gas
+    '15910000050731': 'REMEMBEER',         // gas
+    '3041560782': 'CASA DE AMICIS',
+    '3041562164': 'REMEMBEER',
+    '3041568067': 'BIANCOLATTE',
+    '3041626717': 'Alhena Group',
+    '3041626999': 'REMEMBEER',
+  }
+
+  const autoAssignHera = async (invoices, currentMap) => {
+    const heraInvs = invoices.filter(f => /hera/i.test(f.senderName || '') && !currentMap[f.hubId])
+    if (heraInvs.length === 0) return currentMap
+    let updated = { ...currentMap }
+    for (const inv of heraInvs) {
+      // Scarica XML per trovare POD/PDR
+      try {
+        const r = await fetch('/api/invoices', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'ts-download', hubId: inv.hubId, ownerId: inv.ownerId, format: 'XML' }),
+        })
+        if (!r.ok) continue
+        const { content: xml } = await r.json()
+        // Cerca POD o PDR nel XML
+        for (const [code, locale] of Object.entries(HERA_POD_MAP)) {
+          if (xml && xml.includes(code)) { updated[inv.hubId] = locale; break }
+        }
+      } catch {}
+    }
+    if (Object.keys(updated).length > Object.keys(currentMap).length) {
+      setTsLocaleMap(updated)
+      localStorage.setItem('cic_ts_invoice_locales', JSON.stringify(updated))
+    }
+    return updated
+  }
+
+  // Auto-assign HERA quando le fatture vengono caricate
+  useEffect(() => {
+    if (tsInvoices.length > 0) autoAssignHera(tsInvoices, tsLocaleMap)
+  }, [tsInvoices])
+
   // ─── Locale assignment ─────────────────────────────────────────────
   const setTsInvoiceLocale = (hubId, locale) => {
     const newMap = { ...tsLocaleMap, [hubId]: locale }
@@ -97,10 +143,10 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     // Filtro date (from/to dalla dashboard)
     if (from && f.docDate && f.docDate < from) return false
     if (to && f.docDate && f.docDate > to) return false
-    // Filtro locale
+    // Filtro locale: mostra fatture del locale + fatture "Alhena Group" (costi di gruppo)
     if (selectedLocaleName) {
       const assigned = tsLocaleMap[f.hubId]
-      if (!assigned || assigned !== selectedLocaleName) return false
+      if (!assigned || (assigned !== selectedLocaleName && assigned !== 'Alhena Group')) return false
     }
     // Filtro ricerca
     if (fatSearch && !f.senderName?.toLowerCase().includes(fatSearch.toLowerCase()) && !f.docId?.includes(fatSearch)) return false
@@ -313,6 +359,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                 <td style={S.td} onClick={e => e.stopPropagation()}>
                   <select value={tsLocaleMap[f.hubId] || ''} onChange={e => setTsInvoiceLocale(f.hubId, e.target.value)} style={{ ...iS, fontSize: 11, padding: '3px 6px' }}>
                     <option value="">— assegna —</option>
+                    <option value="Alhena Group">Alhena Group (tutti)</option>
                     {sps.map(s => <option key={s.id} value={s.description || s.name}>{s.description || s.name}</option>)}
                   </select>
                 </td>
