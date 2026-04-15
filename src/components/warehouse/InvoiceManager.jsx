@@ -32,6 +32,10 @@ export default function InvoiceManager({ sp, sps }) {
   const [loading, setLoading] = useState(false)
   // Regole apprese (nome_fattura → escludi/magazzino/nome_articolo/unita)
   const [itemRules, setItemRules] = useState({})
+  // Stato completamento fatture importate (hubId → {total, done})
+  const [whStatus, setWhStatus] = useState({})
+  // Filtro: 'tutte' | 'da_associare' | 'complete'
+  const [filterStatus, setFilterStatus] = useState('tutte')
 
   // ─── Load TS Digital invoices (paginato, 1 pagina) ──────────────
   const [tsPage, setTsPage] = useState(0)
@@ -62,6 +66,22 @@ export default function InvoiceManager({ sp, sps }) {
     setTsLoading(false)
   }
 
+  const loadWhStatus = useCallback(async () => {
+    // Carica tutte le fatture importate con conteggio righe associate
+    const { data: invs } = await supabase.from('warehouse_invoices').select('id, numero, fornitore')
+    if (!invs || invs.length === 0) { setWhStatus({}); return }
+    const { data: items } = await supabase.from('warehouse_invoice_items').select('invoice_id, nome_articolo, escludi_magazzino')
+    const status = {}
+    for (const inv of invs) {
+      const rows = (items || []).filter(it => it.invoice_id === inv.id)
+      const total = rows.length
+      const done = rows.filter(it => it.nome_articolo || it.escludi_magazzino).length
+      // Trova il hubId corrispondente tramite numero+fornitore
+      status[inv.numero + '||' + inv.fornitore] = { total, done, complete: total > 0 && done >= total }
+    }
+    setWhStatus(status)
+  }, [])
+
   const loadProducts = useCallback(async () => {
     const { data: prods } = await supabase.from('warehouse_products').select('id, nome, categoria, unita_misura').eq('attivo', true).order('nome')
     setProducts(prods || [])
@@ -74,7 +94,7 @@ export default function InvoiceManager({ sp, sps }) {
     setItemRules(rulesMap)
   }, [])
 
-  useEffect(() => { loadTsPage(0); loadProducts() }, [loadProducts])
+  useEffect(() => { loadTsPage(0); loadProducts(); loadWhStatus() }, [loadProducts, loadWhStatus])
 
   // Refresh locale map when localStorage changes (cross-tab sync)
   useEffect(() => {
@@ -90,8 +110,15 @@ export default function InvoiceManager({ sp, sps }) {
 
   const tsFiltered = [...tsInvoices].filter(f => {
     const assigned = tsLocaleMap[f.hubId]
-    if (!assigned) return false // mostra solo le assegnate
+    if (!assigned) return false
     if (selectedLocaleName && assigned !== selectedLocaleName && assigned !== 'Alhena Group') return false
+    // Filtro completamento
+    if (filterStatus !== 'tutte') {
+      const key = (f.docId || '') + '||' + (f.senderName || '')
+      const st = whStatus[key]
+      if (filterStatus === 'complete' && (!st || !st.complete)) return false
+      if (filterStatus === 'da_associare' && st && st.complete) return false
+    }
     return true
   }).sort((a, b) => (b.docDate || '').localeCompare(a.docDate || ''))
 
@@ -442,10 +469,17 @@ export default function InvoiceManager({ sp, sps }) {
 
   // ─── Render ────────────────────────────────────────────────────────
   return <>
-    <Card title="Fatture TS Digital" badge={tsLoading ? '...' : `${tsFiltered.length} assegnate · Pag. ${tsPage + 1}`} extra={
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button onClick={() => loadTsPage(tsPage)} disabled={tsLoading}
-          style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '5px 14px', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+    <Card title="Fatture TS Digital" badge={tsLoading ? '...' : `${tsFiltered.length} · Pag. ${tsPage + 1}`} extra={
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        {['tutte', 'da_associare', 'complete'].map(f => (
+          <button key={f} onClick={() => setFilterStatus(f)}
+            style={{ ...iS, padding: '4px 10px', fontSize: 10, fontWeight: 600, cursor: 'pointer', border: 'none',
+              background: filterStatus === f ? (f === 'complete' ? '#10B981' : f === 'da_associare' ? '#F59E0B' : '#3B82F6') : 'transparent',
+              color: filterStatus === f ? '#0f1420' : '#94a3b8',
+            }}>{f === 'tutte' ? 'Tutte' : f === 'da_associare' ? 'Da associare' : 'Associate'}</button>
+        ))}
+        <button onClick={() => { loadTsPage(tsPage); loadWhStatus() }} disabled={tsLoading}
+          style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}
         >{tsLoading ? '...' : 'Aggiorna'}</button>
       </div>
     }>
@@ -475,10 +509,13 @@ export default function InvoiceManager({ sp, sps }) {
               <td style={S.td}><span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>{f.detail?.td || 'TD01'}</span></td>
               <td style={{ ...S.td, fontWeight: 600 }}>{f.detail?.totalAmount != null ? fmt(f.detail.totalAmount) : '—'}</td>
               <td style={{ ...S.td, fontSize: 12, color: '#94a3b8' }}>{locale}</td>
-              <td style={S.td}>{whInvoice && isExp
-                ? <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Importata</span>
-                : <span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>TS Digital</span>
-              }</td>
+              <td style={S.td}>{(() => {
+                const key = (f.docId || '') + '||' + (f.senderName || '')
+                const st = whStatus[key]
+                if (!st) return <span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>Da importare</span>
+                if (st.complete) return <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>✓ {st.done}/{st.total}</span>
+                return <span style={S.badge('#F59E0B', 'rgba(245,158,11,.12)')}>{st.done}/{st.total}</span>
+              })()}</td>
             </tr>
 
             {/* Expanded: righe XML o warehouse items con match */}
