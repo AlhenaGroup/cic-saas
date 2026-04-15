@@ -458,7 +458,38 @@ export default function InvoiceManager({ sp, sps }) {
               {/* Se importato: mostra righe warehouse con match prodotti */}
               {whInvoice && (
                 <>
-                  <div style={{ fontSize: 12, color: '#10B981', marginBottom: 8 }}>✓ Importata nel magazzino — assegna il nome articolo interno</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: '#10B981' }}>✓ Importata nel magazzino — assegna il nome articolo interno</span>
+                    <button onClick={async () => {
+                      setLoading(true)
+                      // Applica regole apprese a TUTTE le righe di TUTTE le fatture importate
+                      const { data: allItems } = await supabase.from('warehouse_invoice_items').select('id, nome_fattura, nome_articolo, unita, magazzino, escludi_magazzino')
+                      let updated = 0
+                      for (const it of (allItems || [])) {
+                        const key = (it.nome_fattura || '').toLowerCase().trim()
+                        const rule = itemRules[key]
+                        if (!rule) continue
+                        const upd = {}
+                        if (rule.nome_articolo_default && !it.nome_articolo) upd.nome_articolo = rule.nome_articolo_default
+                        if (rule.unita_default && it.unita !== rule.unita_default) upd.unita = rule.unita_default
+                        if (rule.magazzino && it.magazzino !== rule.magazzino) upd.magazzino = rule.magazzino
+                        if (rule.escludi_magazzino != null && it.escludi_magazzino !== rule.escludi_magazzino) upd.escludi_magazzino = rule.escludi_magazzino
+                        if (Object.keys(upd).length > 0) {
+                          await supabase.from('warehouse_invoice_items').update(upd).eq('id', it.id)
+                          updated++
+                        }
+                      }
+                      // Ricarica righe della fattura corrente
+                      if (whInvoice) {
+                        const { data } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', whInvoice.id).order('id')
+                        setItems(data || [])
+                      }
+                      setLoading(false)
+                      alert(`Regole applicate a ${updated} righe su ${(allItems||[]).length} totali`)
+                    }} disabled={loading}
+                      style={{ ...iS, background: '#8B5CF6', color: '#fff', border: 'none', padding: '5px 14px', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}
+                    >{loading ? '...' : '🔄 Applica regole a tutte le fatture'}</button>
+                  </div>
 
                   <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
