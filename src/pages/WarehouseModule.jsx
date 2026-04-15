@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { S } from '../components/shared/styles.jsx'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { supabase } from '../lib/supabase'
+import { ScatterChart, Scatter, XAxis as SX, YAxis as SY, Tooltip as ST, ResponsiveContainer as SRC, Cell } from 'recharts'
+import { S, Card, KPI, fmt, fmtD, fmtN } from '../components/shared/styles.jsx'
 import WarehouseDashboard from '../components/warehouse/WarehouseDashboard'
 import InvoiceManager from '../components/warehouse/InvoiceManager'
 import ProductManager from '../components/warehouse/ProductManager'
@@ -53,10 +55,6 @@ export default function WarehouseModule({ sp, sps }) {
 }
 
 // Prodotti venduti su CiC (da daily_stats receipt_details)
-import { useState as useState2, useEffect, useCallback, useMemo } from 'react'
-import { supabase } from '../lib/supabase'
-import { ScatterChart, Scatter, XAxis as SX, YAxis as SY, Tooltip as ST, ResponsiveContainer as SRC, Cell } from 'recharts'
-import { Card, KPI, fmt, fmtD, fmtN } from '../components/shared/styles.jsx'
 
 const SORT_OPTIONS = [
   { key: 'qty_desc', label: 'Più venduti' },
@@ -70,9 +68,9 @@ const SORT_OPTIONS = [
 ]
 
 function ProdottiCiC({ sp, sps }) {
-  const [products, setProducts] = useState2([])
-  const [loading, setLoading] = useState2(false)
-  const [sortBy, setSortBy] = useState2('qty_desc')
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [sortBy, setSortBy] = useState('qty_desc')
 
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps?.find(s => String(s.id) === String(sp))?.description || null)
 
@@ -228,11 +226,11 @@ const ART_SORT = [
 const MAG_FILTERS = ['tutti', 'food', 'beverage', 'materiali', 'attrezzatura', 'altro']
 
 function ArticoliTab({ sp, sps }) {
-  const [articles, setArticles] = useState2([])
-  const [loading, setLoading] = useState2(false)
-  const [sortBy, setSortBy] = useState2('name_asc')
-  const [magFilter, setMagFilter] = useState2('tutti')
-  const [search, setSearch] = useState2('')
+  const [articles, setArticles] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [sortBy, setSortBy] = useState('name_asc')
+  const [magFilter, setMagFilter] = useState('tutti')
+  const [search, setSearch] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
