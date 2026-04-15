@@ -331,6 +331,24 @@ export default function InvoiceManager({ sp, sps }) {
       .replace(/\b\d+[\s.,]*\d*\s*(LT|KG|GR|ML|CL|PZ|BT|CF|CT|FS|VP|VAP|OW)\b/gi, '')
       .replace(/\b(LT|KG|GR|ML|CL|PZ|BT|CF|CT|FS|VP|VAP|OW)\b/gi, '')
       .replace(/\s{2,}/g, ' ').trim()
+    // Qty singola (capacità unitaria: 0.75L per bottiglia, 20L per fusto, ecc.)
+    let qtySingola = null
+    const clM = d.match(/(\d+)\s*CL\b/i)
+    const mlM = d.match(/(\d+)\s*ML\b/i)
+    const ltM2 = d.match(/([\d.,]+)\s*LT?\b/i)
+    const kgM2 = d.match(/([\d.,]+)\s*KG\b/i)
+    const grM2 = d.match(/(\d+)\s*GR\b/i)
+    if (um === 'LT') {
+      if (clM) qtySingola = parseInt(clM[1]) / 100
+      else if (mlM) qtySingola = parseInt(mlM[1]) / 1000
+      else if (ltM2) qtySingola = parseFloat(ltM2[1].replace(',', '.'))
+    } else if (um === 'KG') {
+      if (kgM2) qtySingola = parseFloat(kgM2[1].replace(',', '.'))
+      else if (grM2) qtySingola = parseInt(grM2[1]) / 1000
+    } else if (um === 'PZ') {
+      qtySingola = 1
+    }
+
     // Tipo confezione
     let tipo = ''
     if (/\bFS\b|\bFUSTO\b|\bFUSTI\b/i.test(d)) tipo = 'Fusto'
@@ -368,7 +386,11 @@ export default function InvoiceManager({ sp, sps }) {
       totaleUm = qty || null
     }
 
-    return { nome, qty, um, magazzino, escludi, tipo, totaleUm }
+    // TOT calcolato
+    let totaleUm2 = null
+    if (qty && qtySingola) totaleUm2 = Math.round(qty * qtySingola * 1000) / 1000
+
+    return { nome, qty, um, magazzino, escludi, tipo, qtySingola, totaleUm: totaleUm2 }
   }
 
   // Pre-popola suggerimenti all'import — compila nome, qty, UM, magazzino, escludi
@@ -385,12 +407,14 @@ export default function InvoiceManager({ sp, sps }) {
         if (rule.magazzino) upd.magazzino = rule.magazzino
         if (rule.escludi_magazzino != null) upd.escludi_magazzino = rule.escludi_magazzino
         if (rule.tipo_confezione_default) upd.tipo_confezione = rule.tipo_confezione_default
+        if (rule.qty_singola_default) upd.qty_singola = rule.qty_singola_default
       } else {
         if (s.nome && !it.nome_articolo) upd.nome_articolo = s.nome
         if (s.um) upd.unita = s.um
         if (s.magazzino) upd.magazzino = s.magazzino
         if (s.escludi) upd.escludi_magazzino = true
         if (s.tipo) upd.tipo_confezione = s.tipo
+        if (s.qtySingola != null) upd.qty_singola = s.qtySingola
         if (s.totaleUm != null) upd.totale_um = s.totaleUm
       }
       if (s.qty != null) upd.quantita = s.qty
@@ -535,10 +559,10 @@ export default function InvoiceManager({ sp, sps }) {
                   <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-                      {['Mag.', 'Descrizione fattura', 'Nome articolo', 'Qty', 'Tipo', 'UM', 'TOT', 'P. unit.', 'Totale €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 9, padding: '4px 4px' }}>{h}</th>)}
+                      {['Mag.', 'Descrizione fattura', 'Nome articolo', 'Qty', 'Tipo', 'Q.Sing.', 'UM', 'TOT', 'P. unit.', 'Tot. €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 8, padding: '4px 3px' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
-                      {items.length === 0 && <tr><td colSpan={10} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
+                      {items.length === 0 && <tr><td colSpan={11} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
                       {items.map(it => {
                         const suggestion = suggestFromDescription(it.nome_fattura, it.unita)
                         const rule = itemRules[(it.nome_fattura || '').toLowerCase().trim()]
@@ -546,11 +570,13 @@ export default function InvoiceManager({ sp, sps }) {
                         const displayUm = it.unita || rule?.unita_default || suggestion?.um || ''
                         const displayMag = it.magazzino || rule?.magazzino || suggestion?.magazzino || 'food'
                         const displayTipo = it.tipo_confezione || rule?.tipo_confezione_default || suggestion?.tipo || ''
+                        const displayQtySing = it.qty_singola ?? rule?.qty_singola_default ?? suggestion?.qtySingola ?? ''
                         const isExcluded = it.escludi_magazzino ?? rule?.escludi_magazzino ?? suggestion?.escludi ?? false
-                        // Calcola TOT
+                        // Calcola TOT = QTY × Q.Sing.
                         const qty = parseFloat(it.quantita) || 0
-                        const sugTot = it.totale_um || suggestion?.totaleUm || null
-                        const displayTot = sugTot != null ? sugTot : (qty > 0 ? qty : '')
+                        const qSing = parseFloat(it.qty_singola ?? displayQtySing) || 0
+                        const autoTot = qty > 0 && qSing > 0 ? Math.round(qty * qSing * 1000) / 1000 : null
+                        const displayTot = it.totale_um ?? autoTot ?? ''
                         return <tr key={it.id} style={{ opacity: isExcluded ? 0.4 : 1, background: isExcluded ? 'rgba(239,68,68,.05)' : 'transparent' }}>
                           <td style={{ ...S.td, padding: '5px 6px' }}>
                             {isExcluded
@@ -592,10 +618,26 @@ export default function InvoiceManager({ sp, sps }) {
                               {TIPI_CONFEZIONE.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                           </td>
-                          <td style={{ ...S.td, padding: '4px 4px' }}>
+                          <td style={{ ...S.td, padding: '4px 3px' }}>
+                            <input type="number" step="0.001"
+                              value={it.qty_singola ?? displayQtySing ?? ''}
+                              onChange={e => {
+                                const val = e.target.value
+                                setItems(prev => prev.map(x => {
+                                  if (x.id !== it.id) return x
+                                  const newQS = parseFloat(val) || 0
+                                  const newQty = parseFloat(x.quantita) || 0
+                                  const newTot = newQty > 0 && newQS > 0 ? Math.round(newQty * newQS * 1000) / 1000 : x.totale_um
+                                  return { ...x, qty_singola: val, totale_um: newTot }
+                                }))
+                              }}
+                              style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, textAlign: 'center', color: '#8B5CF6' }}
+                            />
+                          </td>
+                          <td style={{ ...S.td, padding: '4px 3px' }}>
                             <select value={displayUm}
                               onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, unita: e.target.value } : x))}
-                              style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 45, color: '#e2e8f0' }}>
+                              style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 42, color: '#e2e8f0' }}>
                               <option value="">—</option>
                               <option value="KG">KG</option>
                               <option value="LT">LT</option>
@@ -617,12 +659,13 @@ export default function InvoiceManager({ sp, sps }) {
                               const magToSave = it.magazzino || displayMag
                               const tipoToSave = it.tipo_confezione || displayTipo
                               const exclToSave = it.escludi_magazzino ?? isExcluded
-                              const totToSave = parseFloat(it.totale_um) || parseFloat(displayTot) || 0
+                              const qSingToSave = parseFloat(it.qty_singola ?? displayQtySing) || 0
+                              const totToSave = parseFloat(it.totale_um) || (qty > 0 && qSingToSave > 0 ? Math.round(qty * qSingToSave * 1000) / 1000 : 0)
                               // Salva sulla riga
                               await supabase.from('warehouse_invoice_items').update({
                                 nome_articolo: nameToSave, quantita: parseFloat(it.quantita) || 0,
                                 unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave,
-                                tipo_confezione: tipoToSave, totale_um: totToSave,
+                                tipo_confezione: tipoToSave, qty_singola: qSingToSave, totale_um: totToSave,
                               }).eq('id', it.id)
                               // Memorizza regola per le prossime fatture
                               const key = (it.nome_fattura || '').toLowerCase().trim()
@@ -633,12 +676,12 @@ export default function InvoiceManager({ sp, sps }) {
                                     user_id: user.id, nome_fattura_pattern: key,
                                     nome_articolo_default: nameToSave, unita_default: umToSave,
                                     magazzino: magToSave, escludi_magazzino: exclToSave,
-                                    tipo_confezione_default: tipoToSave,
+                                    tipo_confezione_default: tipoToSave, qty_singola_default: qSingToSave,
                                   }, { onConflict: 'user_id,nome_fattura_pattern' })
-                                  setItemRules(prev => ({ ...prev, [key]: { nome_articolo_default: nameToSave, unita_default: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione_default: tipoToSave } }))
+                                  setItemRules(prev => ({ ...prev, [key]: { nome_articolo_default: nameToSave, unita_default: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione_default: tipoToSave, qty_singola_default: qSingToSave } }))
                                 }
                               }
-                              setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione: tipoToSave, totale_um: totToSave, _saved: true } : x))
+                              setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione: tipoToSave, qty_singola: qSingToSave, totale_um: totToSave, _saved: true } : x))
                               setTimeout(() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, _saved: false } : x)), 1500)
                             }} style={{ ...iS, background: it._saved ? '#10B981' : '#F59E0B', color: '#0f1420', border: 'none', padding: '3px 8px', fontWeight: 700, fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               {it._saved ? '✓' : '💾'}
