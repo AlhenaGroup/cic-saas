@@ -440,12 +440,10 @@ async function saveDailyStats(sp, date, agg) {
   return postRes.status;
 }
 
-async function getMissingDays() {
-  // Ultime 7 giorni sempre risincronizzate + giorni mancanti dal 2024
+async function getMissingDays(numDays = 7) {
   const today = new Date();
   const days = [];
-  // Ultimi 7 giorni (aggiorna anche oggi/ieri)
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < numDays; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     days.push(d.toISOString().split('T')[0]);
@@ -468,7 +466,8 @@ export default async function handler(req, res) {
   let saved = 0, errors = 0;
 
   try {
-    const days = await getMissingDays();
+    const numDays = parseInt(req.query?.days) || 7;
+    const days = await getMissingDays(numDays);
     logs.push(`Sync ${days.length} giorni per ${SALESPOINTS.length} locali`);
 
     for (const sp of SALESPOINTS) {
@@ -490,7 +489,7 @@ export default async function handler(req, res) {
           if (receipts.length === 0 && refunds.length === 0) continue; // salta giorni senza vendite
           const agg = aggregateReceipts(receipts, dynamicCatNames, prodNames, sp.openHour);
           // Monitoring: prima prova fo-services /logs (dati completi), fallback a receipt analysis
-          const foLogs = await fetchMonitoringLogs(sessionCookie, date);
+          const foLogs = []; // fetchMonitoringLogs disabilitato (sessionCookie non disponibile nel cron)
           const spLogs = foLogs.filter(l => l.locale.includes(sp.name) || l.locale === '—');
           agg.monitoring_events = spLogs.length > 0 ? spLogs : extractMonitoringEvents(receipts, refunds);
           // Chiusura cassa reale dalla reconciliation
