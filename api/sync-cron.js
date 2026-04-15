@@ -3,6 +3,7 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://afdochrjbmxnhviidzpb.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZG9jaHJqYm14bmh2aWlkenBiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDkzMzk5MSwiZXhwIjoyMDkwNTA5OTkxfQ.odgLZGS_W1j5mSngmL3MGlJOKTzfAm3RjsdXhi5MEEA';
 const CIC_BASE = 'https://api.cassanova.com';
+const FO_BASE = 'https://fo-services.cassanova.com';
 
 const CAT_NAMES = {
   "5c4e782b-8c54-402d-8ee2-861d1fc181c1": "CLASSICI",
@@ -184,6 +185,59 @@ async function getReceipts(token, date, filterSp, openHour = 10) {
 }
 
 // Estrai monitoring events dai receipt (annulli, sconti, ecc.)
+// Fetch monitoring logs da fo-services (richiede sessionCookie salvato in Supabase settings)
+async function fetchMonitoringLogs(sessionCookie, date) {
+  if (!sessionCookie) return [];
+  try {
+    const filter = JSON.stringify({
+      datetimeFrom: date + 'T00:00:00.000',
+      datetimeTo: date + 'T23:59:59.999',
+      platform: ['CASSANOVA', 'COMANDI', 'MYCASSANOVA'],
+      level: ['INFO']
+    });
+    const url = `${FO_BASE}/logs?filter=${encodeURIComponent(filter)}&limit=500&sorts=${encodeURIComponent('{"datetime":-1}')}&start=0`;
+    const res = await fetch(url, {
+      headers: {
+        'Cookie': sessionCookie,
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'it',
+        'Referer': 'https://fo.cassanova.com/',
+      }
+    });
+    if (!res.ok) return [];
+    const d = await res.json();
+    const records = d.records || d.logs || [];
+    // Converte in formato standard
+    return records.map(r => {
+      const dt = r.datetime || '';
+      const timeStr = dt.includes('T') ? dt.substring(11, 19) : '';
+      return {
+        type: r.operation || r.action || 'Altro',
+        datetime: dt,
+        time: timeStr,
+        user: r.user?.username || r.user?.name || r.username || '—',
+        description: r.description || r.details || r.message || '—',
+        locale: r.salesPoint?.description || r.salesPoint?.name || '—',
+        amount: 0,
+        severity: (r.operation || '').toLowerCase().includes('eliminazione') ? 'high' :
+                  (r.operation || '').toLowerCase().includes('sconto') ? 'medium' : 'low',
+      };
+    });
+  } catch (e) { console.error('Monitoring logs fetch error:', e.message); return []; }
+}
+
+// Legge sessionCookie da Supabase settings (salvato dal frontend)
+async function getSessionCookie() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.cic_session_cookie&select=value`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return rows?.[0]?.value || null;
+  } catch { return null; }
+}
+
 function extractMonitoringEvents(receipts, refunds) {
   const events = [];
   const toTime = (dt) => {
@@ -288,7 +342,8 @@ function aggregateReceipts(receipts, dynamicCatNames = {}, productNames = {}, op
       // Dettaglio prodotto per la comanda
       if (!row.coverCharge && price > 0) {
         const prodName = (row.idProduct && productNames[row.idProduct]) || (row.idProductVariant && productNames[row.idProductVariant]) || null;
-        receiptItems.push({ nome: prodName || dName || 'Articolo', qty: row.quantity || 1, prezzo: price, reparto: dName });
+        const catName = row.category?.description || dynamicCatNames[cId] || CAT_NAMES[cId] || null;
+        receiptItems.push({ nome: prodName || dName || 'Articolo', qty: row.quantity || 1, prezzo: price, reparto: dName, categoria: catName });
       }
 
       // Traccia ultima comanda cucina/bar
@@ -434,8 +489,10 @@ export default async function handler(req, res) {
           const { receipts, refunds } = await getReceipts(token, date, sp.filterSp, sp.openHour);
           if (receipts.length === 0 && refunds.length === 0) continue; // salta giorni senza vendite
           const agg = aggregateReceipts(receipts, dynamicCatNames, prodNames, sp.openHour);
-          // Genera monitoring events da refund + sconti nei receipt
-          agg.monitoring_events = extractMonitoringEvents(receipts, refunds);
+          // Monitoring: prima prova fo-services /logs (dati completi), fallback a receipt analysis
+          const foLogs = await fetchMonitoringLogs(sessionCookie, date);
+          const spLogs = foLogs.filter(l => l.locale.includes(sp.name) || l.locale === '—');
+          agg.monitoring_events = spLogs.length > 0 ? spLogs : extractMonitoringEvents(receipts, refunds);
           // Chiusura cassa reale dalla reconciliation
           const reconc = await getReconciliation(token, date, sp.filterSp);
           if (reconc) {

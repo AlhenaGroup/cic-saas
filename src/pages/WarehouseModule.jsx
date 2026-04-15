@@ -91,13 +91,15 @@ function ProdottiCiC({ sp, sps }) {
       ;(row.receipt_details || []).forEach(receipt => {
         ;(receipt.items || []).forEach(item => {
           const name = item.nome || item.description || 'Sconosciuto'
-          const cat = item.reparto || item.department?.description || item.category?.description || '—'
+          const reparto = item.reparto || item.department?.description || '—'
+          const categoria = item.categoria || item.category?.description || '—'
           const price = Number(item.prezzo) || Number(item.totalPrice) || 0
           const qty = Number(item.qty) || Number(item.quantity) || 1
-          if (!prodMap[name]) prodMap[name] = { name, category: cat, revenue: 0, qty: 0, avgPrice: 0, costo: 0, mol: 0, fcPct: 0 }
+          if (!prodMap[name]) prodMap[name] = { name, reparto, categoria, revenue: 0, qty: 0, avgPrice: 0, costo: 0, mol: 0, fcPct: 0 }
           prodMap[name].revenue += price
           prodMap[name].qty += qty
-          if (prodMap[name].category === '—' && cat !== '—') prodMap[name].category = cat
+          if (prodMap[name].reparto === '—' && reparto !== '—') prodMap[name].reparto = reparto
+          if (prodMap[name].categoria === '—' && categoria !== '—') prodMap[name].categoria = categoria
         })
       })
     })
@@ -190,13 +192,14 @@ function ProdottiCiC({ sp, sps }) {
         <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-            {['Nome', 'Categoria', 'Prezzo vendita', 'Qty vendute', 'Incasso tot.', 'Costo', 'MOL', 'FC%'].map(h => <th key={h} style={{ ...S.th, fontSize: 10 }}>{h}</th>)}
+            {['Nome', 'Reparto', 'Categoria', 'Prezzo vendita', 'Qty vendute', 'Incasso tot.', 'Costo', 'MOL', 'FC%'].map(h => <th key={h} style={{ ...S.th, fontSize: 10 }}>{h}</th>)}
           </tr></thead>
           <tbody>
             {sorted.map((p, i) => (
               <tr key={i} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 600, fontSize: 12 }}>{p.name}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>{p.category}</td>
+                <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>{p.reparto}</td>
+                <td style={{ ...S.td, color: '#8B5CF6', fontSize: 11 }}>{p.categoria}</td>
                 <td style={{ ...S.td, fontWeight: 500 }}>{fmtD(p.avgPrice)}</td>
                 <td style={S.td}>{fmtN(p.qty)}</td>
                 <td style={{ ...S.td, fontWeight: 600, color: '#10B981' }}>{fmtD(p.revenue)}</td>
