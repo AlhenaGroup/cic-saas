@@ -146,6 +146,68 @@ export default async function handler(req, res) {
         return res.status(200).json({ content, format: format || 'XML' })
       }
 
+      // ─── Batch import: importa fatture assegnate nel warehouse ────
+      case 'batch-import': {
+        const { localeMap, continuationToken: bCt } = req.body
+        if (!localeMap) return res.status(400).json({ error: 'localeMap richiesto' })
+        const token = await getTsToken()
+        const owner = TS_OWNERS[0]?.cf
+        const SB_URL = process.env.SUPABASE_URL || 'https://afdochrjbmxnhviidzpb.supabase.co'
+        const SB_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZG9jaHJqYm14bmh2aWlkenBiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDkzMzk5MSwiZXhwIjoyMDkwNTA5OTkxfQ.odgLZGS_W1j5mSngmL3MGlJOKTzfAm3RjsdXhi5MEEA'
+        const UID = '4bedef4d-cf04-4c34-b614-dd0b78b496be'
+        const sbH = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Prefer': 'return=representation' }
+
+        const resp = await tsListInvoices(token, owner, { continuationToken: bCt })
+        const invoices = resp._embedded?.invoiceList || []
+        let imported = 0, skipped = 0, errors = 0
+
+        for (const inv of invoices) {
+          const locale = localeMap[inv.hubId]
+          if (!locale) { skipped++; continue }
+          try {
+            // Check se gia importata
+            const chkR = await fetch(`${SB_URL}/rest/v1/warehouse_invoices?numero=eq.${encodeURIComponent(inv.docId || '')}&fornitore=eq.${encodeURIComponent(inv.senderName || '')}&select=id&limit=1`, { headers: sbH })
+            const ex = await chkR.json()
+            if (ex && ex.length > 0) { skipped++; continue }
+            // Scarica XML
+            const xml = await tsDownloadInvoice(token, owner, inv.hubId, 'XML')
+            // Parse righe
+            const lines = []
+            const re = /<DettaglioLinee>([\s\S]*?)<\/DettaglioLinee>/g
+            let m
+            while ((m = re.exec(xml)) !== null) {
+              const b = m[1]
+              const g = (t) => { const x = b.match(new RegExp('<' + t + '>(.*?)</' + t + '>')); return x ? x[1] : '' }
+              lines.push({ desc: g('Descrizione'), qty: parseFloat(g('Quantita')) || 0, um: g('UnitaMisura'),
+                pu: parseFloat(g('PrezzoUnitario')) || 0, pt: parseFloat(g('PrezzoTotale')) || 0 })
+            }
+            const isNC = inv.detail?.td === 'TD04' || inv.detail?.td === 'TD05'
+            // Insert fattura
+            const irR = await fetch(`${SB_URL}/rest/v1/warehouse_invoices`, { method: 'POST', headers: sbH,
+              body: JSON.stringify({ user_id: UID, data: inv.docDate, numero: inv.docId || '', fornitore: inv.senderName || '',
+                locale, totale: isNC ? -Math.abs(inv.detail?.totalAmount || 0) : inv.detail?.totalAmount || 0,
+                tipo_doc: isNC ? 'nota_credito' : 'fattura', stato: 'bozza' }) })
+            if (!irR.ok) { errors++; continue }
+            const [newInv] = await irR.json()
+            // Insert righe
+            if (lines.length > 0) {
+              await fetch(`${SB_URL}/rest/v1/warehouse_invoice_items`, { method: 'POST',
+                headers: { ...sbH, 'Prefer': 'return=minimal' },
+                body: JSON.stringify(lines.map(l => ({
+                  invoice_id: newInv.id, nome_fattura: l.desc, quantita: l.qty, unita: l.um,
+                  prezzo_unitario: isNC ? -Math.abs(l.pu) : l.pu,
+                  prezzo_totale: isNC ? -Math.abs(l.pt) : l.pt, stato_match: 'non_abbinato' }))) })
+            }
+            imported++
+          } catch { errors++ }
+        }
+        return res.status(200).json({
+          imported, skipped, errors,
+          hasNext: resp.page?.hasNext || false,
+          continuationToken: resp.page?.continuationToken || null,
+        })
+      }
+
       // ─── CiC Legacy: lista fatture da entrambi i salespoint ───────
       case 'list': {
         if (!sessionCookie) return res.status(400).json({ error: 'sessionCookie required', needsSession: true })
