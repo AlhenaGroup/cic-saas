@@ -52,72 +52,171 @@ export default function WarehouseModule({ sp, sps }) {
   </>
 }
 
-// Prodotti venduti su CiC (da daily_stats cat_records)
-import { useState as useState2, useEffect, useCallback } from 'react'
+// Prodotti venduti su CiC (da daily_stats receipt_details)
+import { useState as useState2, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { ScatterChart, Scatter, XAxis as SX, YAxis as SY, CartesianGrid as SCG, Tooltip as ST, ResponsiveContainer as SRC, ReferenceLine as SRL, Cell, Label } from 'recharts'
 import { Card, KPI, fmt, fmtD, fmtN } from '../components/shared/styles.jsx'
+
+const SORT_OPTIONS = [
+  { key: 'qty_desc', label: 'Più venduti' },
+  { key: 'qty_asc', label: 'Meno venduti' },
+  { key: 'revenue_desc', label: 'Incasso più alto' },
+  { key: 'mol_desc', label: 'Margine più alto' },
+  { key: 'mol_asc', label: 'Margine più basso' },
+  { key: 'fc_desc', label: 'Food cost % più alto' },
+  { key: 'fc_asc', label: 'Food cost % più basso' },
+  { key: 'name_asc', label: 'Nome A→Z' },
+]
 
 function ProdottiCiC({ sp, sps }) {
   const [products, setProducts] = useState2([])
   const [loading, setLoading] = useState2(false)
+  const [sortBy, setSortBy] = useState2('qty_desc')
 
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps?.find(s => String(s.id) === String(sp))?.description || null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    let query = supabase.from('daily_stats').select('cat_records, dept_records, salespoint_name')
+    let query = supabase.from('daily_stats').select('receipt_details, cat_records, salespoint_name')
     if (sp && sp !== 'all') {
       const asNum = Number(sp)
       if (!Number.isNaN(asNum) && String(asNum) === String(sp)) query = query.eq('salespoint_id', asNum)
       else if (selectedLocaleName) query = query.eq('salespoint_name', selectedLocaleName)
     }
     const { data: rows } = await query
-    // Aggrega categorie vendute
-    const catMap = {}
+    // Aggrega per singolo prodotto dai receipt_details
+    const prodMap = {}
     ;(rows || []).forEach(row => {
-      ;(row.cat_records || []).forEach(rec => {
-        const name = rec.description || rec.idCategory || 'Altro'
-        if (!catMap[name]) catMap[name] = { name, revenue: 0, qty: 0, days: 0 }
-        catMap[name].revenue += Number(rec.profit) || 0
-        catMap[name].qty += Number(rec.quantity) || 0
-        catMap[name].days++
+      ;(row.receipt_details || []).forEach(receipt => {
+        ;(receipt.items || []).forEach(item => {
+          const name = item.description || 'Sconosciuto'
+          const cat = item.category?.description || item.department?.description || '—'
+          const price = Number(item.totalPrice) || 0
+          const qty = Number(item.quantity) || 1
+          if (!prodMap[name]) prodMap[name] = { name, category: cat, revenue: 0, qty: 0, avgPrice: 0, costo: 0, mol: 0, fcPct: 0 }
+          prodMap[name].revenue += price
+          prodMap[name].qty += qty
+          // Aggiorna categoria se mancante
+          if (prodMap[name].category === '—' && cat !== '—') prodMap[name].category = cat
+        })
       })
+      // Fallback: se non ci sono receipt_details, usa cat_records
+      if (!(row.receipt_details || []).length) {
+        ;(row.cat_records || []).forEach(rec => {
+          const name = rec.description || rec.idCategory || 'Altro'
+          if (!prodMap[name]) prodMap[name] = { name, category: '—', revenue: 0, qty: 0, avgPrice: 0, costo: 0, mol: 0, fcPct: 0 }
+          prodMap[name].revenue += Number(rec.profit) || 0
+          prodMap[name].qty += Number(rec.quantity) || 0
+        })
+      }
     })
-    const sorted = Object.values(catMap).sort((a, b) => b.revenue - a.revenue)
-    setProducts(sorted)
+    // Calcola prezzo medio
+    Object.values(prodMap).forEach(p => {
+      p.avgPrice = p.qty > 0 ? Math.round(p.revenue / p.qty * 100) / 100 : 0
+      // TODO: costo da ricette (per ora 0)
+      p.mol = p.avgPrice - p.costo
+      p.fcPct = p.avgPrice > 0 ? Math.round(p.costo / p.avgPrice * 10000) / 100 : 0
+    })
+    setProducts(Object.values(prodMap).filter(p => p.qty > 0))
     setLoading(false)
   }, [sp, selectedLocaleName])
 
   useEffect(() => { load() }, [load])
 
+  const sorted = useMemo(() => {
+    const list = [...products]
+    switch (sortBy) {
+      case 'qty_desc': return list.sort((a, b) => b.qty - a.qty)
+      case 'qty_asc': return list.sort((a, b) => a.qty - b.qty)
+      case 'revenue_desc': return list.sort((a, b) => b.revenue - a.revenue)
+      case 'mol_desc': return list.sort((a, b) => b.mol - a.mol)
+      case 'mol_asc': return list.sort((a, b) => a.mol - b.mol)
+      case 'fc_desc': return list.sort((a, b) => b.fcPct - a.fcPct)
+      case 'fc_asc': return list.sort((a, b) => a.fcPct - b.fcPct)
+      case 'name_asc': return list.sort((a, b) => a.name.localeCompare(b.name))
+      default: return list
+    }
+  }, [products, sortBy])
+
   const totalRevenue = products.reduce((s, p) => s + p.revenue, 0)
   const totalQty = products.reduce((s, p) => s + p.qty, 0)
 
-  return <Card title="Prodotti venduti su Cassa in Cloud" badge={loading ? '...' : products.length + ' categorie'}>
-    {loading && <div style={{ padding: 20, textAlign: 'center', color: '#64748b' }}>Caricamento...</div>}
-    {!loading && products.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#475569' }}>Nessun dato vendite. Sincronizza i dati CiC.</div>}
-    {products.length > 0 && <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
-        <KPI label="Categorie" icon="🍕" value={products.length} accent="#F59E0B" />
-        <KPI label="Ricavi totali" icon="💰" value={fmtD(totalRevenue)} accent="#10B981" />
-        <KPI label="Pezzi venduti" icon="📦" value={fmtN(totalQty)} accent="#3B82F6" />
+  // Matrice Eisenhower: vendite (x) × margine (y)
+  const medianQty = products.length > 0 ? [...products].sort((a, b) => a.qty - b.qty)[Math.floor(products.length / 2)]?.qty || 1 : 1
+  const medianMol = products.length > 0 ? [...products].sort((a, b) => a.mol - b.mol)[Math.floor(products.length / 2)]?.mol || 0 : 0
+  const matrixData = products.map(p => ({
+    name: p.name, x: p.qty, y: p.mol,
+    quadrant: p.qty >= medianQty ? (p.mol >= medianMol ? 'star' : 'review') : (p.mol >= medianMol ? 'niche' : 'drop'),
+  }))
+  const quadColors = { star: '#10B981', review: '#F59E0B', niche: '#3B82F6', drop: '#EF4444' }
+
+  return <>
+    {/* Matrice Eisenhower */}
+    {products.length > 5 && <Card title="Matrice Prodotti — Vendite × Margine">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 8, fontSize: 10 }}>
+        <span style={{ color: '#F59E0B', textAlign: 'right', paddingRight: 8 }}>⚠ Alto vendente / Basso margine</span>
+        <span style={{ color: '#10B981' }}>⭐ Alto vendente / Alto margine</span>
+        <span style={{ color: '#EF4444', textAlign: 'right', paddingRight: 8 }}>✗ Basso vendente / Basso margine</span>
+        <span style={{ color: '#3B82F6' }}>💎 Basso vendente / Alto margine</span>
       </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-          {['Categoria', 'Ricavi', '% su totale', 'Quantita', 'Giorni vendita'].map(h => <th key={h} style={S.th}>{h}</th>)}
-        </tr></thead>
-        <tbody>
-          {products.map((p, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid #1a1f2e' }}>
-              <td style={{ ...S.td, fontWeight: 600 }}>{p.name}</td>
-              <td style={{ ...S.td, fontWeight: 600, color: '#10B981' }}>{fmtD(p.revenue)}</td>
-              <td style={{ ...S.td, color: '#94a3b8' }}>{totalRevenue > 0 ? (p.revenue / totalRevenue * 100).toFixed(1) + '%' : '—'}</td>
-              <td style={S.td}>{fmtN(p.qty)}</td>
-              <td style={{ ...S.td, color: '#64748b' }}>{p.days}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>}
-  </Card>
+      <div style={{ width: '100%', height: 320 }}>
+        <SRC>
+          <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+            <SCG stroke="#1a1f2e" />
+            <SX type="number" dataKey="x" name="Quantità venduta" stroke="#64748b" fontSize={10}>
+              <Label value="Quantità venduta →" position="bottom" offset={0} fill="#64748b" fontSize={10} />
+            </SX>
+            <SY type="number" dataKey="y" name="Margine €" stroke="#64748b" fontSize={10}>
+              <Label value="Margine € →" angle={-90} position="left" offset={-5} fill="#64748b" fontSize={10} />
+            </SY>
+            <ST contentStyle={{ background: '#0f1420', border: '1px solid #2a3042', fontSize: 11 }} formatter={(v, name) => [name === 'Quantità venduta' ? fmtN(v) : fmtD(v), name]} labelFormatter={() => ''} />
+            <SRL x={medianQty} stroke="#2a3042" strokeDasharray="3 3" />
+            <SRL y={medianMol} stroke="#2a3042" strokeDasharray="3 3" />
+            <Scatter data={matrixData} nameKey="name">
+              {matrixData.map((d, i) => <Cell key={i} fill={quadColors[d.quadrant]} />)}
+            </Scatter>
+          </ScatterChart>
+        </SRC>
+      </div>
+    </Card>}
+
+    <Card title="Prodotti venduti" badge={loading ? '...' : products.length + ' prodotti'} extra={
+      <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+        style={{ ...S.input, fontSize: 11, padding: '4px 8px' }}>
+        {SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+      </select>
+    }>
+      {loading && <div style={{ padding: 20, textAlign: 'center', color: '#64748b' }}>Caricamento...</div>}
+      {!loading && products.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#475569' }}>Nessun dato vendite.</div>}
+      {sorted.length > 0 && <>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+          <KPI label="Prodotti" icon="🍕" value={products.length} accent="#F59E0B" />
+          <KPI label="Incasso totale" icon="💰" value={fmtD(totalRevenue)} accent="#10B981" />
+          <KPI label="Pezzi venduti" icon="📦" value={fmtN(totalQty)} accent="#3B82F6" />
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            {['Nome', 'Categoria', 'Prezzo vendita', 'Qty vendute', 'Incasso tot.', 'Costo', 'MOL', 'FC%'].map(h => <th key={h} style={{ ...S.th, fontSize: 10 }}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {sorted.map((p, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                <td style={{ ...S.td, fontWeight: 600, fontSize: 12 }}>{p.name}</td>
+                <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>{p.category}</td>
+                <td style={{ ...S.td, fontWeight: 500 }}>{fmtD(p.avgPrice)}</td>
+                <td style={S.td}>{fmtN(p.qty)}</td>
+                <td style={{ ...S.td, fontWeight: 600, color: '#10B981' }}>{fmtD(p.revenue)}</td>
+                <td style={{ ...S.td, color: '#64748b' }}>{p.costo > 0 ? fmtD(p.costo) : <span style={{ color: '#475569', fontSize: 10 }}>da ricette</span>}</td>
+                <td style={{ ...S.td, fontWeight: 600, color: p.mol > 0 ? '#10B981' : '#EF4444' }}>{p.costo > 0 ? fmtD(p.mol) : '—'}</td>
+                <td style={{ ...S.td, fontWeight: 600, color: p.fcPct > 35 ? '#EF4444' : p.fcPct > 25 ? '#F59E0B' : '#10B981' }}>{p.costo > 0 ? p.fcPct.toFixed(1) + '%' : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+      </>}
+    </Card>
+  </>
 }
