@@ -55,7 +55,7 @@ export default function WarehouseModule({ sp, sps }) {
 // Prodotti venduti su CiC (da daily_stats receipt_details)
 import { useState as useState2, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { ScatterChart, Scatter, XAxis as SX, YAxis as SY, CartesianGrid as SCG, Tooltip as ST, ResponsiveContainer as SRC, ReferenceLine as SRL, Cell, Label } from 'recharts'
+import { ScatterChart, Scatter, XAxis as SX, YAxis as SY, Tooltip as ST, ResponsiveContainer as SRC, Cell } from 'recharts'
 import { Card, KPI, fmt, fmtD, fmtN } from '../components/shared/styles.jsx'
 
 const SORT_OPTIONS = [
@@ -90,26 +90,16 @@ function ProdottiCiC({ sp, sps }) {
     ;(rows || []).forEach(row => {
       ;(row.receipt_details || []).forEach(receipt => {
         ;(receipt.items || []).forEach(item => {
-          const name = item.description || 'Sconosciuto'
-          const cat = item.category?.description || item.department?.description || '—'
-          const price = Number(item.totalPrice) || 0
-          const qty = Number(item.quantity) || 1
+          const name = item.nome || item.description || 'Sconosciuto'
+          const cat = item.reparto || item.department?.description || item.category?.description || '—'
+          const price = Number(item.prezzo) || Number(item.totalPrice) || 0
+          const qty = Number(item.qty) || Number(item.quantity) || 1
           if (!prodMap[name]) prodMap[name] = { name, category: cat, revenue: 0, qty: 0, avgPrice: 0, costo: 0, mol: 0, fcPct: 0 }
           prodMap[name].revenue += price
           prodMap[name].qty += qty
-          // Aggiorna categoria se mancante
           if (prodMap[name].category === '—' && cat !== '—') prodMap[name].category = cat
         })
       })
-      // Fallback: se non ci sono receipt_details, usa cat_records
-      if (!(row.receipt_details || []).length) {
-        ;(row.cat_records || []).forEach(rec => {
-          const name = rec.description || rec.idCategory || 'Altro'
-          if (!prodMap[name]) prodMap[name] = { name, category: '—', revenue: 0, qty: 0, avgPrice: 0, costo: 0, mol: 0, fcPct: 0 }
-          prodMap[name].revenue += Number(rec.profit) || 0
-          prodMap[name].qty += Number(rec.quantity) || 0
-        })
-      }
     })
     // Calcola prezzo medio
     Object.values(prodMap).forEach(p => {
@@ -152,29 +142,31 @@ function ProdottiCiC({ sp, sps }) {
   const quadColors = { star: '#10B981', review: '#F59E0B', niche: '#3B82F6', drop: '#EF4444' }
 
   return <>
-    {/* Matrice Eisenhower */}
+    {/* Matrice Eisenhower — 4 quadranti */}
     {products.length > 5 && <Card title="Matrice Prodotti — Vendite × Margine">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 8, fontSize: 10 }}>
-        <span style={{ color: '#F59E0B', textAlign: 'right', paddingRight: 8 }}>⚠ Alto vendente / Basso margine</span>
-        <span style={{ color: '#10B981' }}>⭐ Alto vendente / Alto margine</span>
-        <span style={{ color: '#EF4444', textAlign: 'right', paddingRight: 8 }}>✗ Basso vendente / Basso margine</span>
-        <span style={{ color: '#3B82F6' }}>💎 Basso vendente / Alto margine</span>
-      </div>
-      <div style={{ width: '100%', height: 320 }}>
+      <div style={{ position: 'relative', width: '100%', height: 380 }}>
+        {/* Sfondi quadranti */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: '50%', bottom: '50%', background: 'rgba(245,158,11,.06)', borderRight: '1px dashed #2a3042', borderBottom: '1px dashed #2a3042' }} />
+        <div style={{ position: 'absolute', top: 0, left: '50%', right: 0, bottom: '50%', background: 'rgba(16,185,129,.06)', borderBottom: '1px dashed #2a3042' }} />
+        <div style={{ position: 'absolute', top: '50%', left: 0, right: '50%', bottom: 0, background: 'rgba(239,68,68,.06)', borderRight: '1px dashed #2a3042' }} />
+        <div style={{ position: 'absolute', top: '50%', left: '50%', right: 0, bottom: 0, background: 'rgba(59,130,246,.06)' }} />
+        {/* Label quadranti */}
+        <div style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, color: '#F59E0B', fontWeight: 600, opacity: 0.8 }}>⚠ Alto vendente / Basso margine</div>
+        <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, color: '#10B981', fontWeight: 600, opacity: 0.8, textAlign: 'right' }}>⭐ Alto vendente / Alto margine</div>
+        <div style={{ position: 'absolute', bottom: 28, left: 8, fontSize: 10, color: '#EF4444', fontWeight: 600, opacity: 0.8 }}>✗ Basso vendente / Basso margine</div>
+        <div style={{ position: 'absolute', bottom: 28, right: 8, fontSize: 10, color: '#3B82F6', fontWeight: 600, opacity: 0.8, textAlign: 'right' }}>💎 Basso vendente / Alto margine</div>
+        {/* Assi label */}
+        <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: '#475569' }}>Margine → alto</div>
+        <div style={{ position: 'absolute', top: '50%', left: 4, transform: 'translateY(-50%) rotate(-90deg)', fontSize: 9, color: '#475569', transformOrigin: 'left center' }}>Vendite ↑</div>
         <SRC>
-          <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
-            <SCG stroke="#1a1f2e" />
-            <SX type="number" dataKey="x" name="Quantità venduta" stroke="#64748b" fontSize={10}>
-              <Label value="Quantità venduta →" position="bottom" offset={0} fill="#64748b" fontSize={10} />
-            </SX>
-            <SY type="number" dataKey="y" name="Margine €" stroke="#64748b" fontSize={10}>
-              <Label value="Margine € →" angle={-90} position="left" offset={-5} fill="#64748b" fontSize={10} />
-            </SY>
-            <ST contentStyle={{ background: '#0f1420', border: '1px solid #2a3042', fontSize: 11 }} formatter={(v, name) => [name === 'Quantità venduta' ? fmtN(v) : fmtD(v), name]} labelFormatter={() => ''} />
-            <SRL x={medianQty} stroke="#2a3042" strokeDasharray="3 3" />
-            <SRL y={medianMol} stroke="#2a3042" strokeDasharray="3 3" />
+          <ScatterChart margin={{ top: 30, right: 20, bottom: 25, left: 20 }}>
+            <SX type="number" dataKey="y" name="Margine €" stroke="#2a3042" fontSize={9} tick={{ fill: '#475569' }} />
+            <SY type="number" dataKey="x" name="Qty vendute" stroke="#2a3042" fontSize={9} tick={{ fill: '#475569' }} />
+            <ST contentStyle={{ background: '#0f1420', border: '1px solid #2a3042', fontSize: 11, zIndex: 10 }}
+              formatter={(v, name) => [name === 'Qty vendute' ? fmtN(v) : fmtD(v), name]}
+              labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ''} />
             <Scatter data={matrixData} nameKey="name">
-              {matrixData.map((d, i) => <Cell key={i} fill={quadColors[d.quadrant]} />)}
+              {matrixData.map((d, i) => <Cell key={i} fill={quadColors[d.quadrant]} fillOpacity={0.8} />)}
             </Scatter>
           </ScatterChart>
         </SRC>
