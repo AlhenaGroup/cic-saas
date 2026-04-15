@@ -5,7 +5,7 @@ import { S, Card, fmt } from '../shared/styles.jsx'
 const iS = S.input
 const formS = { ...iS, width: '100%', marginBottom: 8 }
 const MAGAZZINI = ['food', 'beverage', 'materiali', 'attrezzatura', 'altro']
-// Nomi fattura che non sono articoli di magazzino
+const TIPI_CONFEZIONE = ['Bottiglie', 'Fusto', 'Lattine', 'Cassa', 'Sacco', 'Confezione', 'Cartone', 'Pezzo', 'Altro']
 const ESCLUDI_PATTERNS = /^(spese|addebito|accredito|cauzioni?|arrotondamento|sconto|abbuono|contributo|imballo|trasporto|spedizione|contrassegno|bollo|rivalsa|interessi)/i
 
 export default function InvoiceManager({ sp, sps }) {
@@ -331,7 +331,44 @@ export default function InvoiceManager({ sp, sps }) {
       .replace(/\b\d+[\s.,]*\d*\s*(LT|KG|GR|ML|CL|PZ|BT|CF|CT|FS|VP|VAP|OW)\b/gi, '')
       .replace(/\b(LT|KG|GR|ML|CL|PZ|BT|CF|CT|FS|VP|VAP|OW)\b/gi, '')
       .replace(/\s{2,}/g, ' ').trim()
-    return { nome, qty, um, magazzino, escludi }
+    // Tipo confezione
+    let tipo = ''
+    if (/\bFS\b|\bFUSTO\b|\bFUSTI\b/i.test(d)) tipo = 'Fusto'
+    else if (/\bBT\b|\bVP\b|\bVAP\b|\bOW\b|\b\d+\s*CL\b|\b75\s*CL\b|\b\d+\s*ML\b/i.test(d)) tipo = 'Bottiglie'
+    else if (/\bLATT\b|\bCAN\b/i.test(d)) tipo = 'Lattine'
+    else if (/\bCF\b|\bCONF\b/i.test(d)) tipo = 'Confezione'
+    else if (/\bCT\b|\bCARTON/i.test(d)) tipo = 'Cartone'
+    else if (/\bSACCO\b|\bSACCH/i.test(d)) tipo = 'Sacco'
+    else if (um === 'KG') tipo = 'Confezione'
+    else if (um === 'PZ') tipo = 'Pezzo'
+    else tipo = 'Bottiglie'
+
+    // Totale UM: qty × capacità unitaria
+    let totaleUm = null
+    if (um === 'LT') {
+      // Cerca capacità unitaria (es. 75CL = 0.75L, 1LT, 20LT, 25CL)
+      const clMatch = d.match(/(\d+)\s*CL\b/i)
+      const ltMatch2 = d.match(/([\d.,]+)\s*LT?\b/i)
+      const mlMatch = d.match(/(\d+)\s*ML\b/i)
+      let unitCap = null
+      if (clMatch) unitCap = parseInt(clMatch[1]) / 100
+      else if (ltMatch2) unitCap = parseFloat(ltMatch2[1].replace(',', '.'))
+      else if (mlMatch) unitCap = parseInt(mlMatch[1]) / 1000
+      if (unitCap && qty) totaleUm = Math.round(qty * unitCap * 100) / 100
+      else if (unitCap) totaleUm = unitCap
+    } else if (um === 'KG') {
+      const kgM = d.match(/([\d.,]+)\s*KG\b/i)
+      const grM = d.match(/(\d+)\s*GR?\b/i)
+      let unitW = null
+      if (kgM) unitW = parseFloat(kgM[1].replace(',', '.'))
+      else if (grM) unitW = parseInt(grM[1]) / 1000
+      if (unitW && qty) totaleUm = Math.round(qty * unitW * 100) / 100
+      else if (unitW) totaleUm = unitW
+    } else if (um === 'PZ') {
+      totaleUm = qty || null
+    }
+
+    return { nome, qty, um, magazzino, escludi, tipo, totaleUm }
   }
 
   // Pre-popola suggerimenti all'import — compila nome, qty, UM, magazzino, escludi
@@ -347,11 +384,14 @@ export default function InvoiceManager({ sp, sps }) {
         if (rule.unita_default) upd.unita = rule.unita_default
         if (rule.magazzino) upd.magazzino = rule.magazzino
         if (rule.escludi_magazzino != null) upd.escludi_magazzino = rule.escludi_magazzino
+        if (rule.tipo_confezione_default) upd.tipo_confezione = rule.tipo_confezione_default
       } else {
         if (s.nome && !it.nome_articolo) upd.nome_articolo = s.nome
         if (s.um) upd.unita = s.um
         if (s.magazzino) upd.magazzino = s.magazzino
         if (s.escludi) upd.escludi_magazzino = true
+        if (s.tipo) upd.tipo_confezione = s.tipo
+        if (s.totaleUm != null) upd.totale_um = s.totaleUm
       }
       if (s.qty != null) upd.quantita = s.qty
       if (Object.keys(upd).length > 0) {
@@ -463,7 +503,7 @@ export default function InvoiceManager({ sp, sps }) {
                     <button onClick={async () => {
                       setLoading(true)
                       // Applica regole apprese a TUTTE le righe di TUTTE le fatture importate
-                      const { data: allItems } = await supabase.from('warehouse_invoice_items').select('id, nome_fattura, nome_articolo, unita, magazzino, escludi_magazzino')
+                      const { data: allItems } = await supabase.from('warehouse_invoice_items').select('id, nome_fattura, nome_articolo, unita, magazzino, escludi_magazzino, tipo_confezione')
                       let updated = 0
                       for (const it of (allItems || [])) {
                         const key = (it.nome_fattura || '').toLowerCase().trim()
@@ -474,6 +514,7 @@ export default function InvoiceManager({ sp, sps }) {
                         if (rule.unita_default && it.unita !== rule.unita_default) upd.unita = rule.unita_default
                         if (rule.magazzino && it.magazzino !== rule.magazzino) upd.magazzino = rule.magazzino
                         if (rule.escludi_magazzino != null && it.escludi_magazzino !== rule.escludi_magazzino) upd.escludi_magazzino = rule.escludi_magazzino
+                        if (rule.tipo_confezione_default && it.tipo_confezione !== rule.tipo_confezione_default) upd.tipo_confezione = rule.tipo_confezione_default
                         if (Object.keys(upd).length > 0) {
                           await supabase.from('warehouse_invoice_items').update(upd).eq('id', it.id)
                           updated++
@@ -494,17 +535,22 @@ export default function InvoiceManager({ sp, sps }) {
                   <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-                      {['Mag.', 'Descrizione fattura', 'Nome articolo', 'Qty', 'UM', 'P. unit.', 'Totale', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 9, padding: '5px 6px' }}>{h}</th>)}
+                      {['Mag.', 'Descrizione fattura', 'Nome articolo', 'Qty', 'Tipo', 'UM', 'TOT', 'P. unit.', 'Totale €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 9, padding: '4px 4px' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
-                      {items.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
+                      {items.length === 0 && <tr><td colSpan={10} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
                       {items.map(it => {
                         const suggestion = suggestFromDescription(it.nome_fattura, it.unita)
                         const rule = itemRules[(it.nome_fattura || '').toLowerCase().trim()]
                         const displayNome = it.nome_articolo || rule?.nome_articolo_default || suggestion?.nome || ''
                         const displayUm = it.unita || rule?.unita_default || suggestion?.um || ''
                         const displayMag = it.magazzino || rule?.magazzino || suggestion?.magazzino || 'food'
+                        const displayTipo = it.tipo_confezione || rule?.tipo_confezione_default || suggestion?.tipo || ''
                         const isExcluded = it.escludi_magazzino ?? rule?.escludi_magazzino ?? suggestion?.escludi ?? false
+                        // Calcola TOT
+                        const qty = parseFloat(it.quantita) || 0
+                        const sugTot = it.totale_um || suggestion?.totaleUm || null
+                        const displayTot = sugTot != null ? sugTot : (qty > 0 ? qty : '')
                         return <tr key={it.id} style={{ opacity: isExcluded ? 0.4 : 1, background: isExcluded ? 'rgba(239,68,68,.05)' : 'transparent' }}>
                           <td style={{ ...S.td, padding: '5px 6px' }}>
                             {isExcluded
@@ -532,34 +578,51 @@ export default function InvoiceManager({ sp, sps }) {
                               style={{ ...iS, fontSize: 10, padding: '3px 5px', width: '100%', fontWeight: 600, color: it.nome_articolo ? '#F59E0B' : '#8B5CF6' }}
                             />
                           </td>
-                          <td style={{ ...S.td, padding: '5px 6px' }}>
+                          <td style={{ ...S.td, padding: '4px 4px' }}>
                             <input type="number" step="0.01" value={it.quantita ?? ''}
                               onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, quantita: e.target.value } : x))}
-                              style={{ ...iS, fontSize: 10, padding: '3px 4px', width: 50, textAlign: 'center' }}
+                              style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 45, textAlign: 'center' }}
                             />
                           </td>
-                          <td style={{ ...S.td, padding: '5px 6px' }}>
+                          <td style={{ ...S.td, padding: '4px 4px' }}>
+                            <select value={displayTipo}
+                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, tipo_confezione: e.target.value } : x))}
+                              style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 75, color: '#e2e8f0' }}>
+                              <option value="">—</option>
+                              {TIPI_CONFEZIONE.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </td>
+                          <td style={{ ...S.td, padding: '4px 4px' }}>
                             <select value={displayUm}
                               onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, unita: e.target.value } : x))}
-                              style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 50, color: '#e2e8f0' }}>
+                              style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 45, color: '#e2e8f0' }}>
                               <option value="">—</option>
                               <option value="KG">KG</option>
                               <option value="LT">LT</option>
                               <option value="PZ">PZ</option>
                             </select>
                           </td>
-                          <td style={{ ...S.td, fontSize: 11, padding: '5px 6px' }}>{fmt(it.prezzo_unitario)}</td>
-                          <td style={{ ...S.td, fontWeight: 600, fontSize: 11, padding: '5px 6px' }}>{fmt(it.prezzo_totale)}</td>
+                          <td style={{ ...S.td, padding: '4px 4px' }}>
+                            <input type="number" step="0.01" value={it.totale_um ?? displayTot ?? ''}
+                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, totale_um: e.target.value } : x))}
+                              style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, textAlign: 'center', color: '#10B981' }}
+                            />
+                          </td>
+                          <td style={{ ...S.td, fontSize: 10, padding: '4px 4px', color: '#64748b' }}>{fmt(it.prezzo_unitario)}</td>
+                          <td style={{ ...S.td, fontWeight: 600, fontSize: 10, padding: '4px 4px' }}>{fmt(it.prezzo_totale)}</td>
                           <td style={{ ...S.td, padding: '5px 6px' }}>
                             <button onClick={async () => {
                               const nameToSave = it.nome_articolo || displayNome
                               const umToSave = it.unita || displayUm
                               const magToSave = it.magazzino || displayMag
+                              const tipoToSave = it.tipo_confezione || displayTipo
                               const exclToSave = it.escludi_magazzino ?? isExcluded
+                              const totToSave = parseFloat(it.totale_um) || parseFloat(displayTot) || 0
                               // Salva sulla riga
                               await supabase.from('warehouse_invoice_items').update({
                                 nome_articolo: nameToSave, quantita: parseFloat(it.quantita) || 0,
                                 unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave,
+                                tipo_confezione: tipoToSave, totale_um: totToSave,
                               }).eq('id', it.id)
                               // Memorizza regola per le prossime fatture
                               const key = (it.nome_fattura || '').toLowerCase().trim()
@@ -570,11 +633,12 @@ export default function InvoiceManager({ sp, sps }) {
                                     user_id: user.id, nome_fattura_pattern: key,
                                     nome_articolo_default: nameToSave, unita_default: umToSave,
                                     magazzino: magToSave, escludi_magazzino: exclToSave,
+                                    tipo_confezione_default: tipoToSave,
                                   }, { onConflict: 'user_id,nome_fattura_pattern' })
-                                  setItemRules(prev => ({ ...prev, [key]: { nome_articolo_default: nameToSave, unita_default: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave } }))
+                                  setItemRules(prev => ({ ...prev, [key]: { nome_articolo_default: nameToSave, unita_default: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione_default: tipoToSave } }))
                                 }
                               }
-                              setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, _saved: true } : x))
+                              setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione: tipoToSave, totale_um: totToSave, _saved: true } : x))
                               setTimeout(() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, _saved: false } : x)), 1500)
                             }} style={{ ...iS, background: it._saved ? '#10B981' : '#F59E0B', color: '#0f1420', border: 'none', padding: '3px 8px', fontWeight: 700, fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               {it._saved ? '✓' : '💾'}
