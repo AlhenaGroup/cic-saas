@@ -242,7 +242,8 @@ function ArticoliTab({ sp, sps }) {
     const artMap = {}
     ;(items || []).forEach(it => {
       if (it.escludi_magazzino) return
-      const nome = it.nome_articolo || it.nome_fattura
+      if (!it.nome_articolo) return // solo articoli associati
+      const nome = it.nome_articolo
       if (!nome) return
       const key = nome.toLowerCase().trim()
       if (!artMap[key]) artMap[key] = {
