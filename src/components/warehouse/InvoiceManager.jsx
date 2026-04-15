@@ -437,15 +437,17 @@ export default function InvoiceManager({ sp, sps }) {
                     </tr></thead>
                     <tbody>
                       {items.length === 0 && <tr><td colSpan={7} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
-                      {items.map(it => (
-                        <tr key={it.id}>
+                      {items.map(it => {
+                        // Se nome_articolo vuoto, suggerisci dal nome fattura
+                        const suggestion = !it.nome_articolo ? suggestFromDescription(it.nome_fattura, it.unita) : null
+                        const displayNome = it.nome_articolo || suggestion?.nome || ''
+                        return <tr key={it.id}>
                           <td style={{ ...S.td, fontSize: 11, padding: '6px 8px', color: '#94a3b8', maxWidth: 220 }}>{it.nome_fattura}</td>
                           <td style={{ ...S.td, padding: '6px 8px' }}>
                             <input
-                              value={it.nome_articolo || ''}
-                              placeholder="Nome articolo..."
+                              value={displayNome}
                               onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: e.target.value } : x))}
-                              style={{ ...iS, fontSize: 11, padding: '3px 6px', width: '100%', fontWeight: 600, color: it.nome_articolo ? '#F59E0B' : '#475569' }}
+                              style={{ ...iS, fontSize: 11, padding: '3px 6px', width: '100%', fontWeight: 600, color: it.nome_articolo ? '#F59E0B' : '#8B5CF6' }}
                             />
                           </td>
                           <td style={{ ...S.td, padding: '6px 8px' }}>
@@ -469,17 +471,18 @@ export default function InvoiceManager({ sp, sps }) {
                           <td style={{ ...S.td, fontWeight: 600, fontSize: 12, padding: '6px 8px' }}>{fmt(it.prezzo_totale)}</td>
                           <td style={{ ...S.td, padding: '6px 8px' }}>
                             <button onClick={async () => {
-                              await saveItemField(it.id, 'nome_articolo', it.nome_articolo || '')
+                              const nameToSave = it.nome_articolo || displayNome
+                              await saveItemField(it.id, 'nome_articolo', nameToSave)
                               await saveItemField(it.id, 'quantita', parseFloat(it.quantita) || 0)
-                              await saveItemField(it.id, 'unita', it.unita || '')
-                              setItems(prev => prev.map(x => x.id === it.id ? { ...x, _saved: true } : x))
+                              await saveItemField(it.id, 'unita', it.unita || suggestion?.um || '')
+                              setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, _saved: true } : x))
                               setTimeout(() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, _saved: false } : x)), 1500)
                             }} style={{ ...iS, background: it._saved ? '#10B981' : '#F59E0B', color: '#0f1420', border: 'none', padding: '3px 8px', fontWeight: 700, fontSize: 10, cursor: 'pointer' }}>
                               {it._saved ? '✓' : '💾'}
                             </button>
                           </td>
                         </tr>
-                      ))}
+                      })}
                     </tbody>
                   </table>
 
