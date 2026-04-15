@@ -275,54 +275,61 @@ export default function InvoiceManager({ sp, sps }) {
   }
 
   // Suggerisci nome articolo, qty reale e UM dalla descrizione fattura
-  const suggestFromDescription = (desc) => {
+  const suggestFromDescription = (desc, xmlUm) => {
     if (!desc) return { nome: '', qty: null, um: '' }
     const d = desc.toUpperCase()
-    // Pulisci codice prodotto iniziale (es. "G800 ", "119430 ")
-    let nome = desc.replace(/^[A-Z0-9]{2,8}\s+/, '').trim()
+    // Pulisci codice prodotto iniziale (es. "G800 ", "119430 ", "BIB ")
+    let nome = desc.replace(/^[A-Z0-9]{2,10}\s+/, '').trim()
     // Rileva UM dalla descrizione
     let um = ''
     if (/\d+\s*LT\b|\d+\s*LITRI?|\d+L\b/i.test(d)) um = 'LT'
     else if (/\d+\s*KG\b|\d+\s*KILO/i.test(d)) um = 'KG'
-    else if (/\d+\s*GR?\b|\d+\s*GRAMMI/i.test(d) && !/GROUP|GROU/i.test(d)) um = 'KG'
-    else if (/\bPZ\b|\bBT\b|\bCF\b|\bCT\b|\bFS\b|\bVP\b|\bVAP\b|\bOW\b|\bCL\b/i.test(d)) um = 'PZ'
-    // Rileva quantità reale (es. "6x1LT" → 6, "20 CL VP" con qty fattura=24 → 24)
+    else if (/\d+\s*GR\b|\d+\s*GRAMMI/i.test(d)) um = 'KG'
+    else if (/\bML\b|\bCL\b/i.test(d)) um = 'LT'
+    else if (/\bLT\b|\bLITR/i.test(d)) um = 'LT'
+    else if (/\bKG\b|\bKILO/i.test(d)) um = 'KG'
+    else if (/\bFS\b|\bFUSTO\b/i.test(d)) um = 'LT'
+    else if (/\bBT\b|\bVP\b|\bVAP\b|\bOW\b|\bCF\b|\bCT\b|\bPZ\b/i.test(d)) um = 'PZ'
+    // Fallback: usa UM dal XML se presente
+    if (!um && xmlUm) {
+      const u = xmlUm.toUpperCase()
+      if (u === 'LT' || u === 'L') um = 'LT'
+      else if (u === 'KG') um = 'KG'
+      else if (u === 'NR' || u === 'PZ' || u === 'N') um = 'PZ'
+    }
+    if (!um) um = 'PZ' // default PZ
+    // Rileva quantità reale
     let qty = null
-    const multiMatch = d.match(/(\d+)\s*[Xx]\s*[\d.,]+\s*(LT|KG|L|ML|CL)\b/i)
+    const multiMatch = d.match(/(\d+)\s*[Xx]\s*[\d.,]+/i)
     if (multiMatch) qty = parseInt(multiMatch[1])
     const ltMatch = d.match(/([\d.,]+)\s*LT\b/i)
-    if (ltMatch && !qty) {
-      const litri = parseFloat(ltMatch[1].replace(',', '.'))
-      if (litri > 0) qty = litri
-    }
+    if (ltMatch && !qty && um === 'LT') qty = parseFloat(ltMatch[1].replace(',', '.'))
     const kgMatch = d.match(/([\d.,]+)\s*KG\b/i)
-    if (kgMatch && !qty) {
-      const kg = parseFloat(kgMatch[1].replace(',', '.'))
-      if (kg > 0) qty = kg
-    }
-    // Pulisci nome: rimuovi codici, quantità, UM dal nome suggerito
-    nome = nome.replace(/\d+\s*[Xx]\s*[\d.,]+\s*(LT|KG|L|ML|CL|GR?)\b/gi, '')
-      .replace(/\b\d+\s*(LT|KG|GR?|ML|CL|PZ|BT|CF|CT|FS|VP|VAP|OW)\b/gi, '')
+    if (kgMatch && !qty && um === 'KG') qty = parseFloat(kgMatch[1].replace(',', '.'))
+    const lMatch = d.match(/\b(\d+)\s*LT?\s*FS\b/i)
+    if (lMatch && !qty) qty = parseInt(lMatch[1])
+    // Pulisci nome: rimuovi codici, quantità, UM
+    nome = nome
+      .replace(/\d+\s*[Xx]\s*[\d.,]+\s*(LT|KG|L|ML|CL|GR)?\b/gi, '')
+      .replace(/\b\d+[\s.,]*\d*\s*(LT|KG|GR|ML|CL|PZ|BT|CF|CT|FS|VP|VAP|OW)\b/gi, '')
+      .replace(/\b(LT|KG|GR|ML|CL|PZ|BT|CF|CT|FS|VP|VAP|OW)\b/gi, '')
       .replace(/\s{2,}/g, ' ').trim()
     return { nome, qty, um }
   }
 
-  // Pre-popola suggerimenti all'import
+  // Pre-popola suggerimenti all'import — compila sempre nome, qty, UM
   const applySmartDefaults = async (importedItems) => {
-    const updates = []
     for (const it of importedItems) {
-      if (it.nome_articolo) continue // già compilato
-      const s = suggestFromDescription(it.nome_fattura)
+      const s = suggestFromDescription(it.nome_fattura, it.unita)
       const upd = {}
-      if (s.nome) upd.nome_articolo = s.nome
+      if (s.nome && !it.nome_articolo) upd.nome_articolo = s.nome
       if (s.um) upd.unita = s.um
       if (s.qty != null) upd.quantita = s.qty
       if (Object.keys(upd).length > 0) {
-        updates.push({ id: it.id, ...upd })
         await supabase.from('warehouse_invoice_items').update(upd).eq('id', it.id)
       }
     }
-    if (updates.length > 0 && whInvoice) {
+    if (whInvoice) {
       const { data } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', whInvoice.id).order('id')
       setItems(data || [])
     }
@@ -436,7 +443,7 @@ export default function InvoiceManager({ sp, sps }) {
                           <td style={{ ...S.td, padding: '6px 8px' }}>
                             <input
                               value={it.nome_articolo || ''}
-                              placeholder="Nome interno..."
+                              placeholder="Nome articolo..."
                               onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: e.target.value } : x))}
                               style={{ ...iS, fontSize: 11, padding: '3px 6px', width: '100%', fontWeight: 600, color: it.nome_articolo ? '#F59E0B' : '#475569' }}
                             />
