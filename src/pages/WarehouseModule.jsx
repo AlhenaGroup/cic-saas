@@ -43,7 +43,7 @@ export default function WarehouseModule({ sp, sps }) {
     {tab === 'cruscotto'  && <WarehouseDashboard sp={sp} sps={sps} />}
     {tab === 'fatture'    && <InvoiceManager sp={sp} sps={sps} />}
     {tab === 'prodotti'   && <ProdottiCiC sp={sp} sps={sps} />}
-    {tab === 'articoli'   && <ProductManager sp={sp} sps={sps} />}
+    {tab === 'articoli'   && <ArticoliTab sp={sp} sps={sps} />}
     {tab === 'ricette'    && <RecipeManager sp={sp} sps={sps} />}
     {tab === 'giacenze'   && <StockView sp={sp} sps={sps} />}
     {tab === 'inventario' && <InventoryManager sp={sp} sps={sps} />}
@@ -214,4 +214,133 @@ function ProdottiCiC({ sp, sps }) {
       </>}
     </Card>
   </>
+}
+
+// ─── Tab Articoli: aggregati da warehouse_invoice_items ──────────────
+const ART_SORT = [
+  { key: 'name_asc', label: 'Nome A→Z' },
+  { key: 'qty_desc', label: 'Più acquistati' },
+  { key: 'spend_desc', label: 'Spesa più alta' },
+  { key: 'price_desc', label: 'Prezzo €/UM più alto' },
+  { key: 'price_asc', label: 'Prezzo €/UM più basso' },
+  { key: 'last_desc', label: 'Ultimo acquisto' },
+]
+const MAG_FILTERS = ['tutti', 'food', 'beverage', 'materiali', 'attrezzatura', 'altro']
+
+function ArticoliTab({ sp, sps }) {
+  const [articles, setArticles] = useState2([])
+  const [loading, setLoading] = useState2(false)
+  const [sortBy, setSortBy] = useState2('name_asc')
+  const [magFilter, setMagFilter] = useState2('tutti')
+  const [search, setSearch] = useState2('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const { data: items } = await supabase.from('warehouse_invoice_items')
+      .select('nome_articolo, nome_fattura, quantita, unita, prezzo_totale, magazzino, escludi_magazzino, tipo_confezione, qty_singola, totale_um, warehouse_invoices!inner(fornitore, data, locale)')
+    // Aggrega per nome_articolo
+    const artMap = {}
+    ;(items || []).forEach(it => {
+      if (it.escludi_magazzino) return
+      const nome = it.nome_articolo || it.nome_fattura
+      if (!nome) return
+      const key = nome.toLowerCase().trim()
+      if (!artMap[key]) artMap[key] = {
+        nome, magazzino: it.magazzino || 'food', unita: it.unita || '',
+        tipo: it.tipo_confezione || '', fornitori: new Set(),
+        totQty: 0, totUm: 0, totSpesa: 0, acquisti: 0, ultimaData: '',
+        prezzi: [],
+      }
+      const a = artMap[key]
+      a.fornitori.add(it.warehouse_invoices?.fornitore || '?')
+      a.totQty += Number(it.quantita) || 0
+      a.totUm += Number(it.totale_um) || 0
+      a.totSpesa += Math.abs(Number(it.prezzo_totale)) || 0
+      a.acquisti++
+      const data = it.warehouse_invoices?.data || ''
+      if (data > a.ultimaData) a.ultimaData = data
+      if (a.unita && !a.unita.trim()) a.unita = it.unita || ''
+      if (it.magazzino) a.magazzino = it.magazzino
+      // Prezzo per UM
+      const tot = Number(it.totale_um) || 0
+      const spesa = Math.abs(Number(it.prezzo_totale)) || 0
+      if (tot > 0 && spesa > 0) a.prezzi.push(spesa / tot)
+    })
+    const list = Object.values(artMap).map(a => ({
+      ...a,
+      fornitori: [...a.fornitori].join(', '),
+      prezzoMedio: a.prezzi.length > 0 ? a.prezzi.reduce((s, v) => s + v, 0) / a.prezzi.length : 0,
+      ultimoPrezzo: a.prezzi.length > 0 ? a.prezzi[a.prezzi.length - 1] : 0,
+    }))
+    setArticles(list)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const filtered = useMemo(() => {
+    let list = [...articles]
+    if (magFilter !== 'tutti') list = list.filter(a => a.magazzino === magFilter)
+    if (search) list = list.filter(a => a.nome.toLowerCase().includes(search.toLowerCase()) || a.fornitori.toLowerCase().includes(search.toLowerCase()))
+    switch (sortBy) {
+      case 'name_asc': return list.sort((a, b) => a.nome.localeCompare(b.nome))
+      case 'qty_desc': return list.sort((a, b) => b.totUm - a.totUm)
+      case 'spend_desc': return list.sort((a, b) => b.totSpesa - a.totSpesa)
+      case 'price_desc': return list.sort((a, b) => b.prezzoMedio - a.prezzoMedio)
+      case 'price_asc': return list.sort((a, b) => a.prezzoMedio - b.prezzoMedio)
+      case 'last_desc': return list.sort((a, b) => (b.ultimaData || '').localeCompare(a.ultimaData || ''))
+      default: return list
+    }
+  }, [articles, sortBy, magFilter, search])
+
+  const totArticoli = articles.length
+  const totSpesa = articles.reduce((s, a) => s + a.totSpesa, 0)
+
+  return <Card title="Articoli acquistati" badge={loading ? '...' : filtered.length + ' articoli'} extra={
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <input placeholder="🔍 Cerca..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...S.input, fontSize: 11, padding: '4px 8px', width: 140 }} />
+      <select value={magFilter} onChange={e => setMagFilter(e.target.value)} style={{ ...S.input, fontSize: 10, padding: '4px 6px' }}>
+        {MAG_FILTERS.map(m => <option key={m} value={m}>{m === 'tutti' ? 'Tutti i mag.' : m}</option>)}
+      </select>
+      <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...S.input, fontSize: 10, padding: '4px 6px' }}>
+        {ART_SORT.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+      </select>
+    </div>
+  }>
+    {loading && <div style={{ padding: 20, textAlign: 'center', color: '#64748b' }}>Caricamento...</div>}
+    {!loading && articles.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#475569' }}>Nessun articolo. Importa e associa le fatture nel tab Fatture.</div>}
+    {filtered.length > 0 && <>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+        <KPI label="Articoli" icon="📦" value={totArticoli} accent="#F59E0B" />
+        <KPI label="Spesa totale" icon="💰" value={fmtD(totSpesa)} accent="#EF4444" />
+        <KPI label="Fornitori" icon="🏭" value={new Set(articles.flatMap(a => a.fornitori.split(', '))).size} accent="#3B82F6" />
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          {['Nome articolo', 'Mag.', 'UM', 'Fornitori', 'Acquisti', 'Tot. qty', '€/UM medio', 'Ultimo €/UM', 'Spesa tot.', 'Ultimo acq.'].map(h => <th key={h} style={{ ...S.th, fontSize: 9 }}>{h}</th>)}
+        </tr></thead>
+        <tbody>
+          {filtered.map((a, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #1a1f2e' }}>
+              <td style={{ ...S.td, fontWeight: 600, fontSize: 12 }}>{a.nome}</td>
+              <td style={{ ...S.td, fontSize: 10 }}><span style={S.badge(
+                a.magazzino === 'beverage' ? '#3B82F6' : a.magazzino === 'food' ? '#F59E0B' : a.magazzino === 'materiali' ? '#8B5CF6' : '#64748b',
+                a.magazzino === 'beverage' ? 'rgba(59,130,246,.12)' : a.magazzino === 'food' ? 'rgba(245,158,11,.12)' : a.magazzino === 'materiali' ? 'rgba(139,92,246,.12)' : 'rgba(100,116,139,.12)'
+              )}>{a.magazzino}</span></td>
+              <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{a.unita}</td>
+              <td style={{ ...S.td, fontSize: 10, color: '#94a3b8', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.fornitori}</td>
+              <td style={{ ...S.td, fontSize: 11, textAlign: 'center' }}>{a.acquisti}</td>
+              <td style={{ ...S.td, fontSize: 11, fontWeight: 500 }}>{a.totUm > 0 ? (Number.isInteger(a.totUm) ? a.totUm : a.totUm.toFixed(1)) : fmtN(a.totQty)} {a.unita}</td>
+              <td style={{ ...S.td, fontSize: 11, color: '#F59E0B' }}>{a.prezzoMedio > 0 ? fmtD(Math.round(a.prezzoMedio * 100) / 100) + '/' + a.unita : '—'}</td>
+              <td style={{ ...S.td, fontSize: 11, color: a.ultimoPrezzo > a.prezzoMedio * 1.1 ? '#EF4444' : '#10B981' }}>{a.ultimoPrezzo > 0 ? fmtD(Math.round(a.ultimoPrezzo * 100) / 100) + '/' + a.unita : '—'}</td>
+              <td style={{ ...S.td, fontWeight: 600, fontSize: 11 }}>{fmtD(a.totSpesa)}</td>
+              <td style={{ ...S.td, fontSize: 10, color: '#64748b' }}>{a.ultimaData}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      </div>
+    </>}
+  </Card>
 }
