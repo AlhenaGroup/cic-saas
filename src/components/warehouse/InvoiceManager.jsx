@@ -596,7 +596,7 @@ export default function InvoiceManager({ sp, sps }) {
                   <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-                      {['Mag.', 'Descrizione fattura', 'Nome articolo', 'Qty', 'Tipo', 'Q.Sing.', 'UM', 'TOT', 'P. unit.', 'Tot. €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 8, padding: '4px 3px' }}>{h}</th>)}
+                      {['Mag.', 'Descrizione fattura', 'Nome articolo', 'Qty', 'Tipo', 'Q.Sing.', 'UM', 'TOT', '€/UM', 'Tot. €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 8, padding: '4px 3px' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
                       {items.length === 0 && <tr><td colSpan={11} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
@@ -687,7 +687,13 @@ export default function InvoiceManager({ sp, sps }) {
                               style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, textAlign: 'center', color: '#10B981' }}
                             />
                           </td>
-                          <td style={{ ...S.td, fontSize: 10, padding: '4px 4px', color: '#64748b' }}>{fmt(it.prezzo_unitario)}</td>
+                          <td style={{ ...S.td, fontSize: 10, padding: '4px 4px', color: '#64748b' }}>{(() => {
+                            // €/UM = prezzo_totale / totale_um (prezzo per LT/KG/PZ)
+                            const tot = parseFloat(it.totale_um ?? displayTot) || 0
+                            const prezzoTot = Math.abs(parseFloat(it.prezzo_totale) || 0)
+                            if (tot > 0 && prezzoTot > 0) return fmt(Math.round(prezzoTot / tot * 100) / 100) + '/' + (displayUm || '?')
+                            return '—'
+                          })()}</td>
                           <td style={{ ...S.td, fontWeight: 600, fontSize: 10, padding: '4px 4px' }}>{fmt(it.prezzo_totale)}</td>
                           <td style={{ ...S.td, padding: '5px 6px' }}>
                             <button onClick={async () => {
