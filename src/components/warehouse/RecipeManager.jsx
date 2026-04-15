@@ -147,10 +147,12 @@ export default function RecipeManager({ sp, sps }) {
 
   // Converti quantità in UM base per calcolo costo (g→KG, cl→LT)
   const toBaseUnit = (qty, um) => {
-    if (um === 'g') return { qty: qty / 1000, baseUm: 'KG' }
-    if (um === 'cl') return { qty: qty / 100, baseUm: 'LT' }
-    if (um === 'ml') return { qty: qty / 1000, baseUm: 'LT' }
-    return { qty, baseUm: um }
+    const q = Number(qty) || 0
+    const u = um || 'PZ'
+    if (u === 'g') return { qty: q / 1000, baseUm: 'KG' }
+    if (u === 'cl') return { qty: q / 100, baseUm: 'LT' }
+    if (u === 'ml') return { qty: q / 1000, baseUm: 'LT' }
+    return { qty: q, baseUm: u }
   }
 
   // Articoli filtrati per ricerca ingrediente
@@ -237,26 +239,29 @@ export default function RecipeManager({ sp, sps }) {
           <tbody>
             {ingredienti.length === 0 && <tr><td colSpan={6} style={{ ...S.td, color: '#475569', textAlign: 'center', fontSize: 12 }}>Nessun ingrediente. Cerca e aggiungi articoli.</td></tr>}
             {ingredienti.map((ig, idx) => {
-              const art = articles.find(a => a.nome.toLowerCase() === ig.nome_articolo.toLowerCase())
+              if (!ig || !ig.nome_articolo) return null
+              const art = articles.find(a => a.nome.toLowerCase() === (ig.nome_articolo || '').toLowerCase())
               const prezzoUmBase = art?.prezzoMedio || 0
               const igUm = ig.unita || art?.unita || 'PZ'
-              const { qty: qtyBase, baseUm } = toBaseUnit(ig.quantita || 0, igUm)
+              const { qty: qtyBase, baseUm } = toBaseUnit(ig.quantita, igUm)
               const costo = qtyBase * prezzoUmBase
-              // Mostra prezzo nella UM scelta (es. se scelgo g, mostra €/g non €/KG)
               let prezzoDisplay = '—'
-              if (prezzoUmBase > 0) {
-                if (igUm === 'g') prezzoDisplay = fmtD(Math.round(prezzoUmBase / 1000 * 10000) / 10000) + '/g'
-                else if (igUm === 'cl') prezzoDisplay = fmtD(Math.round(prezzoUmBase / 100 * 10000) / 10000) + '/cl'
-                else if (igUm === 'ml') prezzoDisplay = fmtD(Math.round(prezzoUmBase / 1000 * 10000) / 10000) + '/ml'
-                else prezzoDisplay = fmtD(Math.round(prezzoUmBase * 100) / 100) + '/' + baseUm
-              }
+              try {
+                if (prezzoUmBase > 0) {
+                  if (igUm === 'g') prezzoDisplay = fmtD(Math.round(prezzoUmBase / 1000 * 10000) / 10000) + '/g'
+                  else if (igUm === 'cl') prezzoDisplay = fmtD(Math.round(prezzoUmBase / 100 * 10000) / 10000) + '/cl'
+                  else if (igUm === 'ml') prezzoDisplay = fmtD(Math.round(prezzoUmBase / 1000 * 10000) / 10000) + '/ml'
+                  else prezzoDisplay = fmtD(Math.round(prezzoUmBase * 100) / 100) + '/' + baseUm
+                }
+              } catch { prezzoDisplay = '—' }
               return <tr key={idx} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 500, fontSize: 12 }}>{ig.nome_articolo}</td>
                 <td style={{ ...S.td, padding: '4px 6px' }}>
                   <input type="text" inputMode="decimal"
-                    defaultValue={ig.quantita || ''}
+                    key={selected.name + '-' + idx}
+                    defaultValue={ig.quantita ? String(ig.quantita) : ''}
                     onBlur={e => {
-                      const val = parseFloat(e.target.value.replace(',', '.')) || 0
+                      const val = parseFloat((e.target.value || '').replace(',', '.')) || 0
                       if (val !== (ig.quantita || 0)) updateIngredient(idx, 'quantita', val)
                     }}
                     onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
