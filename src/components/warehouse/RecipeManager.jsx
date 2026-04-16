@@ -17,6 +17,8 @@ export default function RecipeManager({ sp, sps }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('tutti') // tutti, con_ricetta, senza_ricetta
   const [ingredientSearch, setIngredientSearch] = useState('')
+  const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
+  const [saveError, setSaveError] = useState('')
 
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps?.find(s => String(s.id) === String(sp))?.description || null)
 
@@ -120,18 +122,28 @@ export default function RecipeManager({ sp, sps }) {
 
   // Salva ricetta
   const saveRecipe = async (prodName, ingr) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const prod = cicProducts.find(p => p.name === prodName)
-    await supabase.from('recipes').upsert({
-      user_id: user.id,
-      nome_prodotto: prodName,
-      reparto: prod?.reparto || '',
-      prezzo_vendita: prod?.avgPrice || 0,
-      ingredienti: ingr,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,nome_prodotto' })
-    setRecipes(prev => ({ ...prev, [prodName]: { ...prev[prodName], ingredienti: ingr, prezzo_vendita: prod?.avgPrice || 0 } }))
+    setSaveStatus('saving')
+    setSaveError('')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Utente non autenticato')
+      const prod = cicProducts.find(p => p.name === prodName)
+      const { error } = await supabase.from('recipes').upsert({
+        user_id: user.id,
+        nome_prodotto: prodName,
+        reparto: prod?.reparto || '',
+        prezzo_vendita: prod?.avgPrice || 0,
+        ingredienti: ingr,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,nome_prodotto' })
+      if (error) throw error
+      setRecipes(prev => ({ ...prev, [prodName]: { ...prev[prodName], ingredienti: ingr, prezzo_vendita: prod?.avgPrice || 0 } }))
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 2000)
+    } catch (e) {
+      setSaveError(e.message || 'Errore sconosciuto')
+      setSaveStatus('error')
+    }
   }
 
   // Aggiungi ingrediente
@@ -188,7 +200,7 @@ export default function RecipeManager({ sp, sps }) {
                 const fc = hasRecipe ? calcCost(rec.ingredienti) : 0
                 const pct = hasRecipe && p.avgPrice > 0 ? Math.round(fc / p.avgPrice * 10000) / 100 : 0
                 return <tr key={i}
-                  onClick={() => setSelected(selected?.name === p.name ? null : p)}
+                  onClick={() => { setSaveStatus('idle'); setSaveError(''); setSelected(selected?.name === p.name ? null : p) }}
                   style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: selected?.name === p.name ? '#131825' : 'transparent' }}>
                   <td style={{ ...S.td, fontWeight: 600, fontSize: 12 }}>{p.name}</td>
                   <td style={{ ...S.td, fontSize: 10, color: '#94a3b8' }}>{p.reparto}</td>
@@ -213,7 +225,18 @@ export default function RecipeManager({ sp, sps }) {
     {/* Editor ricetta */}
     {selected && <div style={{ flex: '1' }}>
       <Card title={`Ricetta: ${selected.name}`} extra={
-        <span style={{ fontSize: 11, color: '#94a3b8' }}>{selected.reparto} · {fmtD(selected.avgPrice)}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {saveStatus === 'saving' && (
+            <span style={{ fontSize: 11, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 4 }}>⏳ Salvando…</span>
+          )}
+          {saveStatus === 'saved' && (
+            <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>✓ Salvato</span>
+          )}
+          {saveStatus === 'error' && (
+            <span title={saveError} style={{ fontSize: 11, color: '#EF4444', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help' }}>⚠ Errore</span>
+          )}
+          <span style={{ fontSize: 11, color: '#94a3b8' }}>{selected.reparto} · {fmtD(selected.avgPrice)}</span>
+        </div>
       }>
         {/* KPI food cost */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
