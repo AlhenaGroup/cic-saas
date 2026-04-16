@@ -12,6 +12,79 @@ import ContoEconomico from '../components/ContoEconomico'
 import MonitoringTab from '../components/MonitoringTab'
 import IvaTab from '../components/IvaTab'
 
+// ─── Preset periodo globali (validi per tutti i moduli) ────────────────────
+const _ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+function _startOfWeekMonday(date) {
+  const d = new Date(date)
+  const day = d.getDay() || 7
+  if (day !== 1) d.setDate(d.getDate() - (day - 1))
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+function presetRange(name) {
+  const t = new Date()
+  if (name === 'oggi') return { from: _ymd(t), to: _ymd(t) }
+  if (name === 'ieri') {
+    const d = new Date(t); d.setDate(d.getDate() - 1)
+    return { from: _ymd(d), to: _ymd(d) }
+  }
+  if (name === 'sett_corr') {
+    const s = _startOfWeekMonday(t); const e = new Date(s); e.setDate(s.getDate() + 6)
+    return { from: _ymd(s), to: _ymd(e) }
+  }
+  if (name === 'sett_scorsa') {
+    const s = _startOfWeekMonday(t); s.setDate(s.getDate() - 7)
+    const e = new Date(s); e.setDate(s.getDate() + 6)
+    return { from: _ymd(s), to: _ymd(e) }
+  }
+  if (name === 'mese_corr') {
+    const y = t.getFullYear(), m = t.getMonth() + 1
+    const last = new Date(y, m, 0).getDate()
+    return { from: `${y}-${String(m).padStart(2, '0')}-01`, to: `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}` }
+  }
+  if (name === 'mese_scorso') {
+    const d = new Date(t.getFullYear(), t.getMonth() - 1, 1)
+    const y = d.getFullYear(), m = d.getMonth() + 1
+    const last = new Date(y, m, 0).getDate()
+    return { from: `${y}-${String(m).padStart(2, '0')}-01`, to: `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}` }
+  }
+  if (name === 'trim_corr') {
+    const q = Math.floor(t.getMonth() / 3) + 1, sm = (q - 1) * 3 + 1, em = sm + 2, y = t.getFullYear()
+    const last = new Date(y, em, 0).getDate()
+    return { from: `${y}-${String(sm).padStart(2, '0')}-01`, to: `${y}-${String(em).padStart(2, '0')}-${String(last).padStart(2, '0')}` }
+  }
+  if (name === 'trim_scorso') {
+    const cq = Math.floor(t.getMonth() / 3) + 1
+    let pq = cq - 1, py = t.getFullYear()
+    if (pq < 1) { pq = 4; py-- }
+    const sm = (pq - 1) * 3 + 1, em = sm + 2
+    const last = new Date(py, em, 0).getDate()
+    return { from: `${py}-${String(sm).padStart(2, '0')}-01`, to: `${py}-${String(em).padStart(2, '0')}-${String(last).padStart(2, '0')}` }
+  }
+  if (name === 'anno_corr') return { from: `${t.getFullYear()}-01-01`, to: `${t.getFullYear()}-12-31` }
+  if (name === 'anno_scorso') { const y = t.getFullYear() - 1; return { from: `${y}-01-01`, to: `${y}-12-31` } }
+  return null
+}
+const PERIOD_PRESETS = [
+  { key: 'oggi', label: 'Oggi' },
+  { key: 'ieri', label: 'Ieri' },
+  { key: 'sett_corr', label: 'Sett. corrente' },
+  { key: 'sett_scorsa', label: 'Sett. scorsa' },
+  { key: 'mese_corr', label: 'Mese in corso' },
+  { key: 'mese_scorso', label: 'Mese scorso' },
+  { key: 'trim_corr', label: 'Trim. corrente' },
+  { key: 'trim_scorso', label: 'Trim. scorso' },
+  { key: 'anno_corr', label: 'Anno in corso' },
+  { key: 'anno_scorso', label: 'Anno scorso' },
+]
+function activePresetKey(from, to) {
+  for (const p of PERIOD_PRESETS) {
+    const r = presetRange(p.key)
+    if (r && r.from === from && r.to === to) return p.key
+  }
+  return ''
+}
+
 export default function DashboardPage({ settings }) {
   const [token, setToken]         = useState(null)
   const [from,  setFrom]          = useState(() => localStorage.getItem('cic_from') || monthStart())
@@ -168,6 +241,13 @@ export default function DashboardPage({ settings }) {
       </div>
       <div style={{display:'flex',alignItems:'center',gap:8}}>
         {isDemo&&<span style={S.badge('#F59E0B','rgba(245,158,11,.12)')}>DEMO</span>}
+        <select value={activePresetKey(from, to)}
+          onChange={e=>{ const r = presetRange(e.target.value); if (r) { setFrom(r.from); setTo(r.to) } }}
+          style={{...iS,fontSize:12,paddingLeft:10}}
+          title="Preset periodo">
+          <option value="">📅 Personalizzato</option>
+          {PERIOD_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+        </select>
         <input type="date" value={from} onChange={e=>setFrom(e.target.value)} style={iS}/>
         <span style={{color:'#2a3042'}}>—</span>
         <input type="date" value={to}   onChange={e=>setTo(e.target.value)}   style={iS}/>
