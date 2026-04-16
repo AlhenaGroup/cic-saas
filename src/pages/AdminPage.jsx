@@ -134,6 +134,17 @@ function UsersList({ onEditUser, refreshKey }) {
   </>
 }
 
+// IMPORTANTE: Field deve stare FUORI da NewUser, altrimenti ogni render
+// lo ricrea come "nuovo componente" e React rimonta gli input perdendo il focus.
+function Field({ label, hint, children }) {
+  return <label style={{ display: 'block', marginBottom: 12 }}>
+    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+      {label} {hint && <span style={{ color: '#64748b', fontWeight: 400 }}>· {hint}</span>}
+    </div>
+    {children}
+  </label>
+}
+
 function NewUser({ onClose, onCreated }) {
   const [email, setEmail] = useState('')
   const [planId, setPlanId] = useState('')
@@ -192,15 +203,6 @@ function NewUser({ onClose, onCreated }) {
     } catch (e) { alert('Errore: ' + e.message) }
     setCreating(false)
   }
-
-  const Field = ({ label, hint, children }) => (
-    <label style={{ display: 'block', marginBottom: 12 }}>
-      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
-        {label} {hint && <span style={{ color: '#64748b', fontWeight: 400 }}>· {hint}</span>}
-      </div>
-      {children}
-    </label>
-  )
 
   return <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, overflow: 'auto', padding: 24 }}>
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720, maxHeight: '92vh', overflow: 'auto' }}>
