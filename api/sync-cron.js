@@ -454,11 +454,16 @@ async function getMissingDays(numDays = 7) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  
-  // Sicurezza: solo Vercel Cron o richieste autorizzate
-  const authHeader = req.headers['authorization'];
+
+  // Auth: cron Vercel | CRON_SECRET | apiKey CiC nota (per sync on-demand dal client)
+  const authHeader = req.headers['authorization'] || '';
   const cronHeader = req.headers['x-vercel-cron'];
-  if (!cronHeader && authHeader !== 'Bearer ' + (process.env.CRON_SECRET || 'cic-sync-2026')) {
+  const clientApiKey = req.query?.apiKey || (authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '');
+  const validApiKeys = SALESPOINTS.map(s => s.apiKey).filter(Boolean);
+  const isCron = !!cronHeader;
+  const isCronSecret = authHeader === 'Bearer ' + (process.env.CRON_SECRET || 'cic-sync-2026');
+  const isClientKey = validApiKeys.includes(clientApiKey);
+  if (!isCron && !isCronSecret && !isClientKey) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -466,8 +471,21 @@ export default async function handler(req, res) {
   let saved = 0, errors = 0;
 
   try {
-    const numDays = parseInt(req.query?.days) || 7;
-    const days = await getMissingDays(numDays);
+    // Range custom (from/to) per sync on-demand, oppure ultimi N giorni (default cron)
+    let days;
+    const qFrom = req.query?.from, qTo = req.query?.to;
+    if (qFrom && qTo) {
+      days = [];
+      const start = new Date(qFrom), end = new Date(qTo);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        days.push(d.toISOString().split('T')[0]);
+      }
+      // Limita a 60 giorni per sicurezza (timeout Vercel)
+      if (days.length > 60) days = days.slice(-60);
+    } else {
+      const numDays = parseInt(req.query?.days) || 7;
+      days = await getMissingDays(numDays);
+    }
     logs.push(`Sync ${days.length} giorni per ${SALESPOINTS.length} locali`);
 
     for (const sp of SALESPOINTS) {

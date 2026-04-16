@@ -190,6 +190,17 @@ export default function DashboardPage({ settings }) {
   const fat    = data?.fatture||[]
   const ce     = data?.ce||{}
   const isDemo = data?.isDemo===true
+  const isEmpty = data?.isEmpty===true
+  const isLive = data?.isLive===true
+  const [syncing, setSyncing] = useState(false)
+  const forceSync = useCallback(async () => {
+    if (!settings?.cic_api_key) return
+    setSyncing(true)
+    try {
+      await fetch(`/api/sync-cron?apiKey=${encodeURIComponent(settings.cic_api_key)}&from=${from}&to=${to}`)
+      await load()
+    } finally { setSyncing(false) }
+  }, [settings?.cic_api_key, from, to, load])
 
   // ─── Marketing tasks urgent badge ────────────────────────────────────────
   const [mktUrgentCount, setMktUrgentCount] = useState(0)
@@ -240,7 +251,8 @@ export default function DashboardPage({ settings }) {
         </select>}
       </div>
       <div style={{display:'flex',alignItems:'center',gap:8}}>
-        {isDemo&&<span style={S.badge('#F59E0B','rgba(245,158,11,.12)')}>DEMO</span>}
+        {isLive&&<span style={S.badge('#3B82F6','rgba(59,130,246,.12)')} title="Dati live da CiC, non ancora salvati su DB">LIVE</span>}
+        {isEmpty&&<span style={S.badge('#94a3b8','rgba(148,163,184,.12)')} title="Nessun dato in questo periodo">VUOTO</span>}
         <select value={activePresetKey(from, to)}
           onChange={e=>{ const r = presetRange(e.target.value); if (r) { setFrom(r.from); setTo(r.to) } }}
           style={{...iS,fontSize:12,paddingLeft:10}}
@@ -282,6 +294,11 @@ export default function DashboardPage({ settings }) {
         <span style={{color:'#2a3042'}}>—</span>
         <input type="date" value={to2}   onChange={e=>setTo2(e.target.value)}   style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta al"/>
         <button onClick={load} style={{...iS,background:'#F59E0B',color:'#0f1420',fontWeight:600,border:'none',padding:'6px 16px'}}>Aggiorna</button>
+        <button onClick={forceSync} disabled={syncing}
+          style={{...iS,background:syncing?'#1a1f2e':'#10B981',color:syncing?'#94a3b8':'#0f1420',fontWeight:600,border:'none',padding:'6px 12px',cursor:syncing?'wait':'pointer'}}
+          title="Forza sync dati CiC nel periodo">
+          {syncing?'⏳':'🔄'}
+        </button>
         <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'#475569',border:'1px solid #2a3042',padding:'6px 12px'}}>Esci</button>
       </div>
     </div>
@@ -301,8 +318,12 @@ export default function DashboardPage({ settings }) {
 
     <div style={{padding:'1.5rem',maxWidth:1400,margin:'0 auto'}}>
       {error&&<div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.25)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#FCA5A5',marginBottom:'1.5rem'}}>{error}</div>}
-      {isDemo&&<div style={{background:'rgba(245,158,11,.06)',border:'1px solid rgba(245,158,11,.15)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'#D97706',marginBottom:'1.25rem'}}>
-        ⚡ Modalità demo — dati simulati. Quando CiC abilita l'API, si aggiornano automaticamente.
+      {isEmpty&&<div style={{background:'rgba(148,163,184,.06)',border:'1px solid rgba(148,163,184,.2)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#94a3b8',marginBottom:'1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+        <span>📭 Nessun dato in questo periodo. Il sync notturno potrebbe non aver ancora processato queste date.</span>
+        <button onClick={forceSync} disabled={syncing} style={{...iS,background:syncing?'#1a1f2e':'#10B981',color:syncing?'#94a3b8':'#0f1420',fontWeight:600,border:'none',padding:'6px 14px',cursor:syncing?'wait':'pointer'}}>{syncing?'⏳ Sync in corso…':'🔄 Forza sync ora'}</button>
+      </div>}
+      {isLive&&<div style={{background:'rgba(59,130,246,.06)',border:'1px solid rgba(59,130,246,.2)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'#60A5FA',marginBottom:'1.25rem'}}>
+        🔵 Dati live da CiC (non ancora salvati nel DB). Il sync notturno li archivierà automaticamente.
       </div>}
 
       {loading?<Loader/>:<>

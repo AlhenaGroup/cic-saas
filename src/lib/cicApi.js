@@ -142,10 +142,61 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
   };
 }
 
+// Sync on-demand: chiama /api/sync-cron per riempire daily_stats nel range
+// Usato quando il client apre un periodo non ancora sincronizzato dal cron notturno
+export async function syncOnDemand(apiKey, from, to) {
+  try {
+    const url = `/api/sync-cron?apiKey=${encodeURIComponent(apiKey)}&from=${from}&to=${to}`;
+    const r = await fetch(url, { method: 'GET' });
+    return r.ok ? await r.json() : { error: 'sync failed: ' + r.status };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+// Verifica quali giorni sono mancanti in daily_stats per un range/salesPoints
+async function findMissingDays(from, to, idsSalesPoint = []) {
+  let q = supabase.from('daily_stats').select('date, salespoint_id').gte('date', from).lte('date', to);
+  if (idsSalesPoint?.length) q = q.in('salespoint_id', idsSalesPoint);
+  const { data: rows } = await q;
+  const have = new Set((rows || []).map(r => `${r.salespoint_id}|${typeof r.date === 'string' ? r.date.substring(0,10) : r.date}`));
+  const missing = [];
+  const start = new Date(from), end = new Date(to);
+  const sps = idsSalesPoint?.length ? idsSalesPoint : [null];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const ds = d.toISOString().split('T')[0];
+    for (const sp of sps) {
+      if (sp === null) {
+        if (!have.has(`${sp}|${ds}`) && rows.every(r => (typeof r.date === 'string' ? r.date.substring(0,10) : r.date) !== ds)) {
+          missing.push(ds); break;
+        }
+      } else {
+        if (!have.has(`${sp}|${ds}`)) missing.push(ds);
+      }
+    }
+  }
+  return missing;
+}
+
 export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPoints = []) {
   // Prima prova daily_stats (dati esatti)
   try {
-    const daily = await getFromDailyStats(from, to, idsSalesPoint);
+    let daily = await getFromDailyStats(from, to, idsSalesPoint);
+    // Se non abbiamo dati o il periodo recente non e' stato sincronizzato, sync on-demand
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+    if (to >= sevenDaysAgo) {
+      const missing = await findMissingDays(from, to, idsSalesPoint);
+      // Sync solo dei giorni mancanti recenti (ultimi 30gg) per evitare fetch enormi
+      const recentMissing = missing.filter(d => d >= new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0] && d <= todayStr);
+      if (recentMissing.length > 0) {
+        const syncFrom = recentMissing[0];
+        const syncTo = recentMissing[recentMissing.length - 1];
+        await syncOnDemand(apiKey, syncFrom, syncTo);
+        // Rilegge dopo il sync
+        daily = await getFromDailyStats(from, to, idsSalesPoint);
+      }
+    }
     if (daily && daily.totale > 0) {
       const demo = generateDemoData(from, to, salesPoints);
       const result = { ...demo, ...daily };
@@ -208,21 +259,75 @@ export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPo
     }
   } catch(e) { console.warn('[daily_stats]', e.message); }
 
-  // Poi receipts live CiC
+  // Fallback: receipts live CiC (aggregazione completa, niente dati DEMO mescolati)
   try {
-    const params = { datetimeFrom: from+'T00:00:00.000', datetimeTo: to+'T23:59:59.999', start:0, limit:100 };
+    const params = { datetimeFrom: from+'T00:00:00.000', datetimeTo: to+'T23:59:59.999', start:0, limit:500 };
     if (idsSalesPoint?.length) params.idsSalesPoint = JSON.stringify(idsSalesPoint);
     const d = await proxyCall(apiKey, 'receipts', params);
     if (Array.isArray(d.receipts) && d.receipts.length > 0) {
       const receipts = d.receipts;
-      const deptMap={},catMap={},taxMap={};let totale=0;
-      receipts.forEach(r=>{totale+=r.totalPrice||0;(r.items||[]).forEach(item=>{const dept=item.department?.description||'Altro',cat=item.category?.description||'Altro',rate=item.tax?.rate??0,price=item.totalPrice||0;deptMap[dept]=deptMap[dept]||{profit:0,qty:0};deptMap[dept].profit+=price;deptMap[dept].qty+=item.quantity||1;catMap[cat]=(catMap[cat]||0)+price;taxMap[rate]=taxMap[rate]||{taxable:0,tax_amount:0};taxMap[rate].taxable+=price/(1+rate/100);taxMap[rate].tax_amount+=price-price/(1+rate/100);});});
-      const demo=generateDemoData(from,to,salesPoints);
-      return{totale,scontrini:receipts.length,medio:receipts.length?totale/receipts.length:0,depts:Object.entries(deptMap).map(([k,v])=>({description:k,...v})).sort((a,b)=>b.profit-a.profit),cats:Object.entries(catMap).map(([k,v])=>({description:k,total:v})).sort((a,b)=>b.total-a.total),taxes:Object.entries(taxMap).map(([k,v])=>({rate:Number(k),...v})),trend:demo.trend,topProducts:demo.topProducts,scontriniList:demo.scontriniList,prodOre:demo.prodOre,suspicious:demo.suspicious,fatture:demo.fatture,ce:demo.ce,isDemo:false};
+      const deptMap = {}, catMap = {}, taxMap = {}, trendMap = {}, hourlyMap = {}, prodMap = {};
+      let totale = 0;
+      receipts.forEach(r => {
+        const price = r.totalPrice || 0;
+        totale += price;
+        const dt = r.datetime || r.createdAt || ''
+        const dStr = dt ? dt.substring(0, 10) : ''
+        const hr = dt ? parseInt(dt.substring(11, 13)) : -1
+        if (dStr) {
+          if (!trendMap[dStr]) trendMap[dStr] = { date: dStr, ricavi: 0, scontrini: 0, coperti: 0 }
+          trendMap[dStr].ricavi += price
+          trendMap[dStr].scontrini += 1
+        }
+        if (hr >= 0) {
+          if (!hourlyMap[hr]) hourlyMap[hr] = { ora: String(hr).padStart(2, '0') + ':00', ricavi: 0, scontrini: 0 }
+          hourlyMap[hr].ricavi += price
+          hourlyMap[hr].scontrini += 1
+        }
+        ;(r.items || []).forEach(item => {
+          const dept = item.department?.description || 'Altro'
+          const cat = item.category?.description || 'Altro'
+          const rate = item.tax?.rate ?? 0
+          const ip = item.totalPrice || 0
+          const qty = item.quantity || 1
+          if (!deptMap[dept]) deptMap[dept] = { profit: 0, qty: 0 }
+          deptMap[dept].profit += ip; deptMap[dept].qty += qty
+          catMap[cat] = (catMap[cat] || 0) + ip
+          if (!taxMap[rate]) taxMap[rate] = { taxable: 0, tax_amount: 0 }
+          taxMap[rate].taxable += ip / (1 + rate / 100)
+          taxMap[rate].tax_amount += ip - ip / (1 + rate / 100)
+          const pname = item.description || item.name || 'Sconosciuto'
+          if (!prodMap[pname]) prodMap[pname] = { name: pname, qty: 0, revenue: 0 }
+          prodMap[pname].qty += qty; prodMap[pname].revenue += ip
+        })
+      })
+      const trend = Object.values(trendMap).sort((a, b) => a.date.localeCompare(b.date))
+        .map(t => ({ ...t, label: new Date(t.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) }))
+      const prodOre = Array.from({ length: 24 }, (_, h) => hourlyMap[h] || { ora: String(h).padStart(2, '0') + ':00', ricavi: 0, scontrini: 0 })
+      const topProducts = Object.values(prodMap).sort((a, b) => b.revenue - a.revenue).slice(0, 20)
+      return {
+        totale,
+        scontrini: receipts.length,
+        medio: receipts.length ? totale / receipts.length : 0,
+        depts: Object.entries(deptMap).map(([k, v]) => ({ description: k, ...v })).sort((a, b) => b.profit - a.profit),
+        cats: Object.entries(catMap).map(([k, v]) => ({ description: k, total: v })).sort((a, b) => b.total - a.total),
+        taxes: Object.entries(taxMap).map(([k, v]) => ({ rate: Number(k), ...v })),
+        trend, topProducts, prodOre,
+        scontriniList: [], suspicious: [], fatture: [],
+        ce: { ricavi: totale, foodCost: 0, bevCost: 0, matCost: 0, persCost: 0, strCost: 0, altCost: 0, totCosti: 0, mol: totale, molPct: 100 },
+        isDemo: false, isLive: true,
+      }
     }
-  } catch(e) { console.warn('[CiC]', e.message); }
+  } catch (e) { console.warn('[CiC live]', e.message); }
 
-  return generateDemoData(from, to, salesPoints);
+  // Nessun dato disponibile: ritorna struttura vuota (NO DEMO)
+  return {
+    totale: 0, scontrini: 0, medio: 0, coperti: 0, copertoMedio: 0,
+    depts: [], cats: [], taxes: [], trend: [], topProducts: [],
+    scontriniList: [], prodOre: [], suspicious: [], fatture: [],
+    ce: { ricavi: 0, foodCost: 0, bevCost: 0, matCost: 0, persCost: 0, strCost: 0, altCost: 0, totCosti: 0, mol: 0, molPct: 0 },
+    isDemo: false, isEmpty: true,
+  }
 }
 
 function rand(min,max){return Math.round(min+Math.random()*(max-min))}
