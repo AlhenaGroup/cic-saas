@@ -4,6 +4,11 @@ import { S, Card, fmt, fmtD, fmtN } from '../shared/styles.jsx'
 
 const iS = S.input
 
+// Cache in memoria: sopravvive al remount del componente dentro la stessa sessione
+// Key = sp, Value = { cicProducts, articles, recipes, ts }
+const MEM_CACHE = {}
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minuti
+
 export default function RecipeManager({ sp, sps }) {
   // Prodotti venduti su CiC
   const [cicProducts, setCicProducts] = useState([])
@@ -14,15 +19,30 @@ export default function RecipeManager({ sp, sps }) {
   const [loading, setLoading] = useState(false)
   // UI
   const [selected, setSelected] = useState(null) // prodotto selezionato per editare ricetta
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('tutti') // tutti, con_ricetta, senza_ricetta
+  const [search, setSearch] = useState(() => localStorage.getItem('recipe_search') || '')
+  const [filter, setFilter] = useState(() => localStorage.getItem('recipe_filter') || 'tutti') // tutti, con_ricetta, senza_ricetta
   const [ingredientSearch, setIngredientSearch] = useState('')
+  useEffect(() => { localStorage.setItem('recipe_search', search) }, [search])
+  useEffect(() => { localStorage.setItem('recipe_filter', filter) }, [filter])
+  useEffect(() => {
+    if (selected?.name) localStorage.setItem('recipe_selected', selected.name)
+    else localStorage.removeItem('recipe_selected')
+  }, [selected])
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
   const [saveError, setSaveError] = useState('')
 
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps?.find(s => String(s.id) === String(sp))?.description || null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
+    const cacheKey = String(sp || 'all')
+    const cached = MEM_CACHE[cacheKey]
+    if (!force && cached && (Date.now() - cached.ts) < CACHE_TTL_MS) {
+      setCicProducts(cached.cicProducts)
+      setArticles(cached.articles)
+      setRecipes(cached.recipes)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     // 1. Prodotti CiC da receipt_details
     let query = supabase.from('daily_stats').select('receipt_details, salespoint_name')
@@ -76,10 +96,22 @@ export default function RecipeManager({ sp, sps }) {
     ;(recs || []).forEach(r => { recMap[r.nome_prodotto] = r })
     setRecipes(recMap)
 
+    // Salva in cache per evitare refetch al prossimo mount
+    MEM_CACHE[cacheKey] = { cicProducts: prods, articles: arts, recipes: recMap, ts: Date.now() }
+
     setLoading(false)
   }, [sp, selectedLocaleName])
 
   useEffect(() => { load() }, [load])
+
+  // Ripristina ricetta selezionata dopo caricamento prodotti
+  useEffect(() => {
+    if (selected || cicProducts.length === 0) return
+    const savedName = localStorage.getItem('recipe_selected')
+    if (!savedName) return
+    const prod = cicProducts.find(p => p.name === savedName)
+    if (prod) setSelected(prod)
+  }, [cicProducts, selected])
 
   // Filtro prodotti
   const filtered = useMemo(() => {
@@ -137,7 +169,13 @@ export default function RecipeManager({ sp, sps }) {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id,nome_prodotto' })
       if (error) throw error
-      setRecipes(prev => ({ ...prev, [prodName]: { ...prev[prodName], ingredienti: ingr, prezzo_vendita: prod?.avgPrice || 0 } }))
+      setRecipes(prev => {
+        const next = { ...prev, [prodName]: { ...prev[prodName], ingredienti: ingr, prezzo_vendita: prod?.avgPrice || 0 } }
+        // Propaga alla cache in memoria così al remount i dati sono aggiornati
+        const cacheKey = String(sp || 'all')
+        if (MEM_CACHE[cacheKey]) MEM_CACHE[cacheKey] = { ...MEM_CACHE[cacheKey], recipes: next, ts: Date.now() }
+        return next
+      })
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus(s => s === 'saved' ? 'idle' : s), 2000)
     } catch (e) {
