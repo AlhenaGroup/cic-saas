@@ -447,7 +447,7 @@ export default function DashboardPage({ settings }) {
       </>}
 
       {/* ── IVA (nuovo: a debito + a credito + saldo, mensile/trimestrale) ── */}
-      {tab==='iva'&&<IvaTab sp={sp} sps={sps}/>}
+      {tab==='iva'&&<IvaTab sp={sp} sps={sps} from={from} to={to}/>}
 
       {/* ── REPARTI ── */}
       {tab==='rep'&&<>
