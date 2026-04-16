@@ -75,7 +75,7 @@ function UsersList({ onEditUser, refreshKey }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [creating, setCreating] = useState(false)
+  const [showNew, setShowNew] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -90,25 +90,12 @@ function UsersList({ onEditUser, refreshKey }) {
 
   const filtered = users.filter(u => !search || u.email?.toLowerCase().includes(search.toLowerCase()))
 
-  const newUser = async () => {
-    const email = prompt('Email del nuovo cliente:')
-    if (!email) return
-    const password = prompt('Password iniziale (cambia poi su Supabase):', 'CambiaSubito-' + Math.random().toString(36).slice(2, 8))
-    if (!password) return
-    setCreating(true)
-    try {
-      await adminCall('create-user', { email, password })
-      alert('✓ Utente creato. Comunicagli email + password e configurargli la chiave CiC dal modal.')
-      await reload()
-    } catch (e) { alert('Errore: ' + e.message) }
-    setCreating(false)
-  }
-
-  return <Card title={`Utenti (${users.length})`} extra={
+  return <>
+    <Card title={`Utenti (${users.length})`} extra={
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
       <input placeholder="🔍 Cerca email..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...iS, width: 200 }} />
-      <button onClick={newUser} disabled={creating} style={{ ...iS, background: creating ? '#1a1f2e' : '#10B981', color: creating ? '#94a3b8' : '#0f1420', fontWeight: 600, border: 'none', padding: '6px 12px', cursor: creating ? 'wait' : 'pointer' }}>
-        {creating ? '⏳' : '+ Nuovo utente'}
+      <button onClick={() => setShowNew(true)} style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 12px', cursor: 'pointer' }}>
+        + Nuovo cliente
       </button>
     </div>
   }>
@@ -142,7 +129,171 @@ function UsersList({ onEditUser, refreshKey }) {
         </tbody>
       </table>
     )}
-  </Card>
+    </Card>
+    {showNew && <NewUser onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); reload() }} />}
+  </>
+}
+
+function NewUser({ onClose, onCreated }) {
+  const [email, setEmail] = useState('')
+  const [planId, setPlanId] = useState('')
+  const [trialUntil, setTrialUntil] = useState('')
+  const [validUntil, setValidUntil] = useState('')
+  const [cicApiKey, setCicApiKey] = useState('')
+  const [tsId, setTsId] = useState('')
+  const [tsSecret, setTsSecret] = useState('')
+  const [tsOwner, setTsOwner] = useState('')
+  const [plateformKey, setPlateformKey] = useState('')
+  const [salesPoints, setSalesPoints] = useState([])
+  const [plans, setPlans] = useState([])
+  const [syncing, setSyncing] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [showCic, setShowCic] = useState(false)
+  const [showTsSecret, setShowTsSecret] = useState(false)
+  const [showPlateform, setShowPlateform] = useState(false)
+
+  useEffect(() => {
+    adminCall('list-plans').then(d => {
+      setPlans(d.plans || [])
+      const def = (d.plans || []).find(p => p.is_default)
+      if (def) setPlanId(def.id)
+    }).catch(() => {})
+  }, [])
+
+  const trySyncCic = async () => {
+    if (!cicApiKey) { alert('Inserisci prima la chiave CiC'); return }
+    setSyncing(true)
+    try {
+      const { salespoints } = await adminCall('sync-salespoints', { cic_api_key: cicApiKey })
+      setSalesPoints(salespoints || [])
+      alert(`✓ Trovati ${salespoints?.length || 0} locali`)
+    } catch (e) { alert(e.message) }
+    setSyncing(false)
+  }
+
+  const submit = async () => {
+    if (!email || !email.includes('@')) { alert('Email non valida'); return }
+    setCreating(true)
+    try {
+      await adminCall('invite-user', {
+        email: email.trim().toLowerCase(),
+        plan_id: planId || undefined,
+        valid_until: validUntil || null,
+        trial_until: trialUntil || null,
+        cic_api_key: cicApiKey || null,
+        sales_points: salesPoints.length ? salesPoints : undefined,
+        ts_digital_id: tsId || null,
+        ts_digital_secret: tsSecret || null,
+        ts_digital_owner: tsOwner || null,
+        plateform_api_key: plateformKey || null,
+      })
+      alert(`✓ Cliente creato.\n\nUna email di benvenuto è stata inviata a ${email}\ncon il link per impostare la password.`)
+      onCreated()
+    } catch (e) { alert('Errore: ' + e.message) }
+    setCreating(false)
+  }
+
+  const Field = ({ label, hint, children }) => (
+    <label style={{ display: 'block', marginBottom: 12 }}>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+        {label} {hint && <span style={{ color: '#64748b', fontWeight: 400 }}>· {hint}</span>}
+      </div>
+      {children}
+    </label>
+  )
+
+  return <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, overflow: 'auto', padding: 24 }}>
+    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720, maxHeight: '92vh', overflow: 'auto' }}>
+      <div style={{ padding: 20, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 16 }}>+ Nuovo cliente</h3>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+            Riceverà una email per impostare la password al primo accesso
+          </div>
+        </div>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+      </div>
+
+      <div style={{ padding: 20 }}>
+        {/* DATI BASE */}
+        <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 12 }}>📧 Account</div>
+          <Field label="Email del cliente *" hint="obbligatoria">
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@esempio.it" style={{ ...iS, width: '100%' }} />
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <Field label="Piano">
+              <select value={planId} onChange={e => setPlanId(e.target.value)} style={{ ...iS, width: '100%' }}>
+                {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Trial fino">
+              <input type="date" value={trialUntil} onChange={e => setTrialUntil(e.target.value)} style={{ ...iS, width: '100%' }} />
+            </Field>
+            <Field label="Valido fino">
+              <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} style={{ ...iS, width: '100%' }} />
+            </Field>
+          </div>
+        </div>
+
+        {/* INTEGRAZIONI */}
+        <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', marginBottom: 4 }}>🔌 Integrazioni esterne</div>
+          <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>
+            Tutte opzionali — puoi compilarle ora o aggiungerle dopo da "Modifica utente"
+          </div>
+
+          {/* CIC */}
+          <Field label="Chiave API CiC (Cassa in Cloud)" hint="back-office CiC > Settings > API">
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input type={showCic ? 'text' : 'password'} value={cicApiKey} onChange={e => setCicApiKey(e.target.value)}
+                placeholder="es. 577e0bcc-f44e-4f5a-..." style={{ ...iS, flex: 1, fontFamily: 'monospace' }} />
+              <button onClick={() => setShowCic(!showCic)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }}>{showCic ? '🙈' : '👁'}</button>
+              <button onClick={trySyncCic} disabled={syncing || !cicApiKey} style={{ ...iS, background: '#3B82F6', color: '#fff', fontWeight: 600, border: 'none', padding: '6px 12px', cursor: syncing ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                {syncing ? '⏳' : '🔄 Sincronizza locali'}
+              </button>
+            </div>
+            {salesPoints.length > 0 && (
+              <div style={{ marginTop: 8, padding: 8, background: '#0a0e16', borderRadius: 4, fontSize: 11, color: '#94a3b8' }}>
+                ✓ {salesPoints.length} locali sincronizzati: {salesPoints.map(s => s.description || s.name).join(', ')}
+              </div>
+            )}
+          </Field>
+
+          {/* TS Digital */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="TS Digital ID" hint="b2b-auth-service.agyo.io">
+              <input value={tsId} onChange={e => setTsId(e.target.value)} placeholder="es. ccff31e7-a883-..." style={{ ...iS, width: '100%', fontFamily: 'monospace' }} />
+            </Field>
+            <Field label="TS Digital Secret">
+              <div style={{ display: 'flex', gap: 4 }}>
+                <input type={showTsSecret ? 'text' : 'password'} value={tsSecret} onChange={e => setTsSecret(e.target.value)} placeholder="es. e4de10bd-04d5-..." style={{ ...iS, flex: 1, fontFamily: 'monospace' }} />
+                <button onClick={() => setShowTsSecret(!showTsSecret)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }}>{showTsSecret ? '🙈' : '👁'}</button>
+              </div>
+            </Field>
+          </div>
+          <Field label="TS Digital Owner (Codice Fiscale azienda)" hint="es. FSCSMN98H12G674S">
+            <input value={tsOwner} onChange={e => setTsOwner(e.target.value.toUpperCase())} placeholder="" style={{ ...iS, width: '100%', fontFamily: 'monospace', textTransform: 'uppercase' }} />
+          </Field>
+
+          {/* Plateform */}
+          <Field label="Chiave API Plateform" hint="opzionale, per CRM/RFM">
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input type={showPlateform ? 'text' : 'password'} value={plateformKey} onChange={e => setPlateformKey(e.target.value)} placeholder="" style={{ ...iS, flex: 1, fontFamily: 'monospace' }} />
+              <button onClick={() => setShowPlateform(!showPlateform)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }}>{showPlateform ? '🙈' : '👁'}</button>
+            </div>
+          </Field>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+          <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
+          <button onClick={submit} disabled={creating || !email} style={{ ...iS, background: creating ? '#1a1f2e' : '#10B981', color: creating ? '#94a3b8' : '#0f1420', fontWeight: 600, border: 'none', padding: '8px 22px', cursor: creating ? 'wait' : 'pointer' }}>
+            {creating ? '⏳ Creo…' : '✉️ Crea & invita per email'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 }
 
 function EditUser({ user, plans, onClose, onSaved }) {

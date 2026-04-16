@@ -131,13 +131,17 @@ export default async function handler(req, res) {
       }
 
       case 'set-user-settings': {
-        const { user_id, cic_api_key, sales_points, plateform_api_key, plateform_location_map } = req.body
+        const { user_id, cic_api_key, sales_points, plateform_api_key, plateform_location_map,
+                ts_digital_id, ts_digital_secret, ts_digital_owner } = req.body
         if (!user_id) return res.status(400).json({ error: 'user_id richiesto' })
         const payload = { user_id, updated_at: new Date().toISOString() }
         if (cic_api_key !== undefined) payload.cic_api_key = cic_api_key
         if (sales_points !== undefined) payload.sales_points = sales_points
         if (plateform_api_key !== undefined) payload.plateform_api_key = plateform_api_key
         if (plateform_location_map !== undefined) payload.plateform_location_map = plateform_location_map
+        if (ts_digital_id !== undefined) payload.ts_digital_id = ts_digital_id
+        if (ts_digital_secret !== undefined) payload.ts_digital_secret = ts_digital_secret
+        if (ts_digital_owner !== undefined) payload.ts_digital_owner = ts_digital_owner
         const { error } = await sb.from('user_settings').upsert(payload, { onConflict: 'user_id' })
         if (error) throw error
         return res.status(200).json({ ok: true })
@@ -163,21 +167,48 @@ export default async function handler(req, res) {
         return res.status(200).json({ salespoints: list })
       }
 
-      case 'create-user': {
-        // Crea nuovo utente cliente: email, password, plan_id (opzionale)
-        const { email, password, plan_id } = req.body
-        if (!email || !password) return res.status(400).json({ error: 'email e password richiesti' })
-        const { data: created, error } = await sb.auth.admin.createUser({ email, password, email_confirm: true })
-        if (error) throw error
-        const newId = created.user.id
-        // Assegna piano (default se non specificato)
+      case 'invite-user': {
+        // Crea cliente da admin: invio email magica per impostare password,
+        // assegnazione piano + salvataggio tutte le chiavi (CiC/TS Digital/Plateform).
+        const {
+          email, plan_id, valid_until, trial_until,
+          cic_api_key, sales_points,
+          ts_digital_id, ts_digital_secret, ts_digital_owner,
+          plateform_api_key,
+        } = req.body
+        if (!email) return res.status(400).json({ error: 'email richiesta' })
+
+        // 1) Invito email (Supabase manda link magico per impostare password)
+        const redirectTo = (req.headers.origin || 'https://cic-saas.vercel.app') + '/'
+        const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(email, { redirectTo })
+        if (inviteErr) return res.status(400).json({ error: 'Invito fallito: ' + inviteErr.message })
+        const newId = invited.user.id
+
+        // 2) Piano
         let pid = plan_id
         if (!pid) {
           const { data: defPlan } = await sb.from('feature_plans').select('id').eq('is_default', true).limit(1).single()
           pid = defPlan?.id || 'full'
         }
-        await sb.from('user_plans').upsert({ user_id: newId, plan_id: pid, active: true }, { onConflict: 'user_id' })
-        return res.status(200).json({ ok: true, user_id: newId })
+        await sb.from('user_plans').upsert({
+          user_id: newId, plan_id: pid, active: true,
+          valid_until: valid_until || null,
+          trial_until: trial_until || null,
+        }, { onConflict: 'user_id' })
+
+        // 3) Settings (chiavi varie, tutte opzionali)
+        const settingsPayload = { user_id: newId, updated_at: new Date().toISOString() }
+        if (cic_api_key) settingsPayload.cic_api_key = cic_api_key
+        if (Array.isArray(sales_points)) settingsPayload.sales_points = sales_points
+        if (ts_digital_id) settingsPayload.ts_digital_id = ts_digital_id
+        if (ts_digital_secret) settingsPayload.ts_digital_secret = ts_digital_secret
+        if (ts_digital_owner) settingsPayload.ts_digital_owner = ts_digital_owner
+        if (plateform_api_key) settingsPayload.plateform_api_key = plateform_api_key
+        if (Object.keys(settingsPayload).length > 2) {
+          await sb.from('user_settings').upsert(settingsPayload, { onConflict: 'user_id' })
+        }
+
+        return res.status(200).json({ ok: true, user_id: newId, email })
       }
 
       case 'delete-plan': {
