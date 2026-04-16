@@ -24,7 +24,8 @@ const TABS = [
 ]
 
 export default function WarehouseModule({ sp, sps }) {
-  const [tab, setTab] = useState('cruscotto')
+  const [tab, setTab] = useState(() => localStorage.getItem('warehouse_tab') || 'cruscotto')
+  useEffect(() => { localStorage.setItem('warehouse_tab', tab) }, [tab])
 
   const tabStyle = (active) => ({
     padding: '8px 16px', fontSize: 12, fontWeight: active ? 700 : 500,
