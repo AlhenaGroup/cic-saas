@@ -510,6 +510,67 @@ CREATE TABLE IF NOT EXISTS public.budget_scenarios (
 
 
 -- ============================================================
+-- 4b. FEATURE PLANS / WIDGET PERSONALIZZAZIONE
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.feature_plans (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  description text,
+  price_monthly numeric(8,2),
+  price_yearly numeric(8,2),
+  features jsonb NOT NULL DEFAULT '{}'::jsonb,
+  is_default boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.user_plans (
+  user_id uuid PRIMARY KEY,
+  plan_id text NOT NULL REFERENCES public.feature_plans(id) ON DELETE RESTRICT,
+  trial_until date,
+  valid_until date,
+  active boolean NOT NULL DEFAULT true,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.user_feature_overrides (
+  user_id uuid PRIMARY KEY,
+  extra jsonb DEFAULT '{}'::jsonb,
+  exclude jsonb DEFAULT '{}'::jsonb,
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.user_widget_layout (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  tab_key text NOT NULL,
+  layout jsonb NOT NULL DEFAULT '[]'::jsonb,
+  updated_at timestamp with time zone DEFAULT now(),
+  UNIQUE(user_id, tab_key)
+);
+
+ALTER TABLE public.feature_plans            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_plans               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_feature_overrides   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_widget_layout       ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "read_plans"     ON public.feature_plans          FOR SELECT USING (true);
+CREATE POLICY "own_plan"       ON public.user_plans             FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "own_overrides"  ON public.user_feature_overrides FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "own_layout"     ON public.user_widget_layout     FOR ALL    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Piano default 'Full' (tutto incluso)
+INSERT INTO public.feature_plans (id, name, description, features, is_default)
+VALUES ('full', 'Full', 'Tutto incluso. Piano default per fase pilota Alhena Group.',
+  '{"tabs":["ov","scontrini","cat","iva","rep","susp","fat","prod","ce","hr","mkt","bud","mag"],"widgets":["*"]}'::jsonb,
+  true)
+ON CONFLICT (id) DO NOTHING;
+
+
+-- ============================================================
 -- 5. MARKETING TABLES
 -- ============================================================
 
