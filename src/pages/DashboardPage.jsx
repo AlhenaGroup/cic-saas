@@ -11,6 +11,8 @@ import InvoiceTab from '../components/InvoiceTab'
 import ContoEconomico from '../components/ContoEconomico'
 import MonitoringTab from '../components/MonitoringTab'
 import IvaTab from '../components/IvaTab'
+import WidgetGrid from '../components/WidgetGrid'
+import { useUserPlan } from '../lib/features'
 
 // ─── Preset periodo globali (validi per tutti i moduli) ────────────────────
 const _ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
@@ -230,9 +232,17 @@ export default function DashboardPage({ settings }) {
   const tS = (t) => ({padding:'8px 16px',borderRadius:6,fontSize:13,fontWeight:500,cursor:'pointer',border:'none',
     background:tab===t?'#F59E0B':'transparent',color:tab===t?'#0f1420':'#64748b',transition:'all .2s',position:'relative'})
 
-  const TABS=[['ov','📊 Panoramica'],['scontrini','🧾 Scontrini'],['cat','🏷️ Categorie'],
+  const ALL_TABS=[['ov','📊 Panoramica'],['scontrini','🧾 Scontrini'],['cat','🏷️ Categorie'],
               ['iva','📋 IVA'],['rep','🏪 Reparti'],['susp','⚠️ Movimenti'],
               ['fat','📄 Fatture'],['mag','📦 Magazzino'],['prod','⏱️ Produttività'],['ce','📊 Conto Econ.'],['bud','💰 Budget'],['hr','👥 Personale'],['mkt','📣 Marketing']]
+  // Filtra in base al piano dell'utente (feature flag tab.X)
+  const { features: planFeatures } = useUserPlan()
+  const TABS = planFeatures ? ALL_TABS.filter(([k]) => planFeatures.tabs.has(k)) : ALL_TABS
+  // Se l'utente sta su un tab non piu' incluso nel suo piano, lo riporta sul primo disponibile
+  useEffect(() => {
+    if (!planFeatures) return
+    if (TABS.length > 0 && !TABS.some(([k]) => k === tab)) setTab(TABS[0][0])
+  }, [planFeatures, tab, TABS])
 
   return <div style={{minHeight:'100vh',background:'#0f1420',fontFamily:"'DM Sans',system-ui,sans-serif",color:'#e2e8f0'}}>
     <style>{`
@@ -350,15 +360,21 @@ export default function DashboardPage({ settings }) {
 
       {/* ── PANORAMICA ── */}
       {tab==='ov'&&<>
-        {/* KPI Cards 3x2 */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          <KPI label="Ricavi totali" icon="💶" value={fmt(totale)} sub={dRicavi?<span style={{color:dRicavi.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dRicavi.label}</span>:from+' → '+to} accent='#F59E0B' trend={dRicavi?.pct}/>
-          <KPI label="Scontrini" icon="🧾" value={fmtN(data?.scontrini)} sub={dScontrini?<span style={{color:dScontrini.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dScontrini.label}</span>:'documenti'} accent='#3B82F6' trend={dScontrini?.pct}/>
-          <KPI label="Scontrino medio" icon="📈" value={fmtD(data?.medio)} sub="per documento" accent='#10B981'/>
-          <KPI label="Coperti totali" icon="🍽️" value={fmtN(coperti)} sub={dCoperti?<span style={{color:dCoperti.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCoperti.label}</span>:'persone'} accent='#F97316' trend={dCoperti?.pct}/>
-          <KPI label="Coperto medio" icon="💰" value={fmtD(copertoMedio)} sub={dCopertoMedio?<span style={{color:dCopertoMedio.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCopertoMedio.label}</span>:'incasso / coperto'} accent='#8B5CF6' trend={dCopertoMedio?.pct}/>
-          <KPI label="Reparti attivi" icon="🏷️" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#06B6D4'/>
-        </div>
+        {/* KPI Cards 3x2 — personalizzabili dall'utente (drag&drop + show/hide) */}
+        <WidgetGrid tabKey="ov" gridStyle={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}} widgets={[
+          { id:'kpi.ricavi', label:'Ricavi totali', element:
+              <KPI label="Ricavi totali" icon="💶" value={fmt(totale)} sub={dRicavi?<span style={{color:dRicavi.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dRicavi.label}</span>:from+' → '+to} accent='#F59E0B' trend={dRicavi?.pct}/> },
+          { id:'kpi.scontrini', label:'Scontrini', element:
+              <KPI label="Scontrini" icon="🧾" value={fmtN(data?.scontrini)} sub={dScontrini?<span style={{color:dScontrini.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dScontrini.label}</span>:'documenti'} accent='#3B82F6' trend={dScontrini?.pct}/> },
+          { id:'kpi.medio', label:'Scontrino medio', element:
+              <KPI label="Scontrino medio" icon="📈" value={fmtD(data?.medio)} sub="per documento" accent='#10B981'/> },
+          { id:'kpi.coperti', label:'Coperti totali', element:
+              <KPI label="Coperti totali" icon="🍽️" value={fmtN(coperti)} sub={dCoperti?<span style={{color:dCoperti.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCoperti.label}</span>:'persone'} accent='#F97316' trend={dCoperti?.pct}/> },
+          { id:'kpi.coperto_medio', label:'Coperto medio', element:
+              <KPI label="Coperto medio" icon="💰" value={fmtD(copertoMedio)} sub={dCopertoMedio?<span style={{color:dCopertoMedio.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCopertoMedio.label}</span>:'incasso / coperto'} accent='#8B5CF6' trend={dCopertoMedio?.pct}/> },
+          { id:'kpi.reparti', label:'Reparti attivi', element:
+              <KPI label="Reparti attivi" icon="🏷️" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#06B6D4'/> },
+        ]}/>
 
         {/* Giorno migliore / peggiore */}
         {trend.length>0&&(()=>{
