@@ -201,6 +201,10 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
   const tsFiltered = tsInvoices.filter(f => {
     if (showOnlyUnassigned && tsLocaleMap[f.hubId]) return false
     if (fatSearch && !f.senderName?.toLowerCase().includes(fatSearch.toLowerCase()) && !f.docId?.includes(fatSearch)) return false
+    // Filtro periodo (header globale): docDate e' "YYYY-MM-DD"
+    const d = (f.docDate || '').slice(0, 10)
+    if (from && d && d < from) return false
+    if (to && d && d > to) return false
     return true
   })
 
