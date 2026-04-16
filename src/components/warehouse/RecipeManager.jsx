@@ -92,6 +92,16 @@ export default function RecipeManager({ sp, sps }) {
   const selectedRecipe = selected ? recipes[selected.name] : null
   const ingredienti = selectedRecipe?.ingredienti || []
 
+  // Converti quantità in UM base per calcolo costo (g→KG, cl→LT)
+  const toBaseUnit = (qty, um) => {
+    const q = Number(qty) || 0
+    const u = um || 'PZ'
+    if (u === 'g') return { qty: q / 1000, baseUm: 'KG' }
+    if (u === 'cl') return { qty: q / 100, baseUm: 'LT' }
+    if (u === 'ml') return { qty: q / 1000, baseUm: 'LT' }
+    return { qty: q, baseUm: u }
+  }
+
   // Calcolo food cost con conversione unità
   const calcCost = (ingr) => {
     let total = 0
@@ -143,16 +153,6 @@ export default function RecipeManager({ sp, sps }) {
   const removeIngredient = (idx) => {
     const newIngr = ingredienti.filter((_, i) => i !== idx)
     saveRecipe(selected.name, newIngr)
-  }
-
-  // Converti quantità in UM base per calcolo costo (g→KG, cl→LT)
-  const toBaseUnit = (qty, um) => {
-    const q = Number(qty) || 0
-    const u = um || 'PZ'
-    if (u === 'g') return { qty: q / 1000, baseUm: 'KG' }
-    if (u === 'cl') return { qty: q / 100, baseUm: 'LT' }
-    if (u === 'ml') return { qty: q / 1000, baseUm: 'LT' }
-    return { qty: q, baseUm: u }
   }
 
   // Articoli filtrati per ricerca ingrediente
