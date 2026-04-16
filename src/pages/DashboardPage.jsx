@@ -252,6 +252,32 @@ export default function DashboardPage({ settings }) {
         <span style={{color:'#2a3042'}}>—</span>
         <input type="date" value={to}   onChange={e=>setTo(e.target.value)}   style={iS}/>
         <span style={{color:'#475569',fontSize:11,marginLeft:8}}>vs</span>
+        <select value={from2 && to2 && (function(){
+            // 'prev' = stesso periodo precedente del principale
+            const ms = 86400000
+            const len = (new Date(to) - new Date(from))/ms + 1
+            const expectedTo2 = new Date(new Date(from).getTime() - ms); const expectedFrom2 = new Date(expectedTo2.getTime() - (len-1)*ms)
+            if (_ymd(expectedFrom2) === from2 && _ymd(expectedTo2) === to2) return 'prev'
+            return activePresetKey(from2, to2)
+          })()}
+          onChange={e=>{
+            const v = e.target.value
+            if (v === 'prev') {
+              const ms = 86400000
+              const len = (new Date(to) - new Date(from))/ms + 1
+              const expectedTo2 = new Date(new Date(from).getTime() - ms)
+              const expectedFrom2 = new Date(expectedTo2.getTime() - (len-1)*ms)
+              setFrom2(_ymd(expectedFrom2)); setTo2(_ymd(expectedTo2))
+            } else {
+              const r = presetRange(v); if (r) { setFrom2(r.from); setTo2(r.to) }
+            }
+          }}
+          style={{...iS,fontSize:11,padding:'4px 8px'}}
+          title="Preset periodo confronto">
+          <option value="">📅 Personalizzato</option>
+          <option value="prev">↩ Periodo precedente</option>
+          {PERIOD_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+        </select>
         <input type="date" value={from2} onChange={e=>setFrom2(e.target.value)} style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta dal"/>
         <span style={{color:'#2a3042'}}>—</span>
         <input type="date" value={to2}   onChange={e=>setTo2(e.target.value)}   style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta al"/>
