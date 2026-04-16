@@ -122,7 +122,17 @@ function UsersList({ onEditUser, refreshKey }) {
               <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('it-IT') : '—'}</td>
               <td style={S.td}>{u.admin_role ? <span style={S.badge('#8B5CF6', 'rgba(139,92,246,.15)')}>{u.admin_role}</span> : ''}</td>
               <td style={S.td}>
-                <button onClick={() => onEditUser(u)} style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}>Modifica</button>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={() => onEditUser(u)} style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}>Modifica</button>
+                  <button onClick={async () => {
+                    if (u.admin_role) { alert('Non posso eliminare un admin da qui. Rimuovi prima il ruolo da Supabase.'); return }
+                    if (!confirm(`Eliminare definitivamente ${u.email}?\n\nVerranno cancellati: account, settings, piano, override, layout. Operazione irreversibile.`)) return
+                    try { await adminCall('delete-user', { user_id: u.id }); alert('✓ Utente eliminato'); reload() }
+                    catch (e) { alert('Errore: ' + e.message) }
+                  }}
+                    title="Elimina utente"
+                    style={{ ...iS, fontSize: 11, padding: '4px 8px', cursor: 'pointer', color: '#EF4444' }}>🗑</button>
+                </div>
               </td>
             </tr>
           ))}
@@ -494,11 +504,27 @@ function EditUser({ user, plans, onClose, onSaved }) {
           </>}
         </>}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #2a3042', marginTop: 16 }}>
-          <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
-          <button onClick={save} disabled={saving} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
-            {saving ? 'Salvo…' : '💾 Salva'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, paddingTop: 16, borderTop: '1px solid #2a3042', marginTop: 16 }}>
+          <button
+            onClick={async () => {
+              if (user.admin_role) { alert('Non posso eliminare un admin da qui.'); return }
+              if (!confirm(`Eliminare definitivamente ${user.email}?\n\nVerranno cancellati: account, settings, piano, override, layout. Operazione irreversibile.`)) return
+              setSaving(true)
+              try { await adminCall('delete-user', { user_id: user.id }); alert('✓ Utente eliminato'); onSaved(); onClose() }
+              catch (e) { alert('Errore: ' + e.message) }
+              setSaving(false)
+            }}
+            disabled={saving || !!user.admin_role}
+            style={{ ...iS, color: '#EF4444', cursor: saving ? 'wait' : 'pointer', padding: '8px 14px' }}
+            title={user.admin_role ? 'Non eliminabile (admin)' : 'Elimina utente'}>
+            🗑 Elimina utente
           </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
+            <button onClick={save} disabled={saving} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
+              {saving ? 'Salvo…' : '💾 Salva'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

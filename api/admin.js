@@ -167,6 +167,23 @@ export default async function handler(req, res) {
         return res.status(200).json({ salespoints: list })
       }
 
+      case 'delete-user': {
+        const { user_id } = req.body
+        if (!user_id) return res.status(400).json({ error: 'user_id richiesto' })
+        // Guard: l'admin NON puo' cancellare se stesso
+        if (user_id === auth.user.id) return res.status(400).json({ error: 'Non puoi eliminare te stesso' })
+        // Pulisci tabelle correlate (le RLS non si applicano a service_role, lo facciamo a mano)
+        await sb.from('user_widget_layout').delete().eq('user_id', user_id)
+        await sb.from('user_feature_overrides').delete().eq('user_id', user_id)
+        await sb.from('user_plans').delete().eq('user_id', user_id)
+        await sb.from('user_settings').delete().eq('user_id', user_id)
+        await sb.from('admins').delete().eq('user_id', user_id)
+        // Elimina l'utente da auth.users
+        const { error } = await sb.auth.admin.deleteUser(user_id)
+        if (error) throw error
+        return res.status(200).json({ ok: true })
+      }
+
       case 'invite-user': {
         // Crea cliente da admin: invio email magica per impostare password,
         // assegnazione piano + salvataggio tutte le chiavi (CiC/TS Digital/Plateform).
