@@ -152,6 +152,32 @@ export default function InvoiceManager({ sp, sps }) {
     return lines
   }
 
+  // Aggrega IVA per aliquota leggendo i blocchi <DatiRiepilogo> (riepilogo ufficiale FatturaPA)
+  // → { "22.00": { imponibile, imposta }, "10.00": {...} }
+  const parseIvaBreakdown = (xml) => {
+    if (!xml) return {}
+    const out = {}
+    const re = /<DatiRiepilogo>([\s\S]*?)<\/DatiRiepilogo>/g
+    let m
+    while ((m = re.exec(xml)) !== null) {
+      const block = m[1]
+      const g = (t) => { const x = block.match(new RegExp('<' + t + '>(.*?)</' + t + '>')); return x ? x[1] : '' }
+      const aliq = parseFloat(g('AliquotaIVA')) || 0
+      const imp = parseFloat(g('ImponibileImporto')) || 0
+      const ivaA = parseFloat(g('Imposta')) || 0
+      if (aliq === 0 && imp === 0 && ivaA === 0) continue
+      const key = aliq.toFixed(2)
+      if (!out[key]) out[key] = { imponibile: 0, imposta: 0 }
+      out[key].imponibile += imp
+      out[key].imposta += ivaA
+    }
+    for (const k of Object.keys(out)) {
+      out[k].imponibile = Math.round(out[k].imponibile * 100) / 100
+      out[k].imposta = Math.round(out[k].imposta * 100) / 100
+    }
+    return out
+  }
+
   // ─── Import TS invoice → warehouse (per match prodotti) ────────────
   const importToWarehouse = async (tsInv) => {
     // Scarica XML e parsa righe
@@ -165,10 +191,15 @@ export default function InvoiceManager({ sp, sps }) {
       if (!r.ok) throw new Error('Download XML fallito')
       const { content: xml } = await r.json()
       const xmlLines = parseXmlLines(xml)
+      const ivaBreakdown = parseIvaBreakdown(xml)
 
       const { data: { user } } = await supabase.auth.getUser()
       const locale = tsLocaleMap[tsInv.hubId] || ''
       const isNotaCredito = tsInv.detail?.td === 'TD04' || tsInv.detail?.td === 'TD05'
+      // Inverti segno breakdown se nota credito
+      const ivaBreakdownSigned = isNotaCredito
+        ? Object.fromEntries(Object.entries(ivaBreakdown).map(([k, v]) => [k, { imponibile: -Math.abs(v.imponibile), imposta: -Math.abs(v.imposta) }]))
+        : ivaBreakdown
       const { data: inv, error: invErr } = await supabase.from('warehouse_invoices').insert({
         user_id: user.id,
         data: tsInv.docDate || new Date().toISOString().split('T')[0],
@@ -178,6 +209,7 @@ export default function InvoiceManager({ sp, sps }) {
         totale: isNotaCredito ? -Math.abs(tsInv.detail?.totalAmount || 0) : Math.abs(tsInv.detail?.totalAmount || 0),
         tipo_doc: isNotaCredito ? 'nota_credito' : 'fattura',
         stato: 'bozza',
+        iva_breakdown: ivaBreakdownSigned,
       }).select('id').single()
       if (invErr) throw new Error(invErr.message)
 

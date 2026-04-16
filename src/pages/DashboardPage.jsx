@@ -10,6 +10,7 @@ import BudgetModule from './BudgetModule'
 import InvoiceTab from '../components/InvoiceTab'
 import ContoEconomico from '../components/ContoEconomico'
 import MonitoringTab from '../components/MonitoringTab'
+import IvaTab from '../components/IvaTab'
 
 export default function DashboardPage({ settings }) {
   const [token, setToken]         = useState(null)
@@ -339,50 +340,8 @@ export default function DashboardPage({ settings }) {
         </div>
       </>}
 
-      {/* ── IVA ── */}
-      {tab==='iva'&&<>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          {taxes.map((t,i)=>{
-            const lordo=(t.taxable||0)+(t.tax_amount||0)
-            return <div key={i} style={S.card}>
-              <div style={{fontSize:11,fontWeight:700,color:'#64748b',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Aliquota IVA {t.rate}%</div>
-              <div style={{fontSize:26,fontWeight:700,color:'#f1f5f9',marginBottom:4}}>{fmt(t.taxable)}</div>
-              <div style={{fontSize:12,color:'#64748b',marginBottom:12}}>Imponibile</div>
-              <div style={{height:1,background:'#2a3042',marginBottom:12}}/>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:6}}>
-                <span style={{color:'#64748b'}}>IVA</span><span style={{color:'#EF4444',fontWeight:600}}>{fmt(t.tax_amount)}</span>
-              </div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
-                <span style={{color:'#94a3b8'}}>Totale lordo</span><span style={{color:'#F59E0B',fontWeight:700}}>{fmt(lordo)}</span>
-              </div>
-            </div>
-          })}
-        </div>
-        <Card title="Riepilogo IVA completo">
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-              {['Aliquota','Imponibile','IVA','Totale lordo','% sul totale'].map(h=><th key={h} style={S.th}>{h}</th>)}
-            </tr></thead>
-            <tbody>
-              {taxes.map((t,i)=>{const l=(t.taxable||0)+(t.tax_amount||0);return(
-                <tr key={i}><td style={S.td}><span style={S.badge('#F59E0B','rgba(245,158,11,.15)')}>{t.rate}%</span></td>
-                  <td style={S.td}>{fmt(t.taxable)}</td>
-                  <td style={{...S.td,color:'#EF4444'}}>{fmt(t.tax_amount)}</td>
-                  <td style={{...S.td,fontWeight:600}}>{fmt(l)}</td>
-                  <td style={{...S.td,color:'#64748b'}}>{pct(l,totale)}</td>
-                </tr>
-              )})}
-            </tbody>
-            <tfoot><tr style={{borderTop:'2px solid #2a3042',background:'#131825'}}>
-              <td style={{...S.td,fontWeight:700}}>Totale</td>
-              <td style={{...S.td,fontWeight:600}}>{fmt(taxes.reduce((s,t)=>s+(t.taxable||0),0))}</td>
-              <td style={{...S.td,fontWeight:600,color:'#EF4444'}}>{fmt(taxes.reduce((s,t)=>s+(t.tax_amount||0),0))}</td>
-              <td style={{...S.td,fontWeight:700,color:'#F59E0B',fontSize:14}}>{fmt(totale)}</td>
-              <td style={{...S.td,fontWeight:600}}>100%</td>
-            </tr></tfoot>
-          </table>
-        </Card>
-      </>}
+      {/* ── IVA (nuovo: a debito + a credito + saldo, mensile/trimestrale) ── */}
+      {tab==='iva'&&<IvaTab sp={sp} sps={sps}/>}
 
       {/* ── REPARTI ── */}
       {tab==='rep'&&<>

@@ -1,6 +1,32 @@
 // API fatture — integrazione TS Digital (API diretta) + CiC legacy (cookie)
 import crypto from 'crypto'
 
+// Aggrega IVA per aliquota dai blocchi <DatiRiepilogo> dell'XML FatturaPA.
+// Restituisce { "22.00": { imponibile, imposta }, "10.00": {...}, ... }
+function parseIvaBreakdown(xml) {
+  if (!xml) return {}
+  const out = {}
+  const re = /<DatiRiepilogo>([\s\S]*?)<\/DatiRiepilogo>/g
+  let m
+  while ((m = re.exec(xml)) !== null) {
+    const block = m[1]
+    const g = (t) => { const x = block.match(new RegExp('<' + t + '>(.*?)</' + t + '>')); return x ? x[1] : '' }
+    const aliq = parseFloat(g('AliquotaIVA')) || 0
+    const imp = parseFloat(g('ImponibileImporto')) || 0
+    const ivaA = parseFloat(g('Imposta')) || 0
+    if (aliq === 0 && imp === 0 && ivaA === 0) continue
+    const key = aliq.toFixed(2)
+    if (!out[key]) out[key] = { imponibile: 0, imposta: 0 }
+    out[key].imponibile += imp
+    out[key].imposta += ivaA
+  }
+  for (const k of Object.keys(out)) {
+    out[k].imponibile = Math.round(out[k].imponibile * 100) / 100
+    out[k].imposta = Math.round(out[k].imposta * 100) / 100
+  }
+  return out
+}
+
 const FO_BASE = 'https://fo-services.cassanova.com'
 const TS_AUTH_BASE = 'https://b2b-auth-service.agyo.io'
 const TS_API_BASE = 'https://b2bread-api.agyo.io'
@@ -182,11 +208,17 @@ export default async function handler(req, res) {
                 pu: parseFloat(g('PrezzoUnitario')) || 0, pt: parseFloat(g('PrezzoTotale')) || 0 })
             }
             const isNC = inv.detail?.td === 'TD04' || inv.detail?.td === 'TD05'
+            // Calcola IVA breakdown da DatiRiepilogo
+            const ivaBd = parseIvaBreakdown(xml)
+            const ivaBdSigned = isNC
+              ? Object.fromEntries(Object.entries(ivaBd).map(([k, v]) => [k, { imponibile: -Math.abs(v.imponibile), imposta: -Math.abs(v.imposta) }]))
+              : ivaBd
             // Insert fattura
             const irR = await fetch(`${SB_URL}/rest/v1/warehouse_invoices`, { method: 'POST', headers: sbH,
               body: JSON.stringify({ user_id: UID, data: inv.docDate, numero: inv.docId || '', fornitore: inv.senderName || '',
                 locale, totale: isNC ? -Math.abs(inv.detail?.totalAmount || 0) : inv.detail?.totalAmount || 0,
-                tipo_doc: isNC ? 'nota_credito' : 'fattura', stato: 'bozza' }) })
+                tipo_doc: isNC ? 'nota_credito' : 'fattura', stato: 'bozza',
+                iva_breakdown: ivaBdSigned }) })
             if (!irR.ok) { errors++; continue }
             const [newInv] = await irR.json()
             // Insert righe
@@ -206,6 +238,52 @@ export default async function handler(req, res) {
           hasNext: resp.page?.hasNext || false,
           continuationToken: resp.page?.continuationToken || null,
         })
+      }
+
+      // ─── Backfill iva_breakdown su fatture esistenti ─────────────────
+      // Chiamato in loop dal client; processa fino a 15 fatture per chiamata
+      // (timeout Vercel ~10s su free, abbondante margine).
+      case 'backfill-iva-breakdown': {
+        const token = await getTsToken()
+        const owner = TS_OWNERS[0]?.cf
+        const SB_URL = process.env.SUPABASE_URL || 'https://afdochrjbmxnhviidzpb.supabase.co'
+        const SB_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZG9jaHJqYm14bmh2aWlkenBiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDkzMzk5MSwiZXhwIjoyMDkwNTA5OTkxfQ.odgLZGS_W1j5mSngmL3MGlJOKTzfAm3RjsdXhi5MEEA'
+        const sbH = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Prefer': 'return=representation' }
+        // Fattura senza iva_breakdown popolato
+        const listR = await fetch(`${SB_URL}/rest/v1/warehouse_invoices?iva_breakdown=eq.{}&select=id,numero,fornitore,tipo_doc,data&order=data.desc&limit=15`, { headers: sbH })
+        const toFix = await listR.json()
+        if (!Array.isArray(toFix) || toFix.length === 0) {
+          return res.status(200).json({ updated: 0, errors: 0, hasMore: false, remaining: 0 })
+        }
+        // Devo trovare hubId/ownerId di ogni fattura cercando in TS Digital per docId
+        // Strategia: scarico la lista corrente (ultime ~50) e matcho per (docId, senderName)
+        const tsList = await tsListInvoices(token, owner, {})
+        const tsInvoices = tsList._embedded?.invoiceList || []
+        const tsIndex = {}
+        for (const ti of tsInvoices) tsIndex[`${ti.docId}|${ti.senderName}`] = ti
+        let updated = 0, errors = 0
+        for (const dbInv of toFix) {
+          const key = `${dbInv.numero}|${dbInv.fornitore}`
+          const tsInv = tsIndex[key]
+          if (!tsInv) { errors++; continue }
+          try {
+            const xml = await tsDownloadInvoice(token, owner, tsInv.hubId, 'XML')
+            const bd = parseIvaBreakdown(xml)
+            const isNC = dbInv.tipo_doc === 'nota_credito'
+            const bdSigned = isNC
+              ? Object.fromEntries(Object.entries(bd).map(([k, v]) => [k, { imponibile: -Math.abs(v.imponibile), imposta: -Math.abs(v.imposta) }]))
+              : bd
+            await fetch(`${SB_URL}/rest/v1/warehouse_invoices?id=eq.${dbInv.id}`, {
+              method: 'PATCH', headers: { ...sbH, 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ iva_breakdown: bdSigned })
+            })
+            updated++
+          } catch { errors++ }
+        }
+        // Conta rimanenti (con paginazione esatta no, stima)
+        const remR = await fetch(`${SB_URL}/rest/v1/warehouse_invoices?iva_breakdown=eq.{}&select=id&limit=1`, { headers: { ...sbH, 'Prefer': 'count=exact' } })
+        const remCount = parseInt(remR.headers.get('content-range')?.split('/')[1] || '0')
+        return res.status(200).json({ updated, errors, hasMore: remCount > 0, remaining: remCount })
       }
 
       // ─── CiC Legacy: lista fatture da entrambi i salespoint ───────
