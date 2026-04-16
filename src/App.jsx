@@ -4,12 +4,15 @@ import AuthPage from './pages/AuthPage'
 import SetupPage from './pages/SetupPage'
 import DashboardPage from './pages/DashboardPage'
 import TimbraPage from './pages/TimbraPage'
+import AdminPage from './pages/AdminPage'
 
 export default function App() {
   // Routing: /timbra → pagina pubblica timbratura
   if (window.location.pathname === '/timbra' || window.location.search.includes('timbra=1')) {
     return <TimbraPage />
   }
+  // Routing: /admin → pagina admin (richiede login + flag is_admin)
+  const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')
   const [session, setSession] = useState(undefined)
   const [settings, setSettings] = useState(null)
   const [loadingSettings, setLoadingSettings] = useState(false)
@@ -54,6 +57,8 @@ export default function App() {
 
   if (session === undefined) return <Spinner />
   if (!session) return <AuthPage />
+  // /admin: serve essere loggati ma NON serve aver configurato la dashboard cliente
+  if (isAdminRoute) return <AdminPage />
   // Mostra Spinner solo al PRIMO caricamento settings; i refetch successivi
   // (es. dopo TOKEN_REFRESHED) avvengono in background senza smontare la dashboard
   if (settings === null && loadingSettings) return <Spinner />

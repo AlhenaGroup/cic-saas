@@ -3,7 +3,8 @@
     "fra1"
   ],
   "rewrites": [
-    { "source": "/timbra", "destination": "/index.html" }
+    { "source": "/timbra", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" }
   ],
   "functions": {
     "api/*.js": {

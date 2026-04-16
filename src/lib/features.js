@@ -152,3 +152,38 @@ export function clearFeaturesCache() {
   _cache = null
   notify()
 }
+
+// ─── Admin ─────────────────────────────────────────────────────────────────
+let _adminCache = null  // { user_id, role } | { isAdmin: false }
+const _adminListeners = new Set()
+
+async function loadAdminFromDb() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) { _adminCache = { isAdmin: false }; for (const fn of _adminListeners) fn(); return }
+  const { data } = await supabase
+    .from('admins')
+    .select('role')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  _adminCache = data ? { isAdmin: true, role: data.role, user_id: user.id } : { isAdmin: false }
+  for (const fn of _adminListeners) fn()
+}
+
+export function useIsAdmin() {
+  const [, setTick] = useState(0)
+  const [loading, setLoading] = useState(_adminCache === null)
+  useEffect(() => {
+    const trigger = () => setTick(t => t + 1)
+    _adminListeners.add(trigger)
+    if (_adminCache === null) {
+      loadAdminFromDb().finally(() => setLoading(false))
+    }
+    return () => { _adminListeners.delete(trigger) }
+  }, [])
+  return { isAdmin: _adminCache?.isAdmin === true, role: _adminCache?.role, loading }
+}
+
+export function clearAdminCache() {
+  _adminCache = null
+  for (const fn of _adminListeners) fn()
+}
