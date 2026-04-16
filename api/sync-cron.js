@@ -459,10 +459,22 @@ export default async function handler(req, res) {
   const authHeader = req.headers['authorization'] || '';
   const cronHeader = req.headers['x-vercel-cron'];
   const clientApiKey = req.query?.apiKey || (authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '');
-  const validApiKeys = SALESPOINTS.map(s => s.apiKey).filter(Boolean);
+  const hardcodedKeys = SALESPOINTS.map(s => s.apiKey).filter(Boolean);
   const isCron = !!cronHeader;
   const isCronSecret = authHeader === 'Bearer ' + (process.env.CRON_SECRET || 'cic-sync-2026');
-  const isClientKey = validApiKeys.includes(clientApiKey);
+  let isClientKey = clientApiKey && hardcodedKeys.includes(clientApiKey);
+  // Se non e' una delle apiKey hardcoded, prova lookup in user_settings (apiKey aggregatrice)
+  if (!isClientKey && clientApiKey && !isCron && !isCronSecret) {
+    try {
+      const sbUrl = process.env.SUPABASE_URL || 'https://afdochrjbmxnhviidzpb.supabase.co';
+      const sbKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZG9jaHJqYm14bmh2aWlkenBiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDkzMzk5MSwiZXhwIjoyMDkwNTA5OTkxfQ.odgLZGS_W1j5mSngmL3MGlJOKTzfAm3RjsdXhi5MEEA';
+      const r = await fetch(`${sbUrl}/rest/v1/user_settings?cic_api_key=eq.${encodeURIComponent(clientApiKey)}&select=id&limit=1`, {
+        headers: { apikey: sbKey, Authorization: 'Bearer ' + sbKey }
+      });
+      const arr = await r.json();
+      if (Array.isArray(arr) && arr.length > 0) isClientKey = true;
+    } catch {}
+  }
   if (!isCron && !isCronSecret && !isClientKey) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
