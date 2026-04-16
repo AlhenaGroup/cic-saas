@@ -95,7 +95,7 @@ export default function IvaTab({ sp, sps }) {
         ;(receipt.items || []).forEach(item => {
           const rate = Number(item.tax?.rate ?? item.iva ?? 0)
           const price = Number(item.totalPrice ?? item.prezzo ?? 0)
-          if (price === 0) continue
+          if (price === 0) return
           const taxable = price / (1 + rate / 100)
           const tax = price - taxable
           const key = rate.toFixed(2)
