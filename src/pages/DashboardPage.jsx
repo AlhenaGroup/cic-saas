@@ -253,46 +253,57 @@ export default function DashboardPage({ settings }) {
       <div style={{display:'flex',alignItems:'center',gap:8}}>
         {isLive&&<span style={S.badge('#3B82F6','rgba(59,130,246,.12)')} title="Dati live da CiC, non ancora salvati su DB">LIVE</span>}
         {isEmpty&&<span style={S.badge('#94a3b8','rgba(148,163,184,.12)')} title="Nessun dato in questo periodo">VUOTO</span>}
-        <select value={activePresetKey(from, to)}
-          onChange={e=>{ const r = presetRange(e.target.value); if (r) { setFrom(r.from); setTo(r.to) } }}
-          style={{...iS,fontSize:12,paddingLeft:10}}
-          title="Preset periodo">
-          <option value="">📅 Personalizzato</option>
-          {PERIOD_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-        </select>
-        <input type="date" value={from} onChange={e=>setFrom(e.target.value)} style={iS}/>
-        <span style={{color:'#2a3042'}}>—</span>
-        <input type="date" value={to}   onChange={e=>setTo(e.target.value)}   style={iS}/>
+        {(() => {
+          const presetKey = activePresetKey(from, to)
+          const showDates = !presetKey
+          return <>
+            <select value={presetKey}
+              onChange={e=>{ const r = presetRange(e.target.value); if (r) { setFrom(r.from); setTo(r.to) } }}
+              style={{...iS,fontSize:12,paddingLeft:10}}
+              title="Preset periodo">
+              <option value="">📅 Personalizzato</option>
+              {PERIOD_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+            {showDates && <>
+              <input type="date" value={from} onChange={e=>setFrom(e.target.value)} style={iS}/>
+              <span style={{color:'#2a3042'}}>—</span>
+              <input type="date" value={to}   onChange={e=>setTo(e.target.value)}   style={iS}/>
+            </>}
+          </>
+        })()}
         <span style={{color:'#475569',fontSize:11,marginLeft:8}}>vs</span>
-        <select value={from2 && to2 && (function(){
-            // 'prev' = stesso periodo precedente del principale
-            const ms = 86400000
-            const len = (new Date(to) - new Date(from))/ms + 1
-            const expectedTo2 = new Date(new Date(from).getTime() - ms); const expectedFrom2 = new Date(expectedTo2.getTime() - (len-1)*ms)
-            if (_ymd(expectedFrom2) === from2 && _ymd(expectedTo2) === to2) return 'prev'
-            return activePresetKey(from2, to2)
-          })()}
-          onChange={e=>{
-            const v = e.target.value
-            if (v === 'prev') {
-              const ms = 86400000
-              const len = (new Date(to) - new Date(from))/ms + 1
-              const expectedTo2 = new Date(new Date(from).getTime() - ms)
-              const expectedFrom2 = new Date(expectedTo2.getTime() - (len-1)*ms)
-              setFrom2(_ymd(expectedFrom2)); setTo2(_ymd(expectedTo2))
-            } else {
-              const r = presetRange(v); if (r) { setFrom2(r.from); setTo2(r.to) }
-            }
-          }}
-          style={{...iS,fontSize:11,padding:'4px 8px'}}
-          title="Preset periodo confronto">
-          <option value="">📅 Personalizzato</option>
-          <option value="prev">↩ Periodo precedente</option>
-          {PERIOD_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-        </select>
-        <input type="date" value={from2} onChange={e=>setFrom2(e.target.value)} style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta dal"/>
-        <span style={{color:'#2a3042'}}>—</span>
-        <input type="date" value={to2}   onChange={e=>setTo2(e.target.value)}   style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta al"/>
+        {(() => {
+          // 'prev' = stesso periodo precedente del principale
+          const ms = 86400000
+          const len = (new Date(to) - new Date(from))/ms + 1
+          const expectedTo2 = new Date(new Date(from).getTime() - ms)
+          const expectedFrom2 = new Date(expectedTo2.getTime() - (len-1)*ms)
+          const isPrev = from2 && to2 && _ymd(expectedFrom2) === from2 && _ymd(expectedTo2) === to2
+          const presetKey2 = isPrev ? 'prev' : (from2 && to2 ? activePresetKey(from2, to2) : '')
+          const showDates2 = !presetKey2
+          return <>
+            <select value={presetKey2}
+              onChange={e=>{
+                const v = e.target.value
+                if (v === 'prev') {
+                  setFrom2(_ymd(expectedFrom2)); setTo2(_ymd(expectedTo2))
+                } else {
+                  const r = presetRange(v); if (r) { setFrom2(r.from); setTo2(r.to) }
+                }
+              }}
+              style={{...iS,fontSize:11,padding:'4px 8px'}}
+              title="Preset periodo confronto">
+              <option value="">📅 Personalizzato</option>
+              <option value="prev">↩ Periodo precedente</option>
+              {PERIOD_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+            {showDates2 && <>
+              <input type="date" value={from2} onChange={e=>setFrom2(e.target.value)} style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta dal"/>
+              <span style={{color:'#2a3042'}}>—</span>
+              <input type="date" value={to2}   onChange={e=>setTo2(e.target.value)}   style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta al"/>
+            </>}
+          </>
+        })()}
         <button onClick={load} style={{...iS,background:'#F59E0B',color:'#0f1420',fontWeight:600,border:'none',padding:'6px 16px'}}>Aggiorna</button>
         <button onClick={forceSync} disabled={syncing}
           style={{...iS,background:syncing?'#1a1f2e':'#10B981',color:syncing?'#94a3b8':'#0f1420',fontWeight:600,border:'none',padding:'6px 12px',cursor:syncing?'wait':'pointer'}}
