@@ -71,10 +71,11 @@ async function adminCall(action, body = {}) {
 
 // ─── Componenti UI ─────────────────────────────────────────────────────────
 
-function UsersList({ onEditUser }) {
+function UsersList({ onEditUser, refreshKey }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [creating, setCreating] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -85,12 +86,31 @@ function UsersList({ onEditUser }) {
     setLoading(false)
   }, [])
 
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => { reload() }, [reload, refreshKey])
 
   const filtered = users.filter(u => !search || u.email?.toLowerCase().includes(search.toLowerCase()))
 
+  const newUser = async () => {
+    const email = prompt('Email del nuovo cliente:')
+    if (!email) return
+    const password = prompt('Password iniziale (cambia poi su Supabase):', 'CambiaSubito-' + Math.random().toString(36).slice(2, 8))
+    if (!password) return
+    setCreating(true)
+    try {
+      await adminCall('create-user', { email, password })
+      alert('✓ Utente creato. Comunicagli email + password e configurargli la chiave CiC dal modal.')
+      await reload()
+    } catch (e) { alert('Errore: ' + e.message) }
+    setCreating(false)
+  }
+
   return <Card title={`Utenti (${users.length})`} extra={
-    <input placeholder="🔍 Cerca email..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...iS, width: 220 }} />
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <input placeholder="🔍 Cerca email..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...iS, width: 200 }} />
+      <button onClick={newUser} disabled={creating} style={{ ...iS, background: creating ? '#1a1f2e' : '#10B981', color: creating ? '#94a3b8' : '#0f1420', fontWeight: 600, border: 'none', padding: '6px 12px', cursor: creating ? 'wait' : 'pointer' }}>
+        {creating ? '⏳' : '+ Nuovo utente'}
+      </button>
+    </div>
   }>
     {loading && <div style={{ padding: 20, color: '#64748b' }}>Caricamento…</div>}
     {!loading && (
@@ -126,6 +146,7 @@ function UsersList({ onEditUser }) {
 }
 
 function EditUser({ user, plans, onClose, onSaved }) {
+  const [section, setSection] = useState('plan') // plan | features | cic
   const [planId, setPlanId] = useState(user.plan?.plan_id || (plans.find(p => p.is_default)?.id || plans[0]?.id))
   const [validUntil, setValidUntil] = useState(user.plan?.valid_until || '')
   const [trialUntil, setTrialUntil] = useState(user.plan?.trial_until || '')
@@ -136,6 +157,35 @@ function EditUser({ user, plans, onClose, onSaved }) {
   const [extraWidgets, setExtraWidgets] = useState(user.overrides?.extra?.widgets || [])
   const [excludeWidgets, setExcludeWidgets] = useState(user.overrides?.exclude?.widgets || [])
   const [saving, setSaving] = useState(false)
+
+  // Settings CiC
+  const [cicApiKey, setCicApiKey] = useState('')
+  const [salesPoints, setSalesPoints] = useState([])
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [syncingSp, setSyncingSp] = useState(false)
+  const [showApiKey, setShowApiKey] = useState(false)
+
+  // Carica le settings CiC quando l'utente apre la sezione
+  const loadCicSettings = useCallback(async () => {
+    try {
+      const { settings } = await adminCall('get-user-settings', { user_id: user.id })
+      setCicApiKey(settings?.cic_api_key || '')
+      setSalesPoints(Array.isArray(settings?.sales_points) ? settings.sales_points : [])
+      setSettingsLoaded(true)
+    } catch (e) { alert(e.message) }
+  }, [user.id])
+  useEffect(() => { if (section === 'cic' && !settingsLoaded) loadCicSettings() }, [section, settingsLoaded, loadCicSettings])
+
+  const syncSalespoints = async () => {
+    if (!cicApiKey) { alert('Inserisci prima la chiave API CiC'); return }
+    setSyncingSp(true)
+    try {
+      const { salespoints } = await adminCall('sync-salespoints', { cic_api_key: cicApiKey })
+      setSalesPoints(salespoints || [])
+      alert(`✓ Sincronizzati ${salespoints?.length || 0} locali da CiC`)
+    } catch (e) { alert(e.message) }
+    setSyncingSp(false)
+  }
 
   const toggle = (arr, setArr, val) => setArr(arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val])
 
@@ -153,68 +203,145 @@ function EditUser({ user, plans, onClose, onSaved }) {
         extra: { tabs: extraTabs, widgets: extraWidgets },
         exclude: { tabs: excludeTabs, widgets: excludeWidgets },
       })
+      // Salva settings CiC se sono state caricate (= utente ha aperto il tab CiC)
+      if (settingsLoaded) {
+        await adminCall('set-user-settings', {
+          user_id: user.id,
+          cic_api_key: cicApiKey || null,
+          sales_points: salesPoints,
+        })
+      }
       onSaved()
       onClose()
     } catch (e) { alert(e.message) }
     setSaving(false)
   }
 
+  const sBtn = (s) => ({
+    padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
+    background: section === s ? '#F59E0B' : 'transparent',
+    color: section === s ? '#0f1420' : '#94a3b8',
+    borderBottom: section === s ? '2px solid #F59E0B' : '2px solid transparent',
+  })
+
   return <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, overflow: 'auto', padding: 24 }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 700, maxHeight: '90vh', overflow: 'auto' }}>
+    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720, maxHeight: '90vh', overflow: 'auto' }}>
       <div style={{ padding: 20, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>Modifica utente · {user.email}</h3>
         <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
       </div>
+
+      {/* Tab di sezione */}
+      <div style={{ display: 'flex', gap: 4, padding: '0 20px', borderBottom: '1px solid #2a3042' }}>
+        <button onClick={() => setSection('plan')} style={sBtn('plan')}>📦 Piano & stato</button>
+        <button onClick={() => setSection('features')} style={sBtn('features')}>🎛 Override tab</button>
+        <button onClick={() => setSection('cic')} style={sBtn('cic')}>🔑 Configurazione CiC</button>
+      </div>
+
       <div style={{ padding: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-          <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Piano</div>
-            <select value={planId} onChange={e => setPlanId(e.target.value)} style={{ ...iS, width: '100%' }}>
-              {plans.map(p => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
-            </select>
-          </label>
-          <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Stato</div>
-            <select value={active ? 'on' : 'off'} onChange={e => setActive(e.target.value === 'on')} style={{ ...iS, width: '100%' }}>
-              <option value="on">Attivo</option>
-              <option value="off">Sospeso</option>
-            </select>
-          </label>
-          <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Trial fino</div>
-            <input type="date" value={trialUntil} onChange={e => setTrialUntil(e.target.value)} style={{ ...iS, width: '100%' }} />
-          </label>
-          <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Valido fino</div>
-            <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} style={{ ...iS, width: '100%' }} />
-          </label>
-        </div>
-        <label style={{ display: 'block', marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Note interne</div>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} style={{ ...iS, width: '100%', resize: 'vertical' }} />
-        </label>
-
-        <div style={{ borderTop: '1px solid #2a3042', paddingTop: 16, marginBottom: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>🟢 Extra: tab inclusi oltre al piano</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {TAB_CATALOG.map(t => (
-              <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8', background: extraTabs.includes(t.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
-                <input type="checkbox" checked={extraTabs.includes(t.key)} onChange={() => toggle(extraTabs, setExtraTabs, t.key)} />
-                {t.label}
-              </label>
-            ))}
+        {section === 'plan' && <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Piano</div>
+              <select value={planId} onChange={e => setPlanId(e.target.value)} style={{ ...iS, width: '100%' }}>
+                {plans.map(p => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+              </select>
+            </label>
+            <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Stato</div>
+              <select value={active ? 'on' : 'off'} onChange={e => setActive(e.target.value === 'on')} style={{ ...iS, width: '100%' }}>
+                <option value="on">Attivo</option>
+                <option value="off">Sospeso</option>
+              </select>
+            </label>
+            <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Trial fino</div>
+              <input type="date" value={trialUntil} onChange={e => setTrialUntil(e.target.value)} style={{ ...iS, width: '100%' }} />
+            </label>
+            <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Valido fino</div>
+              <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} style={{ ...iS, width: '100%' }} />
+            </label>
           </div>
-        </div>
+          <label style={{ display: 'block' }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Note interne</div>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} style={{ ...iS, width: '100%', resize: 'vertical' }} />
+          </label>
+        </>}
 
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>🔴 Esclusi: tab tolti dal piano</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {TAB_CATALOG.map(t => (
-              <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8', background: excludeTabs.includes(t.key) ? 'rgba(239,68,68,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
-                <input type="checkbox" checked={excludeTabs.includes(t.key)} onChange={() => toggle(excludeTabs, setExcludeTabs, t.key)} />
-                {t.label}
-              </label>
-            ))}
+        {section === 'features' && <>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>🟢 Extra: tab inclusi oltre al piano</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {TAB_CATALOG.map(t => (
+                <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8', background: extraTabs.includes(t.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={extraTabs.includes(t.key)} onChange={() => toggle(extraTabs, setExtraTabs, t.key)} />
+                  {t.label}
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>🔴 Esclusi: tab tolti dal piano</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {TAB_CATALOG.map(t => (
+                <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8', background: excludeTabs.includes(t.key) ? 'rgba(239,68,68,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={excludeTabs.includes(t.key)} onChange={() => toggle(excludeTabs, setExcludeTabs, t.key)} />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </>}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #2a3042' }}>
+        {section === 'cic' && <>
+          {!settingsLoaded && <div style={{ padding: 12, color: '#64748b' }}>Carico…</div>}
+          {settingsLoaded && <>
+            <label style={{ display: 'block', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>🔑 Chiave API CiC <span style={{ color: '#64748b' }}>(la trovi nel back-office Cassa in Cloud)</span></div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input type={showApiKey ? 'text' : 'password'} value={cicApiKey} onChange={e => setCicApiKey(e.target.value)}
+                  placeholder="es. 577e0bcc-f44e-4f5a-b7b6-..."
+                  style={{ ...iS, flex: 1, fontFamily: 'monospace' }} />
+                <button onClick={() => setShowApiKey(!showApiKey)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }} title={showApiKey ? 'Nascondi' : 'Mostra'}>
+                  {showApiKey ? '🙈' : '👁'}
+                </button>
+              </div>
+            </label>
+
+            <div style={{ marginBottom: 12 }}>
+              <button onClick={syncSalespoints} disabled={syncingSp || !cicApiKey}
+                style={{ ...iS, background: syncingSp ? '#1a1f2e' : '#3B82F6', color: syncingSp ? '#94a3b8' : '#fff', fontWeight: 600, border: 'none', padding: '8px 14px', cursor: syncingSp ? 'wait' : 'pointer' }}>
+                {syncingSp ? '⏳ Sincronizzo…' : '🔄 Sincronizza locali da CiC'}
+              </button>
+              <span style={{ fontSize: 11, color: '#64748b', marginLeft: 10 }}>
+                Verifica la chiave + scarica la lista locali del cliente
+              </span>
+            </div>
+
+            <div style={{ borderTop: '1px solid #2a3042', paddingTop: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>📍 Locali (sales_points) sincronizzati</div>
+              {salesPoints.length === 0 ? (
+                <div style={{ fontSize: 11, color: '#64748b', padding: 12, background: '#0a0e16', borderRadius: 6 }}>
+                  Nessun locale. Inserisci la chiave API e clicca "Sincronizza".
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+                    {['ID', 'Descrizione', 'Nome'].map(h => <th key={h} style={S.th}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {salesPoints.map(s => (
+                      <tr key={s.id || s.description}>
+                        <td style={{ ...S.td, fontFamily: 'monospace', color: '#94a3b8' }}>{s.id}</td>
+                        <td style={{ ...S.td, fontWeight: 500 }}>{s.description}</td>
+                        <td style={{ ...S.td, color: '#94a3b8' }}>{s.name}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>}
+        </>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 16, borderTop: '1px solid #2a3042', marginTop: 16 }}>
           <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
           <button onClick={save} disabled={saving} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
             {saving ? 'Salvo…' : '💾 Salva'}
@@ -449,7 +576,7 @@ export default function AdminPage() {
       <button onClick={() => setTab('plans')} style={tS('plans')}>🎁 Piani</button>
     </div>
     <div style={{ padding: '1.5rem', maxWidth: 1400, margin: '0 auto' }}>
-      {tab === 'users' && <UsersList onEditUser={u => setEditingUser(u)} />}
+      {tab === 'users' && <UsersList onEditUser={u => setEditingUser(u)} refreshKey={reloadKey} />}
       {tab === 'plans' && <PlansList />}
     </div>
     {editingUser && plans.length > 0 && (

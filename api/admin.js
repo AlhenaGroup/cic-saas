@@ -122,6 +122,64 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true })
       }
 
+      // ─── USER SETTINGS (configurazione CiC per conto del cliente) ────
+      case 'get-user-settings': {
+        const { user_id } = req.body
+        if (!user_id) return res.status(400).json({ error: 'user_id richiesto' })
+        const { data } = await sb.from('user_settings').select('*').eq('user_id', user_id).maybeSingle()
+        return res.status(200).json({ settings: data || null })
+      }
+
+      case 'set-user-settings': {
+        const { user_id, cic_api_key, sales_points, plateform_api_key, plateform_location_map } = req.body
+        if (!user_id) return res.status(400).json({ error: 'user_id richiesto' })
+        const payload = { user_id, updated_at: new Date().toISOString() }
+        if (cic_api_key !== undefined) payload.cic_api_key = cic_api_key
+        if (sales_points !== undefined) payload.sales_points = sales_points
+        if (plateform_api_key !== undefined) payload.plateform_api_key = plateform_api_key
+        if (plateform_location_map !== undefined) payload.plateform_location_map = plateform_location_map
+        const { error } = await sb.from('user_settings').upsert(payload, { onConflict: 'user_id' })
+        if (error) throw error
+        return res.status(200).json({ ok: true })
+      }
+
+      case 'sync-salespoints': {
+        // Chiama API CiC con la apiKey fornita per recuperare la lista locali
+        const { cic_api_key } = req.body
+        if (!cic_api_key) return res.status(400).json({ error: 'cic_api_key richiesta' })
+        const tokRes = await fetch('https://api.cassainnuvola.it/v2/account/login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: cic_api_key })
+        })
+        if (!tokRes.ok) return res.status(400).json({ error: 'apiKey CiC non valida (login fallito)' })
+        const tokData = await tokRes.json()
+        const token = tokData.token || tokData.accessToken
+        const spRes = await fetch('https://api.cassainnuvola.it/v2/salespoint?hasActiveLicense=true', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        })
+        if (!spRes.ok) return res.status(400).json({ error: 'lettura salespoint fallita' })
+        const spData = await spRes.json()
+        const list = Array.isArray(spData.salesPoint) ? spData.salesPoint : (Array.isArray(spData) ? spData : [])
+        return res.status(200).json({ salespoints: list })
+      }
+
+      case 'create-user': {
+        // Crea nuovo utente cliente: email, password, plan_id (opzionale)
+        const { email, password, plan_id } = req.body
+        if (!email || !password) return res.status(400).json({ error: 'email e password richiesti' })
+        const { data: created, error } = await sb.auth.admin.createUser({ email, password, email_confirm: true })
+        if (error) throw error
+        const newId = created.user.id
+        // Assegna piano (default se non specificato)
+        let pid = plan_id
+        if (!pid) {
+          const { data: defPlan } = await sb.from('feature_plans').select('id').eq('is_default', true).limit(1).single()
+          pid = defPlan?.id || 'full'
+        }
+        await sb.from('user_plans').upsert({ user_id: newId, plan_id: pid, active: true }, { onConflict: 'user_id' })
+        return res.status(200).json({ ok: true, user_id: newId })
+      }
+
       case 'delete-plan': {
         const { id } = req.body
         if (!id) return res.status(400).json({ error: 'id richiesto' })

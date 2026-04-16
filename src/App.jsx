@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import AuthPage from './pages/AuthPage'
-import SetupPage from './pages/SetupPage'
 import DashboardPage from './pages/DashboardPage'
 import TimbraPage from './pages/TimbraPage'
 import AdminPage from './pages/AdminPage'
+import WaitingPage from './pages/WaitingPage'
 
 export default function App() {
   // Routing: /timbra → pagina pubblica timbratura
@@ -42,12 +42,6 @@ export default function App() {
       .catch(() => { setSettings(null); setLoadingSettings(false) })
   }, [session])
 
-  function handleSettingsSaved() {
-    if (!session?.user) return
-    supabase.from('user_settings').select('*').eq('user_id', session.user.id).single()
-      .then(({ data }) => setSettings(data))
-  }
-
   const Spinner = () => (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
       <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid var(--border-md)', borderTopColor: 'var(--blue)', animation: 'spin .7s linear infinite' }} />
@@ -62,6 +56,8 @@ export default function App() {
   // Mostra Spinner solo al PRIMO caricamento settings; i refetch successivi
   // (es. dopo TOKEN_REFRESHED) avvengono in background senza smontare la dashboard
   if (settings === null && loadingSettings) return <Spinner />
-  if (!settings?.cic_api_key) return <SetupPage onSaved={handleSettingsSaved} />
+  // Account non ancora configurato dall'admin → pagina di attesa
+  // (la chiave CiC viene impostata da postmaster@alhenagroup.com tramite /admin)
+  if (!settings?.cic_api_key) return <WaitingPage email={session.user.email} />
   return <DashboardPage settings={settings} />
 }
