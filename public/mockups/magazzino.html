@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Mockup Magazzino — CIC Analytics</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: #0f1420; color: #e2e8f0;
+    min-height: 100vh;
+  }
+  a { color: #F59E0B; text-decoration: none; }
+  h1 { font-size: 18px; font-weight: 700; }
+  h2 { font-size: 15px; font-weight: 600; color: #e2e8f0; }
+  h3 { font-size: 13px; font-weight: 600; color: #cbd5e1; margin-bottom: 8px; }
+  .header {
+    background: #131825; border-bottom: 1px solid #1e2636;
+    padding: 0 24px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    width: 28px; height: 28px; background: #F59E0B; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #0f1420; font-size: 13px; margin-right: 10px;
+  }
+  .badge-mockup {
+    background: rgba(59,130,246,.15); color: #3B82F6;
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 4px; margin-left: 12px;
+  }
+  .tabs {
+    background: #131825; border-bottom: 1px solid #1e2636;
+    padding: 0 24px; display: flex; gap: 4px; overflow-x: auto;
+  }
+  .tab {
+    padding: 12px 18px; font-size: 13px; font-weight: 500;
+    color: #64748b; background: transparent; border: none;
+    cursor: pointer; white-space: nowrap;
+  }
+  .tab.active { background: #F59E0B; color: #0f1420; border-radius: 6px 6px 0 0; }
+  .container { padding: 24px; max-width: 1400px; margin: 0 auto; }
+  .card {
+    background: #131825; border: 1px solid #2a3042; border-radius: 12px;
+    padding: 20px; margin-bottom: 14px;
+  }
+  .card-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  select, input {
+    background: #0f1420; border: 1px solid #2a3042; border-radius: 6px;
+    color: #e2e8f0; padding: 6px 10px; font-size: 13px;
+  }
+  .btn {
+    background: #F59E0B; color: #0f1420; font-weight: 600;
+    border: none; border-radius: 6px; padding: 6px 14px;
+    cursor: pointer; font-size: 12px;
+  }
+  .btn-ghost {
+    background: transparent; border: 1px solid #2a3042; color: #cbd5e1;
+  }
+  .btn-green { background: #10B981; color: #0f1420; }
+  .btn-red { background: transparent; color: #EF4444; border: 1px solid rgba(239,68,68,.3); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; font-size: 11px; color: #475569;
+       text-transform: uppercase; letter-spacing: .06em; font-weight: 500; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1a1f2e; }
+  tr:hover td { background: #1e2636; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+  .kpi {
+    background: #131825; border: 1px solid #2a3042; border-radius: 10px;
+    padding: 14px 16px; position: relative; overflow: hidden;
+  }
+  .kpi-accent { position: absolute; top: 0; left: 0; width: 3px; height: 100%; border-radius: 10px 0 0 10px; }
+  .kpi-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+  .kpi-value { font-size: 22px; font-weight: 700; color: #f1f5f9; margin-bottom: 2px; }
+  .kpi-sub { font-size: 11px; color: #94a3b8; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; }
+  .b-green { background: rgba(16,185,129,.15); color: #10B981; }
+  .b-orange { background: rgba(245,158,11,.15); color: #F59E0B; }
+  .b-blue { background: rgba(59,130,246,.15); color: #3B82F6; }
+  .b-red { background: rgba(239,68,68,.15); color: #EF4444; }
+  .b-grey { background: rgba(148,163,184,.15); color: #94a3b8; }
+  .subtabs { display: flex; gap: 2px; border-bottom: 1px solid #2a3042; margin-bottom: 16px; }
+  .subtab { padding: 10px 16px; font-size: 13px; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; }
+  .subtab.active { color: #F59E0B; border-bottom-color: #F59E0B; font-weight: 600; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .hero {
+    background: linear-gradient(135deg, rgba(245,158,11,.08), rgba(59,130,246,.05));
+    border: 1px solid rgba(245,158,11,.2); border-radius: 12px;
+    padding: 20px 24px; margin-bottom: 16px;
+  }
+  .hero h2 { color: #F59E0B; margin-bottom: 6px; }
+  .hero p { font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+  .footer-note {
+    font-size: 11px; color: #64748b; padding: 14px 20px;
+    background: rgba(148,163,184,.05); border: 1px solid #1e2636; border-radius: 8px;
+    margin-top: 14px; line-height: 1.6;
+  }
+  .footer-note strong { color: #cbd5e1; }
+  .pill {
+    display: inline-flex; gap: 4px; align-items: center;
+    padding: 3px 8px; font-size: 10px; border-radius: 10px;
+    background: #1a1f2e; color: #94a3b8;
+  }
+  .progress {
+    width: 100%; height: 4px; background: #0f1420; border-radius: 2px;
+    overflow: hidden; margin-top: 4px;
+  }
+  .progress-fill { height: 100%; background: #F59E0B; transition: width .4s; }
+  .location-picker { display: flex; gap: 8px; align-items: center; }
+  .tree-item {
+    padding: 6px 10px; cursor: pointer; font-size: 12px;
+    border-radius: 4px; color: #94a3b8;
+  }
+  .tree-item.active { background: rgba(245,158,11,.15); color: #F59E0B; font-weight: 600; }
+  .tree-sub { margin-left: 16px; font-size: 11px; }
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200; padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #131825; border: 1px solid #2a3042; border-radius: 12px;
+    max-width: 640px; width: 100%; max-height: 90vh; overflow-y: auto;
+  }
+  .modal-head {
+    padding: 16px 20px; border-bottom: 1px solid #2a3042;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-body { padding: 20px; }
+  .close-btn { background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; }
+  .stepper { display: flex; gap: 4px; margin-bottom: 20px; }
+  .step {
+    flex: 1; padding: 10px 12px; background: #0f1420; border-radius: 6px;
+    font-size: 12px; color: #64748b; text-align: center;
+  }
+  .step.done { color: #10B981; }
+  .step.current { background: rgba(245,158,11,.15); color: #F59E0B; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div style="display: flex; align-items: center;">
+    <div class="logo">C</div>
+    <h1 style="display: inline;">CIC Analytics</h1>
+    <span class="badge-mockup">MOCKUP MAGAZZINO — solo anteprima</span>
+  </div>
+  <div>
+    <select><option>📍 REMEMBEER</option><option>📍 CASA DE AMICIS</option><option>📍 BIANCOLATTE</option></select>
+  </div>
+</div>
+
+<!-- TAB PRINCIPALI -->
+<div class="tabs">
+  <button class="tab">📊 Panoramica</button>
+  <button class="tab">🧾 Scontrini</button>
+  <button class="tab">📋 IVA</button>
+  <button class="tab active">🏠 Magazzino</button>
+  <button class="tab">👥 Personale</button>
+  <button class="tab">🎯 Marketing</button>
+</div>
+
+<div class="container">
+
+  <!-- HERO intro -->
+  <div class="hero">
+    <h2>📦 Nuovo magazzino</h2>
+    <p>
+      Questo è il mockup del magazzino riscritto. Carichi <strong>automatici</strong> dalle fatture,
+      scarichi <strong>automatici</strong> dalle vendite (tramite ricette), inventario fisico con
+      correzione automatica. Multi sub-location (bar, cucina, cantina) dentro ogni locale.
+      <strong>Navigabile</strong> con i sotto-tab qui sotto.
+    </p>
+  </div>
+
+  <!-- SOTTO-TAB MAGAZZINO -->
+  <div class="subtabs">
+    <div class="subtab" onclick="show('dashboard')">📊 Cruscotto</div>
+    <div class="subtab">🧾 Fatture</div>
+    <div class="subtab">🍕 Prodotti</div>
+    <div class="subtab">📦 Articoli</div>
+    <div class="subtab">🍳 Ricette</div>
+    <div class="subtab active" onclick="show('giacenze')">🏠 Giacenze</div>
+    <div class="subtab" onclick="show('movimenti')">↔️ Movimenti</div>
+    <div class="subtab" onclick="show('inventario')">📋 Inventario</div>
+    <div class="subtab">🛒 Ordini</div>
+    <div class="subtab">💰 Prezzi</div>
+  </div>
+
+  <!-- ═══════════════════════════ CRUSCOTTO ═══════════════════════════ -->
+  <div id="dashboard" class="screen">
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-accent" style="background: #F59E0B"></div>
+        <div class="kpi-label">Valore magazzino</div>
+        <div class="kpi-value">12.480 €</div>
+        <div class="kpi-sub">a prezzo medio ultimi 30gg</div>
+      </div>
+      <div class="kpi"><div class="kpi-accent" style="background: #3B82F6"></div>
+        <div class="kpi-label">Articoli in stock</div>
+        <div class="kpi-value">187</div>
+        <div class="kpi-sub">su 243 referenziati</div>
+      </div>
+      <div class="kpi"><div class="kpi-accent" style="background: #EF4444"></div>
+        <div class="kpi-label">Sotto scorta</div>
+        <div class="kpi-value">8</div>
+        <div class="kpi-sub">da riordinare</div>
+      </div>
+      <div class="kpi"><div class="kpi-accent" style="background: #10B981"></div>
+        <div class="kpi-label">Ultimo inventario</div>
+        <div class="kpi-value">12/04</div>
+        <div class="kpi-sub">diff. 3,2% (-384€)</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>⚡ Attività recente</h2></div>
+      <table>
+        <thead><tr><th>Tipo</th><th>Articolo</th><th>Qty</th><th>Locale</th><th>Fonte</th><th>Data</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge b-green">+Carico</span></td><td>Pomodoro pelato</td><td>24 KG</td><td>REMEMBEER / Cucina</td><td>Fatt. LA FIAMMANTE #322</td><td>oggi 09:14</td></tr>
+          <tr><td><span class="badge b-red">−Scarico</span></td><td>Mozzarella fior di latte</td><td>0,5 KG</td><td>REMEMBEER / Cucina</td><td>Scontrino #S1247 · Margherita</td><td>oggi 21:02</td></tr>
+          <tr><td><span class="badge b-blue">↔️ Trasferim.</span></td><td>Vino bianco casa</td><td>6 BT</td><td>CANTINA → BAR</td><td>Manuale</td><td>ieri 16:30</td></tr>
+          <tr><td><span class="badge b-orange">📋 Inventario</span></td><td>Farina 00</td><td>−2,3 KG</td><td>REMEMBEER / Cucina</td><td>Inventario 12/04</td><td>12/04 22:15</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer-note">
+      💡 Il <strong>cruscotto</strong> aggrega tutti i locali. Per vedere le giacenze nel dettaglio passa a "Giacenze" e scegli il locale nell'header in alto.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ GIACENZE ═══════════════════════════ -->
+  <div id="giacenze" class="screen active">
+    <div class="filters">
+      <div class="location-picker">
+        <strong style="font-size: 12px; color: #94a3b8;">📍 REMEMBEER</strong>
+        <select>
+          <option>Tutte le sub-location</option>
+          <option selected>Cucina</option>
+          <option>Bar</option>
+          <option>Cantina</option>
+        </select>
+      </div>
+      <input type="text" placeholder="🔍 Cerca articolo..." style="flex: 1; max-width: 300px;">
+      <select>
+        <option>Tutte le categorie</option>
+        <option>Food</option><option>Beverage</option><option>Materiali</option>
+      </select>
+      <select>
+        <option>Mostra tutti</option>
+        <option>Solo sotto scorta</option>
+        <option>Solo senza movimenti 30gg</option>
+      </select>
+      <button class="btn btn-ghost" onclick="openModal('manualMove')">+ Movimento manuale</button>
+      <button class="btn">🛒 Suggerisci ordine</button>
+    </div>
+
+    <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="kpi"><div class="kpi-accent" style="background: #F59E0B"></div>
+        <div class="kpi-label">Articoli in Cucina</div>
+        <div class="kpi-value">84</div>
+      </div>
+      <div class="kpi"><div class="kpi-accent" style="background: #10B981"></div>
+        <div class="kpi-label">Valore Cucina</div>
+        <div class="kpi-value">4.820 €</div>
+        <div class="kpi-sub">a prezzo medio</div>
+      </div>
+      <div class="kpi"><div class="kpi-accent" style="background: #EF4444"></div>
+        <div class="kpi-label">Sotto scorta</div>
+        <div class="kpi-value">5</div>
+        <div class="kpi-sub">articoli da riordinare</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>🏠 Giacenze — REMEMBEER / Cucina</h2>
+        <span class="pill">84 articoli</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Articolo</th><th>Cat.</th><th>Giacenza</th>
+          <th>Valore</th><th>€/UM medio</th><th>Ultimo carico</th>
+          <th>Stato</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr onclick="openModal('detail')" style="cursor: pointer;">
+            <td style="font-weight: 600;">Pomodoro pelato</td>
+            <td><span class="badge b-orange">Food</span></td>
+            <td>24 KG</td>
+            <td style="color: #F59E0B; font-weight: 600;">31,20 €</td>
+            <td>1,30 €/KG</td>
+            <td>oggi</td>
+            <td><span class="badge b-green">✓ OK</span></td>
+            <td>→</td>
+          </tr>
+          <tr onclick="openModal('detail')" style="cursor: pointer;">
+            <td style="font-weight: 600;">Mozzarella fior di latte</td>
+            <td><span class="badge b-orange">Food</span></td>
+            <td>4,5 KG <small style="color:#64748b">(−0,5 da scontrini oggi)</small></td>
+            <td style="color: #F59E0B; font-weight: 600;">27,00 €</td>
+            <td>6,00 €/KG</td>
+            <td>ieri</td>
+            <td><span class="badge b-orange">⚠ Vicino scorta</span></td>
+            <td>→</td>
+          </tr>
+          <tr onclick="openModal('detail')" style="cursor: pointer;">
+            <td style="font-weight: 600;">Farina 00</td>
+            <td><span class="badge b-orange">Food</span></td>
+            <td>1,2 KG</td>
+            <td style="color: #F59E0B; font-weight: 600;">0,84 €</td>
+            <td>0,70 €/KG</td>
+            <td>3gg fa</td>
+            <td><span class="badge b-red">❌ Sotto scorta (min 5)</span></td>
+            <td>→</td>
+          </tr>
+          <tr onclick="openModal('detail')" style="cursor: pointer;">
+            <td style="font-weight: 600;">Olio EVO</td>
+            <td><span class="badge b-orange">Food</span></td>
+            <td>8 LT</td>
+            <td style="color: #F59E0B; font-weight: 600;">64,00 €</td>
+            <td>8,00 €/LT</td>
+            <td>1 sett. fa</td>
+            <td><span class="badge b-green">✓ OK</span></td>
+            <td>→</td>
+          </tr>
+          <tr onclick="openModal('detail')" style="cursor: pointer;">
+            <td style="font-weight: 600;">Basilico fresco</td>
+            <td><span class="badge b-orange">Food</span></td>
+            <td>0,3 KG <span class="badge b-red" style="margin-left: 6px;">⚠ poco usato</span></td>
+            <td style="color: #F59E0B; font-weight: 600;">2,40 €</td>
+            <td>8,00 €/KG</td>
+            <td>15gg fa</td>
+            <td><span class="badge b-grey">? Forse scaduto</span></td>
+            <td>→</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer-note">
+      💡 Le giacenze si aggiornano automaticamente: <strong>+carico</strong> da ogni riga fattura con nome_articolo assegnato a questo locale,
+      <strong>−scarico</strong> da ogni scontrino che vende un prodotto con ricetta. Puoi aggiungere movimenti manuali per sprechi/regali.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ MOVIMENTI ═══════════════════════════ -->
+  <div id="movimenti" class="screen">
+    <div class="filters">
+      <select><option>Tutti i tipi</option><option>Solo carichi</option><option>Solo scarichi</option><option>Solo correzioni</option></select>
+      <select><option>Tutte le fonti</option><option>Fattura</option><option>Scontrino</option><option>Inventario</option><option>Manuale</option></select>
+      <input type="text" placeholder="🔍 Articolo..." style="max-width: 240px;">
+      <input type="date" value="2026-04-01">
+      <span style="color: #475569;">→</span>
+      <input type="date" value="2026-04-17">
+      <button class="btn">📥 Esporta CSV</button>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>↔️ Storico movimenti</h2>
+        <span class="pill">1.247 movimenti · €24.180 gross</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Data</th><th>Tipo</th><th>Articolo</th><th>Qty</th>
+          <th>€/UM</th><th>Valore</th><th>Locale · Sub</th><th>Fonte</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr><td>17/04 21:02</td><td><span class="badge b-red">−Scarico</span></td><td>Mozzarella</td><td>0,2 KG</td><td>6,00</td><td>1,20 €</td><td>REMEMBEER / Cucina</td><td><a href="#">Scontrino #S1247</a></td><td>🗑</td></tr>
+          <tr><td>17/04 21:02</td><td><span class="badge b-red">−Scarico</span></td><td>Pomodoro pelato</td><td>0,15 KG</td><td>1,30</td><td>0,20 €</td><td>REMEMBEER / Cucina</td><td><a href="#">Scontrino #S1247</a></td><td>🗑</td></tr>
+          <tr><td>17/04 09:14</td><td><span class="badge b-green">+Carico</span></td><td>Pomodoro pelato</td><td>24 KG</td><td>1,30</td><td>31,20 €</td><td>REMEMBEER / Cucina</td><td><a href="#">Fatt. LA FIAMMANTE #322</a></td><td>🗑</td></tr>
+          <tr><td>16/04 16:30</td><td><span class="badge b-blue">↔️ Trasf.</span></td><td>Vino bianco casa</td><td>6 BT</td><td>5,50</td><td>33,00 €</td><td>CANTINA → BAR</td><td>Manuale · G. Incarbone</td><td>🗑</td></tr>
+          <tr><td>12/04 22:15</td><td><span class="badge b-orange">📋 Corr.</span></td><td>Farina 00</td><td>−2,3 KG</td><td>0,70</td><td>−1,61 €</td><td>REMEMBEER / Cucina</td><td><a href="#">Inventario 12/04</a></td><td>🗑</td></tr>
+          <tr><td>12/04 11:45</td><td><span class="badge b-red">−Scarico</span></td><td>Birra alla spina</td><td>2,5 LT</td><td>2,20</td><td>5,50 €</td><td>REMEMBEER / Bar</td><td>Manuale · Spreco</td><td>🗑</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ INVENTARIO ═══════════════════════════ -->
+  <div id="inventario" class="screen">
+    <div class="filters">
+      <button class="btn btn-green" onclick="openModal('newInventory')">+ Nuovo inventario</button>
+      <select><option>Tutti gli stati</option><option>In corso</option><option>Chiusi</option></select>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>📋 Sessioni di inventario</h2></div>
+      <table>
+        <thead><tr>
+          <th>Data</th><th>Locale · Sub</th><th>Stato</th>
+          <th>Articoli contati</th><th>Diff. valore</th><th>Chi</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr onclick="openModal('inventoryDetail')" style="cursor: pointer;">
+            <td style="font-weight: 600;">17/04/2026</td>
+            <td>REMEMBEER / Cucina</td>
+            <td><span class="badge b-orange">⏳ In corso</span></td>
+            <td>34 / 84</td>
+            <td>—</td>
+            <td>Gianmarco</td>
+            <td>→</td>
+          </tr>
+          <tr onclick="openModal('inventoryDetail')" style="cursor: pointer;">
+            <td style="font-weight: 600;">12/04/2026</td>
+            <td>REMEMBEER / Cucina</td>
+            <td><span class="badge b-green">✓ Chiuso</span></td>
+            <td>84 / 84</td>
+            <td style="color: #EF4444;">−384 € (3,2%)</td>
+            <td>Filippo</td>
+            <td>→</td>
+          </tr>
+          <tr onclick="openModal('inventoryDetail')" style="cursor: pointer;">
+            <td style="font-weight: 600;">31/03/2026</td>
+            <td>CASA DE AMICIS / Cucina</td>
+            <td><span class="badge b-green">✓ Chiuso</span></td>
+            <td>67 / 67</td>
+            <td style="color: #10B981;">+12 € (0,3%)</td>
+            <td>Filippo</td>
+            <td>→</td>
+          </tr>
+          <tr onclick="openModal('inventoryDetail')" style="cursor: pointer;">
+            <td style="font-weight: 600;">31/03/2026</td>
+            <td>REMEMBEER / Bar</td>
+            <td><span class="badge b-blue">🎯 Apertura</span></td>
+            <td>142 / 142</td>
+            <td>N/A</td>
+            <td>Filippo</td>
+            <td>→</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer-note">
+      💡 <strong>Inventario di apertura</strong>: il primo inventario di un locale non genera correzioni — definisce le giacenze di partenza.
+      Gli inventari successivi confrontano la giacenza teorica (calcolata da fatture + vendite) con quella reale e applicano automaticamente le correzioni.
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════ MODALI ═══════════════════════════ -->
+
+<!-- Modal: dettaglio articolo -->
+<div id="modal-detail" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2>Pomodoro pelato</h2>
+        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">REMEMBEER / Cucina</div>
+      </div>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="kpi-grid" style="grid-template-columns: repeat(3,1fr); margin-bottom: 16px;">
+        <div class="kpi" style="padding: 10px;"><div class="kpi-label">Giacenza</div><div class="kpi-value" style="font-size: 18px;">24 KG</div></div>
+        <div class="kpi" style="padding: 10px;"><div class="kpi-label">Valore</div><div class="kpi-value" style="font-size: 18px;">31,20 €</div></div>
+        <div class="kpi" style="padding: 10px;"><div class="kpi-label">Consumo medio</div><div class="kpi-value" style="font-size: 18px;">1,8 KG/gg</div></div>
+      </div>
+      <h3>Timeline movimenti (ultimi 30gg)</h3>
+      <div style="height: 120px; background: linear-gradient(to top, #F59E0B30, transparent); border-radius: 6px; position: relative; margin-bottom: 14px; padding: 10px; font-size: 10px; color: #94a3b8;">
+        [grafico giacenza giornaliera — linea 0-30 KG]
+      </div>
+      <h3>Ultimi 10 movimenti</h3>
+      <table style="font-size: 11px;">
+        <tr><td>17/04 21:02</td><td><span class="badge b-red">−0,15 KG</span></td><td>Scontrino #S1247</td></tr>
+        <tr><td>17/04 19:58</td><td><span class="badge b-red">−0,12 KG</span></td><td>Scontrino #S1246</td></tr>
+        <tr><td>17/04 09:14</td><td><span class="badge b-green">+24 KG</span></td><td>Fatt. LA FIAMMANTE #322</td></tr>
+        <tr><td>16/04 22:30</td><td><span class="badge b-red">−0,20 KG</span></td><td>Scontrino #S1189</td></tr>
+      </table>
+      <div style="display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #2a3042;">
+        <button class="btn">+ Movimento manuale</button>
+        <button class="btn btn-ghost">📝 Imposta scorta minima</button>
+        <button class="btn btn-ghost">📊 Analisi sprechi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: movimento manuale -->
+<div id="modal-manualMove" class="modal-overlay">
+  <div class="modal" style="max-width: 480px;">
+    <div class="modal-head"><h2>+ Movimento manuale</h2><button class="close-btn" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <label style="display: block; margin-bottom: 10px;">
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Tipo</div>
+        <select style="width: 100%;">
+          <option>Carico (+)</option>
+          <option>Scarico spreco (−)</option>
+          <option>Scarico omaggio (−)</option>
+          <option>Trasferimento tra sub-location</option>
+          <option>Correzione manuale</option>
+        </select>
+      </label>
+      <label style="display: block; margin-bottom: 10px;">
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Articolo</div>
+        <input type="text" placeholder="Cerca articolo..." style="width: 100%;">
+      </label>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+        <label><div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Quantità</div><input type="number" value="1" style="width: 100%;"></label>
+        <label><div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Unità</div><select style="width: 100%;"><option>KG</option><option>LT</option><option>PZ</option></select></label>
+      </div>
+      <label style="display: block; margin-bottom: 10px;">
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Sub-location</div>
+        <select style="width: 100%;"><option>Cucina</option><option>Bar</option><option>Cantina</option></select>
+      </label>
+      <label style="display: block; margin-bottom: 16px;">
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Note (opzionale)</div>
+        <textarea rows="2" style="width: 100%; background: #0f1420; border: 1px solid #2a3042; border-radius: 6px; color: #e2e8f0; padding: 8px;"></textarea>
+      </label>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+        <button class="btn">💾 Salva movimento</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: nuovo inventario -->
+<div id="modal-newInventory" class="modal-overlay">
+  <div class="modal" style="max-width: 520px;">
+    <div class="modal-head"><h2>+ Nuovo inventario fisico</h2><button class="close-btn" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="stepper">
+        <div class="step current">1. Scegli locale</div>
+        <div class="step">2. Conta articoli</div>
+        <div class="step">3. Chiudi e correggi</div>
+      </div>
+      <label style="display: block; margin-bottom: 10px;">
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Locale</div>
+        <select style="width: 100%;">
+          <option>REMEMBEER</option><option>CASA DE AMICIS</option><option>BIANCOLATTE</option>
+        </select>
+      </label>
+      <label style="display: block; margin-bottom: 10px;">
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Sub-location</div>
+        <select style="width: 100%;">
+          <option>Tutte (conta tutto insieme)</option>
+          <option>Cucina</option><option>Bar</option><option>Cantina</option>
+        </select>
+      </label>
+      <label style="display: block; margin-bottom: 10px;">
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Data inventario</div>
+        <input type="date" value="2026-04-17" style="width: 100%;">
+      </label>
+      <label style="display: block; margin-bottom: 16px;">
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">Tipo</div>
+        <select style="width: 100%;">
+          <option>📋 Inventario regolare (confronta con teorica + correggi)</option>
+          <option>🎯 Inventario di apertura (nessuna correzione, definisce partenza)</option>
+        </select>
+      </label>
+      <div style="background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.2); border-radius: 6px; padding: 12px; font-size: 11px; color: #60A5FA; margin-bottom: 16px; line-height: 1.5;">
+        <strong>🎯 Inventario di apertura</strong>: usalo SOLO la prima volta che inizi a gestire un locale
+        in CIC Analytics. Definisce le giacenze di partenza senza generare correzioni. Gli inventari
+        successivi dovrebbero essere "regolari".
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+        <button class="btn">Avanti → Conta articoli</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: dettaglio inventario -->
+<div id="modal-inventoryDetail" class="modal-overlay">
+  <div class="modal" style="max-width: 720px;">
+    <div class="modal-head">
+      <div>
+        <h2>📋 Inventario 12/04/2026</h2>
+        <div style="font-size: 11px; color: #64748b;">REMEMBEER / Cucina · Filippo · <span class="badge b-green">Chiuso</span></div>
+      </div>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 14px;">
+        <div class="kpi" style="padding: 10px;"><div class="kpi-label">Articoli</div><div class="kpi-value" style="font-size: 18px;">84/84</div></div>
+        <div class="kpi" style="padding: 10px;"><div class="kpi-label">Differenze</div><div class="kpi-value" style="font-size: 18px;">12</div></div>
+        <div class="kpi" style="padding: 10px;"><div class="kpi-label">Valore diff.</div><div class="kpi-value" style="font-size: 18px; color: #EF4444;">−384 €</div></div>
+        <div class="kpi" style="padding: 10px;"><div class="kpi-label">%</div><div class="kpi-value" style="font-size: 18px; color: #EF4444;">3,2%</div></div>
+      </div>
+      <table style="font-size: 12px;">
+        <thead><tr><th>Articolo</th><th>Teorica</th><th>Reale</th><th>Diff.</th><th>Valore diff.</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td>Farina 00</td><td>3,5 KG</td><td>1,2 KG</td><td style="color: #EF4444;">−2,3</td><td style="color: #EF4444;">−1,61 €</td><td>spreco impasto bruciato</td></tr>
+          <tr><td>Mozzarella</td><td>5,0 KG</td><td>4,8 KG</td><td style="color: #EF4444;">−0,2</td><td style="color: #EF4444;">−1,20 €</td><td>—</td></tr>
+          <tr><td>Tonno scatolame</td><td>12 PZ</td><td>8 PZ</td><td style="color: #EF4444;">−4</td><td style="color: #EF4444;">−22,00 €</td><td>⚠ grande differenza</td></tr>
+          <tr><td>Olio EVO</td><td>7,8 LT</td><td>8,0 LT</td><td style="color: #10B981;">+0,2</td><td style="color: #10B981;">+1,60 €</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'))
+    document.getElementById(id).classList.add('active')
+    document.querySelectorAll('.subtab').forEach(s => s.classList.remove('active'))
+    event.target.classList.add('active')
+    window.scrollTo(0, 0)
+  }
+  function openModal(id) {
+    event.stopPropagation()
+    document.getElementById('modal-' + id).classList.add('show')
+  }
+  function closeModal() {
+    document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show'))
+  }
+  document.querySelectorAll('.modal-overlay').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) closeModal() })
+  })
+</script>
+
+</body>
+</html>

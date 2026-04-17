@@ -815,7 +815,7 @@ export default function DashboardPage({ settings }) {
       </>})()}
 
       {/* ── MAGAZZINO ── */}
-      {tab==='mag'&&<WarehouseModule sp={sp} sps={sps}/>}
+      {tab==='mag'&&<WarehouseModule sp={sp} sps={sps} from={from} to={to}/>}
 
       {/* ── PRODUTTIVITÀ ORARIA ── */}
       {tab==='prod'&&(()=>{
