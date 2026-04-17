@@ -47,30 +47,49 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     } catch (e) { console.warn('QR generation failed', e) }
   }
 
-  // Calcola ore per dipendente per giorno
+  // Calcola ore per dipendente per giorno.
+  // Modello semplice: 1 entrata + 1 uscita per giorno.
+  // Se ci sono record multipli, prendiamo la PRIMA entrata e l'ULTIMA uscita.
+  // Estrazione HH:mm fatta dalla stringa ISO (no toLocaleTimeString) per
+  // evitare shift di timezone tra DB e browser.
+  const hmFromTs = (ts) => (typeof ts === 'string' && ts.length >= 16) ? ts.substring(11, 16) : ''
+  const minutesFromHm = (hm) => {
+    if (!hm || !hm.includes(':')) return null
+    const [h, m] = hm.split(':').map(Number)
+    return h * 60 + (m || 0)
+  }
+
   const getAttendanceForDay = (empId, dayOffset) => {
     const date = new Date(weekStart)
     date.setDate(date.getDate() + dayOffset)
     const ds = date.toISOString().split('T')[0]
-    const dayRecords = attendance.filter(a => a.employee_id === empId && a.timestamp?.startsWith(ds)).sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    const dayRecords = attendance
+      .filter(a => a.employee_id === empId && a.timestamp?.startsWith(ds))
+      .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
 
-    let entrata = null, uscita = null, ore = 0
-    for (const r of dayRecords) {
-      if (r.tipo === 'entrata' && !entrata) entrata = r.timestamp
-      if (r.tipo === 'uscita' && entrata) {
-        uscita = r.timestamp
-        ore += (new Date(uscita) - new Date(entrata)) / 3600000
-        entrata = null
+    const entrate = dayRecords.filter(r => r.tipo === 'entrata')
+    const uscite = dayRecords.filter(r => r.tipo === 'uscita')
+    const firstEntrata = entrate[0]?.timestamp || null
+    const lastUscita = uscite[uscite.length - 1]?.timestamp || null
+
+    let ore = 0
+    if (firstEntrata && lastUscita) {
+      const eMin = minutesFromHm(hmFromTs(firstEntrata))
+      const uMin = minutesFromHm(hmFromTs(lastUscita))
+      if (eMin != null && uMin != null) {
+        let delta = uMin - eMin
+        if (delta < 0) delta += 24 * 60 // turno oltre mezzanotte
+        ore = delta / 60
       }
     }
-    const entrataTime = dayRecords.find(r => r.tipo === 'entrata')?.timestamp
-    const uscitaTime = dayRecords.filter(r => r.tipo === 'uscita').pop()?.timestamp
 
     return {
-      entrata: entrataTime ? new Date(entrataTime).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : null,
-      uscita: uscitaTime ? new Date(uscitaTime).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : null,
+      entrata: firstEntrata ? hmFromTs(firstEntrata) : null,
+      uscita: lastUscita ? hmFromTs(lastUscita) : null,
       ore: Math.round(ore * 10) / 10,
-      incompleta: !!entrata && !uscita // entrata senza uscita
+      incompleta: !!firstEntrata && !lastUscita,
+      entrateCount: entrate.length,
+      usciteCount: uscite.length,
     }
   }
 
@@ -154,19 +173,26 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                       const updateTime = async (id, oldTs, newTime) => {
                         if (!newTime || !id) return
                         const newTs = ds + 'T' + newTime + ':00'
-                        await supabase.from('attendance').update({ timestamp: newTs }).eq('id', id)
+                        const { error } = await supabase.from('attendance').update({ timestamp: newTs }).eq('id', id)
+                        if (error) { alert('Errore aggiornamento: ' + error.message); return }
                         loadAttendance()
                       }
                       const addEntry = async () => {
-                        await supabase.from('attendance').insert({ employee_id: emp.id, timestamp: ds + 'T09:00:00', tipo: 'entrata', locale: emp.locale?.split(',')[0] || '' })
+                        const { error } = await supabase.from('attendance').insert({ employee_id: emp.id, timestamp: ds + 'T09:00:00', tipo: 'entrata', locale: emp.locale?.split(',')[0] || '' })
+                        if (error) { alert('Errore inserimento entrata: ' + error.message); return }
                         loadAttendance()
                       }
                       const addExit = async () => {
-                        await supabase.from('attendance').insert({ employee_id: emp.id, timestamp: ds + 'T18:00:00', tipo: 'uscita', locale: emp.locale?.split(',')[0] || '' })
+                        const { error } = await supabase.from('attendance').insert({ employee_id: emp.id, timestamp: ds + 'T18:00:00', tipo: 'uscita', locale: emp.locale?.split(',')[0] || '' })
+                        if (error) { alert('Errore inserimento uscita: ' + error.message); return }
                         loadAttendance()
                       }
                       const deleteDay = async () => {
-                        for (const r of dayRecs) await supabase.from('attendance').delete().eq('id', r.id)
+                        if (dayRecs.length === 0) return
+                        if (!confirm(`Eliminare ${dayRecs.length} timbratur${dayRecs.length === 1 ? 'a' : 'e'} di ${emp.nome} del ${date.toLocaleDateString('it-IT')}?`)) return
+                        const ids = dayRecs.map(r => r.id)
+                        const { error } = await supabase.from('attendance').delete().in('id', ids)
+                        if (error) { alert('Errore eliminazione: ' + error.message); return }
                         loadAttendance()
                       }
 
@@ -188,7 +214,10 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                             )}
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, marginTop: 1 }}>
                               {att.ore > 0 && <span style={{ color: '#F59E0B', fontWeight: 700, fontSize: 9 }}>{att.ore}h</span>}
-                              <button onClick={deleteDay} style={{ background: 'none', border: 'none', color: '#47556966', cursor: 'pointer', fontSize: 9, padding: 0 }}>✕</button>
+                              {(att.entrateCount > 1 || att.usciteCount > 1) && (
+                                <span title={`${att.entrateCount} entrate · ${att.usciteCount} uscite nel giorno. Pulisci i duplicati con ✕`} style={{ color: '#EF4444', fontSize: 9, cursor: 'help' }}>⚠</span>
+                              )}
+                              <button onClick={deleteDay} title="Elimina timbrature del giorno" style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11, padding: 0, fontWeight: 700 }}>✕</button>
                             </div>
                           </div>
                         ) : (
