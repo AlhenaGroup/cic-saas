@@ -410,32 +410,6 @@ export default function DashboardPage({ settings }) {
           </div>
         })()}
 
-        {/* Grafico trend ricavi + coperti */}
-        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12,marginBottom:12}}>
-          <Card title="Andamento ricavi e coperti" badge={isDemo?'Demo':null}>
-            <ResponsiveContainer width="100%" height={240}>
-              <ComposedChart data={trend} margin={{top:5,right:10,left:0,bottom:5}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e2636" vertical={false}/>
-                <XAxis dataKey="label" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} interval={Math.max(1,Math.floor(trend.length/7))}/>
-                <YAxis yAxisId="left" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} tickFormatter={v=>'€'+Math.round(v/1000)+'k'} width={38}/>
-                <YAxis yAxisId="right" orientation="right" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false} width={30}/>
-                <Tooltip content={<Tip/>}/>
-                <Bar yAxisId="right" dataKey="coperti" fill="rgba(249,115,22,.3)" name="coperti" radius={[2,2,0,0]}/>
-                <Line yAxisId="left" type="monotone" dataKey="ricavi" stroke="#F59E0B" strokeWidth={2} dot={false} name="ricavi"/>
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Card>
-          <Card title="Ripartizione reparti">
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie data={depts.filter(d=>d.profit>0)} dataKey="profit" nameKey="description" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
-                  {depts.filter(d=>d.profit>0).map((_,i)=><Cell key={i} fill={C[i%C.length]}/>)}
-                </Pie>
-                <Tooltip formatter={v=>fmt(v)} contentStyle={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,fontSize:12}}/>
-              </PieChart>
-            </ResponsiveContainer>
-          </Card>
-        </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
           <Card title="Top reparti">
             {depts.filter(d=>d.profit>0).slice(0,5).map((d,i)=><Bar2 key={i} label={d.description} value={d.profit} max={depts[0]?.profit||1} color={C[i%C.length]} pct={totale>0?(d.profit/totale*100).toFixed(1):0}/>)}
