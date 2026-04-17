@@ -10,6 +10,27 @@ function weekMonday(offset = 0) {
   return d.toISOString().split('T')[0]
 }
 
+// Converte una data "YYYY-MM-DD" + ora "HH:mm" (locale browser) in ISO UTC.
+// La colonna attendance.timestamp e' TIMESTAMPTZ → Postgres salva sempre UTC.
+// Per coerenza tra scrittura e lettura, convertiamo l'ora digitata (intesa
+// come ora locale Europe/Rome) nell'istante UTC corrispondente.
+function localDateTimeToIsoUtc(ds, hhmm) {
+  if (!ds || !hhmm || !hhmm.includes(':')) return null
+  const [y, m, d] = ds.split('-').map(Number)
+  const [h, mm] = hhmm.split(':').map(Number)
+  return new Date(y, m - 1, d, h, mm, 0).toISOString()
+}
+
+// Formatta un timestamp (con tz o UTC) in ora Europe/Rome HH:mm
+function hmFromTsTz(ts) {
+  if (typeof ts !== 'string' || ts.length < 16) return ''
+  try {
+    return new Date(ts).toLocaleTimeString('it-IT', {
+      hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome'
+    })
+  } catch { return ts.substring(11, 16) }
+}
+
 export default function AttendanceView({ employees, shifts, sp, sps }) {
   const [weekStart, setWeekStart] = useState(weekMonday())
   const [attendance, setAttendance] = useState([])
@@ -47,8 +68,8 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     } catch (e) { console.warn('QR generation failed', e) }
   }
 
-  // Helpers tempo
-  const hmFromTs = (ts) => (typeof ts === 'string' && ts.length >= 16) ? ts.substring(11, 16) : ''
+  // Helpers tempo (definiti a livello modulo in cima al file)
+  const hmFromTs = hmFromTsTz
   const minutesFromHm = (hm) => {
     if (!hm || !hm.includes(':')) return null
     const [h, m] = hm.split(':').map(Number)
@@ -285,7 +306,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
   }, [emp.id, ds])
   useEffect(() => { load() }, [load])
 
-  const hm = (ts) => (typeof ts === 'string' && ts.length >= 16) ? ts.substring(11, 16) : ''
+  const hm = hmFromTsTz
   const defaultLocale = (emp.locale || '').split(',')[0]?.trim() || allLocali[0] || ''
 
   const addRec = async (tipo) => {
@@ -293,7 +314,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
     const nowH = new Date().getHours()
     const ora = tipo === 'entrata' ? String(nowH).padStart(2, '0') + ':00' : String(Math.min(23, nowH + 1)).padStart(2, '0') + ':00'
     const { error } = await supabase.from('attendance').insert({
-      employee_id: emp.id, timestamp: ds + 'T' + ora + ':00', tipo, locale: defaultLocale,
+      employee_id: emp.id, timestamp: localDateTimeToIsoUtc(ds, ora), tipo, locale: defaultLocale,
     })
     setSaving(false)
     if (error) { alert('Errore: ' + error.message); return }
@@ -393,7 +414,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
                   <option value="uscita">Uscita</option>
                 </select>
                 <input type="time" defaultValue={hm(r.timestamp)}
-                  onBlur={e => { if (e.target.value && e.target.value !== hm(r.timestamp)) updateRec(r.id, { timestamp: ds + 'T' + e.target.value + ':00' }) }}
+                  onBlur={e => { if (e.target.value && e.target.value !== hm(r.timestamp)) updateRec(r.id, { timestamp: localDateTimeToIsoUtc(ds, e.target.value) }) }}
                   style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 90, textAlign: 'center' }} />
                 <select value={r.locale || ''}
                   onChange={e => updateRec(r.id, { locale: e.target.value })}
