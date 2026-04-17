@@ -26,7 +26,6 @@ export default function HRCalendar({ employees }) {
   const [selectedDay, setSelectedDay] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ titolo: '', descrizione: '', data_inizio: '', data_fine: '', tipo: 'generico', urgenza: 'normale', employee_id: '' })
-  const [googleConnected, setGoogleConnected] = useState(false)
 
   const iS = S.input
 
@@ -36,13 +35,6 @@ export default function HRCalendar({ employees }) {
     const { data } = await supabase.from('calendar_events').select('*').gte('data_inizio', from).lte('data_inizio', to).order('data_inizio')
     setEvents(data || [])
   }, [year, month])
-
-  const checkGoogle = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data } = await supabase.from('google_tokens').select('id').eq('user_id', user.id).maybeSingle()
-    setGoogleConnected(!!data)
-  }, [])
 
   // Auto-create scadenza events from documents
   const syncDocExpiries = useCallback(async () => {
@@ -67,7 +59,7 @@ export default function HRCalendar({ employees }) {
     await loadEvents()
   }, [loadEvents])
 
-  useEffect(() => { loadEvents(); checkGoogle(); syncDocExpiries() }, [loadEvents, checkGoogle, syncDocExpiries])
+  useEffect(() => { loadEvents(); syncDocExpiries() }, [loadEvents, syncDocExpiries])
 
   const saveEvent = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -103,11 +95,6 @@ export default function HRCalendar({ employees }) {
   return <>
     <Card title="Calendario" extra={
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        {googleConnected ? (
-          <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Google Calendar connesso</span>
-        ) : (
-          <button onClick={() => window.open('/api/google-auth?action=authorize', '_blank')} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>Connetti Google Calendar</button>
-        )}
         <button onClick={prevMonth} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>◀</button>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 140, textAlign: 'center', textTransform: 'capitalize' }}>{monthLabel}</span>
         <button onClick={nextMonth} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>▶</button>
