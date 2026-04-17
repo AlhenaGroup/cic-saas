@@ -47,11 +47,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     } catch (e) { console.warn('QR generation failed', e) }
   }
 
-  // Calcola ore per dipendente per giorno.
-  // Modello semplice: 1 entrata + 1 uscita per giorno.
-  // Se ci sono record multipli, prendiamo la PRIMA entrata e l'ULTIMA uscita.
-  // Estrazione HH:mm fatta dalla stringa ISO (no toLocaleTimeString) per
-  // evitare shift di timezone tra DB e browser.
+  // Helpers tempo
   const hmFromTs = (ts) => (typeof ts === 'string' && ts.length >= 16) ? ts.substring(11, 16) : ''
   const minutesFromHm = (hm) => {
     if (!hm || !hm.includes(':')) return null
@@ -59,37 +55,72 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     return h * 60 + (m || 0)
   }
 
-  const getAttendanceForDay = (empId, dayOffset) => {
+  // Abbina timbrature a coppie entrata→uscita in ordine cronologico.
+  // Ogni blocco ha un proprio locale (quello dell'entrata).
+  // Gestisce:
+  //   - entrata senza uscita successiva → blocco "aperto", non contato nelle ore
+  //   - uscita senza entrata precedente → ignorata nel calcolo, ma visibile
+  //   - turno che scavalca mezzanotte (delta negativo → +24h)
+  const buildBlocks = (dayRecords) => {
+    const sorted = [...dayRecords].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    const blocks = []
+    let openEntry = null
+    for (const r of sorted) {
+      if (r.tipo === 'entrata') {
+        if (openEntry) {
+          // entrata senza uscita precedente → segnala come "aperta" incompleta
+          blocks.push({ entrata: openEntry, uscita: null, locale: openEntry.locale || '', ore: 0, incompleta: true })
+        }
+        openEntry = r
+      } else if (r.tipo === 'uscita') {
+        if (openEntry) {
+          const eMin = minutesFromHm(hmFromTs(openEntry.timestamp))
+          const uMin = minutesFromHm(hmFromTs(r.timestamp))
+          let delta = 0
+          if (eMin != null && uMin != null) {
+            delta = uMin - eMin
+            if (delta < 0) delta += 24 * 60
+          }
+          blocks.push({
+            entrata: openEntry,
+            uscita: r,
+            locale: openEntry.locale || r.locale || '',
+            ore: Math.round((delta / 60) * 100) / 100,
+            incompleta: false,
+          })
+          openEntry = null
+        } else {
+          // uscita orfana (nessuna entrata prima) → ignorata nel totale ma presente
+          blocks.push({ entrata: null, uscita: r, locale: r.locale || '', ore: 0, incompleta: true })
+        }
+      }
+    }
+    if (openEntry) {
+      blocks.push({ entrata: openEntry, uscita: null, locale: openEntry.locale || '', ore: 0, incompleta: true })
+    }
+    return blocks
+  }
+
+  // Ritorna aggregato giornaliero. Se localeFilter != null, somma solo le ore
+  // dei blocchi relativi a quel locale.
+  const getAttendanceForDay = (empId, dayOffset, localeFilter = null) => {
     const date = new Date(weekStart)
     date.setDate(date.getDate() + dayOffset)
     const ds = date.toISOString().split('T')[0]
-    const dayRecords = attendance
-      .filter(a => a.employee_id === empId && a.timestamp?.startsWith(ds))
-      .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
-
-    const entrate = dayRecords.filter(r => r.tipo === 'entrata')
-    const uscite = dayRecords.filter(r => r.tipo === 'uscita')
-    const firstEntrata = entrate[0]?.timestamp || null
-    const lastUscita = uscite[uscite.length - 1]?.timestamp || null
-
-    let ore = 0
-    if (firstEntrata && lastUscita) {
-      const eMin = minutesFromHm(hmFromTs(firstEntrata))
-      const uMin = minutesFromHm(hmFromTs(lastUscita))
-      if (eMin != null && uMin != null) {
-        let delta = uMin - eMin
-        if (delta < 0) delta += 24 * 60 // turno oltre mezzanotte
-        ore = delta / 60
-      }
-    }
-
+    const dayRecords = attendance.filter(a => a.employee_id === empId && a.timestamp?.startsWith(ds))
+    const blocks = buildBlocks(dayRecords)
+    const blocksForLocale = localeFilter ? blocks.filter(b => b.locale === localeFilter) : blocks
+    const ore = blocksForLocale.reduce((s, b) => s + (b.ore || 0), 0)
+    const hasIncompleta = blocks.some(b => b.incompleta)
+    const localiCoinvolti = [...new Set(blocks.map(b => b.locale).filter(Boolean))]
     return {
-      entrata: firstEntrata ? hmFromTs(firstEntrata) : null,
-      uscita: lastUscita ? hmFromTs(lastUscita) : null,
+      ds,
+      blocks,
+      blocksForLocale,
+      dayRecords,
       ore: Math.round(ore * 10) / 10,
-      incompleta: !!firstEntrata && !lastUscita,
-      entrateCount: entrate.length,
-      usciteCount: uscite.length,
+      incompleta: hasIncompleta,
+      localiCoinvolti,
     }
   }
 
@@ -102,11 +133,17 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     return start.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' — ' + end.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
   }
 
-  // Totali
+  // Quando un locale e' selezionato nell'header, conto solo le ore di quel locale
+  const localeFilter = locale || null
+
+  // Totali settimana (filtrati per locale se impostato)
   const totalHoursWeek = filteredEmps.reduce((sum, emp) => {
-    for (let d = 0; d < 7; d++) sum += getAttendanceForDay(emp.id, d).ore
+    for (let d = 0; d < 7; d++) sum += getAttendanceForDay(emp.id, d, localeFilter).ore
     return sum
   }, 0)
+
+  // Stato popup gestione timbrature
+  const [managingDay, setManagingDay] = useState(null) // { emp, dayOffset, ds }
 
   return <>
     {/* QR Code Generator */}
@@ -161,67 +198,53 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                   return <tr key={emp.id}>
                     <td style={{ ...S.td, fontWeight: 500, fontSize: 12 }}>{emp.nome}</td>
                     {DAYS.map((_, day) => {
-                      const att = getAttendanceForDay(emp.id, day)
+                      const att = getAttendanceForDay(emp.id, day, localeFilter)
                       totOre += att.ore
                       const date = new Date(weekStart)
                       date.setDate(date.getDate() + day)
-                      const ds = date.toISOString().split('T')[0]
-                      const dayRecs = attendance.filter(a => a.employee_id === emp.id && a.timestamp?.startsWith(ds))
-                      const entrataRec = dayRecs.find(r => r.tipo === 'entrata')
-                      const uscitaRec = [...dayRecs].filter(r => r.tipo === 'uscita').pop()
+                      const nBlocks = att.blocks.length
+                      const hasMulti = nBlocks > 1
+                      const hasMultipleLocali = att.localiCoinvolti.length > 1
+                      const bgColor = att.blocksForLocale.length > 0 && !att.incompleta
+                        ? 'rgba(16,185,129,.08)'
+                        : att.incompleta ? 'rgba(245,158,11,.08)' : 'transparent'
 
-                      const updateTime = async (id, oldTs, newTime) => {
-                        if (!newTime || !id) return
-                        const newTs = ds + 'T' + newTime + ':00'
-                        const { error } = await supabase.from('attendance').update({ timestamp: newTs }).eq('id', id)
-                        if (error) { alert('Errore aggiornamento: ' + error.message); return }
-                        loadAttendance()
-                      }
-                      const addEntry = async () => {
-                        const { error } = await supabase.from('attendance').insert({ employee_id: emp.id, timestamp: ds + 'T09:00:00', tipo: 'entrata', locale: emp.locale?.split(',')[0] || '' })
-                        if (error) { alert('Errore inserimento entrata: ' + error.message); return }
-                        loadAttendance()
-                      }
-                      const addExit = async () => {
-                        const { error } = await supabase.from('attendance').insert({ employee_id: emp.id, timestamp: ds + 'T18:00:00', tipo: 'uscita', locale: emp.locale?.split(',')[0] || '' })
-                        if (error) { alert('Errore inserimento uscita: ' + error.message); return }
-                        loadAttendance()
-                      }
-                      const deleteDay = async () => {
-                        if (dayRecs.length === 0) return
-                        if (!confirm(`Eliminare ${dayRecs.length} timbratur${dayRecs.length === 1 ? 'a' : 'e'} di ${emp.nome} del ${date.toLocaleDateString('it-IT')}?`)) return
-                        const ids = dayRecs.map(r => r.id)
-                        const { error } = await supabase.from('attendance').delete().in('id', ids)
-                        if (error) { alert('Errore eliminazione: ' + error.message); return }
-                        loadAttendance()
+                      // Riassunto sintetico mostrato nella cella
+                      let summaryMain = null
+                      let summarySub = null
+                      if (nBlocks === 0) {
+                        summaryMain = null
+                      } else if (nBlocks === 1) {
+                        const b = att.blocks[0]
+                        const eH = b.entrata ? hmFromTs(b.entrata.timestamp) : '—'
+                        const uH = b.uscita ? hmFromTs(b.uscita.timestamp) : '…'
+                        summaryMain = eH + '→' + uH
+                        summarySub = b.locale || ''
+                      } else {
+                        summaryMain = nBlocks + ' blocchi'
+                        summarySub = hasMultipleLocali ? att.localiCoinvolti.join(' · ') : (att.blocks[0]?.locale || '')
                       }
 
-                      const entrataVal = entrataRec ? entrataRec.timestamp.substring(11, 16) : ''
-                      const uscitaVal = uscitaRec ? uscitaRec.timestamp.substring(11, 16) : ''
-                      const bgColor = att.entrata && att.uscita ? 'rgba(16,185,129,.08)' : att.incompleta ? 'rgba(245,158,11,.08)' : 'transparent'
-                      return <td key={day} style={{ ...S.td, textAlign: 'center', padding: '3px 2px', minWidth: 90, background: bgColor }}>
-                        {att.entrata ? (
-                          <div style={{ fontSize: 10 }}>
-                            <input type="time" key={'e-'+entrataRec?.id+'-'+entrataVal} defaultValue={entrataVal}
-                              onChange={e => { if (e.target.value) updateTime(entrataRec?.id, entrataRec?.timestamp, e.target.value) }}
-                              style={{ ...iS, width: 68, fontSize: 10, padding: '1px 3px', color: '#10B981', fontWeight: 600, textAlign: 'center' }} />
-                            {att.uscita ? (
-                              <input type="time" key={'u-'+uscitaRec?.id+'-'+uscitaVal} defaultValue={uscitaVal}
-                                onChange={e => { if (e.target.value) updateTime(uscitaRec?.id, uscitaRec?.timestamp, e.target.value) }}
-                                style={{ ...iS, width: 68, fontSize: 10, padding: '1px 3px', color: '#94a3b8', textAlign: 'center', marginTop: 2 }} />
-                            ) : (
-                              <button onClick={addExit} style={{ display: 'block', margin: '2px auto 0', fontSize: 8, color: '#F59E0B', background: 'transparent', border: '1px solid #F59E0B33', borderRadius: 3, padding: '1px 6px', cursor: 'pointer' }}>+usc</button>
-                            )}
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                              {att.ore > 0 && <span style={{ color: '#F59E0B', fontWeight: 700, fontSize: 9 }}>{att.ore}h</span>}
-                              {(att.entrateCount > 1 || att.usciteCount > 1) && (
-                                <span title={`${att.entrateCount} entrate · ${att.usciteCount} uscite nel giorno. Pulisci i duplicati con ✕`} style={{ color: '#EF4444', fontSize: 9, cursor: 'help' }}>⚠</span>
-                              )}
-                              <button onClick={deleteDay} title="Elimina timbrature del giorno" style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11, padding: 0, fontWeight: 700 }}>✕</button>
+                      return <td key={day} style={{ ...S.td, textAlign: 'center', padding: '3px 2px', minWidth: 96, background: bgColor }}>
+                        {nBlocks > 0 ? (
+                          <button onClick={() => setManagingDay({ emp, dayOffset: day, ds: att.ds, date })}
+                            title={'Clicca per gestire le timbrature del ' + date.toLocaleDateString('it-IT')}
+                            style={{
+                              width: '100%', background: 'transparent', border: 'none', cursor: 'pointer',
+                              padding: 4, textAlign: 'center', color: '#e2e8f0',
+                            }}>
+                            <div style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>{summaryMain}</div>
+                            {summarySub && <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>{summarySub}</div>}
+                            <div style={{ fontSize: 10, color: '#F59E0B', fontWeight: 700, marginTop: 2 }}>
+                              {att.ore}h
+                              {hasMulti && <span title="Turno spezzato" style={{ marginLeft: 3, color: '#3B82F6' }}>ℹ︎</span>}
+                              {att.incompleta && <span title="Timbratura incompleta" style={{ marginLeft: 3, color: '#EF4444' }}>⚠</span>}
                             </div>
-                          </div>
+                          </button>
                         ) : (
-                          <button onClick={addEntry} style={{ background: 'transparent', border: '1px dashed #2a304266', borderRadius: 4, color: '#475569', cursor: 'pointer', fontSize: 10, padding: '6px 4px', width: '100%' }} title="Aggiungi timbratura">+</button>
+                          <button onClick={() => setManagingDay({ emp, dayOffset: day, ds: att.ds, date })}
+                            style={{ background: 'transparent', border: '1px dashed #2a304266', borderRadius: 4, color: '#475569', cursor: 'pointer', fontSize: 10, padding: '6px 4px', width: '100%' }}
+                            title="Aggiungi timbratura">+</button>
                         )}
                       </td>
                     })}
@@ -234,5 +257,184 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
         )}
       </Card>
     </div>
+
+    {managingDay && (
+      <DayManager
+        data={managingDay}
+        allLocali={sps.map(s => s.description || s.name)}
+        onClose={() => setManagingDay(null)}
+        onChange={loadAttendance}
+      />
+    )}
   </>
+}
+
+// ─── Popup gestione timbrature del giorno ──────────────────────────────────
+function DayManager({ data, allLocali, onClose, onChange }) {
+  const { emp, ds, date } = data
+  const [records, setRecords] = useState([])
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    const { data: rows } = await supabase.from('attendance').select('*')
+      .eq('employee_id', emp.id)
+      .gte('timestamp', ds + 'T00:00:00')
+      .lt('timestamp', ds + 'T23:59:59')
+      .order('timestamp')
+    setRecords(rows || [])
+  }, [emp.id, ds])
+  useEffect(() => { load() }, [load])
+
+  const hm = (ts) => (typeof ts === 'string' && ts.length >= 16) ? ts.substring(11, 16) : ''
+  const defaultLocale = (emp.locale || '').split(',')[0]?.trim() || allLocali[0] || ''
+
+  const addRec = async (tipo) => {
+    setSaving(true)
+    const nowH = new Date().getHours()
+    const ora = tipo === 'entrata' ? String(nowH).padStart(2, '0') + ':00' : String(Math.min(23, nowH + 1)).padStart(2, '0') + ':00'
+    const { error } = await supabase.from('attendance').insert({
+      employee_id: emp.id, timestamp: ds + 'T' + ora + ':00', tipo, locale: defaultLocale,
+    })
+    setSaving(false)
+    if (error) { alert('Errore: ' + error.message); return }
+    load(); onChange()
+  }
+
+  const updateRec = async (id, patch) => {
+    const { error } = await supabase.from('attendance').update(patch).eq('id', id)
+    if (error) { alert('Errore aggiornamento: ' + error.message); return }
+    load(); onChange()
+  }
+
+  const deleteRec = async (id) => {
+    if (!confirm('Eliminare questa timbratura?')) return
+    const { error } = await supabase.from('attendance').delete().eq('id', id)
+    if (error) { alert('Errore eliminazione: ' + error.message); return }
+    load(); onChange()
+  }
+
+  const deleteAll = async () => {
+    if (records.length === 0) return
+    if (!confirm(`Eliminare tutte le ${records.length} timbrature del giorno?`)) return
+    setSaving(true)
+    const { error } = await supabase.from('attendance').delete().in('id', records.map(r => r.id))
+    setSaving(false)
+    if (error) { alert('Errore eliminazione: ' + error.message); return }
+    load(); onChange()
+  }
+
+  // Calcola blocchi a coppie per visualizzare totali per locale
+  const minutesFromHm = (s) => {
+    if (!s || !s.includes(':')) return null
+    const [h, m] = s.split(':').map(Number); return h * 60 + (m || 0)
+  }
+  const sorted = [...records].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+  const blocks = []
+  let open = null
+  for (const r of sorted) {
+    if (r.tipo === 'entrata') {
+      if (open) blocks.push({ entrata: open, uscita: null, ore: 0 })
+      open = r
+    } else if (r.tipo === 'uscita') {
+      if (open) {
+        const e = minutesFromHm(hm(open.timestamp)); const u = minutesFromHm(hm(r.timestamp))
+        let d = 0; if (e != null && u != null) { d = u - e; if (d < 0) d += 24 * 60 }
+        blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.round(d / 60 * 100) / 100 })
+        open = null
+      } else blocks.push({ entrata: null, uscita: r, ore: 0 })
+    }
+  }
+  if (open) blocks.push({ entrata: open, uscita: null, ore: 0 })
+  const oreByLocale = {}
+  blocks.forEach(b => { if (b.locale && b.ore > 0) oreByLocale[b.locale] = (oreByLocale[b.locale] || 0) + b.ore })
+  const oreTot = Object.values(oreByLocale).reduce((s, v) => s + v, 0)
+
+  const iS = S.input
+
+  return <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
+    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 620 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 15 }}>{emp.nome}</h3>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        </div>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+      </div>
+
+      <div style={{ padding: 16 }}>
+        {/* Riepilogo ore per locale */}
+        {Object.keys(oreByLocale).length > 0 && (
+          <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Totale giornata · {Math.round(oreTot * 10) / 10}h</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {Object.entries(oreByLocale).map(([loc, h]) => (
+                <span key={loc} style={{ fontSize: 12, color: '#e2e8f0', background: '#1a1f2e', padding: '4px 10px', borderRadius: 4 }}>
+                  {loc}: <strong style={{ color: '#F59E0B' }}>{Math.round(h * 10) / 10}h</strong>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Lista timbrature */}
+        {records.length === 0 ? (
+          <div style={{ padding: 16, textAlign: 'center', color: '#64748b', fontSize: 12 }}>
+            Nessuna timbratura per questo giorno.
+          </div>
+        ) : (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Timbrature ({records.length})</div>
+            {sorted.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#131825', borderRadius: 6, marginBottom: 4, border: '1px solid #1e2636' }}>
+                <select value={r.tipo}
+                  onChange={e => updateRec(r.id, { tipo: e.target.value })}
+                  style={{ ...iS, fontSize: 11, padding: '4px 6px', width: 90, color: r.tipo === 'entrata' ? '#10B981' : '#EF4444', fontWeight: 600 }}>
+                  <option value="entrata">Entrata</option>
+                  <option value="uscita">Uscita</option>
+                </select>
+                <input type="time" defaultValue={hm(r.timestamp)}
+                  onBlur={e => { if (e.target.value && e.target.value !== hm(r.timestamp)) updateRec(r.id, { timestamp: ds + 'T' + e.target.value + ':00' }) }}
+                  style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 90, textAlign: 'center' }} />
+                <select value={r.locale || ''}
+                  onChange={e => updateRec(r.id, { locale: e.target.value })}
+                  style={{ ...iS, fontSize: 11, padding: '4px 6px', flex: 1 }}>
+                  <option value="">(senza locale)</option>
+                  {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+                <button onClick={() => deleteRec(r.id)} title="Elimina"
+                  style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, padding: '2px 6px', fontWeight: 700 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Azioni aggiungi */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <button onClick={() => addRec('entrata')} disabled={saving}
+            style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12 }}>
+            + Entrata
+          </button>
+          <button onClick={() => addRec('uscita')} disabled={saving}
+            style={{ ...iS, background: '#EF4444', color: '#fff', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12 }}>
+            + Uscita
+          </button>
+          {records.length > 0 && (
+            <button onClick={deleteAll} disabled={saving} style={{ ...iS, color: '#EF4444', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12, marginLeft: 'auto' }}>
+              🗑 Elimina tutto
+            </button>
+          )}
+        </div>
+
+        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5, borderTop: '1px solid #2a3042', paddingTop: 10 }}>
+          💡 Le ore vengono calcolate abbinando <strong>entrata→uscita</strong> in ordine cronologico.<br/>
+          Turni spezzati (es. 10-13 + 18-22) contano solo le ore effettive, non il buco tra i due.<br/>
+          Ogni blocco eredita il locale dell'<strong>entrata</strong>.
+        </div>
+      </div>
+
+      <div style={{ padding: 12, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={onClose} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: 'pointer' }}>Fatto</button>
+      </div>
+    </div>
+  </div>
 }
