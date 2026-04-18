@@ -119,6 +119,7 @@ export default function DashboardPage({ settings }) {
   })
   // Ore lavorate reali per fascia oraria, calcolate dalle timbrature (attendance)
   const [workedHoursBySlot, setWorkedHoursBySlot] = useState({}) // { "08:00": 2.5, ... }
+  const [personsBySlot, setPersonsBySlot] = useState({}) // { "08:00": 3, ... } dipendenti distinti presenti in fascia
   const [useRealHours, setUseRealHours] = useState(() => localStorage.getItem('cic_use_real_hours') !== 'false')
   useEffect(() => { localStorage.setItem('cic_use_real_hours', useRealHours) }, [useRealHours])
   // Soglie produttivita e target
@@ -194,26 +195,30 @@ export default function DashboardPage({ settings }) {
         .order('timestamp')
       if (localeName) q = q.eq('locale', localeName)
       const { data: rows, error } = await q
-      if (error || !rows) { setWorkedHoursBySlot({}); return }
+      if (error || !rows) { setWorkedHoursBySlot({}); setPersonsBySlot({}); return }
       // Raggruppa per dipendente, costruisci blocchi entrata→uscita
       const byEmp = {}
       rows.forEach(r => {
         if (!byEmp[r.employee_id]) byEmp[r.employee_id] = []
         byEmp[r.employee_id].push(r)
       })
-      const hours = {} // "08:00" -> ore totali lavorate
-      const addSlotOverlap = (startMs, endMs) => {
+      const hours = {}               // "08:00" -> ore totali lavorate
+      const personsSets = {}         // "08:00" -> Set di employee_id presenti
+      const addSlotOverlap = (startMs, endMs, empId) => {
         if (!(endMs > startMs)) return
         // Itero a step di 15 minuti: aggiungo 0.25h nella fascia oraria di quel momento
         const STEP = 15 * 60 * 1000
         for (let t = startMs; t < endMs; t += STEP) {
           try {
             const hRome = new Date(t).toLocaleString('en-GB', { timeZone: 'Europe/Rome', hour: '2-digit', hour12: false })
-            // hRome può essere "08" o "8". Prendo solo i primi 2 caratteri numerici
             const h = parseInt(hRome) || 0
             const key = String(h).padStart(2, '0') + ':00'
             const delta = Math.min(STEP, endMs - t) / 3600000
             hours[key] = (hours[key] || 0) + delta
+            if (empId) {
+              if (!personsSets[key]) personsSets[key] = new Set()
+              personsSets[key].add(empId)
+            }
           } catch {}
         }
       }
@@ -224,14 +229,17 @@ export default function DashboardPage({ settings }) {
           if (r.tipo === 'entrata') {
             openEntry = r
           } else if (r.tipo === 'uscita' && openEntry) {
-            addSlotOverlap(new Date(openEntry.timestamp).getTime(), new Date(r.timestamp).getTime())
+            addSlotOverlap(new Date(openEntry.timestamp).getTime(), new Date(r.timestamp).getTime(), empId)
             openEntry = null
           }
         }
       }
       // Arrotonda a 0.1
       for (const k in hours) hours[k] = Math.round(hours[k] * 10) / 10
+      const persons = {}
+      for (const k in personsSets) persons[k] = personsSets[k].size
       setWorkedHoursBySlot(hours)
+      setPersonsBySlot(persons)
     })()
   }, [from, to, sp, sps])
 
@@ -883,12 +891,13 @@ export default function DashboardPage({ settings }) {
         const oreWithProd = ore.map(o => {
           const oreReali = workedHoursBySlot[o.ora] || 0
           const orePianif = staffSchedule[o.ora] || 0
+          const persone = personsBySlot[o.ora] || 0
           // Denominatore usato per il calcolo produttività
           const oreLavorate = useRealHours
             ? (oreReali > 0 ? oreReali : 0)
             : orePianif
           const prodOraria = oreLavorate > 0 ? o.ricavi / oreLavorate : 0
-          return { ...o, staff: oreLavorate, oreLavorate, oreReali, orePianif, prodOraria }
+          return { ...o, staff: oreLavorate, oreLavorate, oreReali, orePianif, persone, prodOraria }
         })
         const totOreReali = Object.values(workedHoursBySlot).reduce((s, v) => s + (Number(v) || 0), 0)
         const totOreDay = oreWithProd.reduce((s,o) => s + o.oreLavorate, 0)
@@ -965,16 +974,17 @@ export default function DashboardPage({ settings }) {
           <Card title="Dettaglio per fascia oraria" badge={useRealHours ? '📍 ore da timbratura' : '🗓 ore pianificate'}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['Ora','Ricavi','Scontrini','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                {['Ora','Ricavi','Scontrini','👥 Persone','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {oreWithProd.filter(o=>o.ricavi>0||o.oreReali>0).map((o,i)=>{
+                {oreWithProd.filter(o=>o.ricavi>0||o.oreReali>0||o.persone>0).map((o,i)=>{
                   const pc = prodColor(o.prodOraria)
                   const mismatch = o.oreReali > 0 && o.orePianif > 0 && Math.abs(o.oreReali - o.orePianif) > 0.5
                   return <tr key={i}>
                     <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{o.ora}</td>
                     <td style={{...S.td,fontWeight:600}}>{fmt(o.ricavi)}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{o.scontrini}</td>
+                    <td style={{...S.td,color:o.persone>0?'#3B82F6':'#475569',fontWeight:o.persone>0?700:400}} title={o.persone>0?`${o.persone} dipendent${o.persone===1?'e':'i'} in turno (almeno parziale) nella fascia`:''}>{o.persone>0?o.persone:'—'}</td>
                     <td style={{...S.td,color:o.oreReali>0?'#10B981':'#475569',fontWeight:o.oreReali>0?600:400}}>{o.oreReali>0?o.oreReali.toFixed(1)+'h':'—'}</td>
                     <td style={{...S.td,color:o.orePianif>0?'#F59E0B':'#475569'}}>{o.orePianif>0?o.orePianif+'h':'—'}{mismatch&&<span title="Differenza reale/pianificato" style={{marginLeft:4,color:'#EF4444'}}>⚠</span>}</td>
                     <td style={{...S.td,fontWeight:600}}>{o.oreLavorate>0?o.oreLavorate.toFixed(1)+'h':'—'}</td>
