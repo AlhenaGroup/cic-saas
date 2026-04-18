@@ -117,6 +117,10 @@ export default function DashboardPage({ settings }) {
   const [staffSchedule, setStaffSchedule] = useState(() => {
     try { return JSON.parse(localStorage.getItem('cic_staff_schedule') || '{}') } catch { return {} }
   })
+  // Ore lavorate reali per fascia oraria, calcolate dalle timbrature (attendance)
+  const [workedHoursBySlot, setWorkedHoursBySlot] = useState({}) // { "08:00": 2.5, ... }
+  const [useRealHours, setUseRealHours] = useState(() => localStorage.getItem('cic_use_real_hours') !== 'false')
+  useEffect(() => { localStorage.setItem('cic_use_real_hours', useRealHours) }, [useRealHours])
   // Soglie produttivita e target
   const [prodTarget, setProdTarget] = useState(() => Number(localStorage.getItem('cic_prod_target')) || 50)
   const [sogliaRed, setSogliaRed]   = useState(() => Number(localStorage.getItem('cic_soglia_red')) || 35)
@@ -176,6 +180,60 @@ export default function DashboardPage({ settings }) {
     finally { setLoading(false) }
   },[token,from,to,sp,sps,from2,to2])
   useEffect(()=>{load()},[load])
+
+  // ─── Carica timbrature nel periodo e calcola ore lavorate per fascia oraria ──
+  // Usato nel tab Produttività come denominatore reale al posto del piano teorico.
+  useEffect(() => {
+    (async () => {
+      const localeName = (!sp || sp === 'all') ? null : (sps?.find(s => String(s.id) === String(sp))?.description || null)
+      // Range esteso +1 giorno per catturare uscite dopo mezzanotte (turni notturni)
+      const toExt = new Date(to); toExt.setDate(toExt.getDate() + 1)
+      let q = supabase.from('attendance').select('employee_id, timestamp, tipo, locale')
+        .gte('timestamp', from + 'T00:00:00')
+        .lt('timestamp', toExt.toISOString().split('T')[0] + 'T00:00:00')
+        .order('timestamp')
+      if (localeName) q = q.eq('locale', localeName)
+      const { data: rows, error } = await q
+      if (error || !rows) { setWorkedHoursBySlot({}); return }
+      // Raggruppa per dipendente, costruisci blocchi entrata→uscita
+      const byEmp = {}
+      rows.forEach(r => {
+        if (!byEmp[r.employee_id]) byEmp[r.employee_id] = []
+        byEmp[r.employee_id].push(r)
+      })
+      const hours = {} // "08:00" -> ore totali lavorate
+      const addSlotOverlap = (startMs, endMs) => {
+        if (!(endMs > startMs)) return
+        // Itero a step di 15 minuti: aggiungo 0.25h nella fascia oraria di quel momento
+        const STEP = 15 * 60 * 1000
+        for (let t = startMs; t < endMs; t += STEP) {
+          try {
+            const hRome = new Date(t).toLocaleString('en-GB', { timeZone: 'Europe/Rome', hour: '2-digit', hour12: false })
+            // hRome può essere "08" o "8". Prendo solo i primi 2 caratteri numerici
+            const h = parseInt(hRome) || 0
+            const key = String(h).padStart(2, '0') + ':00'
+            const delta = Math.min(STEP, endMs - t) / 3600000
+            hours[key] = (hours[key] || 0) + delta
+          } catch {}
+        }
+      }
+      for (const empId in byEmp) {
+        const recs = byEmp[empId]
+        let openEntry = null
+        for (const r of recs) {
+          if (r.tipo === 'entrata') {
+            openEntry = r
+          } else if (r.tipo === 'uscita' && openEntry) {
+            addSlotOverlap(new Date(openEntry.timestamp).getTime(), new Date(r.timestamp).getTime())
+            openEntry = null
+          }
+        }
+      }
+      // Arrotonda a 0.1
+      for (const k in hours) hours[k] = Math.round(hours[k] * 10) / 10
+      setWorkedHoursBySlot(hours)
+    })()
+  }, [from, to, sp, sps])
 
   const totale = data?.totale||0
   const coperti = data?.coperti||0
@@ -821,11 +879,18 @@ export default function DashboardPage({ settings }) {
       {tab==='prod'&&(()=>{
         const prodColor = v => v < sogliaRed ? '#EF4444' : v < sogliaYel ? '#F59E0B' : '#10B981'
         const prodLabel = v => v < sogliaRed ? 'Sotto soglia' : v < sogliaYel ? 'Attenzione' : 'OK'
+        // Ore lavorate per fascia: reali dalle timbrature se useRealHours, altrimenti da staffSchedule pianificato
         const oreWithProd = ore.map(o => {
-          const staff = staffSchedule[o.ora] || 0
-          const prodOraria = staff > 0 ? o.ricavi / staff : 0
-          return { ...o, staff, oreLavorate: staff, prodOraria }
+          const oreReali = workedHoursBySlot[o.ora] || 0
+          const orePianif = staffSchedule[o.ora] || 0
+          // Denominatore usato per il calcolo produttività
+          const oreLavorate = useRealHours
+            ? (oreReali > 0 ? oreReali : 0)
+            : orePianif
+          const prodOraria = oreLavorate > 0 ? o.ricavi / oreLavorate : 0
+          return { ...o, staff: oreLavorate, oreLavorate, oreReali, orePianif, prodOraria }
         })
+        const totOreReali = Object.values(workedHoursBySlot).reduce((s, v) => s + (Number(v) || 0), 0)
         const totOreDay = oreWithProd.reduce((s,o) => s + o.oreLavorate, 0)
         const totIncassoOre = oreWithProd.reduce((s,o) => s + o.ricavi, 0)
         const mediaGiornaliera = totOreDay > 0 ? totIncassoOre / totOreDay : 0
@@ -843,7 +908,22 @@ export default function DashboardPage({ settings }) {
         </div>
 
         {/* Target e soglie */}
-        <div style={{...S.card,marginBottom:'1.25rem',display:'flex',alignItems:'center',gap:24,flexWrap:'wrap'}}>
+        <div style={{...S.card,marginBottom:'1.25rem',display:'flex',alignItems:'center',gap:20,flexWrap:'wrap'}}>
+          {/* Toggle Reale / Pianificato */}
+          <div style={{display:'flex',gap:0,border:'1px solid #2a3042',borderRadius:6,overflow:'hidden'}}>
+            <button onClick={()=>setUseRealHours(true)}
+              title={`Ore reali dalle timbrature (${totOreReali.toFixed(1)}h tot nel periodo)`}
+              style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
+                background:useRealHours?'#10B981':'transparent',color:useRealHours?'#0f1420':'#94a3b8'}}>
+              📍 Reali ({totOreReali.toFixed(0)}h)
+            </button>
+            <button onClick={()=>setUseRealHours(false)}
+              title="Ore pianificate dal calendario staff (tab Personale)"
+              style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
+                background:!useRealHours?'#F59E0B':'transparent',color:!useRealHours?'#0f1420':'#94a3b8'}}>
+              🗓 Pianificate
+            </button>
+          </div>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:12,color:'#64748b'}}>Target €/h:</span>
             <input type="number" value={prodTarget} onChange={e=>setProdTarget(Number(e.target.value))} style={{...iS,width:70,textAlign:'center'}}/>
@@ -882,22 +962,24 @@ export default function DashboardPage({ settings }) {
 
         {/* Tabella dettaglio */}
         <div style={{marginTop:12}}>
-          <Card title="Dettaglio per fascia oraria">
+          <Card title="Dettaglio per fascia oraria" badge={useRealHours ? '📍 ore da timbratura' : '🗓 ore pianificate'}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['Ora','Ricavi','Scontrini','Personale','Ore lavorate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                {['Ora','Ricavi','Scontrini','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {oreWithProd.filter(o=>o.ricavi>0).map((o,i)=>{
+                {oreWithProd.filter(o=>o.ricavi>0||o.oreReali>0).map((o,i)=>{
                   const pc = prodColor(o.prodOraria)
+                  const mismatch = o.oreReali > 0 && o.orePianif > 0 && Math.abs(o.oreReali - o.orePianif) > 0.5
                   return <tr key={i}>
                     <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{o.ora}</td>
                     <td style={{...S.td,fontWeight:600}}>{fmt(o.ricavi)}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{o.scontrini}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{o.staff || '—'}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{o.oreLavorate || '—'}</td>
-                    <td style={{...S.td,fontWeight:700,color:o.staff>0?pc:'#475569'}}>{o.staff>0?o.prodOraria.toFixed(1)+' €/h':'—'}</td>
-                    <td style={S.td}>{o.staff>0?<span style={{...S.badge(pc,pc+'22'),fontSize:10}}>{prodLabel(o.prodOraria)}</span>:'—'}</td>
+                    <td style={{...S.td,color:o.oreReali>0?'#10B981':'#475569',fontWeight:o.oreReali>0?600:400}}>{o.oreReali>0?o.oreReali.toFixed(1)+'h':'—'}</td>
+                    <td style={{...S.td,color:o.orePianif>0?'#F59E0B':'#475569'}}>{o.orePianif>0?o.orePianif+'h':'—'}{mismatch&&<span title="Differenza reale/pianificato" style={{marginLeft:4,color:'#EF4444'}}>⚠</span>}</td>
+                    <td style={{...S.td,fontWeight:600}}>{o.oreLavorate>0?o.oreLavorate.toFixed(1)+'h':'—'}</td>
+                    <td style={{...S.td,fontWeight:700,color:o.oreLavorate>0?pc:'#475569'}}>{o.oreLavorate>0?o.prodOraria.toFixed(1)+' €/h':'—'}</td>
+                    <td style={S.td}>{o.oreLavorate>0?<span style={{...S.badge(pc,pc+'22'),fontSize:10}}>{prodLabel(o.prodOraria)}</span>:'—'}</td>
                   </tr>
                 })}
               </tbody>
