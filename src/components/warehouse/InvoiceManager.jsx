@@ -631,7 +631,7 @@ export default function InvoiceManager({ sp, sps }) {
                   <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-                      {['Mag.', 'Descrizione fattura', 'Nome articolo', 'Qty', 'Tipo', 'Q.Sing.', 'UM', 'TOT', '€/UM', 'Tot. €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 8, padding: '4px 3px' }}>{h}</th>)}
+                      {['Mag.', 'Descrizione fattura', 'Qty fatt.', 'Nome articolo', 'Qty eff.', 'Tipo', 'Q.Sing.', 'UM', '€/UM', 'Tot. €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 8, padding: '4px 3px' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
                       {items.length === 0 && <tr><td colSpan={11} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
@@ -672,6 +672,11 @@ export default function InvoiceManager({ sp, sps }) {
                                 style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 10, flexShrink: 0 }}>✗</button>}
                             </div>
                           </td>
+                          {/* Qty fattura (dalla fattura, read-only) */}
+                          <td style={{ ...S.td, padding: '4px 4px', textAlign: 'center', fontSize: 10, color: '#64748b', fontWeight: 500 }}
+                              title="Quantità presa dalla fattura (non modificabile)">
+                            {it.quantita != null && it.quantita !== '' ? it.quantita : '—'}
+                          </td>
                           <td style={{ ...S.td, padding: '5px 6px' }}>
                             <input value={displayNome}
                               onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: e.target.value } : x))}
@@ -679,10 +684,12 @@ export default function InvoiceManager({ sp, sps }) {
                               style={{ ...iS, fontSize: 10, padding: '3px 5px', width: '100%', fontWeight: 600, color: rule ? '#F59E0B' : '#8B5CF6' }}
                             />
                           </td>
+                          {/* Qty effettiva (in UM, modificabile) */}
                           <td style={{ ...S.td, padding: '4px 4px' }}>
-                            <input type="number" step="0.01" value={it.quantita ?? ''}
-                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, quantita: e.target.value } : x))}
-                              style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 45, textAlign: 'center' }}
+                            <input type="number" step="0.01" value={it.totale_um ?? displayTot ?? ''}
+                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, totale_um: e.target.value } : x))}
+                              title="Quantità effettiva dell'articolo (in UM)"
+                              style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 55, textAlign: 'center', color: '#10B981', fontWeight: 600 }}
                             />
                           </td>
                           <td style={{ ...S.td, padding: '4px 4px' }}>
@@ -718,12 +725,6 @@ export default function InvoiceManager({ sp, sps }) {
                               <option value="LT">LT</option>
                               <option value="PZ">PZ</option>
                             </select>
-                          </td>
-                          <td style={{ ...S.td, padding: '4px 4px' }}>
-                            <input type="number" step="0.01" value={it.totale_um ?? displayTot ?? ''}
-                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, totale_um: e.target.value } : x))}
-                              style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, textAlign: 'center', color: '#10B981' }}
-                            />
                           </td>
                           <td style={{ ...S.td, fontSize: 10, padding: '4px 4px', color: '#64748b' }}>{(() => {
                             // €/UM = prezzo_totale / totale_um (prezzo per LT/KG/PZ)
