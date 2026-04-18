@@ -21,6 +21,16 @@ function localDateTimeToIsoUtc(ds, hhmm) {
   return new Date(y, m - 1, d, h, mm, 0).toISOString()
 }
 
+// Somma N giorni a una data "YYYY-MM-DD" restando nel formato stringa.
+// NON passa da Date.toISOString() per evitare shift di timezone (il bug che
+// tagliava 24h dal range fetch del DayManager).
+function addDaysStr(ds, n) {
+  if (!ds) return ds
+  const [y, m, d] = ds.split('-').map(Number)
+  const dt = new Date(y, m - 1, d + n)
+  return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0')
+}
+
 // Come sopra, ma interpreta ds come "giorno operativo". Se l'ora e' prima
 // del cutoff (es. 03:00 con cutoff=5), il giorno calendar corrispondente e'
 // ds+1 (perche' 03:00 del 18/04 appartiene al giorno operativo del 17/04).
@@ -28,10 +38,7 @@ function localDateTimeToIsoUtcForOperatingDay(ds, hhmm, cutoff) {
   if (!ds || !hhmm || !hhmm.includes(':')) return null
   const [h] = hhmm.split(':').map(Number)
   if (h < cutoff) {
-    const [y, m, d] = ds.split('-').map(Number)
-    const next = new Date(y, m - 1, d + 1)
-    const dsNext = next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0') + '-' + String(next.getDate()).padStart(2, '0')
-    return localDateTimeToIsoUtc(dsNext, hhmm)
+    return localDateTimeToIsoUtc(addDaysStr(ds, 1), hhmm)
   }
   return localDateTimeToIsoUtc(ds, hhmm)
 }
@@ -86,11 +93,10 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     // Range +1 giorno: timbrature notturne (es. uscita alle 03:00 del lunedi
     // successivo) appartengono al "giorno operativo" della domenica della
     // settimana visualizzata. Devono essere caricate per essere conteggiate.
-    const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekEnd.getDate() + 8)
+    const weekEndStr = addDaysStr(weekStart, 8)
     const { data } = await supabase.from('attendance').select('*')
       .gte('timestamp', weekStart + 'T00:00:00')
-      .lt('timestamp', weekEnd.toISOString().split('T')[0] + 'T00:00:00')
+      .lt('timestamp', weekEndStr + 'T00:00:00')
       .order('timestamp')
     setAttendance(data || [])
   }, [weekStart])
@@ -344,14 +350,14 @@ function DayManager({ data, allLocali, onClose, onChange }) {
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
-    // Carico un range esteso (dal ds alle 05:00 del giorno dopo +1h buffer)
-    // e poi filtro per "giorno operativo" lato client.
-    const dsEnd = new Date(ds + 'T00:00:00')
-    dsEnd.setDate(dsEnd.getDate() + 2)
+    // Range esteso di +2 giorni calcolato come stringa pura (senza passare
+    // da Date.toISOString, che per TZ positive come Europe/Rome toglierebbe
+    // 24h reali dal range, escludendo le uscite oltre mezzanotte).
+    const dsEnd = addDaysStr(ds, 2)
     const { data: rows } = await supabase.from('attendance').select('*')
       .eq('employee_id', emp.id)
       .gte('timestamp', ds + 'T00:00:00')
-      .lt('timestamp', dsEnd.toISOString().split('T')[0] + 'T00:00:00')
+      .lt('timestamp', dsEnd + 'T00:00:00')
       .order('timestamp')
     setRecords((rows || []).filter(r => operatingDayOf(r.timestamp) === ds))
   }, [emp.id, ds])
