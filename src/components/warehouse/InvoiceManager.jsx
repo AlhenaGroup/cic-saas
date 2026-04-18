@@ -487,6 +487,7 @@ export default function InvoiceManager({ sp, sps }) {
         if (rule.escludi_magazzino != null) upd.escludi_magazzino = rule.escludi_magazzino
         if (rule.tipo_confezione_default) upd.tipo_confezione = rule.tipo_confezione_default
         if (rule.qty_singola_default) upd.qty_singola = rule.qty_singola_default
+        if (rule.qty_default != null) upd.totale_um = rule.qty_default
       } else if (rule && userConfirmed) {
         // Utente ha confermato: riempi solo i buchi, non toccare quello che ha salvato
         if (rule.nome_articolo_default && it.nome_articolo == null) upd.nome_articolo = rule.nome_articolo_default
@@ -495,6 +496,7 @@ export default function InvoiceManager({ sp, sps }) {
         if (rule.escludi_magazzino != null && it.escludi_magazzino == null) upd.escludi_magazzino = rule.escludi_magazzino
         if (rule.tipo_confezione_default && it.tipo_confezione == null) upd.tipo_confezione = rule.tipo_confezione_default
         if (rule.qty_singola_default && it.qty_singola == null) upd.qty_singola = rule.qty_singola_default
+        if (rule.qty_default != null && it.totale_um == null) upd.totale_um = rule.qty_default
       } else {
         // Nessuna regola: applica suggerimenti solo sui campi vuoti
         if (s.nome && it.nome_articolo == null) upd.nome_articolo = s.nome
@@ -758,8 +760,9 @@ export default function InvoiceManager({ sp, sps }) {
                                     nome_articolo_default: nameToSave, unita_default: umToSave,
                                     magazzino: magToSave, escludi_magazzino: exclToSave,
                                     tipo_confezione_default: tipoToSave, qty_singola_default: qSingToSave,
+                                    qty_default: totToSave,
                                   }, { onConflict: 'user_id,nome_fattura_pattern' })
-                                  setItemRules(prev => ({ ...prev, [key]: { nome_articolo_default: nameToSave, unita_default: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione_default: tipoToSave, qty_singola_default: qSingToSave } }))
+                                  setItemRules(prev => ({ ...prev, [key]: { nome_articolo_default: nameToSave, unita_default: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione_default: tipoToSave, qty_singola_default: qSingToSave, qty_default: totToSave } }))
                                 }
                               }
                               setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione: tipoToSave, qty_singola: qSingToSave, totale_um: totToSave, stato_match: 'abbinato', _saved: true } : x))
