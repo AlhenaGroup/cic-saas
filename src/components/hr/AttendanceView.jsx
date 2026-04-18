@@ -21,6 +21,21 @@ function localDateTimeToIsoUtc(ds, hhmm) {
   return new Date(y, m - 1, d, h, mm, 0).toISOString()
 }
 
+// Come sopra, ma interpreta ds come "giorno operativo". Se l'ora e' prima
+// del cutoff (es. 03:00 con cutoff=5), il giorno calendar corrispondente e'
+// ds+1 (perche' 03:00 del 18/04 appartiene al giorno operativo del 17/04).
+function localDateTimeToIsoUtcForOperatingDay(ds, hhmm, cutoff) {
+  if (!ds || !hhmm || !hhmm.includes(':')) return null
+  const [h] = hhmm.split(':').map(Number)
+  if (h < cutoff) {
+    const [y, m, d] = ds.split('-').map(Number)
+    const next = new Date(y, m - 1, d + 1)
+    const dsNext = next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0') + '-' + String(next.getDate()).padStart(2, '0')
+    return localDateTimeToIsoUtc(dsNext, hhmm)
+  }
+  return localDateTimeToIsoUtc(ds, hhmm)
+}
+
 // Formatta un timestamp (con tz o UTC) in ora Europe/Rome HH:mm
 function hmFromTsTz(ts) {
   if (typeof ts !== 'string' || ts.length < 16) return ''
@@ -29,6 +44,31 @@ function hmFromTsTz(ts) {
       hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome'
     })
   } catch { return ts.substring(11, 16) }
+}
+
+// I locali notturni chiudono dopo mezzanotte. Una timbratura prima di questa
+// ora (in Europe/Rome) appartiene al "giorno operativo" precedente.
+// Es: cutoff=5 → uscita 03:00 del 18/04 conta come turno del 17/04.
+const OPERATING_DAY_CUTOFF_HOUR = 5
+
+// Restituisce il "giorno operativo" YYYY-MM-DD a cui appartiene il timestamp.
+// Conversione fatta in Europe/Rome per gestire DST corretto.
+function operatingDayOf(ts) {
+  if (typeof ts !== 'string' || ts.length < 10) return null
+  try {
+    const d = new Date(ts)
+    // 'sv-SE' produce ISO-like "YYYY-MM-DD HH:mm:ss"
+    const local = d.toLocaleString('sv-SE', { timeZone: 'Europe/Rome' })
+    const datePart = local.substring(0, 10)
+    const hour = parseInt(local.substring(11, 13)) || 0
+    if (hour < OPERATING_DAY_CUTOFF_HOUR) {
+      // Sottrai 1 giorno
+      const [y, m, day] = datePart.split('-').map(Number)
+      const prev = new Date(y, m - 1, day - 1)
+      return prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0') + '-' + String(prev.getDate()).padStart(2, '0')
+    }
+    return datePart
+  } catch { return ts.substring(0, 10) }
 }
 
 export default function AttendanceView({ employees, shifts, sp, sps }) {
@@ -43,8 +83,11 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
   const filteredEmps = locale ? employees.filter(e => (e.locale||'').split(',').some(l => l.trim() === locale) && e.stato === 'Attivo') : employees.filter(e => e.stato === 'Attivo')
 
   const loadAttendance = useCallback(async () => {
+    // Range +1 giorno: timbrature notturne (es. uscita alle 03:00 del lunedi
+    // successivo) appartengono al "giorno operativo" della domenica della
+    // settimana visualizzata. Devono essere caricate per essere conteggiate.
     const weekEnd = new Date(weekStart)
-    weekEnd.setDate(weekEnd.getDate() + 7)
+    weekEnd.setDate(weekEnd.getDate() + 8)
     const { data } = await supabase.from('attendance').select('*')
       .gte('timestamp', weekStart + 'T00:00:00')
       .lt('timestamp', weekEnd.toISOString().split('T')[0] + 'T00:00:00')
@@ -128,7 +171,11 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     const date = new Date(weekStart)
     date.setDate(date.getDate() + dayOffset)
     const ds = date.toISOString().split('T')[0]
-    const dayRecords = attendance.filter(a => a.employee_id === empId && a.timestamp?.startsWith(ds))
+    // Usa il "giorno operativo": una timbratura tra mezzanotte e le 05:00
+    // appartiene al turno del giorno precedente (locali notturni).
+    const dayRecords = attendance.filter(a =>
+      a.employee_id === empId && a.timestamp && operatingDayOf(a.timestamp) === ds
+    )
     const blocks = buildBlocks(dayRecords)
     const blocksForLocale = localeFilter ? blocks.filter(b => b.locale === localeFilter) : blocks
     const ore = blocksForLocale.reduce((s, b) => s + (b.ore || 0), 0)
@@ -297,12 +344,16 @@ function DayManager({ data, allLocali, onClose, onChange }) {
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
+    // Carico un range esteso (dal ds alle 05:00 del giorno dopo +1h buffer)
+    // e poi filtro per "giorno operativo" lato client.
+    const dsEnd = new Date(ds + 'T00:00:00')
+    dsEnd.setDate(dsEnd.getDate() + 2)
     const { data: rows } = await supabase.from('attendance').select('*')
       .eq('employee_id', emp.id)
       .gte('timestamp', ds + 'T00:00:00')
-      .lt('timestamp', ds + 'T23:59:59')
+      .lt('timestamp', dsEnd.toISOString().split('T')[0] + 'T00:00:00')
       .order('timestamp')
-    setRecords(rows || [])
+    setRecords((rows || []).filter(r => operatingDayOf(r.timestamp) === ds))
   }, [emp.id, ds])
   useEffect(() => { load() }, [load])
 
@@ -314,7 +365,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
     const nowH = new Date().getHours()
     const ora = tipo === 'entrata' ? String(nowH).padStart(2, '0') + ':00' : String(Math.min(23, nowH + 1)).padStart(2, '0') + ':00'
     const { error } = await supabase.from('attendance').insert({
-      employee_id: emp.id, timestamp: localDateTimeToIsoUtc(ds, ora), tipo, locale: defaultLocale,
+      employee_id: emp.id, timestamp: localDateTimeToIsoUtcForOperatingDay(ds, ora, OPERATING_DAY_CUTOFF_HOUR), tipo, locale: defaultLocale,
     })
     setSaving(false)
     if (error) { alert('Errore: ' + error.message); return }
@@ -414,7 +465,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
                   <option value="uscita">Uscita</option>
                 </select>
                 <input type="time" defaultValue={hm(r.timestamp)}
-                  onBlur={e => { if (e.target.value && e.target.value !== hm(r.timestamp)) updateRec(r.id, { timestamp: localDateTimeToIsoUtc(ds, e.target.value) }) }}
+                  onBlur={e => { if (e.target.value && e.target.value !== hm(r.timestamp)) updateRec(r.id, { timestamp: localDateTimeToIsoUtcForOperatingDay(ds, e.target.value, OPERATING_DAY_CUTOFF_HOUR) }) }}
                   style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 90, textAlign: 'center' }} />
                 <select value={r.locale || ''}
                   onChange={e => updateRec(r.id, { locale: e.target.value })}
