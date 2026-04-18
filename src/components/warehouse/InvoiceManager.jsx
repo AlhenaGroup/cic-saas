@@ -531,87 +531,6 @@ export default function InvoiceManager({ sp, sps }) {
     }
   }
 
-  // ─── Migrazione one-shot: estrai regole dalle righe già associate
-  // e resetta le fatture importate, cosi' le regole si applicano ai nuovi import.
-  const [migBusy, setMigBusy] = useState(false)
-  const migrateRulesAndReset = async () => {
-    if (migBusy) return
-    if (!confirm('STEP 1/2 — Estraggo le regole da tutte le righe con nome_articolo compilato. Procedo?')) return
-    setMigBusy(true)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { alert('Sessione scaduta'); setMigBusy(false); return }
-
-      // 1) Leggi tutte le righe con nome_articolo valorizzato (righe "associate")
-      const { data: allItems, error: errItems } = await supabase.from('warehouse_invoice_items')
-        .select('nome_fattura, nome_articolo, unita, magazzino, escludi_magazzino, tipo_confezione, qty_singola, id')
-        .not('nome_articolo', 'is', null)
-        .order('id', { ascending: false }) // piu' recenti prima
-      if (errItems) throw new Error('Lettura righe: ' + errItems.message)
-
-      // 2) Raggruppa per nome_fattura normalizzato; prendi la versione piu' recente
-      const byPattern = {}
-      for (const r of (allItems || [])) {
-        const key = (r.nome_fattura || '').toLowerCase().trim()
-        if (!key) continue
-        if (!r.nome_articolo || String(r.nome_articolo).trim() === '') continue
-        if (byPattern[key]) continue // piu' recente gia' preso
-        byPattern[key] = r
-      }
-      const rulesToUpsert = Object.entries(byPattern).map(([key, r]) => ({
-        user_id: user.id,
-        nome_fattura_pattern: key,
-        nome_articolo_default: r.nome_articolo,
-        unita_default: r.unita || null,
-        magazzino: r.magazzino || null,
-        escludi_magazzino: r.escludi_magazzino ?? false,
-        tipo_confezione_default: r.tipo_confezione || null,
-        qty_singola_default: r.qty_singola || null,
-      }))
-
-      if (rulesToUpsert.length === 0) {
-        alert('Nessuna riga associata trovata — niente da estrarre.')
-        setMigBusy(false)
-        return
-      }
-
-      // 3) Upsert in batch (onConflict garantisce sovrascrittura dell'ultima versione)
-      const { error: errUp } = await supabase.from('item_rules').upsert(rulesToUpsert, { onConflict: 'user_id,nome_fattura_pattern' })
-      if (errUp) throw new Error('Upsert regole: ' + errUp.message)
-
-      // 4) Conteggio fatture da eliminare
-      const { data: invs, error: errInvs } = await supabase.from('warehouse_invoices').select('id')
-      if (errInvs) throw new Error('Conteggio fatture: ' + errInvs.message)
-      const nInvs = (invs || []).length
-
-      // 5) Seconda conferma
-      const ok2 = confirm(`STEP 2/2 — ${rulesToUpsert.length} regole salvate.\n\nOra elimino TUTTE le ${nInvs} fatture del magazzino. Le fatture TS Digital originali restano intatte e potrai re-importarle.\n\nProcedo con l'eliminazione?`)
-      if (!ok2) {
-        alert('Regole salvate. Eliminazione annullata.')
-        setMigBusy(false)
-        await loadProducts()
-        return
-      }
-
-      // 6) Elimina righe poi fatture (sicuro anche senza CASCADE)
-      const invIds = (invs || []).map(i => i.id)
-      if (invIds.length > 0) {
-        const { error: errDelItems } = await supabase.from('warehouse_invoice_items').delete().in('invoice_id', invIds)
-        if (errDelItems) throw new Error('Delete items: ' + errDelItems.message)
-        const { error: errDelInvs } = await supabase.from('warehouse_invoices').delete().in('id', invIds)
-        if (errDelInvs) throw new Error('Delete invoices: ' + errDelInvs.message)
-      }
-
-      // 7) Refresh stato UI
-      setExpanded(null); setWhInvoice(null); setItems([])
-      await loadProducts()
-      await loadWhStatus()
-      alert(`Fatto!\n• ${rulesToUpsert.length} regole salvate\n• ${nInvs} fatture eliminate\n\nOra puoi re-importare dal tab Fatture TS Digital.`)
-    } catch (e) {
-      alert('Errore migrazione: ' + e.message)
-    }
-    setMigBusy(false)
-  }
 
   // ─── Render ────────────────────────────────────────────────────────
   return <>
@@ -624,10 +543,6 @@ export default function InvoiceManager({ sp, sps }) {
               color: filterStatus === f ? '#0f1420' : '#94a3b8',
             }}>{f === 'tutte' ? 'Tutte' : f === 'da_associare' ? 'Da associare' : 'Associate'}</button>
         ))}
-        <button onClick={migrateRulesAndReset} disabled={migBusy}
-          title="Estrai regole dalle righe già associate e resetta le fatture"
-          style={{ ...iS, background: '#EF4444', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 10, cursor: migBusy ? 'wait' : 'pointer' }}
-        >{migBusy ? '...' : '🔧 Estrai regole + Reset'}</button>
         <button onClick={() => { loadTsPage(tsPage); loadWhStatus() }} disabled={tsLoading}
           style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}
         >{tsLoading ? '...' : 'Aggiorna'}</button>
