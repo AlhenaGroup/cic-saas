@@ -251,9 +251,11 @@ export default function InvoiceManager({ sp, sps }) {
       setWhInvoice(data[0])
       const { data: its } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', data[0].id).order('id')
       setItems(its || [])
-      // Auto-applica regole apprese alle righe mai toccate (nome_articolo IS NULL).
-      // Non sovrascrive stringhe vuote: "" = cancellazione intenzionale dell'utente.
-      if (its && its.some(it => it.nome_articolo == null)) {
+      // Auto-applica regole/suggerimenti: se c'è una regola per il nome_fattura
+      // e la riga NON è stata confermata dall'utente (stato_match !== 'abbinato'),
+      // la regola sovrascrive i valori obsoleti (es. suggerimenti scritti da
+      // una vecchia importazione prima che la regola fosse creata).
+      if (its && its.some(it => it.stato_match !== 'abbinato')) {
         await applySmartDefaults(its)
         await loadWhStatus() // aggiorna badge "X/Y" nell'elenco fatture
       }
@@ -474,9 +476,19 @@ export default function InvoiceManager({ sp, sps }) {
       const rule = rulesMap[key]
       const s = suggestFromDescription(it.nome_fattura, it.unita)
       const upd = {}
-      // Regola appresa ha priorità. Uso `== null` per NON sovrascrivere
-      // cancellazioni intenzionali (stringa vuota = utente ha cancellato).
-      if (rule) {
+      const userConfirmed = it.stato_match === 'abbinato'
+      if (rule && !userConfirmed) {
+        // Regola esiste e l'utente NON ha ancora confermato manualmente
+        // questa riga → la regola ha precedenza assoluta e sovrascrive
+        // eventuali valori obsoleti (es. suggerimenti da import vecchio).
+        if (rule.nome_articolo_default) upd.nome_articolo = rule.nome_articolo_default
+        if (rule.unita_default) upd.unita = rule.unita_default
+        if (rule.magazzino) upd.magazzino = rule.magazzino
+        if (rule.escludi_magazzino != null) upd.escludi_magazzino = rule.escludi_magazzino
+        if (rule.tipo_confezione_default) upd.tipo_confezione = rule.tipo_confezione_default
+        if (rule.qty_singola_default) upd.qty_singola = rule.qty_singola_default
+      } else if (rule && userConfirmed) {
+        // Utente ha confermato: riempi solo i buchi, non toccare quello che ha salvato
         if (rule.nome_articolo_default && it.nome_articolo == null) upd.nome_articolo = rule.nome_articolo_default
         if (rule.unita_default && it.unita == null) upd.unita = rule.unita_default
         if (rule.magazzino && it.magazzino == null) upd.magazzino = rule.magazzino
@@ -484,6 +496,7 @@ export default function InvoiceManager({ sp, sps }) {
         if (rule.tipo_confezione_default && it.tipo_confezione == null) upd.tipo_confezione = rule.tipo_confezione_default
         if (rule.qty_singola_default && it.qty_singola == null) upd.qty_singola = rule.qty_singola_default
       } else {
+        // Nessuna regola: applica suggerimenti solo sui campi vuoti
         if (s.nome && it.nome_articolo == null) upd.nome_articolo = s.nome
         if (s.um && it.unita == null) upd.unita = s.um
         if (s.magazzino && it.magazzino == null) upd.magazzino = s.magazzino
@@ -728,11 +741,13 @@ export default function InvoiceManager({ sp, sps }) {
                               const exclToSave = it.escludi_magazzino ?? isExcluded
                               const qSingToSave = parseFloat(it.qty_singola ?? displayQtySing) || 0
                               const totToSave = parseFloat(it.totale_um) || (qty > 0 && qSingToSave > 0 ? Math.round(qty * qSingToSave * 1000) / 1000 : 0)
-                              // Salva sulla riga
+                              // Salva sulla riga. stato_match='abbinato' segnala che
+                              // l'utente ha confermato — futuri auto-apply NON sovrascrivono.
                               await supabase.from('warehouse_invoice_items').update({
                                 nome_articolo: nameToSave, quantita: parseFloat(it.quantita) || 0,
                                 unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave,
                                 tipo_confezione: tipoToSave, qty_singola: qSingToSave, totale_um: totToSave,
+                                stato_match: 'abbinato',
                               }).eq('id', it.id)
                               // Memorizza regola per le prossime fatture
                               const key = (it.nome_fattura || '').toLowerCase().trim()
@@ -748,7 +763,7 @@ export default function InvoiceManager({ sp, sps }) {
                                   setItemRules(prev => ({ ...prev, [key]: { nome_articolo_default: nameToSave, unita_default: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione_default: tipoToSave, qty_singola_default: qSingToSave } }))
                                 }
                               }
-                              setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione: tipoToSave, qty_singola: qSingToSave, totale_um: totToSave, _saved: true } : x))
+                              setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione: tipoToSave, qty_singola: qSingToSave, totale_um: totToSave, stato_match: 'abbinato', _saved: true } : x))
                               setTimeout(() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, _saved: false } : x)), 1500)
                               // Aggiorna badge "X/Y" nella colonna Stato
                               loadWhStatus()
