@@ -703,16 +703,8 @@ export default function InvoiceManager({ sp, sps }) {
                           <td style={{ ...S.td, padding: '4px 3px' }}>
                             <input type="number" step="0.001"
                               value={it.qty_singola ?? displayQtySing ?? ''}
-                              onChange={e => {
-                                const val = e.target.value
-                                setItems(prev => prev.map(x => {
-                                  if (x.id !== it.id) return x
-                                  const newQS = parseFloat(val) || 0
-                                  const newQty = parseFloat(x.quantita) || 0
-                                  const newTot = newQty > 0 && newQS > 0 ? Math.round(newQty * newQS * 1000) / 1000 : x.totale_um
-                                  return { ...x, qty_singola: val, totale_um: newTot }
-                                }))
-                              }}
+                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, qty_singola: e.target.value } : x))}
+                              title="Quantità singola della confezione (indipendente dalla Qty effettiva)"
                               style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, textAlign: 'center', color: '#8B5CF6' }}
                             />
                           </td>
