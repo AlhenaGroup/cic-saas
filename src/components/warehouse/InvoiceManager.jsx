@@ -75,7 +75,8 @@ export default function InvoiceManager({ sp, sps }) {
     for (const inv of invs) {
       const rows = (items || []).filter(it => it.invoice_id === inv.id)
       const total = rows.length
-      const done = rows.filter(it => it.nome_articolo || it.escludi_magazzino).length
+      // Riga "done" = ha nome_articolo non vuoto (trimmed) oppure è esclusa dal magazzino.
+      const done = rows.filter(it => (typeof it.nome_articolo === 'string' && it.nome_articolo.trim() !== '') || it.escludi_magazzino === true).length
       // Trova il hubId corrispondente tramite numero+fornitore
       status[inv.numero + '||' + inv.fornitore] = { total, done, complete: total > 0 && done >= total }
     }
@@ -286,6 +287,7 @@ export default function InvoiceManager({ sp, sps }) {
     setItemForm({ nome_fattura: '', quantita: '', unita: '', prezzo_unitario: '', prezzo_totale: '' })
     const { data } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', whInvoice.id).order('id')
     setItems(data || [])
+    await loadWhStatus()
     setLoading(false)
   }
 
@@ -294,6 +296,7 @@ export default function InvoiceManager({ sp, sps }) {
     if (whInvoice) {
       const { data } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', whInvoice.id).order('id')
       setItems(data || [])
+      await loadWhStatus()
     }
   }
 
@@ -747,6 +750,8 @@ export default function InvoiceManager({ sp, sps }) {
                               }
                               setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione: tipoToSave, qty_singola: qSingToSave, totale_um: totToSave, _saved: true } : x))
                               setTimeout(() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, _saved: false } : x)), 1500)
+                              // Aggiorna badge "X/Y" nella colonna Stato
+                              loadWhStatus()
                             }} style={{ ...iS, background: it._saved ? '#10B981' : '#F59E0B', color: '#0f1420', border: 'none', padding: '3px 8px', fontWeight: 700, fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                               {it._saved ? '✓' : '💾'}
                             </button>
