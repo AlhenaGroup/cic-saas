@@ -631,10 +631,10 @@ export default function InvoiceManager({ sp, sps }) {
                   <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-                      {['Mag.', 'Descrizione fattura', 'Qty fatt.', 'Nome articolo', 'Qty eff.', 'Tipo', 'Q.Sing.', 'UM', '€/UM', 'Tot. €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 8, padding: '4px 3px' }}>{h}</th>)}
+                      {['Mag.', 'Descrizione fattura + Qty fatt.', 'Nome articolo', 'Qty + Tipo', 'Q.Sing. + UM', '€/UM', 'Tot. €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 8, padding: '4px 3px' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
-                      {items.length === 0 && <tr><td colSpan={11} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
+                      {items.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
                       {items.map(it => {
                         const suggestion = suggestFromDescription(it.nome_fattura, it.unita)
                         const rule = itemRules[(it.nome_fattura || '').toLowerCase().trim()]
@@ -664,19 +664,20 @@ export default function InvoiceManager({ sp, sps }) {
                                 </select>
                             }
                           </td>
-                          <td style={{ ...S.td, fontSize: 10, padding: '5px 6px', color: '#94a3b8', maxWidth: 180 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {/* Descrizione fattura + Qty fatt. (read-only) */}
+                          <td style={{ ...S.td, fontSize: 10, padding: '5px 6px', color: '#94a3b8', maxWidth: 200 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.nome_fattura}</span>
+                              <span title="Quantità dalla fattura (non modificabile)"
+                                style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#64748b', background: '#1a1f2e', padding: '2px 6px', borderRadius: 4, minWidth: 28, textAlign: 'center' }}>
+                                {it.quantita != null && it.quantita !== '' ? it.quantita : '—'}
+                              </span>
                               {!isExcluded && <button onClick={() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, escludi_magazzino: true } : x))}
                                 title="Escludi dal magazzino"
                                 style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 10, flexShrink: 0 }}>✗</button>}
                             </div>
                           </td>
-                          {/* Qty fattura (dalla fattura, read-only) */}
-                          <td style={{ ...S.td, padding: '4px 4px', textAlign: 'center', fontSize: 10, color: '#64748b', fontWeight: 500 }}
-                              title="Quantità presa dalla fattura (non modificabile)">
-                            {it.quantita != null && it.quantita !== '' ? it.quantita : '—'}
-                          </td>
+                          {/* Nome articolo */}
                           <td style={{ ...S.td, padding: '5px 6px' }}>
                             <input value={displayNome}
                               onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: e.target.value } : x))}
@@ -684,45 +685,49 @@ export default function InvoiceManager({ sp, sps }) {
                               style={{ ...iS, fontSize: 10, padding: '3px 5px', width: '100%', fontWeight: 600, color: rule ? '#F59E0B' : '#8B5CF6' }}
                             />
                           </td>
-                          {/* Qty effettiva (in UM, modificabile) */}
+                          {/* Qty del tipo + Tipo (stessa cella) */}
                           <td style={{ ...S.td, padding: '4px 4px' }}>
-                            <input type="number" step="0.01" value={it.totale_um ?? displayTot ?? ''}
-                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, totale_um: e.target.value } : x))}
-                              title="Quantità effettiva dell'articolo (in UM)"
-                              style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 55, textAlign: 'center', color: '#10B981', fontWeight: 600 }}
-                            />
+                            <div style={{ display: 'flex', gap: 3 }}>
+                              <input type="number" step="0.01" value={it.totale_um ?? ''}
+                                onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, totale_um: e.target.value } : x))}
+                                title="Quantità per il tipo di confezione (es. 6 fusti)"
+                                style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 44, textAlign: 'center', color: '#10B981', fontWeight: 600 }}
+                              />
+                              <select value={displayTipo}
+                                onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, tipo_confezione: e.target.value } : x))}
+                                style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 72, color: '#e2e8f0' }}>
+                                <option value="">—</option>
+                                {TIPI_CONFEZIONE.map(t => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                            </div>
                           </td>
+                          {/* Q.Sing. + UM (stessa cella) */}
                           <td style={{ ...S.td, padding: '4px 4px' }}>
-                            <select value={displayTipo}
-                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, tipo_confezione: e.target.value } : x))}
-                              style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 75, color: '#e2e8f0' }}>
-                              <option value="">—</option>
-                              {TIPI_CONFEZIONE.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
+                            <div style={{ display: 'flex', gap: 3 }}>
+                              <input type="number" step="0.001"
+                                value={it.qty_singola ?? displayQtySing ?? ''}
+                                onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, qty_singola: e.target.value } : x))}
+                                title="Quantità singola della confezione (es. 30 per un fusto da 30 LT)"
+                                style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 48, textAlign: 'center', color: '#8B5CF6' }}
+                              />
+                              <select value={displayUm}
+                                onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, unita: e.target.value } : x))}
+                                style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 42, color: '#e2e8f0' }}>
+                                <option value="">—</option>
+                                <option value="KG">KG</option>
+                                <option value="LT">LT</option>
+                                <option value="PZ">PZ</option>
+                              </select>
+                            </div>
                           </td>
-                          <td style={{ ...S.td, padding: '4px 3px' }}>
-                            <input type="number" step="0.001"
-                              value={it.qty_singola ?? displayQtySing ?? ''}
-                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, qty_singola: e.target.value } : x))}
-                              title="Quantità singola della confezione (indipendente dalla Qty effettiva)"
-                              style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, textAlign: 'center', color: '#8B5CF6' }}
-                            />
-                          </td>
-                          <td style={{ ...S.td, padding: '4px 3px' }}>
-                            <select value={displayUm}
-                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, unita: e.target.value } : x))}
-                              style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 42, color: '#e2e8f0' }}>
-                              <option value="">—</option>
-                              <option value="KG">KG</option>
-                              <option value="LT">LT</option>
-                              <option value="PZ">PZ</option>
-                            </select>
-                          </td>
-                          <td style={{ ...S.td, fontSize: 10, padding: '4px 4px', color: '#64748b' }}>{(() => {
-                            // €/UM = prezzo_totale / totale_um (prezzo per LT/KG/PZ)
-                            const tot = parseFloat(it.totale_um ?? displayTot) || 0
+                          {/* €/UM = prezzo_totale / qty_fatt / qty / q_sing */}
+                          <td style={{ ...S.td, fontSize: 10, padding: '4px 4px', color: '#64748b' }} title="prezzo_totale ÷ Qty fatt. ÷ Qty ÷ Q.Sing.">{(() => {
+                            const qFatt = parseFloat(it.quantita) || 0
+                            const qty = parseFloat(it.totale_um) || 0
+                            const qSing2 = parseFloat(it.qty_singola ?? displayQtySing) || 0
                             const prezzoTot = Math.abs(parseFloat(it.prezzo_totale) || 0)
-                            if (tot > 0 && prezzoTot > 0) return fmt(Math.round(prezzoTot / tot * 100) / 100) + '/' + (displayUm || '?')
+                            const denom = qFatt * qty * qSing2
+                            if (denom > 0 && prezzoTot > 0) return fmt(Math.round(prezzoTot / denom * 1000) / 1000) + '/' + (displayUm || '?')
                             return '—'
                           })()}</td>
                           <td style={{ ...S.td, fontWeight: 600, fontSize: 10, padding: '4px 4px' }}>{fmt(it.prezzo_totale)}</td>
