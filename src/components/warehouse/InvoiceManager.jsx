@@ -250,6 +250,12 @@ export default function InvoiceManager({ sp, sps }) {
       setWhInvoice(data[0])
       const { data: its } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', data[0].id).order('id')
       setItems(its || [])
+      // Auto-applica regole apprese alle righe mai toccate (nome_articolo IS NULL).
+      // Non sovrascrive stringhe vuote: "" = cancellazione intenzionale dell'utente.
+      if (its && its.some(it => it.nome_articolo == null)) {
+        await applySmartDefaults(its)
+        await loadWhStatus() // aggiorna badge "X/Y" nell'elenco fatture
+      }
       return true
     }
     return false
@@ -465,30 +471,34 @@ export default function InvoiceManager({ sp, sps }) {
       const rule = rulesMap[key]
       const s = suggestFromDescription(it.nome_fattura, it.unita)
       const upd = {}
-      // Regola appresa ha priorità
+      // Regola appresa ha priorità. Uso `== null` per NON sovrascrivere
+      // cancellazioni intenzionali (stringa vuota = utente ha cancellato).
       if (rule) {
-        if (rule.nome_articolo_default && !it.nome_articolo) upd.nome_articolo = rule.nome_articolo_default
-        if (rule.unita_default) upd.unita = rule.unita_default
-        if (rule.magazzino) upd.magazzino = rule.magazzino
-        if (rule.escludi_magazzino != null) upd.escludi_magazzino = rule.escludi_magazzino
-        if (rule.tipo_confezione_default) upd.tipo_confezione = rule.tipo_confezione_default
-        if (rule.qty_singola_default) upd.qty_singola = rule.qty_singola_default
+        if (rule.nome_articolo_default && it.nome_articolo == null) upd.nome_articolo = rule.nome_articolo_default
+        if (rule.unita_default && it.unita == null) upd.unita = rule.unita_default
+        if (rule.magazzino && it.magazzino == null) upd.magazzino = rule.magazzino
+        if (rule.escludi_magazzino != null && it.escludi_magazzino == null) upd.escludi_magazzino = rule.escludi_magazzino
+        if (rule.tipo_confezione_default && it.tipo_confezione == null) upd.tipo_confezione = rule.tipo_confezione_default
+        if (rule.qty_singola_default && it.qty_singola == null) upd.qty_singola = rule.qty_singola_default
       } else {
-        if (s.nome && !it.nome_articolo) upd.nome_articolo = s.nome
-        if (s.um) upd.unita = s.um
-        if (s.magazzino) upd.magazzino = s.magazzino
-        if (s.escludi) upd.escludi_magazzino = true
-        if (s.tipo) upd.tipo_confezione = s.tipo
-        if (s.qtySingola != null) upd.qty_singola = s.qtySingola
-        if (s.totaleUm != null) upd.totale_um = s.totaleUm
+        if (s.nome && it.nome_articolo == null) upd.nome_articolo = s.nome
+        if (s.um && it.unita == null) upd.unita = s.um
+        if (s.magazzino && it.magazzino == null) upd.magazzino = s.magazzino
+        if (s.escludi && it.escludi_magazzino == null) upd.escludi_magazzino = true
+        if (s.tipo && it.tipo_confezione == null) upd.tipo_confezione = s.tipo
+        if (s.qtySingola != null && it.qty_singola == null) upd.qty_singola = s.qtySingola
+        if (s.totaleUm != null && it.totale_um == null) upd.totale_um = s.totaleUm
       }
-      if (s.qty != null) upd.quantita = s.qty
+      if (s.qty != null && (it.quantita == null || it.quantita === 0)) upd.quantita = s.qty
       if (Object.keys(upd).length > 0) {
         await supabase.from('warehouse_invoice_items').update(upd).eq('id', it.id)
       }
     }
-    if (whInvoice) {
-      const { data } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', whInvoice.id).order('id')
+    // Ricarica dalle righe passate (non dipende da whInvoice state, che
+    // potrebbe essere stale se la funzione è chiamata subito dopo un setState).
+    const invId = importedItems[0]?.invoice_id || whInvoice?.id
+    if (invId) {
+      const { data } = await supabase.from('warehouse_invoice_items').select('*').eq('invoice_id', invId).order('id')
       setItems(data || [])
     }
   }
@@ -655,10 +665,12 @@ export default function InvoiceManager({ sp, sps }) {
                       {items.map(it => {
                         const suggestion = suggestFromDescription(it.nome_fattura, it.unita)
                         const rule = itemRules[(it.nome_fattura || '').toLowerCase().trim()]
-                        const displayNome = it.nome_articolo || rule?.nome_articolo_default || suggestion?.nome || ''
-                        const displayUm = it.unita || rule?.unita_default || suggestion?.um || ''
-                        const displayMag = it.magazzino || rule?.magazzino || suggestion?.magazzino || 'food'
-                        const displayTipo = it.tipo_confezione || rule?.tipo_confezione_default || suggestion?.tipo || ''
+                        // Uso `??` invece di `||` così una stringa vuota (utente ha
+                        // cancellato di proposito) NON ricade sul fallback della regola.
+                        const displayNome = it.nome_articolo ?? rule?.nome_articolo_default ?? suggestion?.nome ?? ''
+                        const displayUm = it.unita ?? rule?.unita_default ?? suggestion?.um ?? ''
+                        const displayMag = it.magazzino ?? rule?.magazzino ?? suggestion?.magazzino ?? 'food'
+                        const displayTipo = it.tipo_confezione ?? rule?.tipo_confezione_default ?? suggestion?.tipo ?? ''
                         const displayQtySing = it.qty_singola ?? rule?.qty_singola_default ?? suggestion?.qtySingola ?? ''
                         const isExcluded = it.escludi_magazzino ?? rule?.escludi_magazzino ?? suggestion?.escludi ?? false
                         // Calcola TOT = QTY × Q.Sing.
