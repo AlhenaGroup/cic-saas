@@ -321,8 +321,8 @@ export default function DashboardPage({ settings }) {
     `}</style>
 
     {/* Header */}
-    <div style={{background:'#131825',borderBottom:'1px solid #1e2636',padding:'0 1.5rem',height:56,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:100}}>
-      <div style={{display:'flex',alignItems:'center',gap:12}}>
+    <div className="m-compact-x m-wrap" style={{background:'#131825',borderBottom:'1px solid #1e2636',padding:'8px 1.5rem',minHeight:56,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',position:'sticky',top:0,zIndex:100}}>
+      <div className="m-wrap" style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
         <div style={{width:28,height:28,background:'#F59E0B',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'#0f1420',fontSize:13}}>C</div>
         <span style={{fontSize:15,fontWeight:700,letterSpacing:'-0.01em'}}>CIC Analytics</span>
         {sps.length>0&&<select value={sp} onChange={e=>setSp(e.target.value)} style={{...iS,paddingLeft:10}}>
@@ -330,7 +330,7 @@ export default function DashboardPage({ settings }) {
           {sps.map(s=><option key={s.id} value={s.id}>{s.description||s.name}</option>)}
         </select>}
       </div>
-      <div style={{display:'flex',alignItems:'center',gap:8}}>
+      <div className="m-wrap" style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
         {isLive&&<span style={S.badge('#3B82F6','rgba(59,130,246,.12)')} title="Dati live da CiC, non ancora salvati su DB">LIVE</span>}
         {isEmpty&&<span style={S.badge('#94a3b8','rgba(148,163,184,.12)')} title="Nessun dato in questo periodo">VUOTO</span>}
         {(() => {
@@ -400,9 +400,9 @@ export default function DashboardPage({ settings }) {
     </div>
 
     {/* Tabs nav */}
-    <div style={{background:'#131825',borderBottom:'1px solid #1e2636',padding:'0 1.5rem',display:'flex',gap:2,overflowX:'auto'}}>
+    <div className="m-compact-x" style={{background:'#131825',borderBottom:'1px solid #1e2636',padding:'0 1.5rem',display:'flex',gap:2,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
       {TABS.map(([t,l])=>(
-        <button key={t} onClick={()=>setTab(t)} style={tS(t)}>
+        <button key={t} onClick={()=>setTab(t)} style={{...tS(t),whiteSpace:'nowrap',flexShrink:0}}>
           {l}
           {t==='mkt'&&mktUrgentCount>0&&<span style={{
             marginLeft:6,background:'#EF4444',color:'#fff',borderRadius:10,
@@ -412,7 +412,7 @@ export default function DashboardPage({ settings }) {
       ))}
     </div>
 
-    <div style={{padding:'1.5rem',maxWidth:1400,margin:'0 auto'}}>
+    <div className="m-compact" style={{padding:'1.5rem',maxWidth:1400,margin:'0 auto'}}>
       {error&&<div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.25)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#FCA5A5',marginBottom:'1.5rem'}}>{error}</div>}
       {isEmpty&&<div style={{background:'rgba(148,163,184,.06)',border:'1px solid rgba(148,163,184,.2)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#94a3b8',marginBottom:'1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
         <span>📭 Nessun dato in questo periodo. Il sync notturno potrebbe non aver ancora processato queste date.</span>

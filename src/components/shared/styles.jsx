@@ -1,3 +1,16 @@
+import { useState, useEffect } from 'react'
+
+// Hook per layout responsive: ritorna true sotto un breakpoint (default 640px = mobile).
+export function useIsMobile(bp = 640) {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= bp)
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= bp)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [bp])
+  return isMobile
+}
+
 export const fmt  = n => Number(n||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2,useGrouping:true})+' €'
 export const fmtD = n => Number(n||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2})
 export const fmtN = n => Number(n||0).toLocaleString('it-IT')
