@@ -104,4 +104,47 @@ a { color: inherit; text-decoration: none; }
   }
   /* Flex wrap default su toolbar/headers */
   .m-wrap { flex-wrap: wrap !important; gap: 8px !important; }
+
+  /* Tabelle: scroll orizzontale "a misura" senza riscrivere i componenti.
+     Wrappa ogni table in un contenitore scroll-able senza toccare HTML. */
+  table {
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  table thead, table tbody { display: table; width: max-content; min-width: 100%; }
+  table thead tr, table tbody tr { display: table-row; }
+  table th, table td {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+  }
+
+  /* Card stretch: fai riempire tutta la larghezza ai card dentro lo stesso contenitore */
+  [style*="border-radius: 12"],
+  [style*="borderRadius: 12"] { border-radius: 8px !important; }
+
+  /* Preserva comunque container con overflowX esplicito (es. popup InvoiceManager) */
+  [style*="overflow-x: auto"] table,
+  [style*="overflowX:'auto'"] table,
+  [style*="overflowX: auto"] table {
+    min-width: max-content;
+  }
+
+  /* Input / select: larghezza minima sensata, touch target 32px+ */
+  input, select, button {
+    font-size: 14px !important;
+    min-height: 32px;
+  }
+
+  /* Override padding compatti che escono dallo schermo */
+  [style*="padding: '1.5rem'"],
+  [style*="padding:'1.5rem'"] { padding: 0.75rem !important; }
+}
+
+/* Tablet orizzontale / mobile landscape (641-900): tabelle ancora scrollabili */
+@media (min-width: 641px) and (max-width: 900px) {
+  table { max-width: 100%; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table thead, table tbody { display: table; width: max-content; min-width: 100%; }
 }
