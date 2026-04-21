@@ -43,6 +43,31 @@ export default function InvoiceManager({ sp, sps }) {
   const [tsPage, setTsPage] = useState(0)
   const [tsPages, setTsPagesArr] = useState([null])
   const [tsHasNext, setTsHasNext] = useState(false)
+  // Cache completa di tutte le pagine per la ricerca globale
+  const [tsAllInvoices, setTsAllInvoices] = useState(null) // null = non ancora caricato
+  const [tsAllLoading, setTsAllLoading] = useState(false)
+
+  const loadAllPages = useCallback(async () => {
+    if (tsAllLoading) return
+    setTsAllLoading(true)
+    try {
+      const acc = []
+      let ct = null
+      do {
+        const r = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'ts-list', continuationToken: ct }),
+        })
+        if (!r.ok) break
+        const d = await r.json()
+        acc.push(...(d.invoices || []))
+        ct = d.hasNext ? d.continuationToken : null
+      } while (ct)
+      setTsAllInvoices(acc)
+    } catch (e) { console.warn('[InvoiceManager] loadAllPages:', e.message) }
+    setTsAllLoading(false)
+  }, [tsAllLoading])
 
   const loadTsPage = async (pageIdx) => {
     setTsLoading(true)
@@ -112,7 +137,15 @@ export default function InvoiceManager({ sp, sps }) {
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps?.find(s => String(s.id) === String(sp))?.description || sps?.find(s => String(s.id) === String(sp))?.name || null)
 
   const searchNorm = searchQuery.trim().toLowerCase()
-  const tsFiltered = [...tsInvoices].filter(f => {
+  // Quando l'utente cerca, carica tutte le pagine (una volta) per ricerca globale.
+  useEffect(() => {
+    if (searchNorm && tsAllInvoices === null && !tsAllLoading) {
+      loadAllPages()
+    }
+  }, [searchNorm, tsAllInvoices, tsAllLoading, loadAllPages])
+  // Se c'è una ricerca attiva e abbiamo caricato tutto, filtro su tutto. Altrimenti sulla pagina corrente.
+  const sourceInvoices = (searchNorm && tsAllInvoices) ? tsAllInvoices : tsInvoices
+  const tsFiltered = [...sourceInvoices].filter(f => {
     const assigned = tsLocaleMap[f.hubId]
     if (!assigned) return false
     if (selectedLocaleName && assigned !== selectedLocaleName && assigned !== 'Alhena Group') return false
@@ -550,6 +583,7 @@ export default function InvoiceManager({ sp, sps }) {
           <input type="search" placeholder="Cerca fornitore, n° doc, data..." value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{ ...iS, fontSize: 11, padding: '4px 26px 4px 10px', width: 220 }} />
+          {tsAllLoading && searchNorm && <span style={{ position: 'absolute', right: 22, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#F59E0B' }} title="Caricamento tutte le pagine in corso...">⟳</span>}
           {searchQuery && <button onClick={() => setSearchQuery('')}
             style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 12, padding: '2px 6px' }}
             title="Pulisci">✕</button>}
@@ -816,8 +850,8 @@ export default function InvoiceManager({ sp, sps }) {
         </tbody>
       </table>
 
-      {/* Paginazione */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: '0 4px' }}>
+      {/* Paginazione: nascosta durante ricerca globale */}
+      {!searchNorm && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: '0 4px' }}>
         <button onClick={() => loadTsPage(tsPage - 1)} disabled={tsPage === 0 || tsLoading}
           style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: tsPage === 0 ? 'not-allowed' : 'pointer',
             background: tsPage === 0 ? '#1a1f2e' : '#3B82F6', color: tsPage === 0 ? '#475569' : '#fff', border: 'none' }}
@@ -830,7 +864,15 @@ export default function InvoiceManager({ sp, sps }) {
           style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: !tsHasNext ? 'not-allowed' : 'pointer',
             background: !tsHasNext ? '#1a1f2e' : '#3B82F6', color: !tsHasNext ? '#475569' : '#fff', border: 'none' }}
         >Successiva →</button>
-      </div>
+      </div>}
+      {/* Hint ricerca globale */}
+      {searchNorm && <div style={{ marginTop: 14, padding: '8px 12px', fontSize: 11, color: '#94a3b8', textAlign: 'center', background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 6 }}>
+        {tsAllLoading
+          ? '⟳ Sto cercando in tutte le pagine...'
+          : tsAllInvoices
+            ? `🔍 Ricerca globale attiva su ${tsAllInvoices.length} fatture totali — ${tsFiltered.length} corrispondenze`
+            : '🔍 Ricerca globale...'}
+      </div>}
     </Card>
   </>
 }
