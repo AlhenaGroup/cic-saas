@@ -310,7 +310,8 @@ export default function InvoiceManager({ sp, sps }) {
     if (expanded === hubId) { setExpanded(null); setItems([]); setWhInvoice(null); setXmlContent(null); return }
     setExpanded(hubId)
     setItems([]); setWhInvoice(null); setXmlContent(null); setAutoMatched({})
-    const tsInv = tsInvoices.find(f => f.hubId === hubId)
+    // Cerca prima nella cache completa (ricerca globale), poi nella pagina corrente
+    const tsInv = (tsAllInvoices || []).find(f => f.hubId === hubId) || tsInvoices.find(f => f.hubId === hubId)
     if (tsInv) {
       const found = await checkWarehouseInvoice(tsInv)
       if (!found) downloadXml(tsInv)
