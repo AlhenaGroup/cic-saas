@@ -17,6 +17,38 @@ export default function TimbraPage() {
   const params = new URLSearchParams(window.location.search)
   const locale = params.get('locale') || 'LOCALE'
 
+  // Manifest PWA dinamico: aggiornato col locale cosi' l'icona "Aggiungi a home"
+  // apre direttamente /timbra?locale=XXX in modalita' standalone app.
+  useEffect(() => {
+    const manifest = {
+      name: 'Timbra ' + locale,
+      short_name: locale.substring(0, 12) || 'Timbra',
+      description: 'App dipendenti ' + locale,
+      start_url: '/timbra?locale=' + encodeURIComponent(locale),
+      scope: '/timbra',
+      display: 'standalone',
+      orientation: 'portrait-primary',
+      background_color: '#0f1420',
+      theme_color: '#0f1420',
+      icons: [
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+      ],
+    }
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' })
+    const url = URL.createObjectURL(blob)
+    let link = document.querySelector('link[rel=manifest]')
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'manifest'
+      document.head.appendChild(link)
+    }
+    const prev = link.href
+    link.href = url
+    document.title = 'Timbra · ' + locale
+    return () => { link.href = prev; URL.revokeObjectURL(url) }
+  }, [locale])
+
   const [pin, setPin] = useState('')
   const [step, setStep] = useState('pin') // pin | menu | presenza | consumo | trasferimento | inventario | done | error
   const [employee, setEmployee] = useState(null)
@@ -93,7 +125,10 @@ export default function TimbraPage() {
       </div>}
     </div>
 
-    {step === 'pin' && <PinPad pin={pin} onDigit={handlePin} onClear={clearPin} loading={loading} />}
+    {step === 'pin' && <>
+      <PinPad pin={pin} onDigit={handlePin} onClear={clearPin} loading={loading} />
+      <InstallBanner />
+    </>}
 
     {step === 'menu' && employee && <MainMenu
       employee={employee} permissions={permissions} onChoose={goTo} onReset={reset}
@@ -638,5 +673,68 @@ function StatBox({ label, value, sub, color, big }) {
     <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
     <div style={{ fontSize: big ? 24 : 20, fontWeight: 700, color }}>{value}</div>
     {sub && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
+  </div>
+}
+
+// ─── BANNER INSTALLAZIONE PWA ───────────────────────────────────────
+function InstallBanner() {
+  const [deferredPrompt, setDeferredPrompt] = useState(null)
+  const [installed, setInstalled] = useState(false)
+  const [showIosHelp, setShowIosHelp] = useState(false)
+
+  useEffect(() => {
+    // Se l'app gira gia' in modalita' standalone, nascondi banner
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+    if (standalone) { setInstalled(true); return }
+    const onBeforeInstall = (e) => { e.preventDefault(); setDeferredPrompt(e) }
+    window.addEventListener('beforeinstallprompt', onBeforeInstall)
+    const onInstalled = () => { setInstalled(true); setDeferredPrompt(null) }
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
+
+  if (installed) return null
+
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !/(crios|fxios)/i.test(navigator.userAgent)
+  const isAndroid = /android/i.test(navigator.userAgent)
+
+  const install = async () => {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') setDeferredPrompt(null)
+  }
+
+  return <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(59,130,246,.08)', border: '1px solid rgba(59,130,246,.25)', borderRadius: 12, maxWidth: 360, width: '100%' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+      <span style={{ fontSize: 22 }}>📱</span>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#60A5FA' }}>Installa l'app sul telefono</div>
+    </div>
+    <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5, marginBottom: 10 }}>
+      Un'icona nella home per aprire Timbra con un tocco, senza barre del browser.
+    </div>
+    {deferredPrompt && <button onClick={install}
+      style={{ width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: '#3B82F6', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+      Installa adesso
+    </button>}
+    {!deferredPrompt && isIos && <button onClick={() => setShowIosHelp(v => !v)}
+      style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #3B82F6', background: 'transparent', color: '#60A5FA', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+      {showIosHelp ? 'Nascondi istruzioni' : 'Come si fa su iPhone'}
+    </button>}
+    {!deferredPrompt && isAndroid && <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>
+      Tocca il menu ⋮ del browser → <strong style={{ color: '#e2e8f0' }}>Aggiungi a schermata Home</strong> / <strong style={{ color: '#e2e8f0' }}>Installa app</strong>.
+    </div>}
+    {!deferredPrompt && !isIos && !isAndroid && <div style={{ fontSize: 11, color: '#94a3b8' }}>
+      Apri questa pagina dal tuo telefono per installare l'app.
+    </div>}
+    {showIosHelp && <div style={{ marginTop: 10, padding: 10, background: '#131825', borderRadius: 8, fontSize: 11, color: '#cbd5e1', lineHeight: 1.7 }}>
+      1. Tocca il bottone <strong>Condividi</strong> <span style={{ fontSize: 14 }}>⎙</span> in basso (Safari).<br />
+      2. Scorri e tocca <strong>"Aggiungi alla schermata Home"</strong>.<br />
+      3. Dai un nome (es. "Timbra") e tocca <strong>Aggiungi</strong>.<br />
+      <span style={{ color: '#F59E0B' }}>Importante:</span> deve essere Safari, non Chrome.
+    </div>}
   </div>
 }
