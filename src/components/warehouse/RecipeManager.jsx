@@ -75,15 +75,19 @@ export default function RecipeManager({ sp, sps }) {
 
     // 2. Articoli acquistati con prezzi
     const { data: items } = await supabase.from('warehouse_invoice_items')
-      .select('nome_articolo, unita, prezzo_totale, totale_um, escludi_magazzino')
+      .select('nome_articolo, unita, quantita, qty_singola, prezzo_totale, totale_um, escludi_magazzino')
     const artMap = {}
     ;(items || []).forEach(it => {
       if (it.escludi_magazzino || !it.nome_articolo) return
       const key = it.nome_articolo.toLowerCase().trim()
       if (!artMap[key]) artMap[key] = { nome: it.nome_articolo, unita: it.unita || '', prezzi: [] }
-      const tot = Number(it.totale_um) || 0
+      // Prezzo per UM reale = spesa / (qty fatt × qty del tipo × capacita unitaria)
+      const qtyFatt = Number(it.quantita) || 0
+      const qtyTipo = Number(it.totale_um) || 0
+      const qSing   = Number(it.qty_singola) || 0
+      const totUnita = qtyFatt * qtyTipo * qSing
       const spesa = Math.abs(Number(it.prezzo_totale)) || 0
-      if (tot > 0 && spesa > 0) artMap[key].prezzi.push(spesa / tot)
+      if (totUnita > 0 && spesa > 0) artMap[key].prezzi.push(spesa / totUnita)
     })
     const arts = Object.values(artMap).map(a => ({
       ...a, prezzoMedio: a.prezzi.length > 0 ? a.prezzi.reduce((s, v) => s + v, 0) / a.prezzi.length : 0,
