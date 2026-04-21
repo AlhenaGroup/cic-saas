@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { S, KPI, Card, Bar2, fmt, fmtD, fmtN, pct } from './shared/styles.jsx'
 import ManualCostsManager from './ManualCostsManager.jsx'
+import { expandManualCost, VOCE_LABELS } from '../lib/manualCosts.js'
 
 // Regole di categorizzazione automatica per fornitore/prodotto
 export const CATEGORY_RULES = {
@@ -76,19 +77,25 @@ export function categorizeItem(fornitore, descrizione) {
 export default function ContoEconomico({ ce, from, to, reload }) {
   const [invoices, setInvoices] = useState([])
   const [invoiceItems, setInvoiceItems] = useState([])
+  const [manualCosts, setManualCosts] = useState([])
   const [loading, setLoading] = useState(false)
   const [activeFilter, setActiveFilter] = useState('tutte')
   const [overrides, setOverrides] = useState({})
+  // Voce selezionata per drill-down (null | 'ricavi' | 'food' | 'beverage' | 'materiali' | 'personale' | 'struttura' | 'altro' | 'totCosti' | 'mol')
+  const [drillVoce, setDrillVoce] = useState(null)
+  const drillRef = useRef(null)
 
   const loadInvoices = useCallback(async () => {
     setLoading(true)
-    const [{ data: invs }, { data: items }, { data: mappings }] = await Promise.all([
+    const [{ data: invs }, { data: items }, { data: mappings }, { data: mcs }] = await Promise.all([
       supabase.from('warehouse_invoices').select('*').order('data', { ascending: false }),
       supabase.from('warehouse_invoice_items').select('*, warehouse_invoices!inner(fornitore, data, locale, numero)'),
       supabase.from('category_mappings').select('nome_prodotto, category'),
+      supabase.from('manual_costs').select('*'),
     ])
     setInvoices(invs || [])
     setInvoiceItems(items || [])
+    setManualCosts(mcs || [])
     // Carica mappature apprese nel cache globale
     const learned = {}
     ;(mappings || []).forEach(m => { learned[m.nome_prodotto.toLowerCase().trim()] = m.category })
@@ -97,6 +104,13 @@ export default function ContoEconomico({ ce, from, to, reload }) {
   }, [])
 
   useEffect(() => { loadInvoices() }, [loadInvoices])
+
+  // Scrolla al pannello di drill-down quando cambia voce selezionata
+  useEffect(() => {
+    if (drillVoce && drillRef.current) {
+      drillRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [drillVoce])
 
   // F&B = food + beverage (solo indicatore, NON costo nel MOL)
   const fb = (ce.foodCost || 0) + (ce.bevCost || 0)
@@ -216,31 +230,37 @@ export default function ContoEconomico({ ce, from, to, reload }) {
           </tr></thead>
           <tbody>
             {[
-              { label: '📈 RICAVI', val: ce.ricavi, bold: true, color: '#10B981', voce: null },
+              { label: '📈 RICAVI', val: ce.ricavi, bold: true, color: '#10B981', voce: 'ricavi' },
               { label: '🍕 Food cost', val: -ce.foodCost, color: '#EF4444', voce: 'food' },
               { label: '🍺 Beverage cost', val: -ce.bevCost, color: '#EF4444', voce: 'beverage' },
               { label: '📦 Mat. consumo', val: -ce.matCost, color: '#EF4444', voce: 'materiali' },
               { label: '👥 Personale', val: -(ce.persCost || 0), color: '#EF4444', voce: 'personale' },
               { label: '🏗️ Struttura', val: -ce.strCost, color: '#EF4444', voce: 'struttura' },
-              { label: '── TOTALE COSTI', val: -ce.totCosti, bold: true, color: '#EF4444', voce: null },
-              { label: '📊 MOL', val: ce.mol, bold: true, color: '#10B981', voce: null },
-            ].map((r, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid #1a1f2e', background: r.bold ? '#131825' : 'transparent', cursor: r.voce ? 'pointer' : 'default' }}
-                onClick={() => r.voce && setActiveFilter(activeFilter === r.voce ? 'tutte' : r.voce)}>
-                <td style={{ ...S.td, fontWeight: r.bold ? 700 : 400, color: activeFilter === r.voce ? '#F59E0B' : undefined }}>{r.label}</td>
-                <td style={{ ...S.td, fontWeight: r.bold ? 700 : 500, color: r.color || '#e2e8f0' }}>{fmt(Math.abs(r.val))}</td>
-                <td style={{ ...S.td, color: '#64748b' }}>{pct(Math.abs(r.val), ce.ricavi)}</td>
-                <td style={{ ...S.td, color: '#475569', fontSize: 11 }}>
-                  {r.voce && <span style={S.badge(activeFilter === r.voce ? '#F59E0B' : '#475569', activeFilter === r.voce ? 'rgba(245,158,11,.12)' : 'rgba(71,85,105,.12)')}>
-                    {catCounts[r.voce] || 0} prodotti
-                  </span>}
-                </td>
-              </tr>
-            ))}
+              { label: '── TOTALE COSTI', val: -ce.totCosti, bold: true, color: '#EF4444', voce: 'totCosti' },
+              { label: '📊 MOL', val: ce.mol, bold: true, color: '#10B981', voce: 'mol' },
+            ].map((r, i) => {
+              const isActive = drillVoce === r.voce
+              return (
+                <tr key={i} style={{ borderBottom: '1px solid #1a1f2e', background: isActive ? 'rgba(245,158,11,.08)' : r.bold ? '#131825' : 'transparent', cursor: r.voce ? 'pointer' : 'default' }}
+                  onClick={() => r.voce && setDrillVoce(isActive ? null : r.voce)}>
+                  <td style={{ ...S.td, fontWeight: r.bold ? 700 : 400, color: isActive ? '#F59E0B' : undefined }}>
+                    {r.label}
+                    {r.voce && <span style={{ marginLeft: 6, fontSize: 10, color: isActive ? '#F59E0B' : '#64748b' }}>{isActive ? '▼' : '▶'}</span>}
+                  </td>
+                  <td style={{ ...S.td, fontWeight: r.bold ? 700 : 500, color: r.color || '#e2e8f0' }}>{fmt(Math.abs(r.val))}</td>
+                  <td style={{ ...S.td, color: '#64748b' }}>{pct(Math.abs(r.val), ce.ricavi)}</td>
+                  <td style={{ ...S.td, color: '#475569', fontSize: 11 }}>
+                    {CATEGORY_RULES[r.voce] && <span style={S.badge(isActive ? '#F59E0B' : '#475569', isActive ? 'rgba(245,158,11,.12)' : 'rgba(71,85,105,.12)')}>
+                      {catCounts[r.voce] || 0} prodotti
+                    </span>}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
         <div style={{ marginTop: 8, fontSize: 11, color: '#475569' }}>
-          Clicca su una voce per filtrare i prodotti sotto
+          Clicca su una voce per vedere tutto cio' che la compone
         </div>
       </Card>
 
@@ -272,6 +292,20 @@ export default function ContoEconomico({ ce, from, to, reload }) {
         </div>
       </Card>
     </div>
+
+    {/* DRILL-DOWN voce CE selezionata */}
+    {drillVoce && <div ref={drillRef} style={{ marginTop: 12 }}>
+      <DrillPanel
+        voce={drillVoce}
+        ce={ce}
+        from={from}
+        to={to}
+        categorizedItems={categorizedItems}
+        categorizedInvoices={categorizedInvoices}
+        manualCosts={manualCosts}
+        onClose={() => setDrillVoce(null)}
+      />
+    </div>}
 
     {/* COSTI MANUALI (affitto, utenze, ecc.) */}
     <div style={{ marginTop: 12 }}>
@@ -441,4 +475,205 @@ export default function ContoEconomico({ ce, from, to, reload }) {
       </Card>
     </div>
   </>
+}
+
+// ─── Pannello drill-down per una voce CE selezionata ────────────────────
+function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices, manualCosts, onClose }) {
+  const label = {
+    ricavi: '📈 RICAVI', food: '🍕 Food cost', beverage: '🍺 Beverage cost',
+    materiali: '📦 Mat. consumo', personale: '👥 Personale', struttura: '🏗️ Struttura',
+    altro: '📄 Non categorizzate', totCosti: '── TOTALE COSTI', mol: '📊 MOL',
+  }[voce] || voce
+
+  const totale = voce === 'ricavi' ? ce.ricavi
+    : voce === 'food' ? ce.foodCost
+    : voce === 'beverage' ? ce.bevCost
+    : voce === 'materiali' ? ce.matCost
+    : voce === 'personale' ? (ce.persCost || 0)
+    : voce === 'struttura' ? ce.strCost
+    : voce === 'altro' ? (ce.altCost || 0)
+    : voce === 'totCosti' ? ce.totCosti
+    : voce === 'mol' ? ce.mol
+    : 0
+
+  // Filtra righe fatture / costi manuali per voce (solo per voci-costo)
+  const isVoceCosto = CATEGORY_RULES[voce] || voce === 'altro'
+  const itemsVoce = isVoceCosto ? categorizedItems.filter(it => it._cat === voce) : []
+  const invoicesNoItemsVoce = isVoceCosto ? categorizedInvoices.filter(i => !i._hasItems && i._cat === voce) : []
+  const manualVoce = isVoceCosto ? (manualCosts || []).filter(c => c.voce === voce).map(c => ({ ...c, _inPeriod: expandManualCost(c, from, to) })).filter(c => c._inPeriod > 0) : []
+
+  // Totali
+  const totFatt = itemsVoce.reduce((s, it) => s + Math.abs(Number(it.prezzo_totale) || 0), 0)
+    + invoicesNoItemsVoce.reduce((s, inv) => s + Math.abs(Number(inv.totale) || 0), 0)
+  const totManuali = manualVoce.reduce((s, c) => s + c._inPeriod, 0)
+
+  // Raggruppa fatture per fornitore (aggregato)
+  const byForn = {}
+  itemsVoce.forEach(it => {
+    const f = it.warehouse_invoices?.fornitore || '—'
+    if (!byForn[f]) byForn[f] = { fornitore: f, totale: 0, count: 0 }
+    byForn[f].totale += Math.abs(Number(it.prezzo_totale) || 0)
+    byForn[f].count++
+  })
+  invoicesNoItemsVoce.forEach(inv => {
+    const f = inv.fornitore || '—'
+    if (!byForn[f]) byForn[f] = { fornitore: f, totale: 0, count: 0 }
+    byForn[f].totale += Math.abs(Number(inv.totale) || 0)
+    byForn[f].count++
+  })
+  const fornSorted = Object.values(byForn).sort((a, b) => b.totale - a.totale)
+
+  return <Card
+    title={'Dettaglio · ' + label}
+    badge={fmtD(totale)}
+    extra={
+      <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 13 }}>✕ Chiudi</button>
+    }
+  >
+    {/* RICAVI */}
+    {voce === 'ricavi' && <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <KPI label="Scontrini" icon="🧾" value={fmtN(ce.scontrini || 0)} accent="#3B82F6" />
+        <KPI label="Coperti" icon="🍽️" value={fmtN(ce.coperti || 0)} accent="#F97316" />
+        <KPI label="Scontrino medio" icon="💶" value={fmt(ce.medio || 0)} accent="#10B981" />
+      </div>
+      <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8' }}>
+        I ricavi vengono dagli scontrini CiC del periodo {from} → {to}.
+        Per il dettaglio per giorno, fascia oraria, reparto e categoria consulta il tab <strong>Panoramica</strong> e <strong>Produttività</strong>.
+      </div>
+    </div>}
+
+    {/* VOCI COSTO (food/beverage/materiali/personale/struttura/altro) */}
+    {isVoceCosto && <div>
+      {/* Summary */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+        <KPI label="Da fatture" icon="🧾" value={fmtD(totFatt)} sub={(itemsVoce.length + invoicesNoItemsVoce.length) + ' righe'} accent="#3B82F6" />
+        <KPI label="Costi manuali" icon="📝" value={fmtD(totManuali)} sub={manualVoce.length + ' voci nel periodo'} accent="#8B5CF6" />
+        <KPI label="Totale voce" icon="💰" value={fmtD(totFatt + totManuali)} sub={pct(totFatt + totManuali, ce.ricavi) + ' su ricavi'} accent="#F59E0B" />
+      </div>
+
+      {/* Costi manuali di questa voce */}
+      {manualVoce.length > 0 && <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>📝 Costi manuali ({manualVoce.length})</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            {['Descrizione', 'Importo singolo', 'Cadenza', 'Nel periodo'].map(h => <th key={h} style={S.th}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {manualVoce.map(c => (
+              <tr key={c.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                <td style={{ ...S.td, fontWeight: 500 }}>{c.label}</td>
+                <td style={{ ...S.td, color: '#64748b' }}>{fmtD(c.importo)}</td>
+                <td style={{ ...S.td, fontSize: 12, color: c.ricorrente ? '#8B5CF6' : '#64748b' }}>{c.ricorrente ? c.cadenza : 'Puntuale'}</td>
+                <td style={{ ...S.td, fontWeight: 600, color: '#10B981' }}>{fmtD(c._inPeriod)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>}
+
+      {/* Top fornitori */}
+      {fornSorted.length > 0 && <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>🏭 Top fornitori (da fatture)</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            {['Fornitore', 'Righe', 'Totale', '% voce'].map(h => <th key={h} style={S.th}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {fornSorted.slice(0, 15).map(f => (
+              <tr key={f.fornitore} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                <td style={{ ...S.td, fontWeight: 500 }}>{f.fornitore}</td>
+                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{f.count}</td>
+                <td style={{ ...S.td, fontWeight: 600 }}>{fmtD(f.totale)}</td>
+                <td style={{ ...S.td, color: '#F59E0B' }}>{totFatt > 0 ? (f.totale / totFatt * 100).toFixed(1) + '%' : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>}
+
+      {/* Righe dettaglio */}
+      {itemsVoce.length > 0 && <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>📋 Dettaglio righe ({itemsVoce.length})</div>
+        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead style={{ position: 'sticky', top: 0, background: '#1a1f2e' }}><tr style={{ borderBottom: '1px solid #2a3042' }}>
+              {['Data', 'Fornitore', 'Descrizione', 'Qty', 'Importo'].map(h => <th key={h} style={S.th}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {itemsVoce.slice(0, 500).sort((a, b) => (b.warehouse_invoices?.data || '').localeCompare(a.warehouse_invoices?.data || '')).map((it, i) => (
+                <tr key={it.id || i} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{it.warehouse_invoices?.data || '—'}</td>
+                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{it.warehouse_invoices?.fornitore || '—'}</td>
+                  <td style={{ ...S.td, fontSize: 12 }}>{it.nome_fattura || '—'}</td>
+                  <td style={{ ...S.td, fontSize: 11, color: '#64748b' }}>{it.quantita ? fmtN(it.quantita) + ' ' + (it.unita || '') : '—'}</td>
+                  <td style={{ ...S.td, fontWeight: 600, fontSize: 12 }}>{fmtD(Math.abs(Number(it.prezzo_totale) || 0))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {itemsVoce.length > 500 && <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>Mostrate le prime 500 righe su {itemsVoce.length}</div>}
+      </div>}
+
+      {itemsVoce.length === 0 && manualVoce.length === 0 && (
+        <div style={{ padding: 20, textAlign: 'center', color: '#475569' }}>
+          Nessun dato nel periodo selezionato per questa voce.
+        </div>
+      )}
+    </div>}
+
+    {/* TOTALE COSTI */}
+    {voce === 'totCosti' && <div>
+      <div style={{ marginBottom: 12, fontSize: 13, color: '#94a3b8' }}>Somma di tutti i costi (fatture + manuali + personnel):</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <tbody>
+          {[
+            ['🍕 Food', ce.foodCost],
+            ['🍺 Beverage', ce.bevCost],
+            ['📦 Mat. consumo', ce.matCost],
+            ['👥 Personale', ce.persCost || 0],
+            ['🏗️ Struttura', ce.strCost],
+            ['📄 Non categorizzato', ce.altCost || 0],
+          ].map(([lbl, val], i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #1a1f2e' }}>
+              <td style={S.td}>{lbl}</td>
+              <td style={{ ...S.td, fontWeight: 600, color: '#EF4444' }}>{fmtD(val)}</td>
+              <td style={{ ...S.td, color: '#64748b' }}>{pct(val, ce.totCosti)}</td>
+            </tr>
+          ))}
+          <tr style={{ background: '#131825', fontWeight: 700 }}>
+            <td style={S.td}>── TOTALE</td>
+            <td style={{ ...S.td, color: '#EF4444' }}>{fmtD(ce.totCosti)}</td>
+            <td style={{ ...S.td, color: '#64748b' }}>{pct(ce.totCosti, ce.ricavi)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>}
+
+    {/* MOL */}
+    {voce === 'mol' && <div>
+      <div style={{ marginBottom: 12, fontSize: 13, color: '#94a3b8' }}>MOL = Ricavi − Totale costi:</div>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <tbody>
+          <tr style={{ borderBottom: '1px solid #1a1f2e' }}>
+            <td style={S.td}>📈 Ricavi</td>
+            <td style={{ ...S.td, fontWeight: 600, color: '#10B981' }}>+ {fmtD(ce.ricavi)}</td>
+          </tr>
+          <tr style={{ borderBottom: '1px solid #1a1f2e' }}>
+            <td style={S.td}>── Totale costi</td>
+            <td style={{ ...S.td, fontWeight: 600, color: '#EF4444' }}>− {fmtD(ce.totCosti)}</td>
+          </tr>
+          <tr style={{ background: '#131825', fontWeight: 700 }}>
+            <td style={S.td}>📊 MOL</td>
+            <td style={{ ...S.td, color: ce.mol >= 0 ? '#10B981' : '#EF4444' }}>{fmtD(ce.mol)}</td>
+          </tr>
+          <tr>
+            <td style={S.td}>MOL %</td>
+            <td style={{ ...S.td, fontWeight: 600, color: '#F59E0B' }}>{ce.molPct?.toFixed(1) || 0}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>}
+  </Card>
 }
