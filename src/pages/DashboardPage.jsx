@@ -258,6 +258,17 @@ export default function DashboardPage({ settings }) {
   const prods  = data?.topProducts||[]
   const recs   = data?.scontriniList||[]
   const ore    = data?.prodOre||[]
+  // Coperti per fascia oraria: aggrego dagli scontrini dettaglio usando aperturaComanda
+  const copertiBySlot = (() => {
+    const map = {}
+    ;(data?.receiptDetails || []).forEach(r => {
+      const h = (r.aperturaComanda || '').substring(0, 2)
+      if (!h || !/^\d{2}$/.test(h)) return
+      const key = h + ':00'
+      map[key] = (map[key] || 0) + (Number(r.coperti) || 0)
+    })
+    return map
+  })()
   const susp   = data?.suspicious||[]
   const fat    = data?.fatture||[]
   const ce     = data?.ce||{}
@@ -892,12 +903,14 @@ export default function DashboardPage({ settings }) {
           const oreReali = workedHoursBySlot[o.ora] || 0
           const orePianif = staffSchedule[o.ora] || 0
           const persone = personsBySlot[o.ora] || 0
+          const coperti = copertiBySlot[o.ora] || 0
           // Denominatore usato per il calcolo produttività
           const oreLavorate = useRealHours
             ? (oreReali > 0 ? oreReali : 0)
             : orePianif
           const prodOraria = oreLavorate > 0 ? o.ricavi / oreLavorate : 0
-          return { ...o, staff: oreLavorate, oreLavorate, oreReali, orePianif, persone, prodOraria }
+          const copPerDip = persone > 0 ? coperti / persone : 0
+          return { ...o, staff: oreLavorate, oreLavorate, oreReali, orePianif, persone, coperti, copPerDip, prodOraria }
         })
         const totOreReali = Object.values(workedHoursBySlot).reduce((s, v) => s + (Number(v) || 0), 0)
         const totOreDay = oreWithProd.reduce((s,o) => s + o.oreLavorate, 0)
@@ -974,15 +987,17 @@ export default function DashboardPage({ settings }) {
           <Card title="Dettaglio per fascia oraria" badge={useRealHours ? '📍 ore da timbratura' : '🗓 ore pianificate'}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['Ora','Ricavi','Scontrini','👥 Persone','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                {['Ora','Ricavi','🍽 Coperti','Cop./dip.','Scontrini','👥 Persone','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {oreWithProd.filter(o=>o.ricavi>0||o.oreReali>0||o.persone>0).map((o,i)=>{
+                {oreWithProd.filter(o=>o.ricavi>0||o.oreReali>0||o.persone>0||o.coperti>0).map((o,i)=>{
                   const pc = prodColor(o.prodOraria)
                   const mismatch = o.oreReali > 0 && o.orePianif > 0 && Math.abs(o.oreReali - o.orePianif) > 0.5
                   return <tr key={i}>
                     <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{o.ora}</td>
                     <td style={{...S.td,fontWeight:600}}>{fmt(o.ricavi)}</td>
+                    <td style={{...S.td,color:o.coperti>0?'#F97316':'#475569',fontWeight:o.coperti>0?700:400}} title={o.coperti>0?`${o.coperti} coperti serviti nella fascia`:''}>{o.coperti>0?o.coperti:'—'}</td>
+                    <td style={{...S.td,color:o.copPerDip>0?'#A855F7':'#475569',fontWeight:o.copPerDip>0?700:400}} title={o.copPerDip>0?`${o.coperti} coperti / ${o.persone} dipendente${o.persone===1?'':'i'} = ${o.copPerDip.toFixed(1)} coperti per dipendente`:'Serve sia coperti che timbrature'}>{o.copPerDip>0?o.copPerDip.toFixed(1):'—'}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{o.scontrini}</td>
                     <td style={{...S.td,color:o.persone>0?'#3B82F6':'#475569',fontWeight:o.persone>0?700:400}} title={o.persone>0?`${o.persone} dipendent${o.persone===1?'e':'i'} in turno (almeno parziale) nella fascia`:''}>{o.persone>0?o.persone:'—'}</td>
                     <td style={{...S.td,color:o.oreReali>0?'#10B981':'#475569',fontWeight:o.oreReali>0?600:400}}>{o.oreReali>0?o.oreReali.toFixed(1)+'h':'—'}</td>
