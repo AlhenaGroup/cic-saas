@@ -899,18 +899,27 @@ export default function DashboardPage({ settings }) {
         const prodColor = v => v < sogliaRed ? '#EF4444' : v < sogliaYel ? '#F59E0B' : '#10B981'
         const prodLabel = v => v < sogliaRed ? 'Sotto soglia' : v < sogliaYel ? 'Attenzione' : 'OK'
         // Ore lavorate per fascia: reali dalle timbrature se useRealHours, altrimenti da staffSchedule pianificato
-        const oreWithProd = ore.map(o => {
-          const oreReali = workedHoursBySlot[o.ora] || 0
-          const orePianif = staffSchedule[o.ora] || 0
-          const persone = personsBySlot[o.ora] || 0
-          const coperti = copertiBySlot[o.ora] || 0
-          // Denominatore usato per il calcolo produttività
+        // Unione di tutte le ore disponibili da qualunque fonte, non solo hourly_records.
+        // Necessario perché i coperti seguono l'apertura comanda mentre i ricavi seguono
+        // la chiusura: un'ora può avere solo coperti (nessun ricavo ancora registrato).
+        const hourKeys = new Set(ore.map(o => o.ora))
+        Object.keys(workedHoursBySlot).forEach(k => hourKeys.add(k))
+        Object.keys(staffSchedule).forEach(k => hourKeys.add(k))
+        Object.keys(personsBySlot).forEach(k => hourKeys.add(k))
+        Object.keys(copertiBySlot).forEach(k => hourKeys.add(k))
+        const oreMap = Object.fromEntries(ore.map(o => [o.ora, o]))
+        const oreWithProd = [...hourKeys].sort().map(ora => {
+          const base = oreMap[ora] || { ora, ricavi: 0, scontrini: 0 }
+          const oreReali = workedHoursBySlot[ora] || 0
+          const orePianif = staffSchedule[ora] || 0
+          const persone = personsBySlot[ora] || 0
+          const coperti = copertiBySlot[ora] || 0
           const oreLavorate = useRealHours
             ? (oreReali > 0 ? oreReali : 0)
             : orePianif
-          const prodOraria = oreLavorate > 0 ? o.ricavi / oreLavorate : 0
+          const prodOraria = oreLavorate > 0 ? base.ricavi / oreLavorate : 0
           const copPerDip = persone > 0 ? coperti / persone : 0
-          return { ...o, staff: oreLavorate, oreLavorate, oreReali, orePianif, persone, coperti, copPerDip, prodOraria }
+          return { ...base, staff: oreLavorate, oreLavorate, oreReali, orePianif, persone, coperti, copPerDip, prodOraria }
         })
         const totOreReali = Object.values(workedHoursBySlot).reduce((s, v) => s + (Number(v) || 0), 0)
         const totOreDay = oreWithProd.reduce((s,o) => s + o.oreLavorate, 0)
