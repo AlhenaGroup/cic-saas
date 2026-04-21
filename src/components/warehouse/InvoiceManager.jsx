@@ -36,6 +36,8 @@ export default function InvoiceManager({ sp, sps }) {
   const [whStatus, setWhStatus] = useState({})
   // Filtro: 'tutte' | 'da_associare' | 'complete'
   const [filterStatus, setFilterStatus] = useState('tutte')
+  // Ricerca libera su fornitore / numero doc / data
+  const [searchQuery, setSearchQuery] = useState('')
 
   // ─── Load TS Digital invoices (paginato, 1 pagina) ──────────────
   const [tsPage, setTsPage] = useState(0)
@@ -109,6 +111,7 @@ export default function InvoiceManager({ sp, sps }) {
   // ─── Filter: solo fatture assegnate al locale corrente ─────────────
   const selectedLocaleName = (!sp || sp === 'all') ? null : (sps?.find(s => String(s.id) === String(sp))?.description || sps?.find(s => String(s.id) === String(sp))?.name || null)
 
+  const searchNorm = searchQuery.trim().toLowerCase()
   const tsFiltered = [...tsInvoices].filter(f => {
     const assigned = tsLocaleMap[f.hubId]
     if (!assigned) return false
@@ -119,6 +122,11 @@ export default function InvoiceManager({ sp, sps }) {
       const st = whStatus[key]
       if (filterStatus === 'complete' && (!st || !st.complete)) return false
       if (filterStatus === 'da_associare' && st && st.complete) return false
+    }
+    // Ricerca libera su fornitore / numero doc / data
+    if (searchNorm) {
+      const hay = ((f.senderName || '') + ' ' + (f.docId || '') + ' ' + (f.docDate || '') + ' ' + (assigned || '')).toLowerCase()
+      if (!hay.includes(searchNorm)) return false
     }
     return true
   }).sort((a, b) => (b.docDate || '').localeCompare(a.docDate || ''))
@@ -537,7 +545,15 @@ export default function InvoiceManager({ sp, sps }) {
   // ─── Render ────────────────────────────────────────────────────────
   return <>
     <Card title="Fatture TS Digital" badge={tsLoading ? '...' : `${tsFiltered.length} · Pag. ${tsPage + 1}`} extra={
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <div className="m-wrap" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative' }}>
+          <input type="search" placeholder="Cerca fornitore, n° doc, data..." value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ ...iS, fontSize: 11, padding: '4px 26px 4px 10px', width: 220 }} />
+          {searchQuery && <button onClick={() => setSearchQuery('')}
+            style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 12, padding: '2px 6px' }}
+            title="Pulisci">✕</button>}
+        </div>
         {['tutte', 'da_associare', 'complete'].map(f => (
           <button key={f} onClick={() => setFilterStatus(f)}
             style={{ ...iS, padding: '4px 10px', fontSize: 10, fontWeight: 600, cursor: 'pointer', border: 'none',
