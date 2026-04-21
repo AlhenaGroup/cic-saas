@@ -17,37 +17,10 @@ export default function TimbraPage() {
   const params = new URLSearchParams(window.location.search)
   const locale = params.get('locale') || 'LOCALE'
 
-  // Manifest PWA dinamico: aggiornato col locale cosi' l'icona "Aggiungi a home"
-  // apre direttamente /timbra?locale=XXX in modalita' standalone app.
-  useEffect(() => {
-    const manifest = {
-      name: 'Timbra ' + locale,
-      short_name: locale.substring(0, 12) || 'Timbra',
-      description: 'App dipendenti ' + locale,
-      start_url: '/timbra?locale=' + encodeURIComponent(locale),
-      scope: '/timbra',
-      display: 'standalone',
-      orientation: 'portrait-primary',
-      background_color: '#0f1420',
-      theme_color: '#0f1420',
-      icons: [
-        { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-        { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-      ],
-    }
-    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' })
-    const url = URL.createObjectURL(blob)
-    let link = document.querySelector('link[rel=manifest]')
-    if (!link) {
-      link = document.createElement('link')
-      link.rel = 'manifest'
-      document.head.appendChild(link)
-    }
-    const prev = link.href
-    link.href = url
-    document.title = 'Timbra · ' + locale
-    return () => { link.href = prev; URL.revokeObjectURL(url) }
-  }, [locale])
+  // Manifest PWA e' gia' generato dallo script inline in index.html al page load
+  // (scelto in base al path) per evitare race condition con Chrome/Safari.
+  // Qui aggiorno solo il titolo se cambia il locale durante la sessione.
+  useEffect(() => { document.title = locale ? 'Timbra · ' + locale : 'Timbra' }, [locale])
 
   const [pin, setPin] = useState('')
   const [step, setStep] = useState('pin') // pin | menu | presenza | consumo | trasferimento | inventario | done | error

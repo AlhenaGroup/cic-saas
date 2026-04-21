@@ -8,8 +8,44 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="CIC" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <link rel="manifest" href="/manifest.webmanifest" />
     <title>CIC Dashboard</title>
+    <!-- Manifest PWA scelto in base al path, PRIMA che React parta.
+         /timbra → app dipendenti (solo timbratura).
+         Altre pagine → dashboard admin. -->
+    <script>
+      (function () {
+        var p = window.location.pathname || '/';
+        var isTimbra = p === '/timbra' || p.indexOf('/timbra/') === 0;
+        var linkEl = document.createElement('link');
+        linkEl.rel = 'manifest';
+        if (isTimbra) {
+          try {
+            var params = new URLSearchParams(window.location.search);
+            var locale = params.get('locale') || '';
+            var nameApp = locale ? 'Timbra · ' + locale : 'Timbra';
+            var shortName = (locale || 'Timbra').substring(0, 12);
+            var manifest = {
+              name: nameApp, short_name: shortName,
+              description: 'App timbratura dipendenti ' + locale,
+              start_url: '/timbra' + window.location.search,
+              scope: '/timbra',
+              display: 'standalone', orientation: 'portrait-primary',
+              background_color: '#0f1420', theme_color: '#0f1420',
+              icons: [
+                { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+                { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+              ]
+            };
+            var blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+            linkEl.href = URL.createObjectURL(blob);
+            document.title = nameApp;
+          } catch (e) { linkEl.href = '/manifest.webmanifest'; }
+        } else {
+          linkEl.href = '/manifest.webmanifest';
+        }
+        document.head.appendChild(linkEl);
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   </head>
