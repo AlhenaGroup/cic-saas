@@ -256,18 +256,22 @@ function ArticoliTab({ sp, sps }) {
       }
       const a = artMap[key]
       a.fornitori.add(it.warehouse_invoices?.fornitore || '?')
-      a.totQty += Number(it.quantita) || 0
-      a.totUm += Number(it.totale_um) || 0
-      a.totSpesa += Math.abs(Number(it.prezzo_totale)) || 0
+      const qtyFatt = Number(it.quantita) || 0      // quantita dalla fattura (righe fatturate)
+      const qtyTipo = Number(it.totale_um) || 0     // quantita del tipo (es. 6 fusti)
+      const qSing   = Number(it.qty_singola) || 0   // capacita unitaria (es. 30 LT per fusto)
+      // Totale unita in UM = qty fatt × qty del tipo × capacita unitaria
+      const totUnita = qtyFatt * qtyTipo * qSing
+      a.totQty += qtyFatt
+      a.totUm += totUnita
+      const spesa = Math.abs(Number(it.prezzo_totale)) || 0
+      a.totSpesa += spesa
       a.acquisti++
       const data = it.warehouse_invoices?.data || ''
       if (data > a.ultimaData) a.ultimaData = data
       if (a.unita && !a.unita.trim()) a.unita = it.unita || ''
       if (it.magazzino) a.magazzino = it.magazzino
-      // Prezzo per UM
-      const tot = Number(it.totale_um) || 0
-      const spesa = Math.abs(Number(it.prezzo_totale)) || 0
-      if (tot > 0 && spesa > 0) a.prezzi.push(spesa / tot)
+      // Prezzo per UM reale = spesa / totale unita
+      if (totUnita > 0 && spesa > 0) a.prezzi.push(spesa / totUnita)
     })
     const list = Object.values(artMap).map(a => ({
       ...a,
