@@ -74,7 +74,16 @@ export function categorizeItem(fornitore, descrizione) {
   return { category: 'altro', confidence: 'nessuna' }
 }
 
-export default function ContoEconomico({ ce, from, to, reload }) {
+const MESI = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic']
+
+// Ritorna { from, to } primo/ultimo giorno del mese m (1..12) dell'anno y
+function monthRange(y, m) {
+  const last = new Date(y, m, 0).getDate()
+  const mm = String(m).padStart(2, '0')
+  return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(last).padStart(2, '0')}` }
+}
+
+export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
   const [invoices, setInvoices] = useState([])
   const [invoiceItems, setInvoiceItems] = useState([])
   const [manualCosts, setManualCosts] = useState([])
@@ -211,7 +220,54 @@ export default function ContoEconomico({ ce, from, to, reload }) {
     'altro': '📄 Non categorizzate',
   }
 
+  // Anno selezionato per la barra mesi (default = anno del from corrente)
+  const currentYear = Number((from || '').substring(0, 4)) || new Date().getFullYear()
+  const [selectedYear, setSelectedYear] = useState(currentYear)
+  useEffect(() => { setSelectedYear(currentYear) }, [currentYear])
+
+  // Mese attivo: se from e to coprono esattamente un mese dello stesso anno, quel mese e' attivo
+  const activeMonth = (() => {
+    if (!from || !to) return 0
+    const fy = from.substring(0, 4), fm = from.substring(5, 7)
+    const ty = to.substring(0, 4), tm = to.substring(5, 7)
+    if (fy !== ty || fm !== tm || Number(fy) !== selectedYear) return 0
+    const { from: rf, to: rt } = monthRange(Number(fy), Number(fm))
+    return (from === rf && to === rt) ? Number(fm) : 0
+  })()
+
   return <>
+    {/* Selettore rapido mese/anno */}
+    {setPeriod && <div style={{
+      ...S.card, marginBottom: '1.25rem', padding: '12px 16px',
+      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button onClick={() => setSelectedYear(y => y - 1)}
+          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>◀</button>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#F59E0B', minWidth: 50, textAlign: 'center' }}>{selectedYear}</span>
+        <button onClick={() => setSelectedYear(y => y + 1)}
+          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>▶</button>
+      </div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flex: 1 }}>
+        {MESI.map((m, i) => {
+          const monthNum = i + 1
+          const isActive = activeMonth === monthNum
+          return <button key={m} onClick={() => {
+            const r = monthRange(selectedYear, monthNum)
+            setPeriod(r.from, r.to)
+          }} style={{
+            ...iS, padding: '6px 12px', fontSize: 12, fontWeight: isActive ? 700 : 500,
+            cursor: 'pointer', border: 'none',
+            background: isActive ? '#F59E0B' : 'transparent',
+            color: isActive ? '#0f1420' : '#94a3b8',
+          }}>{m}</button>
+        })}
+      </div>
+      <button onClick={() => {
+        setPeriod(`${selectedYear}-01-01`, `${selectedYear}-12-31`)
+      }} style={{ ...iS, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: '#3B82F6', color: '#fff', border: 'none' }}>Tutto anno</button>
+    </div>}
+
     {/* KPI con F&B */}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: '1.25rem' }}>
       <KPI label="Ricavi" icon="💶" value={fmt(ce.ricavi)} sub="totale venduto" accent='#10B981' />
