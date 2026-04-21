@@ -141,7 +141,7 @@ function PinPad({ pin, onDigit, onClear, loading }) {
         }}>{pin.length > i ? '*' : ''}</div>)}
       </div>
     </div>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+    <div className="keep-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, null, 0, 'C'].map((n, i) => n === null ? <div key={i} /> :
         <button key={i} onClick={() => n === 'C' ? onClear() : onDigit(String(n))} disabled={loading}
           style={{ height: 56, borderRadius: 12, border: 'none', fontSize: 22, fontWeight: 600, cursor: 'pointer',

@@ -53,16 +53,16 @@ a { color: inherit; text-decoration: none; }
 
 /* Tablet e sotto (<= 900px) */
 @media (max-width: 900px) {
-  [style*="grid-template-columns: repeat(5"],
-  [style*="grid-template-columns:repeat(5"] {
+  [style*="grid-template-columns: repeat(5"]:not(.keep-grid),
+  [style*="grid-template-columns:repeat(5"]:not(.keep-grid) {
     grid-template-columns: repeat(2, 1fr) !important;
   }
-  [style*="grid-template-columns: repeat(4"],
-  [style*="grid-template-columns:repeat(4"] {
+  [style*="grid-template-columns: repeat(4"]:not(.keep-grid),
+  [style*="grid-template-columns:repeat(4"]:not(.keep-grid) {
     grid-template-columns: repeat(2, 1fr) !important;
   }
-  [style*="grid-template-columns: repeat(3"],
-  [style*="grid-template-columns:repeat(3"] {
+  [style*="grid-template-columns: repeat(3"]:not(.keep-grid),
+  [style*="grid-template-columns:repeat(3"]:not(.keep-grid) {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
@@ -86,11 +86,12 @@ a { color: inherit; text-decoration: none; }
   [style*="overflowX: auto"]::-webkit-scrollbar,
   [style*="overflow-x: auto"]::-webkit-scrollbar { display: none; }
 
-  /* Grid: forza a colonna singola su mobile per qualsiasi griglia multi-colonna */
-  [style*="grid-template-columns: repeat"],
-  [style*="grid-template-columns:repeat"],
-  [style*="grid-template-columns: 1fr 1fr"],
-  [style*="grid-template-columns:1fr 1fr"] {
+  /* Grid: forza a colonna singola su mobile per qualsiasi griglia multi-colonna,
+     TRANNE se l'elemento ha classe .keep-grid (es. tastiera PIN numpad). */
+  [style*="grid-template-columns: repeat"]:not(.keep-grid),
+  [style*="grid-template-columns:repeat"]:not(.keep-grid),
+  [style*="grid-template-columns: 1fr 1fr"]:not(.keep-grid),
+  [style*="grid-template-columns:1fr 1fr"]:not(.keep-grid) {
     grid-template-columns: 1fr !important;
   }
   /* Tabelle: forza scroll orizzontale quando non già wrappate */
