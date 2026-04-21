@@ -8,6 +8,24 @@ const MAGAZZINI = ['food', 'beverage', 'materiali', 'attrezzatura', 'altro']
 const TIPI_CONFEZIONE = ['Bottiglie', 'Fusto', 'Lattine', 'Cassa', 'Sacco', 'Confezione', 'Cartone', 'Pezzo', 'Altro']
 const ESCLUDI_PATTERNS = /^(spese|addebito|accredito|cauzioni?|arrotondamento|sconto|abbuono|contributo|imballo|trasporto|spedizione|contrassegno|bollo|rivalsa|interessi)/i
 
+// Normalizza la descrizione fattura come chiave di regola: toglie numeri di lotto,
+// date e lunghi codici che cambiano ad ogni fattura ma non identificano il prodotto.
+// Es: 'VITELLONE LOMBATA LOTTO 24567 SCAD 15/06/26' → 'vitellone lombata'
+function normalizePattern(s) {
+  if (!s) return ''
+  let n = String(s).toLowerCase()
+  // Rimuovi riferimenti espliciti a lotto/batch con relativo valore
+  n = n.replace(/\b(lotto|lot\.?|l\.?|batch|serie|sn)\s*[:.#]?\s*[\w\-/.]+/g, ' ')
+  // Rimuovi scadenze con relativa data/codice
+  n = n.replace(/\b(scad(?:enza)?\.?|exp\.?|best\s*before|bb)\s*[:.#]?\s*[\w\-/.]+/g, ' ')
+  // Rimuovi date dd/mm/yy, dd-mm-yyyy, yyyy-mm-dd
+  n = n.replace(/\b\d{1,4}[./-]\d{1,2}[./-]\d{1,4}\b/g, ' ')
+  // Rimuovi numeri di 4+ cifre (tipici lotti / seriali, improbabili come quantita)
+  n = n.replace(/\b\d{4,}\b/g, ' ')
+  // Collassa whitespace
+  return n.replace(/\s+/g, ' ').trim()
+}
+
 export default function InvoiceManager({ sp, sps }) {
   // TS Digital fatture
   const [tsInvoices, setTsInvoices] = useState([])
@@ -118,7 +136,7 @@ export default function InvoiceManager({ sp, sps }) {
     // Carica regole apprese
     const { data: rules } = await supabase.from('item_rules').select('*')
     const rulesMap = {}
-    ;(rules || []).forEach(r => { rulesMap[r.nome_fattura_pattern.toLowerCase()] = r })
+    ;(rules || []).forEach(r => { rulesMap[normalizePattern(r.nome_fattura_pattern)] = r })
     setItemRules(rulesMap)
   }, [])
 
@@ -517,11 +535,11 @@ export default function InvoiceManager({ sp, sps }) {
     // Ricarica regole fresche dal DB (evita race condition se non ancora caricate)
     const { data: freshRules } = await supabase.from('item_rules').select('*')
     const rulesMap = { ...itemRules }
-    ;(freshRules || []).forEach(r => { rulesMap[r.nome_fattura_pattern.toLowerCase()] = r })
+    ;(freshRules || []).forEach(r => { rulesMap[normalizePattern(r.nome_fattura_pattern)] = r })
     setItemRules(rulesMap)
 
     for (const it of importedItems) {
-      const key = (it.nome_fattura || '').toLowerCase().trim()
+      const key = normalizePattern(it.nome_fattura)
       const rule = rulesMap[key]
       const s = suggestFromDescription(it.nome_fattura, it.unita)
       const upd = {}
@@ -697,7 +715,7 @@ export default function InvoiceManager({ sp, sps }) {
                       {items.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
                       {items.map(it => {
                         const suggestion = suggestFromDescription(it.nome_fattura, it.unita)
-                        const rule = itemRules[(it.nome_fattura || '').toLowerCase().trim()]
+                        const rule = itemRules[normalizePattern(it.nome_fattura)]
                         // Uso `??` invece di `||` così una stringa vuota (utente ha
                         // cancellato di proposito) NON ricade sul fallback della regola.
                         const displayNome = it.nome_articolo ?? rule?.nome_articolo_default ?? suggestion?.nome ?? ''
@@ -809,7 +827,7 @@ export default function InvoiceManager({ sp, sps }) {
                                 stato_match: 'abbinato',
                               }).eq('id', it.id)
                               // Memorizza regola per le prossime fatture
-                              const key = (it.nome_fattura || '').toLowerCase().trim()
+                              const key = normalizePattern(it.nome_fattura)
                               if (key) {
                                 const { data: { user } } = await supabase.auth.getUser()
                                 if (user) {
