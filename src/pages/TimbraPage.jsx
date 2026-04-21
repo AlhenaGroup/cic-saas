@@ -226,65 +226,95 @@ function PresenzaPanel({ employee, suggestedTipo, history, onTimbra, onBack, loa
   </div>
 }
 
-// ─── CONSUMO PERSONALE ──────────────────────────────────────────────
+// ─── CONSUMO PERSONALE (ricette) ────────────────────────────────────
 function ConsumoPanel({ pin, locale, onDone, onBack }) {
-  const [articles, setArticles] = useState([])
+  const [recipes, setRecipes] = useState([])
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState(null)
-  const [qty, setQty] = useState('1')
+  const [porzioni, setPorzioni] = useState('1')
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
+  const [repFilter, setRepFilter] = useState('')
 
   useEffect(() => {
     (async () => {
       try {
-        const d = await apiCall({ action: 'articles', pin, locale })
-        setArticles(d.items || [])
+        const d = await apiCall({ action: 'recipes', pin })
+        setRecipes(d.recipes || [])
       } catch (e) { setErr(e.message) }
     })()
-  }, [pin, locale])
+  }, [pin])
 
-  const filtered = q ? articles.filter(a => a.nome_articolo.toLowerCase().includes(q.toLowerCase())) : articles
+  const reparti = [...new Set(recipes.map(r => r.reparto).filter(Boolean))].sort()
+  const filtered = recipes.filter(r => {
+    if (q && !r.nome_prodotto.toLowerCase().includes(q.toLowerCase())) return false
+    if (repFilter && r.reparto !== repFilter) return false
+    return true
+  })
 
   const submit = async () => {
-    if (!selected || !qty) return
+    if (!selected || !porzioni) return
     setLoading(true); setErr('')
     try {
-      await apiCall({ action: 'consumo', pin, locale, nome_articolo: selected.nome_articolo, quantita: Number(qty), unita: selected.unita, note })
-      onDone(`Registrato consumo: ${qty} ${selected.unita || ''} di ${selected.nome_articolo}`)
+      const d = await apiCall({ action: 'consumo', pin, locale, nome_prodotto: selected.nome_prodotto, porzioni: Number(porzioni), note })
+      const n = d.porzioni > 1 ? d.porzioni + 'x ' : ''
+      onDone(`Registrato consumo: ${n}${selected.nome_prodotto}`)
     } catch (e) { setErr(e.message); setLoading(false) }
   }
 
-  return <div style={{ maxWidth: 360, width: '100%' }}>
+  return <div style={{ maxWidth: 400, width: '100%' }}>
     {!selected ? <>
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Cerca articolo..."
-        style={{ width: '100%', padding: '12px 14px', fontSize: 15, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 10, outline: 'none' }} />
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Cerca prodotto..."
+        style={{ width: '100%', padding: '12px 14px', fontSize: 15, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none' }} />
+      {reparti.length > 1 && <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 10, paddingBottom: 4 }}>
+        <button onClick={() => setRepFilter('')}
+          style={{ padding: '6px 12px', fontSize: 12, borderRadius: 16, border: 'none', background: !repFilter ? accent : '#1a1f2e', color: !repFilter ? bgColor : '#94a3b8', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>Tutto</button>
+        {reparti.map(r => (
+          <button key={r} onClick={() => setRepFilter(r === repFilter ? '' : r)}
+            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 16, border: 'none', background: repFilter === r ? accent : '#1a1f2e', color: repFilter === r ? bgColor : '#94a3b8', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>{r}</button>
+        ))}
+      </div>}
       <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
-        {filtered.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Nessun articolo trovato</div>}
-        {filtered.map(a => (
-          <button key={a.nome_articolo} onClick={() => setSelected(a)}
-            style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '12px 14px', marginBottom: 6, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', cursor: 'pointer', textAlign: 'left' }}>
-            <span>{a.nome_articolo}</span>
-            <span style={{ color: '#94a3b8', fontSize: 12 }}>{Number(a.quantita || 0).toFixed(1)} {a.unita || ''}</span>
+        {filtered.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Nessuna ricetta trovata</div>}
+        {filtered.map(r => (
+          <button key={r.id} onClick={() => setSelected(r)}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '12px 14px', marginBottom: 6, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', cursor: 'pointer', textAlign: 'left' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>{r.nome_prodotto}</div>
+              <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{r.reparto || ''} {r.ingredienti?.length ? '· ' + r.ingredienti.length + ' ingr.' : ''}</div>
+            </div>
+            {r.prezzo_vendita > 0 && <span style={{ color: '#F59E0B', fontSize: 12, fontWeight: 600 }}>€ {Number(r.prezzo_vendita).toFixed(2)}</span>}
           </button>
         ))}
       </div>
     </> : <>
       <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 16, marginBottom: 12 }}>
-        <div style={{ fontSize: 16, fontWeight: 700 }}>{selected.nome_articolo}</div>
-        <div style={{ fontSize: 12, color: '#94a3b8' }}>Giacenza: {Number(selected.quantita || 0).toFixed(1)} {selected.unita || ''}</div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>{selected.nome_prodotto}</div>
+        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{selected.reparto || ''}</div>
+        <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>Ingredienti che verranno scaricati:</div>
+        <div style={{ marginTop: 4, fontSize: 12, color: '#94a3b8' }}>
+          {(selected.ingredienti || []).map((i, idx) => (
+            <div key={idx}>• {i.nome_articolo}: {i.quantita} {i.unita}</div>
+          ))}
+        </div>
       </div>
-      <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Quantità ({selected.unita || ''})</label>
-      <input type="number" step="0.01" value={qty} onChange={e => setQty(e.target.value)}
-        style={{ width: '100%', padding: '14px', fontSize: 18, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 10, outline: 'none', textAlign: 'center' }} />
+      <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Quante porzioni?</label>
+      <div className="keep-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 12 }}>
+        {[1, 2, 3, 5].map(n => (
+          <button key={n} onClick={() => setPorzioni(String(n))}
+            style={{ padding: '12px', borderRadius: 10, border: '1px solid #2a3042', background: Number(porzioni) === n ? accent : '#1a1f2e', color: Number(porzioni) === n ? bgColor : '#e2e8f0', fontSize: 18, fontWeight: 700, cursor: 'pointer' }}>{n}x</button>
+        ))}
+      </div>
+      <input type="number" step="1" min="1" value={porzioni} onChange={e => setPorzioni(e.target.value)}
+        style={{ width: '100%', padding: '12px', fontSize: 16, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 10, outline: 'none', textAlign: 'center' }} />
       <input value={note} onChange={e => setNote(e.target.value)} placeholder="Note (opz.)"
         style={{ width: '100%', padding: '10px 14px', fontSize: 13, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 12, outline: 'none' }} />
       {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={() => setSelected(null)} disabled={loading}
           style={{ flex: 1, padding: '14px', borderRadius: 10, border: '1px solid #2a3042', background: 'none', color: '#94a3b8', fontSize: 14, cursor: 'pointer' }}>← Cambia</button>
-        <button onClick={submit} disabled={loading || !qty || Number(qty) <= 0}
+        <button onClick={submit} disabled={loading || !porzioni || Number(porzioni) <= 0}
           style={{ flex: 2, padding: '14px', borderRadius: 10, border: 'none', background: '#F59E0B', color: bgColor, fontSize: 15, fontWeight: 700, cursor: loading ? 'wait' : 'pointer' }}>
           {loading ? 'Registro…' : 'Conferma consumo'}
         </button>

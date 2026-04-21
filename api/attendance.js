@@ -127,31 +127,77 @@ export default async function handler(req, res) {
         });
       }
 
+      // ─── RICETTE DISPONIBILI ──────────────────────────────────────
+      case 'recipes': {
+        const v = await verifyPin(req.body?.pin, null);
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        const recs = await sbQuery(`recipes?user_id=eq.${v.emp.user_id}&select=id,nome_prodotto,reparto,prezzo_vendita,ingredienti&order=nome_prodotto`);
+        // Ritorna solo quelle con ingredienti validi
+        const list = (recs || []).filter(r => Array.isArray(r.ingredienti) && r.ingredienti.length > 0);
+        return res.status(200).json({ recipes: list });
+      }
+
       // ─── CONSUMO PERSONALE ────────────────────────────────────────
+      // Consuma N porzioni di una ricetta. Esplode gli ingredienti e
+      // crea uno scarico per ciascuno sul magazzino del locale, con
+      // fonte='consumo_dipendente' e riferimento_id = employee_id.
       case 'consumo': {
-        const { pin, locale, nome_articolo, quantita, unita, note } = req.body;
+        const { pin, locale, nome_prodotto, porzioni = 1, note } = req.body;
         const v = await verifyPin(pin, 'consumo');
         if (v.error) return res.status(v.code).json({ error: v.error });
-        if (!locale || !nome_articolo || !quantita) return res.status(400).json({ error: 'locale, nome_articolo, quantita richiesti' });
-        const qty = Number(quantita);
-        if (!(qty > 0)) return res.status(400).json({ error: 'quantita non valida' });
-        // Prezzo medio per valorizzare il movimento
-        const stock = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&nome_articolo=eq.${encodeURIComponent(nome_articolo)}&select=prezzo_medio,unita&limit=1`);
-        const prezzoMedio = Number(stock?.[0]?.prezzo_medio) || null;
-        const um = unita || stock?.[0]?.unita || null;
-        const valoreTot = prezzoMedio ? Math.round(qty * prezzoMedio * 100) / 100 : null;
-        // Inserisci movimento scarico con fonte 'consumo_dipendente' e riferimento_id = employee_id
-        await sbQuery('article_movement', 'POST', [{
-          user_id: v.emp.user_id, locale, sub_location: 'principale',
-          nome_articolo, tipo: 'scarico', quantita: qty, unita: um,
-          prezzo_unitario: prezzoMedio, valore_totale: valoreTot,
-          fonte: 'consumo_dipendente', riferimento_id: v.emp.id,
-          riferimento_label: 'Consumo ' + v.emp.nome, note: note || null,
-          created_by: v.emp.user_id,
-        }]);
-        // Aggiorna giacenza
-        await upsertStockDelta(v.emp.user_id, locale, 'principale', nome_articolo, um, -qty);
-        return res.status(201).json({ ok: true, nome: v.emp.nome, articolo: nome_articolo, quantita: qty });
+        if (!locale || !nome_prodotto) return res.status(400).json({ error: 'locale e nome_prodotto richiesti' });
+        const n = Number(porzioni) || 1;
+        if (!(n > 0)) return res.status(400).json({ error: 'porzioni non valide' });
+
+        const recs = await sbQuery(`recipes?user_id=eq.${v.emp.user_id}&nome_prodotto=eq.${encodeURIComponent(nome_prodotto)}&select=nome_prodotto,ingredienti&limit=1`);
+        if (!recs?.[0]) return res.status(404).json({ error: 'Ricetta non trovata: ' + nome_prodotto });
+        const ingredienti = recs[0].ingredienti || [];
+        if (ingredienti.length === 0) return res.status(400).json({ error: 'Ricetta senza ingredienti' });
+
+        const toBase = (qty, um) => {
+          const q = Number(qty) || 0;
+          const u = (um || 'PZ').toLowerCase();
+          if (u === 'g') return { qty: q / 1000, um: 'KG' };
+          if (u === 'cl') return { qty: q / 100, um: 'LT' };
+          if (u === 'ml') return { qty: q / 1000, um: 'LT' };
+          return { qty: q, um: (um || 'PZ').toUpperCase() };
+        };
+
+        const rows = [];
+        let totalValue = 0;
+        const scaricati = [];
+        for (const ingr of ingredienti) {
+          const nomeArt = (ingr.nome_articolo || '').trim();
+          if (!nomeArt) continue;
+          const base = toBase(ingr.quantita, ingr.unita);
+          const qtyIngr = base.qty * n; // moltiplica per numero porzioni
+          if (qtyIngr <= 0) continue;
+          // Prezzo medio da stock (se esiste)
+          const st = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&nome_articolo=eq.${encodeURIComponent(nomeArt)}&select=prezzo_medio,unita&limit=1`);
+          const pu = Number(st?.[0]?.prezzo_medio) || null;
+          const val = pu ? Math.round(qtyIngr * pu * 100) / 100 : null;
+          if (val) totalValue += val;
+          rows.push({
+            user_id: v.emp.user_id, locale, sub_location: 'principale',
+            nome_articolo: nomeArt, tipo: 'scarico',
+            quantita: Math.round(qtyIngr * 1000) / 1000, unita: base.um,
+            prezzo_unitario: pu, valore_totale: val,
+            fonte: 'consumo_dipendente', riferimento_id: v.emp.id,
+            riferimento_label: `Consumo ${v.emp.nome} · ${nome_prodotto}${n > 1 ? ' x' + n : ''}`,
+            note: note || null,
+            created_by: v.emp.user_id,
+          });
+          scaricati.push({ nome: nomeArt, qty: Math.round(qtyIngr * 1000) / 1000, um: base.um });
+        }
+        if (rows.length === 0) return res.status(400).json({ error: 'Nessun ingrediente valido nella ricetta' });
+        await sbQuery('article_movement', 'POST', rows);
+        for (const r of rows) {
+          await upsertStockDelta(v.emp.user_id, locale, 'principale', r.nome_articolo, r.unita, -r.quantita);
+        }
+        return res.status(201).json({
+          ok: true, nome: v.emp.nome, ricetta: nome_prodotto, porzioni: n,
+          scaricati, valore_totale: Math.round(totalValue * 100) / 100,
+        });
       }
 
       // ─── LISTA ARTICOLI DI UN LOCALE (per UI mobile) ──────────────
@@ -500,7 +546,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-close, my-shifts, my-hours, my-timeoff' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-close, my-shifts, my-hours, my-timeoff' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);
