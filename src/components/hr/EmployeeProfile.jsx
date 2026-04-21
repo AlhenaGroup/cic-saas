@@ -125,7 +125,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
 
     {/* Sub-tabs */}
     <div style={{display:'flex',gap:4,marginBottom:16,borderBottom:'1px solid #2a3042',paddingBottom:8}}>
-      {[['info','Anagrafica'],['paga','Compensi'],['timeoff','Ferie/Permessi'],['ore','Banca Ore']].map(([k,l])=>
+      {[['info','Anagrafica'],['paga','Compensi'],['timeoff','Ferie/Permessi'],['ore','Banca Ore'],['permessi','🔐 Permessi app']].map(([k,l])=>
         <button key={k} onClick={()=>setSubTab(k)} style={tabStyle(k)}>{l}</button>
       )}
     </div>
@@ -434,5 +434,55 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
         )}
       </Card>
     </>})()}
+
+    {/* PERMESSI APP DIPENDENTE */}
+    {subTab==='permessi' && <PermessiTab emp={emp} onSaved={(newPerms)=>{ setEmp({...emp, permissions: newPerms}); if (onUpdate) onUpdate() }} />}
   </div>
+}
+
+function PermessiTab({ emp, onSaved }) {
+  const perms = emp.permissions || { presenza: true, inventario: false, spostamenti: false, consumo: false }
+  const [p, setP] = useState(perms)
+  const [saving, setSaving] = useState(false)
+
+  const toggle = (k) => setP(prev => ({ ...prev, [k]: !prev[k] }))
+  const save = async () => {
+    setSaving(true)
+    const { error } = await supabase.from('employees').update({ permissions: p }).eq('id', emp.id)
+    setSaving(false)
+    if (error) { alert('Errore: ' + error.message); return }
+    if (onSaved) onSaved(p)
+    alert('Permessi salvati')
+  }
+
+  const items = [
+    { k: 'presenza',    t: '🕐 Timbratura presenza', d: 'Il dipendente puo\' bollare entrata/uscita dal QR' },
+    { k: 'consumo',     t: '🍪 Consumo personale', d: 'Puo\' registrare consumi personali (scarica dal magazzino e crea log per dipendente)' },
+    { k: 'spostamenti', t: '🔀 Spostamenti tra locali', d: 'Puo\' spostare merce da un locale all\'altro (es. REMEMBEER → CASA DE AMICIS)' },
+    { k: 'inventario',  t: '📋 Inventario', d: 'Puo\' aprire, contare e chiudere inventari del locale' },
+  ]
+
+  return <Card title="Permessi app dipendente" badge={Object.values(p).filter(Boolean).length + '/4 abilitati'}>
+    <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14, lineHeight: 1.5 }}>
+      Definisci cosa puo\' fare <strong style={{ color: '#e2e8f0' }}>{emp.nome}</strong> dopo aver inserito il PIN sulla pagina di timbratura.
+      Il menu delle azioni nell\'app mobile verra\' filtrato automaticamente.
+    </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {items.map(it => (
+        <label key={it.k} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, background: p[it.k] ? 'rgba(16,185,129,.06)' : '#131825', border: `1px solid ${p[it.k] ? '#10B981' : '#2a3042'}`, borderRadius: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!p[it.k]} onChange={() => toggle(it.k)} style={{ marginTop: 3, accentColor: '#10B981', width: 18, height: 18 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: p[it.k] ? '#10B981' : '#e2e8f0' }}>{it.t}</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{it.d}</div>
+          </div>
+        </label>
+      ))}
+    </div>
+    <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+      <button onClick={save} disabled={saving}
+        style={{ background: '#F59E0B', color: '#0f1420', border: 'none', padding: '8px 18px', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: saving ? 'wait' : 'pointer' }}>
+        {saving ? 'Salvo...' : 'Salva permessi'}
+      </button>
+    </div>
+  </Card>
 }

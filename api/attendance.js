@@ -32,10 +32,50 @@ async function appendToSheet(locale, row) {
 async function sbQuery(path, method = 'GET', body = null) {
   const opts = { method, headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } };
   if (body) opts.body = JSON.stringify(body);
-  if (method === 'GET') opts.headers['Prefer'] = '';
+  // POST/PATCH: richiedi rappresentazione delle righe risultanti
+  if (method === 'POST' || method === 'PATCH') opts.headers['Prefer'] = 'return=representation';
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
   if (method === 'GET') return res.json();
   return res;
+}
+
+// Verifica PIN e (opzionalmente) un permesso specifico; usato dagli endpoint magazzino.
+async function verifyPin(pin, perm) {
+  if (!pin) return { error: 'pin richiesto', code: 400 };
+  const emps = await sbQuery(`employees?pin=eq.${pin}&select=id,nome,user_id,stato,permissions`);
+  if (!emps?.length) return { error: 'PIN non trovato', code: 404 };
+  const emp = emps[0];
+  if (emp.stato !== 'Attivo') return { error: 'Dipendente non attivo', code: 403 };
+  if (perm) {
+    const perms = emp.permissions || {};
+    if (!perms[perm]) return { error: 'Permesso "' + perm + '" non autorizzato per questo dipendente', code: 403 };
+  }
+  return { emp };
+}
+
+// Aggiorna article_stock applicando un delta (o setta direttamente se absolute != null).
+async function upsertStockDelta(userId, locale, sub, nome, unita, delta, prezzo = null, absolute = null) {
+  const existing = await sbQuery(`article_stock?user_id=eq.${userId}&locale=eq.${encodeURIComponent(locale)}&sub_location=eq.${encodeURIComponent(sub)}&nome_articolo=eq.${encodeURIComponent(nome)}&select=id,quantita,prezzo_medio&limit=1`);
+  if (existing?.[0]) {
+    const row = existing[0];
+    const nuovaQty = absolute != null ? absolute : Math.round(((Number(row.quantita) || 0) + delta) * 1000) / 1000;
+    const nuovoPrezzoMedio = prezzo != null
+      ? row.prezzo_medio
+        ? Math.round((Number(row.prezzo_medio) * 0.7 + Number(prezzo) * 0.3) * 10000) / 10000
+        : Number(prezzo)
+      : row.prezzo_medio;
+    await sbQuery(`article_stock?id=eq.${row.id}`, 'PATCH', {
+      quantita: nuovaQty, prezzo_medio: nuovoPrezzoMedio,
+      unita: unita || undefined, updated_at: new Date().toISOString(),
+    });
+  } else {
+    await sbQuery('article_stock', 'POST', [{
+      user_id: userId, locale, sub_location: sub, nome_articolo: nome,
+      unita: unita || null,
+      quantita: absolute != null ? absolute : delta,
+      prezzo_medio: prezzo != null ? Number(prezzo) : null,
+    }]);
+  }
 }
 
 function haversineDistance(lat1, lng1, lat2, lng2) {
@@ -63,12 +103,12 @@ export default async function handler(req, res) {
 
   try {
     switch (action) {
-      // Verifica PIN e ritorna info dipendente + ultimo movimento
+      // Verifica PIN e ritorna info dipendente + ultimo movimento + permessi
       case 'verify': {
         const { pin, locale } = req.body;
         if (!pin || !locale) return res.status(400).json({ error: 'pin e locale richiesti' });
 
-        const emps = await sbQuery(`employees?pin=eq.${pin}&select=id,nome,ruolo,locale,stato`);
+        const emps = await sbQuery(`employees?pin=eq.${pin}&select=id,nome,ruolo,locale,stato,permissions,user_id`);
         if (!emps?.length) return res.status(404).json({ error: 'PIN non trovato' });
 
         const emp = emps[0];
@@ -80,7 +120,198 @@ export default async function handler(req, res) {
         const lastTipo = last?.[0]?.tipo || null;
         const suggestedTipo = lastTipo === 'entrata' ? 'uscita' : 'entrata';
 
-        return res.status(200).json({ employee: emp, lastTipo, suggestedTipo, lastTimestamp: last?.[0]?.timestamp });
+        return res.status(200).json({
+          employee: { id: emp.id, nome: emp.nome, ruolo: emp.ruolo, locale: emp.locale, stato: emp.stato },
+          permissions: emp.permissions || { presenza: true, inventario: false, spostamenti: false, consumo: false },
+          lastTipo, suggestedTipo, lastTimestamp: last?.[0]?.timestamp,
+        });
+      }
+
+      // ─── CONSUMO PERSONALE ────────────────────────────────────────
+      case 'consumo': {
+        const { pin, locale, nome_articolo, quantita, unita, note } = req.body;
+        const v = await verifyPin(pin, 'consumo');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!locale || !nome_articolo || !quantita) return res.status(400).json({ error: 'locale, nome_articolo, quantita richiesti' });
+        const qty = Number(quantita);
+        if (!(qty > 0)) return res.status(400).json({ error: 'quantita non valida' });
+        // Prezzo medio per valorizzare il movimento
+        const stock = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&nome_articolo=eq.${encodeURIComponent(nome_articolo)}&select=prezzo_medio,unita&limit=1`);
+        const prezzoMedio = Number(stock?.[0]?.prezzo_medio) || null;
+        const um = unita || stock?.[0]?.unita || null;
+        const valoreTot = prezzoMedio ? Math.round(qty * prezzoMedio * 100) / 100 : null;
+        // Inserisci movimento scarico con fonte 'consumo_dipendente' e riferimento_id = employee_id
+        await sbQuery('article_movement', 'POST', [{
+          user_id: v.emp.user_id, locale, sub_location: 'principale',
+          nome_articolo, tipo: 'scarico', quantita: qty, unita: um,
+          prezzo_unitario: prezzoMedio, valore_totale: valoreTot,
+          fonte: 'consumo_dipendente', riferimento_id: v.emp.id,
+          riferimento_label: 'Consumo ' + v.emp.nome, note: note || null,
+          created_by: v.emp.user_id,
+        }]);
+        // Aggiorna giacenza
+        await upsertStockDelta(v.emp.user_id, locale, 'principale', nome_articolo, um, -qty);
+        return res.status(201).json({ ok: true, nome: v.emp.nome, articolo: nome_articolo, quantita: qty });
+      }
+
+      // ─── LISTA ARTICOLI DI UN LOCALE (per UI mobile) ──────────────
+      case 'articles': {
+        const { pin, locale } = req.body;
+        const v = await verifyPin(pin, null); // basta che il pin sia valido
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        const items = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&select=nome_articolo,unita,quantita,prezzo_medio&order=nome_articolo`);
+        return res.status(200).json({ items: items || [] });
+      }
+
+      // ─── TRASFERIMENTO TRA LOCALI ─────────────────────────────────
+      case 'trasferimento': {
+        const { pin, locale_from, locale_to, nome_articolo, quantita, unita, note } = req.body;
+        const v = await verifyPin(pin, 'spostamenti');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!locale_from || !locale_to || !nome_articolo || !quantita) return res.status(400).json({ error: 'locale_from, locale_to, nome_articolo, quantita richiesti' });
+        if (locale_from === locale_to) return res.status(400).json({ error: 'I due locali devono essere diversi' });
+        const qty = Number(quantita);
+        if (!(qty > 0)) return res.status(400).json({ error: 'quantita non valida' });
+        const stock = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale_from)}&nome_articolo=eq.${encodeURIComponent(nome_articolo)}&select=prezzo_medio,unita&limit=1`);
+        const prezzoMedio = Number(stock?.[0]?.prezzo_medio) || null;
+        const um = unita || stock?.[0]?.unita || null;
+        const valoreTot = prezzoMedio ? Math.round(qty * prezzoMedio * 100) / 100 : null;
+        const refLabel = `Trasferimento ${v.emp.nome} ${locale_from} → ${locale_to}`;
+        // Due movimenti: out su locale_from, in su locale_to
+        await sbQuery('article_movement', 'POST', [
+          {
+            user_id: v.emp.user_id, locale: locale_from, sub_location: 'principale',
+            nome_articolo, tipo: 'trasferimento_out', quantita: qty, unita: um,
+            prezzo_unitario: prezzoMedio, valore_totale: valoreTot,
+            fonte: 'trasferimento', riferimento_id: v.emp.id, riferimento_label: refLabel,
+            sub_location_target: locale_to, note: note || null, created_by: v.emp.user_id,
+          },
+          {
+            user_id: v.emp.user_id, locale: locale_to, sub_location: 'principale',
+            nome_articolo, tipo: 'trasferimento_in', quantita: qty, unita: um,
+            prezzo_unitario: prezzoMedio, valore_totale: valoreTot,
+            fonte: 'trasferimento', riferimento_id: v.emp.id, riferimento_label: refLabel,
+            sub_location_target: locale_from, note: note || null, created_by: v.emp.user_id,
+          }
+        ]);
+        await upsertStockDelta(v.emp.user_id, locale_from, 'principale', nome_articolo, um, -qty);
+        await upsertStockDelta(v.emp.user_id, locale_to,   'principale', nome_articolo, um, +qty, prezzoMedio);
+        return res.status(201).json({ ok: true, nome: v.emp.nome, articolo: nome_articolo, quantita: qty, from: locale_from, to: locale_to });
+      }
+
+      // ─── INVENTARIO ───────────────────────────────────────────────
+      // Schema legacy: warehouse_inventories.note contiene JSON { locale, sub_location, tipo }
+      // warehouse_inventory_items.note contiene JSON { nome_articolo, unita, prezzo_medio, sub_location, locale }
+      case 'inv-open': {
+        const { pin, locale } = req.body;
+        const v = await verifyPin(pin, 'inventario');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!locale) return res.status(400).json({ error: 'locale richiesto' });
+        // Cerca inventario in_corso per questo locale
+        const all = await sbQuery(`warehouse_inventories?user_id=eq.${v.emp.user_id}&stato=eq.in_corso&select=id,data,stato,note&order=data.desc`);
+        const existing = (all || []).find(i => { try { return JSON.parse(i.note || '{}').locale === locale; } catch { return false; } });
+        if (existing) {
+          return res.status(200).json({ inventory: existing });
+        }
+        // Nuovo inventario
+        const today = new Date().toISOString().split('T')[0];
+        const note = JSON.stringify({ locale, sub_location: 'principale', tipo: 'sessione', apertura_da: v.emp.nome });
+        const resp = await sbQuery('warehouse_inventories', 'POST', [{ user_id: v.emp.user_id, data: today, stato: 'in_corso', note }]);
+        const created = resp.ok ? await resp.json() : null;
+        const inv = created?.[0];
+        if (!inv) return res.status(500).json({ error: 'Impossibile creare inventario' });
+        // Popola items con giacenze correnti
+        const stock = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&select=id,nome_articolo,unita,quantita,prezzo_medio`);
+        if ((stock || []).length > 0) {
+          const items = stock.map(s => ({
+            inventory_id: inv.id,
+            product_id: s.id, // dummy per vincolo NOT NULL
+            giacenza_teorica: Number(s.quantita || 0),
+            giacenza_reale: null,
+            note: JSON.stringify({ nome_articolo: s.nome_articolo, unita: s.unita, prezzo_medio: s.prezzo_medio, sub_location: 'principale', locale }),
+          }));
+          await sbQuery('warehouse_inventory_items', 'POST', items);
+        }
+        return res.status(201).json({ inventory: inv, created: true });
+      }
+
+      case 'inv-articles': {
+        const { pin, inventory_id } = req.body;
+        const v = await verifyPin(pin, 'inventario');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!inventory_id) return res.status(400).json({ error: 'inventory_id richiesto' });
+        const invs = await sbQuery(`warehouse_inventories?id=eq.${inventory_id}&select=*&limit=1`);
+        if (!invs?.[0]) return res.status(404).json({ error: 'Inventario non trovato' });
+        const inv = invs[0];
+        const items = await sbQuery(`warehouse_inventory_items?inventory_id=eq.${inventory_id}&select=*`);
+        const mapped = (items || []).map(it => {
+          let meta = {};
+          try { meta = JSON.parse(it.note || '{}'); } catch {}
+          return {
+            id: it.id,
+            nome_articolo: meta.nome_articolo || '',
+            unita: meta.unita || '',
+            giacenza_teorica: Number(it.giacenza_teorica || 0),
+            giacenza_reale: it.giacenza_reale,
+            prezzo_medio: meta.prezzo_medio || null,
+          };
+        }).filter(x => x.nome_articolo).sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
+        return res.status(200).json({ inventory: inv, items: mapped });
+      }
+
+      case 'inv-count': {
+        const { pin, inventory_id, nome_articolo, giacenza_reale } = req.body;
+        const v = await verifyPin(pin, 'inventario');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!inventory_id || !nome_articolo || giacenza_reale == null) return res.status(400).json({ error: 'inventory_id, nome_articolo, giacenza_reale richiesti' });
+        // Trova la riga cercando nel JSON note
+        const items = await sbQuery(`warehouse_inventory_items?inventory_id=eq.${inventory_id}&select=id,giacenza_teorica,note`);
+        const match = (items || []).find(it => { try { return JSON.parse(it.note || '{}').nome_articolo === nome_articolo; } catch { return false; } });
+        if (!match) return res.status(404).json({ error: 'Riga inventario non trovata per ' + nome_articolo });
+        const real = Number(giacenza_reale);
+        const diff = real - Number(match.giacenza_teorica || 0);
+        await sbQuery(`warehouse_inventory_items?id=eq.${match.id}`, 'PATCH', {
+          giacenza_reale: real, differenza: diff,
+        });
+        return res.status(200).json({ ok: true });
+      }
+
+      case 'inv-close': {
+        const { pin, inventory_id } = req.body;
+        const v = await verifyPin(pin, 'inventario');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!inventory_id) return res.status(400).json({ error: 'inventory_id richiesto' });
+        const invs = await sbQuery(`warehouse_inventories?id=eq.${inventory_id}&select=*&limit=1`);
+        if (!invs?.[0]) return res.status(404).json({ error: 'Inventario non trovato' });
+        const inv = invs[0];
+        let locale = 'principale';
+        try { locale = JSON.parse(inv.note || '{}').locale || locale; } catch {}
+        const items = await sbQuery(`warehouse_inventory_items?inventory_id=eq.${inventory_id}&select=*`);
+        const today = new Date().toISOString().split('T')[0];
+        const movements = [];
+        for (const it of (items || [])) {
+          if (it.giacenza_reale == null) continue;
+          let meta = {};
+          try { meta = JSON.parse(it.note || '{}'); } catch {}
+          const nome_articolo = meta.nome_articolo;
+          if (!nome_articolo) continue;
+          const diff = Number(it.giacenza_reale || 0) - Number(it.giacenza_teorica || 0);
+          if (Math.abs(diff) < 0.001) continue;
+          movements.push({
+            user_id: v.emp.user_id, locale, sub_location: 'principale',
+            nome_articolo, tipo: 'correzione', quantita: Math.abs(diff),
+            unita: meta.unita || null, prezzo_unitario: meta.prezzo_medio || null,
+            valore_totale: meta.prezzo_medio ? Math.round(Math.abs(diff) * Number(meta.prezzo_medio) * 100) / 100 : null,
+            fonte: 'inventario', riferimento_id: inventory_id,
+            riferimento_label: 'Chiusura inventario ' + today + ' (' + v.emp.nome + ')',
+            note: `${it.giacenza_teorica || 0} -> ${it.giacenza_reale} (diff ${diff >= 0 ? '+' : ''}${diff})`,
+            created_by: v.emp.user_id,
+          });
+          await upsertStockDelta(v.emp.user_id, locale, 'principale', nome_articolo, meta.unita, 0, meta.prezzo_medio, Number(it.giacenza_reale));
+        }
+        if (movements.length > 0) await sbQuery('article_movement', 'POST', movements);
+        await sbQuery(`warehouse_inventories?id=eq.${inventory_id}`, 'PATCH', { stato: 'chiuso' });
+        return res.status(200).json({ ok: true, correzioni: movements.length });
       }
 
       // Registra timbratura
@@ -141,7 +372,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-close' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);
