@@ -256,16 +256,25 @@ export default async function handler(req, res) {
         // Cerca inventario in_corso per questo locale
         const all = await sbQuery(`warehouse_inventories?user_id=eq.${v.emp.user_id}&stato=eq.in_corso&select=id,data,stato,note&order=data.desc`);
         const existing = (all || []).find(i => { try { return JSON.parse(i.note || '{}').locale === locale; } catch { return false; } });
+        let inv;
+        let reused = false;
         if (existing) {
-          return res.status(200).json({ inventory: existing });
+          // Se l'inventario esiste ma e' vuoto (es. creato prima del fix), lo ripopolo.
+          const cnt = await sbQuery(`warehouse_inventory_items?inventory_id=eq.${existing.id}&select=id&limit=1`);
+          if ((cnt || []).length > 0) {
+            return res.status(200).json({ inventory: existing });
+          }
+          inv = existing;
+          reused = true;
+        } else {
+          // Nuovo inventario
+          const today = new Date().toISOString().split('T')[0];
+          const note = JSON.stringify({ locale, sub_location: 'principale', tipo: 'sessione', apertura_da: v.emp.nome });
+          const resp = await sbQuery('warehouse_inventories', 'POST', [{ user_id: v.emp.user_id, data: today, stato: 'in_corso', note }]);
+          const created = resp.ok ? await resp.json() : null;
+          inv = created?.[0];
+          if (!inv) return res.status(500).json({ error: 'Impossibile creare inventario' });
         }
-        // Nuovo inventario
-        const today = new Date().toISOString().split('T')[0];
-        const note = JSON.stringify({ locale, sub_location: 'principale', tipo: 'sessione', apertura_da: v.emp.nome });
-        const resp = await sbQuery('warehouse_inventories', 'POST', [{ user_id: v.emp.user_id, data: today, stato: 'in_corso', note }]);
-        const created = resp.ok ? await resp.json() : null;
-        const inv = created?.[0];
-        if (!inv) return res.status(500).json({ error: 'Impossibile creare inventario' });
 
         // Raccogli l'UNIONE di tutti gli articoli conosciuti per quel locale:
         //   - da article_stock (giacenza corrente)
@@ -308,7 +317,7 @@ export default async function handler(req, res) {
           }));
           await sbQuery('warehouse_inventory_items', 'POST', items);
         }
-        return res.status(201).json({ inventory: inv, created: true, articoli: rows.length });
+        return res.status(reused ? 200 : 201).json({ inventory: inv, created: !reused, reused, articoli: rows.length });
       }
 
       case 'inv-articles': {
