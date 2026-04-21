@@ -57,13 +57,9 @@ export default function TimbraPage() {
         const h = await apiCall({ action: 'history', pin: p, locale })
         setHistory(h.records || [])
       } catch {}
-      // Se ha 1 solo permesso attivo, salto il menu e vado diretto
-      const active = Object.keys(d.permissions || {}).filter(k => d.permissions[k])
-      if (active.length === 1) {
-        goTo(active[0] === 'presenza' ? 'presenza' : active[0])
-      } else {
-        setStep('menu')
-      }
+      // Mostro sempre il menu: anche se ha 1 solo permesso, ci sono
+      // comunque le viste informative (turni/ore/ferie) disponibili.
+      setStep('menu')
     } catch (e) { setMessage(e.message); setStep('error'); setPin('') }
     setLoading(false)
   }
@@ -117,13 +113,22 @@ export default function TimbraPage() {
     {step === 'inventario' && <InventarioPanel pin={pin} locale={locale} employee={employee}
       onDone={(msg) => { setMessage(msg); setStep('done') }} onBack={() => goTo('menu')} />}
 
+    {step === 'miei-turni' && <MieiTurniPanel pin={pin} onBack={() => goTo('menu')} />}
+    {step === 'mie-ore' && <MieOrePanel pin={pin} onBack={() => goTo('menu')} />}
+    {step === 'mie-ferie' && <MieFeriePanel pin={pin} onBack={() => goTo('menu')} />}
+
     {step === 'done' && <DonePanel message={message} employee={employee} onReset={reset} />}
     {step === 'error' && <ErrorPanel message={message} onReset={reset} />}
   </div>
 }
 
 function stepLabel(s) {
-  return { presenza: 'Timbratura presenza', consumo: 'Consumo personale', trasferimento: 'Spostamento merce', inventario: 'Inventario', done: 'Fatto', error: 'Errore' }[s] || ''
+  return {
+    presenza: 'Timbratura presenza', consumo: 'Consumo personale',
+    trasferimento: 'Spostamento merce', inventario: 'Inventario',
+    'miei-turni': 'I miei turni', 'mie-ore': 'Le mie ore', 'mie-ferie': 'Le mie ferie',
+    done: 'Fatto', error: 'Errore',
+  }[s] || ''
 }
 
 // ─── PIN PAD ───────────────────────────────────────────────────────
@@ -154,12 +159,20 @@ function PinPad({ pin, onDigit, onClear, loading }) {
 
 // ─── MENU AZIONI ────────────────────────────────────────────────────
 function MainMenu({ employee, permissions, onChoose, onReset }) {
-  const items = [
+  // Azioni operative filtrate dai permessi
+  const azioni = [
     { k: 'presenza', icon: '🕐', label: 'Timbra presenza', color: '#10B981' },
     { k: 'consumo', icon: '🍪', label: 'Consumo personale', color: '#F59E0B' },
     { k: 'trasferimento', icon: '🔀', label: 'Spostamento merce', color: '#3B82F6' },
     { k: 'inventario', icon: '📋', label: 'Inventario', color: '#8B5CF6' },
   ].filter(i => permissions[i.k === 'trasferimento' ? 'spostamenti' : i.k])
+  // Viste info personali: sempre visibili (sola lettura dei propri dati)
+  const info = [
+    { k: 'miei-turni', icon: '📆', label: 'I miei turni', color: '#3B82F6' },
+    { k: 'mie-ore', icon: '⏱', label: 'Le mie ore', color: '#10B981' },
+    { k: 'mie-ferie', icon: '🏖️', label: 'Le mie ferie', color: '#F97316' },
+  ]
+  const items = [...azioni, ...info]
 
   return <div style={{ maxWidth: 360, width: '100%' }}>
     <div style={{ background: '#1a1f2e', borderRadius: 16, padding: 20, marginBottom: 16, textAlign: 'center' }}>
@@ -452,5 +465,148 @@ function ErrorPanel({ message, onReset }) {
     <div style={{ fontSize: 64, marginBottom: 12 }}>✗</div>
     <div style={{ fontSize: 16, color: '#EF4444', marginBottom: 8 }}>{message}</div>
     <button onClick={onReset} style={{ background: '#1a1f2e', color: '#e2e8f0', border: '1px solid #2a3042', borderRadius: 12, padding: '12px 32px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Riprova</button>
+  </div>
+}
+
+// ─── INFO PERSONALI ─────────────────────────────────────────────────
+const DAYS_IT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
+
+function MieiTurniPanel({ pin, onBack }) {
+  const [shifts, setShifts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+  useEffect(() => { (async () => {
+    try { const d = await apiCall({ action: 'my-shifts', pin }); setShifts(d.shifts || []) }
+    catch (e) { setErr(e.message) }
+    setLoading(false)
+  })() }, [pin])
+
+  // Trova la settimana corrente
+  const today = new Date()
+  const dow = today.getDay() || 7
+  const monday = new Date(today); monday.setDate(today.getDate() - (dow - 1))
+  const mondayStr = monday.toISOString().substring(0, 10)
+
+  return <div style={{ maxWidth: 400, width: '100%' }}>
+    {loading && <div style={{ color: '#F59E0B', padding: 20, textAlign: 'center' }}>Caricamento…</div>}
+    {err && <div style={{ color: '#EF4444', padding: 12 }}>{err}</div>}
+    {!loading && shifts.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Nessun turno pianificato.</div>}
+    {shifts.slice(0, 6).map(s => {
+      const isCurrent = s.settimana === mondayStr
+      const giorni = s.giorni || {}
+      return <div key={s.id} style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${isCurrent ? '#10B981' : '#2a3042'}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: isCurrent ? '#10B981' : '#e2e8f0' }}>
+            {isCurrent ? '📌 Settimana corrente' : 'Settimana del ' + new Date(s.settimana).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
+          </div>
+          {s.ore_totali && <div style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600 }}>{s.ore_totali}h</div>}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, fontSize: 11 }}>
+          {DAYS_IT.map((d, i) => {
+            const g = giorni[d.toLowerCase()] || giorni[String(i)] || {}
+            const inizio = g.inizio || g.entrata || ''
+            const fine = g.fine || g.uscita || ''
+            const libero = !inizio && !fine
+            return <div key={d} style={{ background: libero ? '#131825' : '#2a3042', padding: '6px 4px', borderRadius: 6, textAlign: 'center', border: libero ? '1px dashed #2a3042' : '1px solid #10B98144' }}>
+              <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', marginBottom: 2 }}>{d}</div>
+              {libero ? <div style={{ color: '#475569', fontSize: 10 }}>—</div> : <>
+                <div style={{ color: '#10B981', fontWeight: 600, fontSize: 10 }}>{inizio}</div>
+                <div style={{ color: '#EF4444', fontSize: 10 }}>{fine}</div>
+              </>}
+            </div>
+          })}
+        </div>
+      </div>
+    })}
+    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+  </div>
+}
+
+function MieOrePanel({ pin, onBack }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+  useEffect(() => { (async () => {
+    try { const d = await apiCall({ action: 'my-hours', pin }); setData(d) }
+    catch (e) { setErr(e.message) }
+    setLoading(false)
+  })() }, [pin])
+
+  return <div style={{ maxWidth: 400, width: '100%' }}>
+    {loading && <div style={{ color: '#F59E0B', padding: 20, textAlign: 'center' }}>Caricamento…</div>}
+    {err && <div style={{ color: '#EF4444', padding: 12 }}>{err}</div>}
+    {data && <>
+      <div className="keep-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10, marginBottom: 12 }}>
+        <StatBox label="Oggi" value={data.today + 'h'} color="#10B981" />
+        <StatBox label="Questa settimana" value={data.week + 'h'} color="#3B82F6" />
+        <StatBox label="Mese corrente" value={data.month + 'h'} color="#F59E0B" />
+        <StatBox label="Anno" value={data.year + 'h'} color="#8B5CF6" />
+      </div>
+      <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>Ultimi 30 giorni lavorati</div>
+        {(data.days || []).length === 0 && <div style={{ color: '#64748b', fontSize: 12, padding: 10, textAlign: 'center' }}>Nessuna timbratura</div>}
+        {(data.days || []).map(d => (
+          <div key={d.day} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #1e2636', fontSize: 13 }}>
+            <div>
+              <div style={{ color: '#e2e8f0' }}>{new Date(d.day).toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit' })}</div>
+              <div style={{ fontSize: 10, color: '#64748b' }}>{(d.locali || []).join(', ')}</div>
+            </div>
+            <div style={{ color: '#F59E0B', fontWeight: 700 }}>{d.hours}h</div>
+          </div>
+        ))}
+      </div>
+    </>}
+    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+  </div>
+}
+
+function MieFeriePanel({ pin, onBack }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+  useEffect(() => { (async () => {
+    try { const d = await apiCall({ action: 'my-timeoff', pin }); setData(d) }
+    catch (e) { setErr(e.message) }
+    setLoading(false)
+  })() }, [pin])
+
+  return <div style={{ maxWidth: 400, width: '100%' }}>
+    {loading && <div style={{ color: '#F59E0B', padding: 20, textAlign: 'center' }}>Caricamento…</div>}
+    {err && <div style={{ color: '#EF4444', padding: 12 }}>{err}</div>}
+    {data && <>
+      <div className="keep-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10, marginBottom: 12 }}>
+        <StatBox label="Ferie residue" value={data.ferieResiduiGiorni + ' gg'} sub={data.ferieResiduiOre + 'h'} color="#F97316" big />
+        <StatBox label="Ferie usate" value={data.ferieUsateOre + 'h'} sub="quest'anno" color="#F59E0B" />
+        <StatBox label="Permessi usati" value={data.permessiUsatiOre + 'h'} sub="quest'anno" color="#3B82F6" />
+        <StatBox label="Ore contr." value={data.oreContrattualiSettimanali + 'h'} sub="settimanali" color="#8B5CF6" />
+      </div>
+      <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 10 }}>Registro ferie/permessi</div>
+        {(data.registro || []).length === 0 && <div style={{ color: '#64748b', fontSize: 12, padding: 10, textAlign: 'center' }}>Nessun dato</div>}
+        {(data.registro || []).slice(0, 20).map(t => {
+          const colors = { ferie: '#F59E0B', permesso: '#3B82F6', malattia: '#EF4444', banca_ore: '#8B5CF6' }
+          const statColors = { approvato: '#10B981', richiesto: '#F59E0B', rifiutato: '#EF4444' }
+          const c = colors[t.tipo] || '#94a3b8'
+          const sc = statColors[t.stato] || '#94a3b8'
+          return <div key={t.id} style={{ padding: '8px 0', borderBottom: '1px solid #1e2636', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: c, background: c + '22', padding: '2px 8px', borderRadius: 10, textTransform: 'uppercase' }}>{t.tipo}</span>
+            <div style={{ flex: 1, fontSize: 12 }}>
+              <div style={{ color: '#e2e8f0' }}>{t.data_inizio}{t.data_fine && t.data_fine !== t.data_inizio ? ' → ' + t.data_fine : ''}</div>
+              {t.ore && <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.ore}h</div>}
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 600, color: sc }}>{t.stato}</span>
+          </div>
+        })}
+      </div>
+    </>}
+    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+  </div>
+}
+
+function StatBox({ label, value, sub, color, big }) {
+  return <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, borderLeft: `3px solid ${color}` }}>
+    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
+    <div style={{ fontSize: big ? 24 : 20, fontWeight: 700, color }}>{value}</div>
+    {sub && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
   </div>
 }

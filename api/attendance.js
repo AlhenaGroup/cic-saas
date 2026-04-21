@@ -387,6 +387,104 @@ export default async function handler(req, res) {
         return res.status(201).json({ ok: true, nome: emp.nome, tipo, distanza, timestamp: now.toISOString() });
       }
 
+      // ─── INFO PERSONALI (sola lettura, richiede solo PIN valido) ──
+
+      // Turni settimanali del dipendente (employee_shifts)
+      case 'my-shifts': {
+        const v = await verifyPin(req.body?.pin, null);
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        const shifts = await sbQuery(`employee_shifts?employee_id=eq.${v.emp.id}&order=settimana.desc&select=*&limit=12`);
+        return res.status(200).json({ shifts: shifts || [] });
+      }
+
+      // Statistiche ore lavorate (da attendance) — oggi / settimana / mese / anno
+      case 'my-hours': {
+        const v = await verifyPin(req.body?.pin, null);
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        const now = new Date();
+        const yearStart = `${now.getFullYear()}-01-01`;
+        const records = await sbQuery(`attendance?employee_id=eq.${v.emp.id}&timestamp=gte.${yearStart}T00:00:00&order=timestamp&select=timestamp,tipo,locale&limit=5000`);
+        // Raggruppa per giorno operativo (cutoff 05:00 come altrove)
+        const dayKey = (ts) => {
+          try {
+            const d = new Date(ts);
+            const local = d.toLocaleString('sv-SE', { timeZone: 'Europe/Rome' });
+            const datePart = local.substring(0, 10);
+            const hour = parseInt(local.substring(11, 13)) || 0;
+            if (hour < 5) {
+              const [y, m, dd] = datePart.split('-').map(Number);
+              const prev = new Date(y, m - 1, dd - 1);
+              return prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0') + '-' + String(prev.getDate()).padStart(2, '0');
+            }
+            return datePart;
+          } catch { return (ts || '').substring(0, 10); }
+        };
+        const byDay = {};
+        (records || []).forEach(r => {
+          const k = dayKey(r.timestamp);
+          if (!byDay[k]) byDay[k] = [];
+          byDay[k].push(r);
+        });
+        let todayH = 0, weekH = 0, monthH = 0, yearH = 0;
+        const today = now.toISOString().substring(0, 10);
+        // Lunedi corrente (ISO: giorno 1 = lunedi, 0 = domenica)
+        const d0 = new Date(now); const dow = d0.getDay() || 7;
+        d0.setDate(d0.getDate() - (dow - 1));
+        const weekStart = d0.toISOString().substring(0, 10);
+        const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const days = [];
+        Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 30).forEach(([day, recs]) => {
+          const sorted = [...recs].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+          let entrata = null, hours = 0;
+          for (const r of sorted) {
+            if (r.tipo === 'entrata') entrata = r.timestamp;
+            else if (r.tipo === 'uscita' && entrata) { hours += (new Date(r.timestamp) - new Date(entrata)) / 3600000; entrata = null; }
+          }
+          hours = Math.round(hours * 10) / 10;
+          days.push({ day, hours, locali: [...new Set(sorted.map(r => r.locale).filter(Boolean))] });
+          if (day === today) todayH += hours;
+          if (day >= weekStart) weekH += hours;
+          if (day >= monthStart) monthH += hours;
+          yearH += hours;
+        });
+        return res.status(200).json({
+          today: Math.round(todayH * 10) / 10,
+          week: Math.round(weekH * 10) / 10,
+          month: Math.round(monthH * 10) / 10,
+          year: Math.round(yearH * 10) / 10,
+          oreContrattuali: null, // non presente sempre in employees, si potrebbe aggiungere
+          days,
+        });
+      }
+
+      // Ferie: approvate + richieste + calcolo giorni residui
+      case 'my-timeoff': {
+        const v = await verifyPin(req.body?.pin, null);
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        const emps = await sbQuery(`employees?id=eq.${v.emp.id}&select=ore_contrattuali,data_assunzione&limit=1`);
+        const oreSett = Number(emps?.[0]?.ore_contrattuali || 40);
+        const giorniAnnoCCNL = 26; // CCNL ristorazione: 26 giorni ferie/anno
+        const all = await sbQuery(`employee_time_off?employee_id=eq.${v.emp.id}&order=data_inizio.desc&select=*`);
+        // Calcolo ore ferie usate nell'anno corrente
+        const yearStart = new Date().getFullYear() + '-01-01';
+        const ferieUsate = (all || [])
+          .filter(t => t.tipo === 'ferie' && t.stato === 'approvato' && (t.data_inizio || '') >= yearStart)
+          .reduce((s, t) => s + (Number(t.ore) || 0), 0);
+        const permessiUsati = (all || [])
+          .filter(t => t.tipo === 'permesso' && t.stato === 'approvato' && (t.data_inizio || '') >= yearStart)
+          .reduce((s, t) => s + (Number(t.ore) || 0), 0);
+        const oreFerieAnno = (oreSett / 5) * giorniAnnoCCNL; // ore giornaliere medie × giorni anno
+        const giorniFerieResidui = Math.max(0, Math.round((oreFerieAnno - ferieUsate) / (oreSett / 5) * 10) / 10);
+        return res.status(200).json({
+          oreContrattualiSettimanali: oreSett,
+          ferieUsateOre: ferieUsate,
+          permessiUsatiOre: permessiUsati,
+          ferieResiduiGiorni: giorniFerieResidui,
+          ferieResiduiOre: Math.max(0, Math.round((oreFerieAnno - ferieUsate) * 10) / 10),
+          registro: all || [],
+        });
+      }
+
       // Storico timbrature di oggi per un dipendente
       case 'history': {
         const { pin, locale } = req.body || req.query;
@@ -402,7 +500,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-close' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-close, my-shifts, my-hours, my-timeoff' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);
