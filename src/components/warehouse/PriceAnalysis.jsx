@@ -81,7 +81,7 @@ export default function PriceAnalysis() {
 
     {/* Filters */}
     <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-      <input placeholder="Cerca prodotto..." value={filter} onChange={e => setFilter(e.target.value)} style={{ ...iS, flex: 1 }} />
+      <input placeholder="Cerca articolo..." value={filter} onChange={e => setFilter(e.target.value)} style={{ ...iS, flex: 1 }} />
       <select value={catFilter} onChange={e => setCatFilter(e.target.value)} style={iS}>
         <option value="">Tutte le categorie</option>
         {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -93,13 +93,13 @@ export default function PriceAnalysis() {
     </div>
 
     {/* Price table */}
-    <Card title="Analisi prezzi" badge={filtered.length + ' prodotti'}>
+    <Card title="Analisi prezzi" badge={filtered.length + ' articoli'}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-          {['Prodotto', 'Categoria', 'Fornitore', 'Ultimo prezzo', 'Prezzo medio', 'Var. %', 'Storico', ''].map(h => <th key={h} style={S.th}>{h}</th>)}
+          {['Articolo', 'Categoria', 'Fornitore', 'Ultimo prezzo', 'Prezzo medio', 'Var. %', 'Storico', ''].map(h => <th key={h} style={S.th}>{h}</th>)}
         </tr></thead>
         <tbody>
-          {filtered.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessun prodotto trovato</td></tr>}
+          {filtered.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessun articolo trovato</td></tr>}
           {filtered.map(p => {
             const varColor = p.variazione > 5 ? '#EF4444' : p.variazione < -5 ? '#10B981' : '#64748b'
             return <tr key={p.id} style={{ background: selectedProd === p.id ? '#131825' : 'transparent' }}>
