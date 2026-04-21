@@ -122,7 +122,14 @@ export default function InvoiceManager({ sp, sps }) {
     setItemRules(rulesMap)
   }, [])
 
-  useEffect(() => { loadTsPage(0); loadProducts(); loadWhStatus() }, [loadProducts, loadWhStatus])
+  useEffect(() => {
+    loadTsPage(0); loadProducts(); loadWhStatus()
+    // Pre-carica tutte le pagine in background (senza bloccare UI) così la ricerca e' istantanea.
+    // Usa setTimeout per non competere col primo loadTsPage(0).
+    const t = setTimeout(() => { loadAllPages() }, 1500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadProducts, loadWhStatus])
 
   // Refresh locale map when localStorage changes (cross-tab sync)
   useEffect(() => {
@@ -869,10 +876,10 @@ export default function InvoiceManager({ sp, sps }) {
       {/* Hint ricerca globale */}
       {searchNorm && <div style={{ marginTop: 14, padding: '8px 12px', fontSize: 11, color: '#94a3b8', textAlign: 'center', background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 6 }}>
         {tsAllLoading
-          ? '⟳ Sto cercando in tutte le pagine...'
+          ? '⟳ Carico tutte le pagine in background, attendi qualche secondo…'
           : tsAllInvoices
-            ? `🔍 Ricerca globale attiva su ${tsAllInvoices.length} fatture totali — ${tsFiltered.length} corrispondenze`
-            : '🔍 Ricerca globale...'}
+            ? `🔍 Ricerca globale su ${tsAllInvoices.length} fatture totali — ${tsFiltered.length} corrispondenze`
+            : '🔍 Ricerca globale…'}
       </div>}
     </Card>
   </>
