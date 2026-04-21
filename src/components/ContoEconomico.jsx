@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { S, KPI, Card, Bar2, fmt, fmtD, fmtN, pct } from './shared/styles.jsx'
+import ManualCostsManager from './ManualCostsManager.jsx'
 
 // Regole di categorizzazione automatica per fornitore/prodotto
 export const CATEGORY_RULES = {
@@ -72,7 +73,7 @@ export function categorizeItem(fornitore, descrizione) {
   return { category: 'altro', confidence: 'nessuna' }
 }
 
-export default function ContoEconomico({ ce, from, to }) {
+export default function ContoEconomico({ ce, from, to, reload }) {
   const [invoices, setInvoices] = useState([])
   const [invoiceItems, setInvoiceItems] = useState([])
   const [loading, setLoading] = useState(false)
@@ -270,6 +271,11 @@ export default function ContoEconomico({ ce, from, to }) {
           <span style={{ color: '#10B981', fontWeight: 700, fontSize: 16 }}>{ce.molPct?.toFixed(1)}%</span>
         </div>
       </Card>
+    </div>
+
+    {/* COSTI MANUALI (affitto, utenze, ecc.) */}
+    <div style={{ marginTop: 12 }}>
+      <ManualCostsManager from={from} to={to} onChanged={() => { if (typeof reload === 'function') reload() }} />
     </div>
 
     {/* PANNELLO FATTURE/PRODOTTI — SEMPRE VISIBILE */}

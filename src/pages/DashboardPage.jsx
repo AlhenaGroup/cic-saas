@@ -1063,7 +1063,7 @@ export default function DashboardPage({ settings }) {
       </>})()}
 
       {/* ── CONTO ECONOMICO ── */}
-      {tab==='ce'&&<ContoEconomico ce={ce} from={from} to={to}/>}
+      {tab==='ce'&&<ContoEconomico ce={ce} from={from} to={to} reload={load}/>}
 
       {tab==='bud'&&<BudgetModule sp={sp} sps={sps} from={from} to={to}/>}
 

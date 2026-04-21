@@ -245,6 +245,19 @@ export async function getReportData(apiKey, { from, to, idsSalesPoint }, salesPo
           persCost = (pcRows||[]).reduce((s,r) => s + Number(r.costo_totale||0), 0);
         } catch(e) {}
 
+        // Costi manuali (affitto, utenze, ecc.) — espande ricorrenze nel periodo
+        try {
+          const { data: mcRows } = await supabase.from('manual_costs').select('*');
+          const { aggregateManualCosts } = await import('./manualCosts.js');
+          const mcAgg = aggregateManualCosts(mcRows || [], from, to);
+          foodCost += mcAgg.food || 0;
+          bevCost  += mcAgg.beverage || 0;
+          matCost  += mcAgg.materiali || 0;
+          strCost  += mcAgg.struttura || 0;
+          persCost += mcAgg.personale || 0;
+          altCost  += mcAgg.altro || 0;
+        } catch(e) { console.warn('[manual_costs]', e.message); }
+
         const totCosti = foodCost+bevCost+matCost+persCost+strCost+altCost;
         const mol = ricavi - totCosti;
         result.ce = {
