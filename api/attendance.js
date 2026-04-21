@@ -220,19 +220,49 @@ export default async function handler(req, res) {
         const created = resp.ok ? await resp.json() : null;
         const inv = created?.[0];
         if (!inv) return res.status(500).json({ error: 'Impossibile creare inventario' });
-        // Popola items con giacenze correnti
+
+        // Raccogli l'UNIONE di tutti gli articoli conosciuti per quel locale:
+        //   - da article_stock (giacenza corrente)
+        //   - da warehouse_invoice_items (articoli acquistati in fatture di quel locale)
+        // Cosi' anche quando article_stock e' vuoto, l'inventario mostra comunque tutto.
         const stock = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&select=id,nome_articolo,unita,quantita,prezzo_medio`);
-        if ((stock || []).length > 0) {
-          const items = stock.map(s => ({
+        const invs = await sbQuery(`warehouse_invoices?locale=eq.${encodeURIComponent(locale)}&user_id=eq.${v.emp.user_id}&select=id`);
+        const invIds = (invs || []).map(x => x.id);
+        let invoiceArts = [];
+        if (invIds.length > 0) {
+          invoiceArts = await sbQuery(`warehouse_invoice_items?invoice_id=in.(${invIds.join(',')})&escludi_magazzino=eq.false&nome_articolo=not.is.null&select=nome_articolo,unita`);
+        }
+        // Unione per nome_articolo; stock ha priorita' (ha giacenza e prezzo_medio)
+        const byName = {};
+        (stock || []).forEach(s => {
+          if (!s.nome_articolo) return;
+          byName[s.nome_articolo] = {
+            nome_articolo: s.nome_articolo, unita: s.unita || '',
+            quantita: Number(s.quantita || 0),
+            prezzo_medio: s.prezzo_medio || null,
+            stock_id: s.id,
+          };
+        });
+        (invoiceArts || []).forEach(it => {
+          const n = (it.nome_articolo || '').trim();
+          if (!n || byName[n]) return; // gia' presente da stock
+          byName[n] = { nome_articolo: n, unita: it.unita || '', quantita: 0, prezzo_medio: null, stock_id: null };
+        });
+        const rows = Object.values(byName).sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
+
+        if (rows.length > 0) {
+          // product_id NOT NULL: uso stock.id quando disponibile, altrimenti genero uuid dummy dal nome.
+          // Per semplicita' uso inv.id quando manca (che e' un UUID valido sempre).
+          const items = rows.map(r => ({
             inventory_id: inv.id,
-            product_id: s.id, // dummy per vincolo NOT NULL
-            giacenza_teorica: Number(s.quantita || 0),
+            product_id: r.stock_id || inv.id,
+            giacenza_teorica: r.quantita,
             giacenza_reale: null,
-            note: JSON.stringify({ nome_articolo: s.nome_articolo, unita: s.unita, prezzo_medio: s.prezzo_medio, sub_location: 'principale', locale }),
+            note: JSON.stringify({ nome_articolo: r.nome_articolo, unita: r.unita, prezzo_medio: r.prezzo_medio, sub_location: 'principale', locale }),
           }));
           await sbQuery('warehouse_inventory_items', 'POST', items);
         }
-        return res.status(201).json({ inventory: inv, created: true });
+        return res.status(201).json({ inventory: inv, created: true, articoli: rows.length });
       }
 
       case 'inv-articles': {
