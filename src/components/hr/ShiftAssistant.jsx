@@ -27,6 +27,9 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
   const [shifts, setShifts] = useState([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [addForm, setAddForm] = useState({ employee_id: '', giorno: 0, ora_inizio: '18:00', ora_fine: '23:00' })
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('hr_shift_view') || 'settimana') // 'settimana' | 'giorno'
+  useEffect(() => { localStorage.setItem('hr_shift_view', viewMode) }, [viewMode])
+  const [selectedDay, setSelectedDay] = useState(0) // 0..6 (Lun..Dom)
   const [costMonth, setCostMonth] = useState(new Date().toISOString().substring(0, 7))
   const [costFile, setCostFile] = useState(null)
   const [personnelCosts, setPersonnelCosts] = useState([])
@@ -135,7 +138,15 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
 
     {/* Turni settimanali */}
     <Card title="Turni settimanali" extra={
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', border: '1px solid #2a3042', borderRadius: 6, overflow: 'hidden' }}>
+          <button onClick={() => setViewMode('settimana')}
+            style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
+              background: viewMode === 'settimana' ? '#F59E0B' : 'transparent', color: viewMode === 'settimana' ? '#0f1420' : '#94a3b8' }}>📅 Per settimana</button>
+          <button onClick={() => setViewMode('giorno')}
+            style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
+              background: viewMode === 'giorno' ? '#F59E0B' : 'transparent', color: viewMode === 'giorno' ? '#0f1420' : '#94a3b8' }}>⏱ Per giorno</button>
+        </div>
         <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>◀</button>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
         <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>▶</button>
@@ -168,7 +179,7 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
       {/* Griglia riepilogativa */}
       {localeEmps.length === 0 ? (
         <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>Nessun dipendente attivo per questo locale.</div>
-      ) : (
+      ) : viewMode === 'settimana' ? (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
@@ -203,6 +214,11 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
             </tbody>
           </table>
         </div>
+      ) : (
+        <DailyTimelineEditor
+          emps={localeEmps} shifts={shifts} selectedDay={selectedDay} setSelectedDay={setSelectedDay}
+          weekStart={weekStart} locale={locale || ''} onChanged={loadShifts}
+        />
       )}
     </Card>
 
@@ -622,5 +638,199 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
         <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(139,92,246,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> preparazioni</span>
       </div>
     </Card>
+  </div>
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// Editor timeline giornaliera con click-on-hour + zoom a quarti d'ora
+// ═════════════════════════════════════════════════════════════════════
+
+// Converte 'HH:MM' in minuti dall'inizio giornata
+function hmToMin(hm) {
+  if (!hm || !hm.includes(':')) return null
+  const [h, m] = hm.split(':').map(Number)
+  return h * 60 + (m || 0)
+}
+// Converte minuti in 'HH:MM'
+function minToHm(min) {
+  const m = ((min % (24 * 60)) + 24 * 60) % (24 * 60)
+  return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0')
+}
+
+// Dati "quali quarti d'ora sono lavorati" per un dipendente nel giorno
+// Ogni giornata ha 96 quarti (0..95). Ritorna un Set di indici occupati.
+function shiftsToQuarters(empShifts, day) {
+  const set = new Set()
+  for (const s of empShifts) {
+    if (s.giorno !== day) continue
+    let start = hmToMin(s.ora_inizio?.substring(0, 5))
+    let end = hmToMin(s.ora_fine?.substring(0, 5))
+    if (start == null || end == null) continue
+    // Turno che scavalca mezzanotte: salviamo solo la parte fino a 24:00 (il resto e' sul giorno dopo, non gestito qui)
+    if (end <= start) end = 24 * 60
+    const q1 = Math.floor(start / 15), q2 = Math.ceil(end / 15)
+    for (let q = q1; q < q2; q++) set.add(q)
+  }
+  return set
+}
+
+// Converte Set di quarti in array di intervalli contigui [{start, end}] in minuti
+function quartersToIntervals(set) {
+  const arr = [...set].sort((a, b) => a - b)
+  const out = []
+  let i = 0
+  while (i < arr.length) {
+    let j = i
+    while (j + 1 < arr.length && arr[j + 1] === arr[j] + 1) j++
+    out.push({ startMin: arr[i] * 15, endMin: (arr[j] + 1) * 15 })
+    i = j + 1
+  }
+  return out
+}
+
+function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekStart, locale, onChanged }) {
+  const [zoomedHour, setZoomedHour] = useState(null) // null | { empId, hour } quando cliccato due volte
+  const [saving, setSaving] = useState(false)
+
+  // Calcola data del giorno selezionato (Lun=0)
+  const dayDate = (() => {
+    const d = new Date(weekStart); d.setDate(d.getDate() + selectedDay)
+    return d.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: '2-digit' })
+  })()
+
+  // Costruisce la mappa empId → Set<quartiere>
+  const empQuarters = {}
+  for (const e of emps) empQuarters[e.id] = shiftsToQuarters(shifts.filter(s => s.employee_id === e.id), selectedDay)
+
+  // Salva su DB sostituendo i turni del giorno con i nuovi intervalli
+  const persistEmployee = async (empId, newSet) => {
+    setSaving(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      // Elimina turni esistenti di questo dipendente per questo giorno/settimana
+      await supabase.from('employee_shifts')
+        .delete().eq('employee_id', empId).eq('settimana', weekStart).eq('giorno', selectedDay)
+      // Reinserisce intervalli contigui
+      const intervals = quartersToIntervals(newSet)
+      if (intervals.length > 0) {
+        const rows = intervals.map(iv => ({
+          user_id: user.id, employee_id: empId, locale: locale || '',
+          settimana: weekStart, giorno: selectedDay,
+          ora_inizio: minToHm(iv.startMin) + ':00',
+          ora_fine: minToHm(iv.endMin) + ':00',
+        }))
+        await supabase.from('employee_shifts').insert(rows)
+      }
+      await onChanged()
+    } catch (e) { alert('Errore salvataggio: ' + e.message) }
+    setSaving(false)
+  }
+
+  // Toggle ora intera (4 quarti)
+  const toggleHour = (empId, hour) => {
+    const cur = new Set(empQuarters[empId])
+    const qs = [hour * 4, hour * 4 + 1, hour * 4 + 2, hour * 4 + 3]
+    const allOn = qs.every(q => cur.has(q))
+    qs.forEach(q => allOn ? cur.delete(q) : cur.add(q))
+    persistEmployee(empId, cur)
+  }
+
+  // Toggle singolo quarto d'ora
+  const toggleQuarter = (empId, q) => {
+    const cur = new Set(empQuarters[empId])
+    cur.has(q) ? cur.delete(q) : cur.add(q)
+    persistEmployee(empId, cur)
+  }
+
+  // Doppio click = zoom su quella cella
+  const openZoom = (empId, hour) => setZoomedHour({ empId, hour })
+  const closeZoom = () => setZoomedHour(null)
+
+  // Calcolo ore totali giorno per dipendente
+  const empHours = (empId) => Math.round((empQuarters[empId]?.size || 0) / 4 * 100) / 100
+
+  const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+  return <div>
+    {/* Selettore giorno */}
+    <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
+      {DAYS.map((d, i) => (
+        <button key={d} onClick={() => setSelectedDay(i)}
+          style={{ padding: '6px 14px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            background: selectedDay === i ? '#F59E0B' : '#1a1f2e',
+            color: selectedDay === i ? '#0f1420' : '#94a3b8' }}>{d}</button>
+      ))}
+      <span style={{ marginLeft: 10, fontSize: 12, color: '#64748b', alignSelf: 'center' }}>{dayDate}</span>
+      {saving && <span style={{ color: '#F59E0B', fontSize: 11, alignSelf: 'center' }}>Salvo…</span>}
+    </div>
+
+    {/* Legenda */}
+    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>
+      💡 <strong style={{ color: '#94a3b8' }}>Click</strong> su un'ora per attivarla/disattivarla · <strong style={{ color: '#94a3b8' }}>Doppio click</strong> per zoom a quarti d'ora.
+    </div>
+
+    {/* Griglia 24 ore */}
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: 10, minWidth: 1100 }}>
+        <thead>
+          <tr>
+            <th style={{ padding: '4px 8px', textAlign: 'left', minWidth: 130, position: 'sticky', left: 0, background: '#1a1f2e', zIndex: 2, color: '#64748b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase' }}>Dipendente</th>
+            {HOURS.map(h => (
+              <th key={h} style={{ padding: '4px 0', minWidth: 36, textAlign: 'center', color: '#64748b', fontWeight: 500, fontSize: 10, borderLeft: h % 6 === 0 ? '1px solid #2a3042' : 'none' }}>
+                {String(h).padStart(2, '0')}
+              </th>
+            ))}
+            <th style={{ padding: '4px 10px', color: '#64748b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', textAlign: 'right', position: 'sticky', right: 0, background: '#1a1f2e' }}>Ore</th>
+          </tr>
+        </thead>
+        <tbody>
+          {emps.map(emp => {
+            const qset = empQuarters[emp.id]
+            return <tr key={emp.id} style={{ borderTop: '1px solid #1a1f2e' }}>
+              <td style={{ padding: '4px 8px', fontSize: 12, fontWeight: 500, color: '#e2e8f0', position: 'sticky', left: 0, background: '#0f1420', zIndex: 1 }}>{emp.nome}</td>
+              {HOURS.map(h => {
+                const qs = [h * 4, h * 4 + 1, h * 4 + 2, h * 4 + 3]
+                const countOn = qs.filter(q => qset.has(q)).length
+                const full = countOn === 4
+                const partial = countOn > 0 && countOn < 4
+                const isZoomed = zoomedHour?.empId === emp.id && zoomedHour?.hour === h
+                // Se zoomato, mostra 4 sub-celle
+                if (isZoomed) {
+                  return <td key={h} style={{ padding: 0, borderLeft: h % 6 === 0 ? '1px solid #2a3042' : '1px solid #1a1f2e', background: '#131825' }}>
+                    <div style={{ display: 'flex', height: 28, border: '2px solid #F59E0B' }}>
+                      {qs.map((q, qi) => {
+                        const on = qset.has(q)
+                        const label = ['00', '15', '30', '45'][qi]
+                        return <button key={q} onClick={() => toggleQuarter(emp.id, q)} title={`${String(h).padStart(2,'0')}:${label}`}
+                          style={{ flex: 1, border: 'none', borderRight: qi < 3 ? '1px solid #0f1420' : 'none',
+                            background: on ? '#3B82F6' : 'transparent', color: on ? '#fff' : '#475569',
+                            fontSize: 8, fontWeight: 700, cursor: 'pointer', padding: 0 }}>{label}</button>
+                      })}
+                    </div>
+                    <button onClick={closeZoom} style={{ width: '100%', fontSize: 8, padding: '1px', border: 'none', background: '#F59E0B', color: '#0f1420', cursor: 'pointer', fontWeight: 700 }}>× chiudi</button>
+                  </td>
+                }
+                // Normale: cella intera cliccabile
+                const bg = full ? '#3B82F6' : partial ? 'rgba(59,130,246,.3)' : 'transparent'
+                return <td key={h}
+                  onClick={() => toggleHour(emp.id, h)}
+                  onDoubleClick={() => openZoom(emp.id, h)}
+                  title={`${String(h).padStart(2,'0')}:00 — click=toggle ora, doppio click=zoom 15min`}
+                  style={{ padding: 0, height: 28, borderLeft: h % 6 === 0 ? '1px solid #2a3042' : '1px solid #1a1f2e',
+                    background: bg, cursor: 'pointer',
+                    borderTop: '1px solid transparent', borderBottom: '1px solid transparent',
+                    transition: 'background .1s' }}>
+                  {partial && <div style={{ display: 'flex', height: '100%' }}>
+                    {qs.map(q => <div key={q} style={{ flex: 1, background: qset.has(q) ? '#3B82F6' : 'transparent' }} />)}
+                  </div>}
+                </td>
+              })}
+              <td style={{ padding: '4px 10px', color: '#F59E0B', fontWeight: 700, fontSize: 12, textAlign: 'right', position: 'sticky', right: 0, background: '#0f1420' }}>{empHours(emp.id)}h</td>
+            </tr>
+          })}
+          {emps.length === 0 && <tr><td colSpan={26} style={{ padding: 16, textAlign: 'center', color: '#475569', fontSize: 12 }}>Nessun dipendente</td></tr>}
+        </tbody>
+      </table>
+    </div>
   </div>
 }
