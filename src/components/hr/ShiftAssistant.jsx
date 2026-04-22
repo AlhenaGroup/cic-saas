@@ -645,7 +645,15 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
 // Editor timeline giornaliera con click-on-hour + zoom a quarti d'ora
 // ═════════════════════════════════════════════════════════════════════
 
-// Converte 'HH:MM' in minuti dall'inizio giornata
+// Configurazione giornata operativa:
+// iniziamo alle 12:00 del giorno stesso e finiamo alle 05:00 del giorno dopo.
+// Totale 17 ore "visualizzate" da colonne 0..16.
+const DAY_START_HOUR = 12
+const DAY_END_HOUR_NEXT = 5 // 05:00 del giorno successivo
+const DAY_SPAN_HOURS = (24 - DAY_START_HOUR) + DAY_END_HOUR_NEXT // = 17
+const DAY_SPAN_QUARTERS = DAY_SPAN_HOURS * 4 // = 68
+
+// Converte 'HH:MM' in minuti dall'inizio giornata (0..1439)
 function hmToMin(hm) {
   if (!hm || !hm.includes(':')) return null
   const [h, m] = hm.split(':').map(Number)
@@ -656,40 +664,88 @@ function minToHm(min) {
   const m = ((min % (24 * 60)) + 24 * 60) % (24 * 60)
   return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0')
 }
+// Indice "colonna" (0..DAY_SPAN_HOURS-1) → HH:MM reale di partenza
+function colHourToHm(col) {
+  const h = (DAY_START_HOUR + col) % 24
+  return String(h).padStart(2, '0') + ':00'
+}
+// Indice quarto (0..DAY_SPAN_QUARTERS-1) → minuti dall'inizio giornata reale (0..1439),
+// flaggando se appartiene al giorno dopo.
+function qToClock(q) {
+  const totalMin = q * 15 + DAY_START_HOUR * 60 // minuti dall'inizio del giorno "calendario" di partenza
+  const isNextDay = totalMin >= 24 * 60
+  const wrapped = totalMin % (24 * 60)
+  return { hm: minToHm(wrapped), min: wrapped, isNextDay }
+}
 
-// Dati "quali quarti d'ora sono lavorati" per un dipendente nel giorno
-// Ogni giornata ha 96 quarti (0..95). Ritorna un Set di indici occupati.
-function shiftsToQuarters(empShifts, day) {
+// Dati "quali quarti d'ora sono lavorati" per un dipendente nel giorno operativo.
+// Ogni giorno operativo ha DAY_SPAN_QUARTERS (68) quarti, a partire dalle 12:00.
+// Include i turni del giorno stesso (dalle 12:00 alle 23:59) E i turni del giorno
+// dopo che iniziano tra 00:00 e 05:00 (continuazione notturna).
+function shiftsToQuartersOp(allShifts, empId, day) {
   const set = new Set()
-  for (const s of empShifts) {
-    if (s.giorno !== day) continue
+  const dayBefore12 = allShifts.filter(s => s.employee_id === empId && s.giorno === day)
+  const dayAfterEarly = allShifts.filter(s => s.employee_id === empId && s.giorno === (day + 1) % 7)
+  // Turni di 'day' → quarti 0..47 della giornata operativa (12:00..23:59)
+  for (const s of dayBefore12) {
     let start = hmToMin(s.ora_inizio?.substring(0, 5))
     let end = hmToMin(s.ora_fine?.substring(0, 5))
     if (start == null || end == null) continue
-    // Turno che scavalca mezzanotte: salviamo solo la parte fino a 24:00 (il resto e' sul giorno dopo, non gestito qui)
-    if (end <= start) end = 24 * 60
-    const q1 = Math.floor(start / 15), q2 = Math.ceil(end / 15)
-    for (let q = q1; q < q2; q++) set.add(q)
+    if (end <= start) end = 24 * 60 // se scavalca mezzanotte, considera fino a 24 (il resto sta nel giorno dopo)
+    if (end <= DAY_START_HOUR * 60) continue // turno del mattino: non appartiene a questa giornata operativa
+    const effStart = Math.max(start, DAY_START_HOUR * 60)
+    const q1 = Math.floor((effStart - DAY_START_HOUR * 60) / 15)
+    const q2 = Math.ceil((end - DAY_START_HOUR * 60) / 15)
+    for (let q = q1; q < q2; q++) if (q >= 0 && q < DAY_SPAN_QUARTERS) set.add(q)
+  }
+  // Turni del giorno dopo che iniziano dalle 00:00 fino alle DAY_END_HOUR_NEXT:00
+  for (const s of dayAfterEarly) {
+    let start = hmToMin(s.ora_inizio?.substring(0, 5))
+    let end = hmToMin(s.ora_fine?.substring(0, 5))
+    if (start == null || end == null) continue
+    if (end <= start) continue // escludiamo eventuali turni del giorno dopo che scavalcano ancora
+    if (start >= DAY_END_HOUR_NEXT * 60) continue // inizia dopo il cutoff (appartiene al giorno dopo)
+    const effEnd = Math.min(end, DAY_END_HOUR_NEXT * 60)
+    // offset: questi quarti sono nella seconda metà della giornata operativa (dopo le 24:00)
+    const q1 = Math.floor(start / 15) + (24 - DAY_START_HOUR) * 4
+    const q2 = Math.ceil(effEnd / 15) + (24 - DAY_START_HOUR) * 4
+    for (let q = q1; q < q2; q++) if (q >= 0 && q < DAY_SPAN_QUARTERS) set.add(q)
   }
   return set
 }
 
-// Converte Set di quarti in array di intervalli contigui [{start, end}] in minuti
-function quartersToIntervals(set) {
+// Converte Set di quarti (in giorno operativo, 0..DAY_SPAN_QUARTERS-1) in intervalli.
+// Ogni intervallo puo' essere nel "giorno stesso" o nel "giorno dopo" (split su 24:00).
+// Ritorna array: [{giornoOffset: 0|1, startHm, endHm}]
+function quartersOpToIntervals(set) {
   const arr = [...set].sort((a, b) => a - b)
+  if (arr.length === 0) return []
   const out = []
   let i = 0
+  const SPLIT = (24 - DAY_START_HOUR) * 4 // = 48, confine tra day e day+1
   while (i < arr.length) {
     let j = i
     while (j + 1 < arr.length && arr[j + 1] === arr[j] + 1) j++
-    out.push({ startMin: arr[i] * 15, endMin: (arr[j] + 1) * 15 })
+    // Start/end in quarti, convertiti in minuti dall'inizio del giorno calendario di partenza
+    const startAbsMin = arr[i] * 15 + DAY_START_HOUR * 60
+    const endAbsMin = (arr[j] + 1) * 15 + DAY_START_HOUR * 60
+    // Spezza su 24:00 se attraversa
+    if (endAbsMin <= 24 * 60) {
+      out.push({ giornoOffset: 0, startHm: minToHm(startAbsMin), endHm: minToHm(endAbsMin % (24 * 60)) })
+    } else if (startAbsMin >= 24 * 60) {
+      out.push({ giornoOffset: 1, startHm: minToHm(startAbsMin - 24 * 60), endHm: minToHm(endAbsMin - 24 * 60) })
+    } else {
+      // Attraversa mezzanotte: split in due pezzi
+      out.push({ giornoOffset: 0, startHm: minToHm(startAbsMin), endHm: '23:59' })
+      out.push({ giornoOffset: 1, startHm: '00:00', endHm: minToHm(endAbsMin - 24 * 60) })
+    }
     i = j + 1
   }
   return out
 }
 
 function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekStart, locale, onChanged }) {
-  const [zoomedHour, setZoomedHour] = useState(null) // null | { empId, hour } quando cliccato due volte
+  const [zoomedHour, setZoomedHour] = useState(null) // null | { empId, col }
   const [saving, setSaving] = useState(false)
 
   // Calcola data del giorno selezionato (Lun=0)
@@ -698,26 +754,47 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
     return d.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: '2-digit' })
   })()
 
-  // Costruisce la mappa empId → Set<quartiere>
+  // Mappa empId → Set<quartiere> in coordinate giorno operativo (0..67, 12:00..05:00 next day)
   const empQuarters = {}
-  for (const e of emps) empQuarters[e.id] = shiftsToQuarters(shifts.filter(s => s.employee_id === e.id), selectedDay)
+  for (const e of emps) empQuarters[e.id] = shiftsToQuartersOp(shifts, e.id, selectedDay)
 
-  // Salva su DB sostituendo i turni del giorno con i nuovi intervalli
+  // Salva sul DB: sostituisce TUTTI i turni del dipendente per day E (day+1 solo per parte notturna 00-05)
   const persistEmployee = async (empId, newSet) => {
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      // Elimina turni esistenti di questo dipendente per questo giorno/settimana
-      await supabase.from('employee_shifts')
-        .delete().eq('employee_id', empId).eq('settimana', weekStart).eq('giorno', selectedDay)
-      // Reinserisce intervalli contigui
-      const intervals = quartersToIntervals(newSet)
+      const nextDay = (selectedDay + 1) % 7
+      // Step 1: elimina i turni "di questo giorno operativo" per empId:
+      //   - tutti i turni del giorno 'selectedDay' che iniziano >= 12:00 (rientrano nella giornata op)
+      //   - tutti i turni del giorno 'nextDay' che finiscono <= 05:00 (continuazione notturna)
+      // Per semplicita', rileggo i turni correnti e cancello solo quelli rilevanti per empId.
+      const { data: cur } = await supabase.from('employee_shifts').select('*')
+        .eq('employee_id', empId).eq('settimana', weekStart).in('giorno', [selectedDay, nextDay])
+      const toDel = []
+      for (const s of (cur || [])) {
+        const st = hmToMin(s.ora_inizio?.substring(0, 5)) ?? 0
+        const en = hmToMin(s.ora_fine?.substring(0, 5)) ?? 0
+        if (s.giorno === selectedDay) {
+          // Se il turno inizia >= 12:00 o scavalca mezzanotte: fa parte della giornata op
+          if (st >= DAY_START_HOUR * 60 || en <= st) toDel.push(s.id)
+        } else if (s.giorno === nextDay) {
+          // Se il turno finisce entro le 05:00: e' la coda notturna della giornata op precedente
+          const realEnd = en <= st ? en + 24 * 60 : en
+          if (st < DAY_END_HOUR_NEXT * 60 && realEnd <= DAY_END_HOUR_NEXT * 60) toDel.push(s.id)
+        }
+      }
+      if (toDel.length > 0) {
+        await supabase.from('employee_shifts').delete().in('id', toDel)
+      }
+      // Step 2: inserisci i nuovi intervalli, splittando su mezzanotte
+      const intervals = quartersOpToIntervals(newSet)
       if (intervals.length > 0) {
         const rows = intervals.map(iv => ({
           user_id: user.id, employee_id: empId, locale: locale || '',
-          settimana: weekStart, giorno: selectedDay,
-          ora_inizio: minToHm(iv.startMin) + ':00',
-          ora_fine: minToHm(iv.endMin) + ':00',
+          settimana: weekStart,
+          giorno: iv.giornoOffset === 0 ? selectedDay : nextDay,
+          ora_inizio: iv.startHm + ':00',
+          ora_fine: iv.endHm + ':00',
         }))
         await supabase.from('employee_shifts').insert(rows)
       }
@@ -726,30 +803,28 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
     setSaving(false)
   }
 
-  // Toggle ora intera (4 quarti)
-  const toggleHour = (empId, hour) => {
+  // Toggle intera ora (4 quarti)
+  const toggleCol = (empId, col) => {
     const cur = new Set(empQuarters[empId])
-    const qs = [hour * 4, hour * 4 + 1, hour * 4 + 2, hour * 4 + 3]
+    const qs = [col * 4, col * 4 + 1, col * 4 + 2, col * 4 + 3]
     const allOn = qs.every(q => cur.has(q))
     qs.forEach(q => allOn ? cur.delete(q) : cur.add(q))
     persistEmployee(empId, cur)
   }
 
-  // Toggle singolo quarto d'ora
   const toggleQuarter = (empId, q) => {
     const cur = new Set(empQuarters[empId])
     cur.has(q) ? cur.delete(q) : cur.add(q)
     persistEmployee(empId, cur)
   }
 
-  // Doppio click = zoom su quella cella
-  const openZoom = (empId, hour) => setZoomedHour({ empId, hour })
+  const openZoom = (empId, col) => setZoomedHour({ empId, col })
   const closeZoom = () => setZoomedHour(null)
 
-  // Calcolo ore totali giorno per dipendente
   const empHours = (empId) => Math.round((empQuarters[empId]?.size || 0) / 4 * 100) / 100
 
-  const HOURS = Array.from({ length: 24 }, (_, i) => i)
+  // Colonne: 0..DAY_SPAN_HOURS-1. Colonna i → ora (DAY_START_HOUR + i) % 24.
+  const COLS = Array.from({ length: DAY_SPAN_HOURS }, (_, i) => i)
 
   return <div>
     {/* Selettore giorno */}
@@ -766,20 +841,24 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
 
     {/* Legenda */}
     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>
-      💡 <strong style={{ color: '#94a3b8' }}>Click</strong> su un'ora per attivarla/disattivarla · <strong style={{ color: '#94a3b8' }}>Doppio click</strong> per zoom a quarti d'ora.
+      💡 Orari mostrati dalle <strong style={{ color: '#e2e8f0' }}>12:00</strong> alle <strong style={{ color: '#8B5CF6' }}>05:00</strong> del giorno dopo (tutto contato come lavoro di questa giornata).
+      <br /><strong style={{ color: '#94a3b8' }}>Click</strong> su un'ora per attivarla/disattivarla · <strong style={{ color: '#94a3b8' }}>Doppio click</strong> per zoom a quarti d'ora.
     </div>
 
-    {/* Griglia 24 ore */}
+    {/* Griglia giornata operativa: 12:00 → 05:00 next day */}
     <div style={{ overflowX: 'auto' }}>
       <table style={{ borderCollapse: 'collapse', fontSize: 10, minWidth: 1100 }}>
         <thead>
           <tr>
             <th style={{ padding: '4px 8px', textAlign: 'left', minWidth: 130, position: 'sticky', left: 0, background: '#1a1f2e', zIndex: 2, color: '#64748b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase' }}>Dipendente</th>
-            {HOURS.map(h => (
-              <th key={h} style={{ padding: '4px 0', minWidth: 36, textAlign: 'center', color: '#64748b', fontWeight: 500, fontSize: 10, borderLeft: h % 6 === 0 ? '1px solid #2a3042' : 'none' }}>
-                {String(h).padStart(2, '0')}
+            {COLS.map(c => {
+              const realH = (DAY_START_HOUR + c) % 24
+              const isNext = DAY_START_HOUR + c >= 24
+              const isMidnight = realH === 0 && isNext
+              return <th key={c} style={{ padding: '4px 0', minWidth: 36, textAlign: 'center', color: isNext ? '#8B5CF6' : '#64748b', fontWeight: 500, fontSize: 10, borderLeft: isMidnight ? '2px solid #8B5CF6' : (c % 6 === 0 ? '1px solid #2a3042' : 'none') }}>
+                {String(realH).padStart(2, '0')}{isNext && <div style={{ fontSize: 8, color: '#8B5CF6', fontWeight: 700 }}>+1</div>}
               </th>
-            ))}
+            })}
             <th style={{ padding: '4px 10px', color: '#64748b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', textAlign: 'right', position: 'sticky', right: 0, background: '#1a1f2e' }}>Ore</th>
           </tr>
         </thead>
@@ -788,20 +867,23 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
             const qset = empQuarters[emp.id]
             return <tr key={emp.id} style={{ borderTop: '1px solid #1a1f2e' }}>
               <td style={{ padding: '4px 8px', fontSize: 12, fontWeight: 500, color: '#e2e8f0', position: 'sticky', left: 0, background: '#0f1420', zIndex: 1 }}>{emp.nome}</td>
-              {HOURS.map(h => {
-                const qs = [h * 4, h * 4 + 1, h * 4 + 2, h * 4 + 3]
+              {COLS.map(c => {
+                const realH = (DAY_START_HOUR + c) % 24
+                const isNext = DAY_START_HOUR + c >= 24
+                const isMidnight = realH === 0 && isNext
+                const qs = [c * 4, c * 4 + 1, c * 4 + 2, c * 4 + 3]
                 const countOn = qs.filter(q => qset.has(q)).length
                 const full = countOn === 4
                 const partial = countOn > 0 && countOn < 4
-                const isZoomed = zoomedHour?.empId === emp.id && zoomedHour?.hour === h
-                // Se zoomato, mostra 4 sub-celle
+                const isZoomed = zoomedHour?.empId === emp.id && zoomedHour?.col === c
+                const borderLeft = isMidnight ? '2px solid #8B5CF6' : (c % 6 === 0 ? '1px solid #2a3042' : '1px solid #1a1f2e')
                 if (isZoomed) {
-                  return <td key={h} style={{ padding: 0, borderLeft: h % 6 === 0 ? '1px solid #2a3042' : '1px solid #1a1f2e', background: '#131825' }}>
+                  return <td key={c} style={{ padding: 0, borderLeft, background: '#131825' }}>
                     <div style={{ display: 'flex', height: 28, border: '2px solid #F59E0B' }}>
                       {qs.map((q, qi) => {
                         const on = qset.has(q)
                         const label = ['00', '15', '30', '45'][qi]
-                        return <button key={q} onClick={() => toggleQuarter(emp.id, q)} title={`${String(h).padStart(2,'0')}:${label}`}
+                        return <button key={q} onClick={() => toggleQuarter(emp.id, q)} title={`${String(realH).padStart(2,'0')}:${label}${isNext ? ' (giorno dopo)' : ''}`}
                           style={{ flex: 1, border: 'none', borderRight: qi < 3 ? '1px solid #0f1420' : 'none',
                             background: on ? '#3B82F6' : 'transparent', color: on ? '#fff' : '#475569',
                             fontSize: 8, fontWeight: 700, cursor: 'pointer', padding: 0 }}>{label}</button>
@@ -810,27 +892,27 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
                     <button onClick={closeZoom} style={{ width: '100%', fontSize: 8, padding: '1px', border: 'none', background: '#F59E0B', color: '#0f1420', cursor: 'pointer', fontWeight: 700 }}>× chiudi</button>
                   </td>
                 }
-                // Normale: cella intera cliccabile
-                const bg = full ? '#3B82F6' : partial ? 'rgba(59,130,246,.3)' : 'transparent'
-                return <td key={h}
-                  onClick={() => toggleHour(emp.id, h)}
-                  onDoubleClick={() => openZoom(emp.id, h)}
-                  title={`${String(h).padStart(2,'0')}:00 — click=toggle ora, doppio click=zoom 15min`}
-                  style={{ padding: 0, height: 28, borderLeft: h % 6 === 0 ? '1px solid #2a3042' : '1px solid #1a1f2e',
-                    background: bg, cursor: 'pointer',
-                    borderTop: '1px solid transparent', borderBottom: '1px solid transparent',
-                    transition: 'background .1s' }}>
+                const bg = full ? (isNext ? '#8B5CF6' : '#3B82F6') : partial ? (isNext ? 'rgba(139,92,246,.3)' : 'rgba(59,130,246,.3)') : 'transparent'
+                return <td key={c}
+                  onClick={() => toggleCol(emp.id, c)}
+                  onDoubleClick={() => openZoom(emp.id, c)}
+                  title={`${String(realH).padStart(2,'0')}:00${isNext ? ' (giorno dopo)' : ''} — click=toggle ora, doppio click=zoom 15min`}
+                  style={{ padding: 0, height: 28, borderLeft, background: bg, cursor: 'pointer', transition: 'background .1s' }}>
                   {partial && <div style={{ display: 'flex', height: '100%' }}>
-                    {qs.map(q => <div key={q} style={{ flex: 1, background: qset.has(q) ? '#3B82F6' : 'transparent' }} />)}
+                    {qs.map(q => <div key={q} style={{ flex: 1, background: qset.has(q) ? (isNext ? '#8B5CF6' : '#3B82F6') : 'transparent' }} />)}
                   </div>}
                 </td>
               })}
               <td style={{ padding: '4px 10px', color: '#F59E0B', fontWeight: 700, fontSize: 12, textAlign: 'right', position: 'sticky', right: 0, background: '#0f1420' }}>{empHours(emp.id)}h</td>
             </tr>
           })}
-          {emps.length === 0 && <tr><td colSpan={26} style={{ padding: 16, textAlign: 'center', color: '#475569', fontSize: 12 }}>Nessun dipendente</td></tr>}
+          {emps.length === 0 && <tr><td colSpan={DAY_SPAN_HOURS + 2} style={{ padding: 16, textAlign: 'center', color: '#475569', fontSize: 12 }}>Nessun dipendente</td></tr>}
         </tbody>
       </table>
+    </div>
+    <div style={{ marginTop: 8, fontSize: 10, color: '#64748b' }}>
+      <span style={{ display: 'inline-block', width: 10, height: 10, background: '#3B82F6', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> ore del giorno
+      <span style={{ margin: '0 10px', display: 'inline-block', width: 10, height: 10, background: '#8B5CF6', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> ore dopo mezzanotte (contate in questa giornata)
     </div>
   </div>
 }
