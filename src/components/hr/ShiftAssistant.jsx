@@ -275,7 +275,8 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
 // Componente separato per evitare problemi con hooks
 function SuggestedSchedule({ sp, sps, employees = [] }) {
   const [grid, setGrid] = useState({}) // { dayIndex: { hour: { ricavi, staff } } }
-  const [soglia, setSoglia] = useState(50)
+  const [soglia, setSoglia] = useState(() => Number(localStorage.getItem('cic_soglia_staff')) || 50)
+  useEffect(() => { localStorage.setItem('cic_soglia_staff', String(soglia)) }, [soglia])
   const [loading, setLoading] = useState(false)
   const [prep, setPrep] = useState(() => {
     try { return JSON.parse(localStorage.getItem('cic_prep_hours') || '{}') } catch { return {} }
@@ -750,6 +751,48 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
   const [zoomedHour, setZoomedHour] = useState(null) // null | { empId, col }
   const [saving, setSaving] = useState(false)
 
+  // ─── Carica i dati degli Orari consigliati per questo giorno ──────────
+  // Stessa logica di SuggestedSchedule: incassi settimana precedente per hour
+  //   staff_consigliato(day, hour) = max(1, ceil(ricavi/soglia)) + prep(day, hour)
+  const [recGrid, setRecGrid] = useState({}) // { hour: ricavi } per il giorno selezionato
+  const soglia = Number(localStorage.getItem('cic_soglia_staff')) || 50
+  const prep = (() => { try { return JSON.parse(localStorage.getItem('cic_prep_hours') || '{}') } catch { return {} } })()
+  const prepTotalAt = (day, hour) => {
+    const KEYS = ['prep_cucina', 'prep_sala', 'pulizie_cucina', 'pulizie_sala', 'pulizie_str_cucina', 'pulizie_str_sala']
+    return KEYS.reduce((s, k) => s + (Number(prep[`${day}-${hour}-${k}`]) || 0), 0)
+  }
+  useEffect(() => {
+    (async () => {
+      const prevMonday = (() => {
+        const d = new Date(); d.setDate(d.getDate() - d.getDay() - 6)
+        return d.toISOString().split('T')[0]
+      })()
+      const prevSunday = (() => {
+        const d = new Date(prevMonday); d.setDate(d.getDate() + 6)
+        return d.toISOString().split('T')[0]
+      })()
+      // Giorno calendario della settimana scorsa corrispondente a selectedDay (Lun=0)
+      const target = new Date(prevMonday)
+      target.setDate(target.getDate() + selectedDay)
+      const targetStr = target.toISOString().split('T')[0]
+      let q = supabase.from('daily_stats').select('date,hourly_records,salespoint_name').eq('date', targetStr)
+      if (locale) q = q.eq('salespoint_name', locale)
+      const { data } = await q
+      const byHour = {}
+      for (const row of (data || [])) {
+        for (const hr of (row.hourly_records || [])) {
+          byHour[hr.hour] = (byHour[hr.hour] || 0) + (hr.ricavi || 0)
+        }
+      }
+      setRecGrid(byHour)
+    })()
+  }, [selectedDay, locale])
+  const recommendedAt = (realHour) => {
+    const ricavi = Number(recGrid[realHour]) || 0
+    const rev = ricavi > 0 ? Math.max(1, Math.ceil(ricavi / soglia)) : 0
+    return rev + prepTotalAt(selectedDay, realHour)
+  }
+
   // Calcola data del giorno selezionato (Lun=0)
   const dayDate = (() => {
     const d = new Date(weekStart); d.setDate(d.getDate() + selectedDay)
@@ -830,8 +873,8 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
 
   // Per ogni colonna calcolo:
   //  - staffNow: numero di persone con almeno 1 quarto attivo in quella colonna
-  //  - staffRecommended: valore da staffSchedule per quella ora (fallback 0)
-  //  - overstaff: staffNow > staffRecommended (utile per alert)
+  //  - staffRec: valore consigliato dalla tabella Orari consigliati (ricavi/soglia + prep)
+  //  - overstaff: staffNow > staffRec
   const colStats = COLS.map(c => {
     const realH = (DAY_START_HOUR + c) % 24
     let staffNow = 0
@@ -839,8 +882,7 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
       const qs = [c * 4, c * 4 + 1, c * 4 + 2, c * 4 + 3]
       if (qs.some(q => empQuarters[e.id]?.has(q))) staffNow++
     }
-    const key = String(realH).padStart(2, '0') + ':00'
-    const staffRec = Number(staffSchedule?.[key]) || 0
+    const staffRec = recommendedAt(realH)
     return { col: c, realH, staffNow, staffRec, overstaff: staffRec > 0 && staffNow > staffRec }
   })
 
@@ -930,19 +972,17 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
                   </td>
                 }
                 const isOver = colStats[c]?.overstaff
-                // Se over-staff, dipingo la cella del dipendente di rosso (mantenendo la selezione)
                 const activeBg = isOver ? '#EF4444' : (isNext ? '#8B5CF6' : '#3B82F6')
-                const partialBg = isOver ? 'rgba(239,68,68,.4)' : (isNext ? 'rgba(139,92,246,.3)' : 'rgba(59,130,246,.3)')
-                const bg = full ? activeBg : partial ? partialBg : 'transparent'
+                const fillBg = full ? activeBg : 'transparent'
                 return <td key={c}
                   onClick={() => toggleCol(emp.id, c)}
                   onDoubleClick={() => openZoom(emp.id, c)}
                   title={`${String(realH).padStart(2,'0')}:00${isNext ? ' (giorno dopo)' : ''}${isOver ? ' — ⚠ sovra-staffato' : ''} · click=toggle, doppio click=zoom 15min`}
                   className="ts-cell"
-                  style={{ padding: 0, height: 28, borderLeft, background: bg, cursor: 'pointer' }}>
-                  {partial && <div style={{ display: 'flex', height: '100%' }}>
-                    {qs.map(q => <div key={q} style={{ flex: 1, background: qset.has(q) ? activeBg : 'transparent' }} />)}
-                  </div>}
+                  style={{ height: 28, borderLeft, cursor: 'pointer' }}>
+                  <span className="ts-fill" style={{ background: fillBg, display: 'flex' }}>
+                    {partial && qs.map(q => <span key={q} style={{ flex: 1, background: qset.has(q) ? activeBg : 'transparent' }} />)}
+                  </span>
                 </td>
               })}
               <td style={{ padding: '4px 10px', color: '#F59E0B', fontWeight: 700, fontSize: 12, textAlign: 'right', position: 'sticky', right: 0, background: '#0f1420' }}>{empHours(emp.id)}h</td>
