@@ -360,6 +360,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
 
   // Totali per giorno
   const dayTotals = DAYS.map((_, di) => HOURS.reduce((s, h) => s + getCell(di, h).staff, 0))
+  const dayRevenues = DAYS.map((_, di) => HOURS.reduce((s, h) => s + (grid[di]?.[h]?.ricavi || 0), 0))
   const totalStaff = dayTotals.reduce((s, v) => s + v, 0)
   const daysWithData = Object.keys(grid).length
 
@@ -415,7 +416,10 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
       html += `</tr>`
     })
     html += `<tr class="tot"><td><b>TOTALE</b></td>`
-    dayTotals.forEach(t => { html += `<td class="tot">${t}</td>` })
+    dayTotals.forEach((t, i) => {
+      const rev = dayRevenues[i]
+      html += `<td class="tot"><b>${t}</b>${rev > 0 ? `<div style="font-size:9px;color:#666;font-weight:400">(${Math.round(rev)}€)</div>` : ''}</td>`
+    })
     html += `</tr></tbody></table>`
     // Legenda pulizie
     if (notes.length > 0) {
@@ -503,7 +507,8 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
     HOURS.forEach(h => {
       summaryRows.push([String(h).padStart(2, '0') + ':00', ...DAYS.map((_, di) => getCell(di, h).staff || 0)])
     })
-    summaryRows.push(['TOTALE', ...dayTotals])
+    summaryRows.push(['TOTALE PERSONE', ...dayTotals])
+    summaryRows.push(['INCASSO €', ...dayRevenues.map(r => Math.round(r))])
     summaryRows.push([])
     summaryRows.push(['Tot. ore settimanali:', totalStaff])
 
@@ -628,7 +633,13 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
               {/* Riga totale */}
               <tr style={{ borderTop: '2px solid #2a3042', background: '#131825' }}>
                 <td style={{ ...S.td, fontWeight: 700, color: '#e2e8f0' }}>TOT</td>
-                {dayTotals.map((t, i) => <td key={i} style={{ ...S.td, textAlign: 'center', fontWeight: 700, color: '#F59E0B', fontSize: 14 }}>{t}</td>)}
+                {dayTotals.map((t, i) => {
+                  const rev = dayRevenues[i]
+                  return <td key={i} style={{ ...S.td, textAlign: 'center', padding: '6px 4px' }}>
+                    <div style={{ fontWeight: 700, color: '#F59E0B', fontSize: 14, lineHeight: 1.1 }}>{t}</div>
+                    {rev > 0 && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>({fmt(rev)})</div>}
+                  </td>
+                })}
               </tr>
             </tbody>
           </table>
