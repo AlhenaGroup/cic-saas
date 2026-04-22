@@ -193,6 +193,7 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
                 const totHours = empShifts.reduce((s, sh) => {
                   return s + calcShiftHours(sh.ora_inizio, sh.ora_fine)
                 }, 0)
+                // (no-op)
                 return <tr key={emp.id}>
                   <td style={{ ...S.td, fontWeight: 500, fontSize: 12 }}>{emp.nome}</td>
                   {DAYS.map((_, day) => {
@@ -218,6 +219,7 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
         <DailyTimelineEditor
           emps={localeEmps} shifts={shifts} selectedDay={selectedDay} setSelectedDay={setSelectedDay}
           weekStart={weekStart} locale={locale || ''} onChanged={loadShifts}
+          staffSchedule={staffSchedule}
         />
       )}
     </Card>
@@ -744,7 +746,7 @@ function quartersOpToIntervals(set) {
   return out
 }
 
-function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekStart, locale, onChanged }) {
+function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekStart, locale, onChanged, staffSchedule = {} }) {
   const [zoomedHour, setZoomedHour] = useState(null) // null | { empId, col }
   const [saving, setSaving] = useState(false)
 
@@ -826,6 +828,22 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
   // Colonne: 0..DAY_SPAN_HOURS-1. Colonna i → ora (DAY_START_HOUR + i) % 24.
   const COLS = Array.from({ length: DAY_SPAN_HOURS }, (_, i) => i)
 
+  // Per ogni colonna calcolo:
+  //  - staffNow: numero di persone con almeno 1 quarto attivo in quella colonna
+  //  - staffRecommended: valore da staffSchedule per quella ora (fallback 0)
+  //  - overstaff: staffNow > staffRecommended (utile per alert)
+  const colStats = COLS.map(c => {
+    const realH = (DAY_START_HOUR + c) % 24
+    let staffNow = 0
+    for (const e of emps) {
+      const qs = [c * 4, c * 4 + 1, c * 4 + 2, c * 4 + 3]
+      if (qs.some(q => empQuarters[e.id]?.has(q))) staffNow++
+    }
+    const key = String(realH).padStart(2, '0') + ':00'
+    const staffRec = Number(staffSchedule?.[key]) || 0
+    return { col: c, realH, staffNow, staffRec, overstaff: staffRec > 0 && staffNow > staffRec }
+  })
+
   return <div>
     {/* Selettore giorno */}
     <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -861,6 +879,25 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
             })}
             <th style={{ padding: '4px 10px', color: '#64748b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', textAlign: 'right', position: 'sticky', right: 0, background: '#1a1f2e' }}>Ore</th>
           </tr>
+          {/* Riga riepilogo staff: pianificato / consigliato con alert rosso se over */}
+          <tr style={{ borderTop: '1px solid #2a3042', background: '#0f1420' }}>
+            <td style={{ padding: '4px 8px', fontSize: 10, color: '#64748b', fontWeight: 600, position: 'sticky', left: 0, background: '#0f1420', zIndex: 2, textTransform: 'uppercase', letterSpacing: '.04em' }} title="Personale pianificato / consigliato">Staff</td>
+            {colStats.map(cs => {
+              const realH = cs.realH
+              const isNext = DAY_START_HOUR + cs.col >= 24
+              const isMidnight = realH === 0 && isNext
+              const over = cs.overstaff
+              const under = cs.staffRec > 0 && cs.staffNow < cs.staffRec
+              const col = over ? '#EF4444' : (cs.staffNow > 0 && !under ? '#10B981' : '#64748b')
+              return <td key={cs.col} title={`Pianificati: ${cs.staffNow}${cs.staffRec > 0 ? ' / Consigliati: ' + cs.staffRec : ''}`}
+                style={{ padding: '3px 0', textAlign: 'center', fontSize: 9, fontWeight: 700,
+                  borderLeft: isMidnight ? '2px solid #8B5CF6' : (cs.col % 6 === 0 ? '1px solid #2a3042' : 'none'),
+                  color: col, background: over ? 'rgba(239,68,68,.12)' : 'transparent' }}>
+                {cs.staffNow}{cs.staffRec > 0 && <span style={{ color: '#475569', fontWeight: 400 }}>/{cs.staffRec}</span>}
+              </td>
+            })}
+            <td style={{ padding: '4px 10px', fontSize: 10, color: '#64748b', textAlign: 'right', position: 'sticky', right: 0, background: '#0f1420' }}>Pian. / Cons.</td>
+          </tr>
         </thead>
         <tbody>
           {emps.map(emp => {
@@ -892,14 +929,19 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
                     <button onClick={closeZoom} style={{ width: '100%', fontSize: 8, padding: '1px', border: 'none', background: '#F59E0B', color: '#0f1420', cursor: 'pointer', fontWeight: 700 }}>× chiudi</button>
                   </td>
                 }
-                const bg = full ? (isNext ? '#8B5CF6' : '#3B82F6') : partial ? (isNext ? 'rgba(139,92,246,.3)' : 'rgba(59,130,246,.3)') : 'transparent'
+                const isOver = colStats[c]?.overstaff
+                // Se over-staff, dipingo la cella del dipendente di rosso (mantenendo la selezione)
+                const activeBg = isOver ? '#EF4444' : (isNext ? '#8B5CF6' : '#3B82F6')
+                const partialBg = isOver ? 'rgba(239,68,68,.4)' : (isNext ? 'rgba(139,92,246,.3)' : 'rgba(59,130,246,.3)')
+                const bg = full ? activeBg : partial ? partialBg : 'transparent'
                 return <td key={c}
                   onClick={() => toggleCol(emp.id, c)}
                   onDoubleClick={() => openZoom(emp.id, c)}
-                  title={`${String(realH).padStart(2,'0')}:00${isNext ? ' (giorno dopo)' : ''} — click=toggle ora, doppio click=zoom 15min`}
-                  style={{ padding: 0, height: 28, borderLeft, background: bg, cursor: 'pointer', transition: 'background .1s' }}>
+                  title={`${String(realH).padStart(2,'0')}:00${isNext ? ' (giorno dopo)' : ''}${isOver ? ' — ⚠ sovra-staffato' : ''} · click=toggle, doppio click=zoom 15min`}
+                  className="ts-cell"
+                  style={{ padding: 0, height: 28, borderLeft, background: bg, cursor: 'pointer' }}>
                   {partial && <div style={{ display: 'flex', height: '100%' }}>
-                    {qs.map(q => <div key={q} style={{ flex: 1, background: qset.has(q) ? (isNext ? '#8B5CF6' : '#3B82F6') : 'transparent' }} />)}
+                    {qs.map(q => <div key={q} style={{ flex: 1, background: qset.has(q) ? activeBg : 'transparent' }} />)}
                   </div>}
                 </td>
               })}
@@ -910,9 +952,10 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
         </tbody>
       </table>
     </div>
-    <div style={{ marginTop: 8, fontSize: 10, color: '#64748b' }}>
-      <span style={{ display: 'inline-block', width: 10, height: 10, background: '#3B82F6', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> ore del giorno
-      <span style={{ margin: '0 10px', display: 'inline-block', width: 10, height: 10, background: '#8B5CF6', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> ore dopo mezzanotte (contate in questa giornata)
+    <div style={{ marginTop: 8, fontSize: 10, color: '#64748b', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+      <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#3B82F6', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> ore del giorno</span>
+      <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#8B5CF6', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> ore dopo mezzanotte (contate in questa giornata)</span>
+      <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#EF4444', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> sovra-staffato (più persone del consigliato)</span>
     </div>
   </div>
 }

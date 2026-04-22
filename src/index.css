@@ -46,6 +46,10 @@ a { color: inherit; text-decoration: none; }
 ::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 3px; }
 .mono { font-family: 'DM Mono', monospace; }
 
+/* Timeline turni: hover con riquadro senza alterare colore di selezione */
+.ts-cell { box-shadow: inset 0 0 0 0 rgba(255,255,255,0); }
+.ts-cell:hover { box-shadow: inset 0 0 0 2px rgba(255,255,255,0.45); }
+
 /* ─── Responsive layer ─────────────────────────────────────────────────
    L'app usa quasi ovunque inline styles; invece di riscrivere migliaia
    di righe, uso attribute selectors per intercettare i pattern più
