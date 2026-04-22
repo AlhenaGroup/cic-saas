@@ -7,6 +7,7 @@ import InvoiceManager from '../components/warehouse/InvoiceManager'
 import ProductManager from '../components/warehouse/ProductManager'
 import RecipeManager from '../components/warehouse/RecipeManager'
 import StockView from '../components/warehouse/StockView'
+import MovementsView from '../components/warehouse/MovementsView'
 import InventoryManager from '../components/warehouse/InventoryManager'
 import OrderManager from '../components/warehouse/OrderManager'
 import PriceAnalysis from '../components/warehouse/PriceAnalysis'
@@ -18,17 +19,14 @@ const TABS = [
   { key: 'articoli',   label: 'Articoli',    icon: '📦' },
   { key: 'ricette',    label: 'Ricette',     icon: '🍳' },
   { key: 'giacenze',   label: 'Giacenze',    icon: '🏠' },
+  { key: 'movimenti',  label: 'Movimenti',   icon: '↔️' },
   { key: 'inventario', label: 'Inventario',  icon: '📋' },
   { key: 'ordini',     label: 'Ordini',      icon: '🛒' },
   { key: 'prezzi',     label: 'Prezzi',      icon: '💰' },
 ]
 
 export default function WarehouseModule({ sp, sps, from, to }) {
-  const [tab, setTab] = useState(() => {
-    const saved = localStorage.getItem('warehouse_tab')
-    // Migrazione: il tab 'movimenti' e' stato rimosso, rispedisci al cruscotto
-    return saved && saved !== 'movimenti' ? saved : 'cruscotto'
-  })
+  const [tab, setTab] = useState(() => localStorage.getItem('warehouse_tab') || 'cruscotto')
   useEffect(() => { localStorage.setItem('warehouse_tab', tab) }, [tab])
 
   const tabStyle = (active) => ({
@@ -53,6 +51,7 @@ export default function WarehouseModule({ sp, sps, from, to }) {
     {tab === 'articoli'   && <ArticoliTab sp={sp} sps={sps} />}
     {tab === 'ricette'    && <RecipeManager sp={sp} sps={sps} />}
     {tab === 'giacenze'   && <StockView sp={sp} sps={sps} />}
+    {tab === 'movimenti'  && <MovementsView sp={sp} sps={sps} from={from} to={to} />}
     {tab === 'inventario' && <InventoryManager sp={sp} sps={sps} />}
     {tab === 'ordini'     && <OrderManager sp={sp} sps={sps} />}
     {tab === 'prezzi'     && <PriceAnalysis sp={sp} sps={sps} />}

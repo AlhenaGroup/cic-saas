@@ -9,7 +9,6 @@ import MarketingModule from './MarketingModule'
 import BudgetModule from './BudgetModule'
 import InvoiceTab from '../components/InvoiceTab'
 import ContoEconomico from '../components/ContoEconomico'
-import MonitoringTab from '../components/MonitoringTab'
 import IvaTab from '../components/IvaTab'
 import WidgetGrid from '../components/WidgetGrid'
 import { useUserPlan } from '../lib/features'
@@ -310,7 +309,7 @@ export default function DashboardPage({ settings }) {
     background:tab===t?'#F59E0B':'transparent',color:tab===t?'#0f1420':'#64748b',transition:'all .2s',position:'relative'})
 
   const ALL_TABS=[['ov','📊 Panoramica'],['scontrini','🧾 Scontrini'],['cat','🏷️ Categorie'],
-              ['iva','📋 IVA'],['rep','🏪 Reparti'],['susp','⚠️ Movimenti'],
+              ['iva','📋 IVA'],['rep','🏪 Reparti'],
               ['fat','📄 Fatture'],['mag','📦 Magazzino'],['prod','⏱️ Produttività'],['ce','📊 Conto Econ.'],['bud','💰 Budget'],['hr','👥 Personale'],['mkt','📣 Marketing']]
   // Filtra in base al piano dell'utente (feature flag tab.X)
   const { features: planFeatures } = useUserPlan()
@@ -592,8 +591,6 @@ export default function DashboardPage({ settings }) {
         </Card>
       </>}
 
-      {/* ── MOVIMENTI / MONITORING LOG ── */}
-      {tab==='susp'&&<MonitoringTab events={data?.monitoringEvents||[]}/>}
 
       {false&&(()=>{ return null
         const [monLogs, setMonLogs] = useState([])
