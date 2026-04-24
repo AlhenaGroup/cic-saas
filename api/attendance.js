@@ -89,7 +89,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 // Coordinate locali (da rendere configurabili)
 const LOCALE_COORDS = {
   'REMEMBEER': { lat: 44.8857895, lng: 7.3293777 },
-  'CASA DE AMICIS': { lat: 44.8858039, lng: 7.3299022 }
+  'CASA DE AMICIS': { lat: 44.8858039, lng: 7.3299022 },
+  'LABORATORIO': { lat: 44.885515, lng: 7.329369 }
 };
 const MAX_DISTANCE = 50; // metri
 

@@ -222,11 +222,17 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
   return <>
     {/* QR Code Generator */}
     <Card title="QR Code Timbratura" extra={
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {sps.map(s => <button key={s.id} onClick={() => generateQR(s.description || s.name)}
           style={{ ...iS, background: qrLocale === (s.description || s.name) ? '#F59E0B' : '#1a1f2e', color: qrLocale === (s.description || s.name) ? '#0f1420' : '#e2e8f0', border: 'none', padding: '5px 14px', fontWeight: 600, fontSize: 12 }}>
           {s.description || s.name}
         </button>)}
+        {/* QR extra per punti di timbratura non-locale (laboratorio, ecc.) */}
+        <button key="laboratorio" onClick={() => generateQR('LABORATORIO')}
+          style={{ ...iS, background: qrLocale === 'LABORATORIO' ? '#F59E0B' : '#1a1f2e', color: qrLocale === 'LABORATORIO' ? '#0f1420' : '#e2e8f0', border: '1px dashed #475569', padding: '5px 14px', fontWeight: 600, fontSize: 12 }}
+          title="Laboratorio (punto di timbratura, non e' un locale di vendita)">
+          🔧 LABORATORIO
+        </button>
       </div>
     }>
       {qrLocale ? (
