@@ -192,7 +192,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
       blocks,
       blocksForLocale,
       dayRecords,
-      ore: Math.round(ore * 10) / 10,
+      ore: Math.floor(ore * 100) / 100,
       incompleta: hasIncompleta,
       localiCoinvolti,
     }
@@ -316,7 +316,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                             <div style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>{summaryMain}</div>
                             {summarySub && <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>{summarySub}</div>}
                             <div style={{ fontSize: 10, color: '#F59E0B', fontWeight: 700, marginTop: 2 }}>
-                              {att.ore}h
+                              {(att.ore || 0).toFixed(2)}h
                               {hasMulti && <span title="Turno spezzato" style={{ marginLeft: 3, color: '#3B82F6' }}>ℹ︎</span>}
                               {att.incompleta && <span title="Timbratura incompleta" style={{ marginLeft: 3, color: '#EF4444' }}>⚠</span>}
                             </div>
@@ -328,7 +328,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                         )}
                       </td>
                     })}
-                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 600, color: '#F59E0B', fontSize: 12 }}>{Math.round(totOre * 10) / 10}h</td>
+                    <td style={{ ...S.td, textAlign: 'right', fontWeight: 600, color: '#F59E0B', fontSize: 12 }}>{(Math.floor(totOre * 100) / 100).toFixed(2)}h</td>
                   </tr>
                 })}
               </tbody>
@@ -449,11 +449,11 @@ function DayManager({ data, allLocali, onClose, onChange }) {
         {/* Riepilogo ore per locale */}
         {Object.keys(oreByLocale).length > 0 && (
           <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 12, marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Totale giornata · {Math.round(oreTot * 10) / 10}h</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Totale giornata · {(Math.floor(oreTot * 100) / 100).toFixed(2)}h</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {Object.entries(oreByLocale).map(([loc, h]) => (
                 <span key={loc} style={{ fontSize: 12, color: '#e2e8f0', background: '#1a1f2e', padding: '4px 10px', borderRadius: 4 }}>
-                  {loc}: <strong style={{ color: '#F59E0B' }}>{Math.round(h * 10) / 10}h</strong>
+                  {loc}: <strong style={{ color: '#F59E0B' }}>{(Math.floor(h * 100) / 100).toFixed(2)}h</strong>
                 </span>
               ))}
             </div>

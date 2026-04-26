@@ -233,8 +233,8 @@ export default function DashboardPage({ settings }) {
           }
         }
       }
-      // Arrotonda a 0.1
-      for (const k in hours) hours[k] = Math.round(hours[k] * 10) / 10
+      // Tronca per difetto a 2 decimali (mai sovrastimare le ore lavorate)
+      for (const k in hours) hours[k] = Math.floor(hours[k] * 100) / 100
       const persons = {}
       for (const k in personsSets) persons[k] = personsSets[k].size
       setWorkedHoursBySlot(hours)
@@ -940,10 +940,10 @@ export default function DashboardPage({ settings }) {
           {/* Toggle Reale / Pianificato */}
           <div style={{display:'flex',gap:0,border:'1px solid #2a3042',borderRadius:6,overflow:'hidden'}}>
             <button onClick={()=>setUseRealHours(true)}
-              title={`Ore reali dalle timbrature (${totOreReali.toFixed(1)}h tot nel periodo)`}
+              title={`Ore reali dalle timbrature (${(Math.floor(totOreReali*100)/100).toFixed(2)}h tot nel periodo)`}
               style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
                 background:useRealHours?'#10B981':'transparent',color:useRealHours?'#0f1420':'#94a3b8'}}>
-              📍 Reali ({totOreReali.toFixed(0)}h)
+              📍 Reali ({(Math.floor(totOreReali*100)/100).toFixed(2)}h)
             </button>
             <button onClick={()=>setUseRealHours(false)}
               title="Ore pianificate dal calendario staff (tab Personale)"
@@ -1006,9 +1006,9 @@ export default function DashboardPage({ settings }) {
                     <td style={{...S.td,color:o.copPerDip>0?'#A855F7':'#475569',fontWeight:o.copPerDip>0?700:400}} title={o.copPerDip>0?`${o.coperti} coperti / ${o.persone} dipendente${o.persone===1?'':'i'} = ${o.copPerDip.toFixed(1)} coperti per dipendente`:'Serve sia coperti che timbrature'}>{o.copPerDip>0?o.copPerDip.toFixed(1):'—'}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{o.scontrini}</td>
                     <td style={{...S.td,color:o.persone>0?'#3B82F6':'#475569',fontWeight:o.persone>0?700:400}} title={o.persone>0?`${o.persone} dipendent${o.persone===1?'e':'i'} in turno (almeno parziale) nella fascia`:''}>{o.persone>0?o.persone:'—'}</td>
-                    <td style={{...S.td,color:o.oreReali>0?'#10B981':'#475569',fontWeight:o.oreReali>0?600:400}}>{o.oreReali>0?o.oreReali.toFixed(1)+'h':'—'}</td>
+                    <td style={{...S.td,color:o.oreReali>0?'#10B981':'#475569',fontWeight:o.oreReali>0?600:400}}>{o.oreReali>0?o.oreReali.toFixed(2)+'h':'—'}</td>
                     <td style={{...S.td,color:o.orePianif>0?'#F59E0B':'#475569'}}>{o.orePianif>0?o.orePianif+'h':'—'}{mismatch&&<span title="Differenza reale/pianificato" style={{marginLeft:4,color:'#EF4444'}}>⚠</span>}</td>
-                    <td style={{...S.td,fontWeight:600}}>{o.oreLavorate>0?o.oreLavorate.toFixed(1)+'h':'—'}</td>
+                    <td style={{...S.td,fontWeight:600}}>{o.oreLavorate>0?o.oreLavorate.toFixed(2)+'h':'—'}</td>
                     <td style={{...S.td,fontWeight:700,color:o.oreLavorate>0?pc:'#475569'}}>{o.oreLavorate>0?o.prodOraria.toFixed(1)+' €/h':'—'}</td>
                     <td style={S.td}>{o.oreLavorate>0?<span style={{...S.badge(pc,pc+'22'),fontSize:10}}>{prodLabel(o.prodOraria)}</span>:'—'}</td>
                   </tr>
