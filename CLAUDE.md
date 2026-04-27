@@ -140,6 +140,7 @@ Cache in memoria con TTL per evitare refetch al remount (vedi `RecipeManager.jsx
 - **PWA `/timbra`**: manifest dinamico via script inline in `index.html` (start_url scoped). Path `/timbra` = app dipendenti (solo PIN), altre pagine = dashboard admin
 - **Mobile/PWA**: griglie multi-colonna collassano via CSS attribute selector; classe `.keep-grid` per esclusioni (es. numpad PIN). Tabelle scroll-x <=900px. Modali fullscreen `.m-modal-fullscreen`
 - **Hover celle timeline turni**: classe `.ts-cell` + figlio `.ts-fill` per il background → la regola globale `tr:hover td{background:...}` non sovrascrive la selezione
+- **LABORATORIO**: punto di timbratura non-locale (no incassi, no fatture). Le ore timbrate qui vengono **virtualmente attribuite** al primo locale "vero" della stessa giornata operativa (cerca avanti, poi indietro). Visivamente il blocco resta `(LABORATORIO)`. Logica in `AttendanceView.jsx` — `computeAttribuzione()`
 
 ## Schema DB chiave
 
@@ -191,6 +192,13 @@ Menu post-PIN filtrato da `permissions` + viste info sempre visibili:
 - Vista giorno: timeline 12:00→05:00, click=ora intera, doppio click=zoom 4 quarti, salva merge intervalli contigui
 - Riga "Staff" pianificato/consigliato (calcolato da `daily_stats` settimana scorsa stesso giorno + `cic_soglia_staff` + `cic_prep_hours`)
 - Celle rosse se sovra-staffato
+
+## Personale → Presenze reali
+
+- Toolbar con bottoni **📊 Excel** / **🖨 PDF** apre `ExportModal` con selettore periodo (preset Settimana/Mese corrente/scorso + date pickers)
+- Export: 1 riga per dipendente, 1 colonna per ogni giorno del periodo (es. "Lunedì 01/04") con orari `entrata→uscita (locale)` + ore. Riga finale TOTALE GIORNO. PDF in A4 landscape via `window.print()`
+- Filtro locale strict: con filtro attivo (es. REMEMBEER), le celle mostrano solo blocchi di REMEMBEER (omettendo etichetta locale, implicita), e i dipendenti che non hanno timbrato lì nel periodo vengono esclusi
+- Ore LABORATORIO confluiscono nel locale operativo della giornata (vedi convenzione sopra)
 
 ## Stato dati attuale (snapshot 2026-04-27)
 
