@@ -460,17 +460,29 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
       }
 
       // 5. Costruisco la matrice empRows[emp][ds] = { blocks, ore }
-      const empRows = emps.map(emp => {
+      // Quando localeFilter e' attivo, mostra SOLO i blocchi di quel locale
+      // (testo e ore). I blocchi di altri locali non vengono nemmeno menzionati.
+      // Se localeFilter, escludo dipendenti senza alcuna timbratura in quel locale nel periodo.
+      const empsToExport = localeFilter ? emps.filter(e => {
+        const days = byEmpDay[e.id] || {}
+        for (const ds of dates) {
+          const recs = days[ds] || []
+          if (recs.some(r => r.locale === localeFilter)) return true
+        }
+        return false
+      }) : emps
+      const empRows = empsToExport.map(emp => {
         const cells = dates.map(ds => {
           const recs = (byEmpDay[emp.id] || {})[ds] || []
-          const blocks = buildBlocks(recs)
-          const filt = localeFilter ? blocks.filter(b => b.locale === localeFilter) : blocks
-          const ore = filt.reduce((s, b) => s + (b.ore || 0), 0)
+          const blocksAll = buildBlocks(recs)
+          const blocks = localeFilter ? blocksAll.filter(b => b.locale === localeFilter) : blocksAll
+          const ore = blocks.reduce((s, b) => s + (b.ore || 0), 0)
           const text = blocks.length === 0 ? '' :
             blocks.map(b => {
               const eH = b.entrata ? hmFromTsTz(b.entrata.timestamp) : '—'
               const uH = b.uscita ? hmFromTsTz(b.uscita.timestamp) : '…'
-              return `${eH}→${uH}${b.locale ? ' (' + b.locale + ')' : ''}`
+              // Se filtro per locale, ometto la dicitura locale (e' implicita)
+              return `${eH}→${uH}${(!localeFilter && b.locale) ? ' (' + b.locale + ')' : ''}`
             }).join('\n') + (ore > 0 ? `\n= ${ore.toFixed(2)}h` : '')
           return { ore: Math.floor(ore * 100) / 100, text }
         })
