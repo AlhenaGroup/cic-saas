@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../../lib/supabase'
 import { S, KPI, Card, fmtN } from '../shared/styles.jsx'
 
@@ -219,6 +220,121 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
   // Stato popup gestione timbrature
   const [managingDay, setManagingDay] = useState(null) // { emp, dayOffset, ds }
 
+  // ─── Export Excel / PDF ────────────────────────────────────────
+  const dateLabel = (offset) => {
+    const d = new Date(weekStart); d.setDate(d.getDate() + offset)
+    return d.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: '2-digit' })
+  }
+  const buildRows = () => {
+    // Per ogni dipendente, una riga: nome + 7 colonne giorno + totale
+    return filteredEmps.map(emp => {
+      let totOre = 0
+      const cells = []
+      for (let day = 0; day < 7; day++) {
+        const att = getAttendanceForDay(emp.id, day, localeFilter)
+        totOre += att.ore
+        if (att.blocks.length === 0) {
+          cells.push({ ore: 0, text: '', incompleta: false })
+        } else {
+          // Mostra orari entrata→uscita di ogni blocco + locale + ore
+          const lines = att.blocks.map(b => {
+            const eH = b.entrata ? hmFromTs(b.entrata.timestamp) : '—'
+            const uH = b.uscita ? hmFromTs(b.uscita.timestamp) : '…'
+            return `${eH}→${uH} ${b.locale ? '(' + b.locale + ')' : ''}`.trim()
+          }).join('\n')
+          cells.push({
+            ore: att.ore || 0,
+            text: lines + (att.ore > 0 ? `\n= ${(att.ore || 0).toFixed(2)}h` : ''),
+            incompleta: att.incompleta,
+          })
+        }
+      }
+      return { nome: emp.nome, cells, totOre: Math.floor(totOre * 100) / 100 }
+    })
+  }
+
+  const exportExcel = () => {
+    const rows = buildRows()
+    const headers = ['Dipendente', ...Array.from({ length: 7 }, (_, i) => DAYS[i] + ' ' + dateLabel(i).split(' ').slice(-1)[0]), 'Totale ore']
+    const data = [headers]
+    rows.forEach(r => {
+      data.push([r.nome, ...r.cells.map(c => c.text || '—'), r.totOre.toFixed(2) + 'h'])
+    })
+    // Riga totali per giorno
+    const dayTot = Array.from({ length: 7 }, (_, day) =>
+      rows.reduce((s, r) => s + (r.cells[day]?.ore || 0), 0)
+    )
+    data.push([
+      'TOTALE GIORNO',
+      ...dayTot.map(t => (Math.floor(t * 100) / 100).toFixed(2) + 'h'),
+      (Math.floor(rows.reduce((s, r) => s + r.totOre, 0) * 100) / 100).toFixed(2) + 'h',
+    ])
+    const ws = XLSX.utils.aoa_to_sheet(data)
+    // Larghezze colonne
+    ws['!cols'] = [{ wch: 22 }, ...Array(7).fill({ wch: 24 }), { wch: 12 }]
+    // Wrap text per le celle dei giorni
+    Object.keys(ws).forEach(k => {
+      if (k.startsWith('!')) return
+      if (!ws[k].s) ws[k].s = {}
+      ws[k].s.alignment = { wrapText: true, vertical: 'top' }
+    })
+    const wb = XLSX.utils.book_new()
+    const sheetName = 'Presenze ' + weekLabel().replace(/[^\w-]/g, '_').slice(0, 24)
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    const fileLabel = (locale ? locale + '_' : '') + weekStart
+    XLSX.writeFile(wb, `Presenze_${fileLabel}.xlsx`)
+  }
+
+  const exportPDF = () => {
+    const rows = buildRows()
+    const dayTot = Array.from({ length: 7 }, (_, day) =>
+      rows.reduce((s, r) => s + (r.cells[day]?.ore || 0), 0)
+    )
+    const grandTot = Math.floor(rows.reduce((s, r) => s + r.totOre, 0) * 100) / 100
+    const titolo = `Presenze reali · ${locale || 'Tutti i locali'} · ${weekLabel()}`
+    let html = `<html><head><title>${titolo}</title>
+    <style>
+      @page { size: A4 landscape; margin: 12mm; }
+      body { font-family: Arial, sans-serif; padding: 0; color: #333; font-size: 10px; }
+      h1 { font-size: 16px; margin: 0 0 6px; }
+      h2 { font-size: 11px; color: #666; font-weight: normal; margin: 0 0 14px; }
+      table { border-collapse: collapse; width: 100%; }
+      th { background: #f1f5f9; padding: 5px 4px; border: 1px solid #ccc; font-weight: 600; font-size: 10px; }
+      td { padding: 5px 4px; border: 1px solid #ddd; vertical-align: top; font-size: 9px; white-space: pre-line; }
+      td.nome { font-weight: 600; background: #fafafa; }
+      td.tot { font-weight: 700; text-align: right; color: #b45309; background: #fef3c7; }
+      tr.totrow { background: #e2e8f0; font-weight: 700; }
+      .ore { font-weight: 700; color: #b45309; }
+      .blocco { display: block; }
+    </style></head><body>
+    <h1>📋 ${titolo}</h1>
+    <h2>Generato il ${new Date().toLocaleString('it-IT')}</h2>
+    <table><thead><tr>
+      <th style="text-align:left">Dipendente</th>
+      ${Array.from({ length: 7 }, (_, i) => `<th>${dateLabel(i)}</th>`).join('')}
+      <th>Totale</th>
+    </tr></thead><tbody>`
+    rows.forEach(r => {
+      html += `<tr><td class="nome">${escapeHtml(r.nome)}</td>`
+      r.cells.forEach(c => {
+        html += `<td>${c.text ? escapeHtml(c.text).replace(/\n/g, '<br/>') : '—'}</td>`
+      })
+      html += `<td class="tot">${r.totOre.toFixed(2)}h</td></tr>`
+    })
+    html += `<tr class="totrow"><td class="nome">TOTALE GIORNO</td>`
+    dayTot.forEach(t => { html += `<td><span class="ore">${(Math.floor(t * 100) / 100).toFixed(2)}h</span></td>` })
+    html += `<td class="tot">${grandTot.toFixed(2)}h</td></tr>`
+    html += `</tbody></table></body></html>`
+    const w = window.open('', '_blank')
+    if (!w) { alert('Popup bloccato — abilita i popup per stampare.'); return }
+    w.document.write(html); w.document.close()
+    setTimeout(() => { w.focus(); w.print() }, 300)
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+  }
+
   return <>
     {/* QR Code Generator */}
     <Card title="QR Code Timbratura" extra={
@@ -255,11 +371,17 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     {/* Presenze reali settimanali */}
     <div style={{ marginTop: 12 }}>
       <Card title="Presenze reali" badge={Math.round(totalHoursWeek) + 'h totali'} extra={
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="m-wrap" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>◀</button>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
           <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>▶</button>
           <button onClick={loadAttendance} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Aggiorna</button>
+          <button onClick={exportExcel} disabled={filteredEmps.length === 0}
+            style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
+            title="Scarica Excel della settimana">📊 Excel</button>
+          <button onClick={exportPDF} disabled={filteredEmps.length === 0}
+            style={{ ...iS, background: '#EF4444', color: '#fff', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
+            title="Stampa o salva come PDF">🖨 PDF</button>
         </div>
       }>
         {filteredEmps.length === 0 ? (
