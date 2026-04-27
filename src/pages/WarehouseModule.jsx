@@ -11,18 +11,20 @@ import MovementsView from '../components/warehouse/MovementsView'
 import InventoryManager from '../components/warehouse/InventoryManager'
 import OrderManager from '../components/warehouse/OrderManager'
 import PriceAnalysis from '../components/warehouse/PriceAnalysis'
+import ManualArticlesManager from '../components/warehouse/ManualArticlesManager'
 
 const TABS = [
-  { key: 'cruscotto',  label: 'Cruscotto',  icon: '📊' },
-  { key: 'fatture',    label: 'Fatture',     icon: '🧾' },
-  { key: 'prodotti',   label: 'Prodotti',    icon: '🍕' },
-  { key: 'articoli',   label: 'Articoli',    icon: '📦' },
-  { key: 'ricette',    label: 'Ricette',     icon: '🍳' },
-  { key: 'giacenze',   label: 'Giacenze',    icon: '🏠' },
-  { key: 'movimenti',  label: 'Movimenti',   icon: '↔️' },
-  { key: 'inventario', label: 'Inventario',  icon: '📋' },
-  { key: 'ordini',     label: 'Ordini',      icon: '🛒' },
-  { key: 'prezzi',     label: 'Prezzi',      icon: '💰' },
+  { key: 'cruscotto',     label: 'Cruscotto',     icon: '📊' },
+  { key: 'fatture',       label: 'Fatture',       icon: '🧾' },
+  { key: 'prodotti',      label: 'Prodotti',      icon: '🍕' },
+  { key: 'articoli',      label: 'Articoli',      icon: '📦' },
+  { key: 'semilavorati',  label: 'Semilavorati',  icon: '🥣' },
+  { key: 'ricette',       label: 'Ricette',       icon: '🍳' },
+  { key: 'giacenze',      label: 'Giacenze',      icon: '🏠' },
+  { key: 'movimenti',     label: 'Movimenti',     icon: '↔️' },
+  { key: 'inventario',    label: 'Inventario',    icon: '📋' },
+  { key: 'ordini',        label: 'Ordini',        icon: '🛒' },
+  { key: 'prezzi',        label: 'Prezzi',        icon: '💰' },
 ]
 
 export default function WarehouseModule({ sp, sps, from, to }) {
@@ -49,6 +51,7 @@ export default function WarehouseModule({ sp, sps, from, to }) {
     {tab === 'fatture'    && <InvoiceManager sp={sp} sps={sps} />}
     {tab === 'prodotti'   && <ProdottiCiC sp={sp} sps={sps} />}
     {tab === 'articoli'   && <ArticoliTab sp={sp} sps={sps} />}
+    {tab === 'semilavorati' && <ManualArticlesManager sp={sp} sps={sps} />}
     {tab === 'ricette'    && <RecipeManager sp={sp} sps={sps} />}
     {tab === 'giacenze'   && <StockView sp={sp} sps={sps} />}
     {tab === 'movimenti'  && <MovementsView sp={sp} sps={sps} from={from} to={to} />}

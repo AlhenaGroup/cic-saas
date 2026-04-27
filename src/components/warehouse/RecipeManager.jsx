@@ -14,6 +14,8 @@ export default function RecipeManager({ sp, sps }) {
   const [cicProducts, setCicProducts] = useState([])
   // Articoli acquistati (da warehouse_invoice_items con nome_articolo)
   const [articles, setArticles] = useState([])
+  // Semilavorati (manual_articles) — ingredienti prodotti internamente
+  const [manualArticles, setManualArticles] = useState([])
   // Ricette salvate
   const [recipes, setRecipes] = useState({}) // nome_prodotto → recipe
   const [loading, setLoading] = useState(false)
@@ -39,6 +41,7 @@ export default function RecipeManager({ sp, sps }) {
     if (!force && cached && (Date.now() - cached.ts) < CACHE_TTL_MS) {
       setCicProducts(cached.cicProducts)
       setArticles(cached.articles)
+      setManualArticles(cached.manualArticles || [])
       setRecipes(cached.recipes)
       setLoading(false)
       return
@@ -94,6 +97,10 @@ export default function RecipeManager({ sp, sps }) {
     })).sort((a, b) => a.nome.localeCompare(b.nome))
     setArticles(arts)
 
+    // 2.5. Semilavorati (manual_articles)
+    const { data: mans } = await supabase.from('manual_articles').select('*')
+    setManualArticles(mans || [])
+
     // 3. Ricette salvate
     const { data: recs } = await supabase.from('recipes').select('*')
     const recMap = {}
@@ -101,7 +108,7 @@ export default function RecipeManager({ sp, sps }) {
     setRecipes(recMap)
 
     // Salva in cache per evitare refetch al prossimo mount
-    MEM_CACHE[cacheKey] = { cicProducts: prods, articles: arts, recipes: recMap, ts: Date.now() }
+    MEM_CACHE[cacheKey] = { cicProducts: prods, articles: arts, manualArticles: mans || [], recipes: recMap, ts: Date.now() }
 
     setLoading(false)
   }, [sp, selectedLocaleName])
@@ -140,15 +147,38 @@ export default function RecipeManager({ sp, sps }) {
     return { qty: q, baseUm: u }
   }
 
-  // Calcolo food cost con conversione unità
+  // Mappa nome → semilavorato per lookup rapido
+  const manualByName = {}
+  for (const m of manualArticles) manualByName[m.nome.trim().toLowerCase()] = m
+
+  // Costo unitario di un singolo ingrediente (€/UM_base):
+  //  - se e' un semilavorato → ricorre sulla sub-ricetta (somma costi / resa)
+  //  - altrimenti cerca prezzo medio in articles (warehouse_invoice_items)
+  const ingrUnitCost = (nome, depth = 0) => {
+    if (depth > 8) return 0 // protezione cicli
+    const key = (nome || '').trim().toLowerCase()
+    if (manualByName[key]) {
+      const m = manualByName[key]
+      let total = 0
+      for (const sub of (m.ingredienti || [])) {
+        const { qty } = toBaseUnit(sub.quantita || 0, sub.unita || 'PZ')
+        total += qty * ingrUnitCost(sub.nome_articolo, depth + 1)
+      }
+      const { qty: resaBase } = toBaseUnit(Number(m.resa) || 1, m.unita || 'PZ')
+      return resaBase > 0 ? total / resaBase : 0
+    }
+    const art = articles.find(a => a.nome.toLowerCase() === key)
+    return art && art.prezzoMedio > 0 ? art.prezzoMedio : 0
+  }
+
+  // Calcolo food cost con conversione unità (include semilavorati)
   const calcCost = (ingr) => {
     let total = 0
     for (const ig of ingr) {
-      const art = articles.find(a => a.nome.toLowerCase() === (ig.nome_articolo || '').toLowerCase())
-      if (!art || art.prezzoMedio <= 0) continue
-      const { qty, baseUm } = toBaseUnit(ig.quantita || 0, ig.unita || art.unita)
-      // Il prezzo medio dell'articolo è per la sua UM base (KG, LT, PZ)
-      total += qty * art.prezzoMedio
+      const cost = ingrUnitCost(ig.nome_articolo)
+      if (cost <= 0) continue
+      const { qty } = toBaseUnit(ig.quantita || 0, ig.unita || 'PZ')
+      total += qty * cost
     }
     return Math.round(total * 100) / 100
   }
@@ -190,9 +220,14 @@ export default function RecipeManager({ sp, sps }) {
 
   // Aggiungi ingrediente
   const addIngredient = (artNome) => {
+    if (!selected) return
+    // Cerca prima negli articoli magazzino, poi nei semilavorati
     const art = articles.find(a => a.nome === artNome)
-    if (!art || !selected) return
-    const newIngr = [...ingredienti, { nome_articolo: art.nome, quantita: 0, unita: art.unita }]
+    const man = manualArticles.find(m => m.nome === artNome)
+    if (!art && !man) return
+    const nome = art ? art.nome : man.nome
+    const unita = art ? art.unita : man.unita
+    const newIngr = [...ingredienti, { nome_articolo: nome, quantita: 0, unita }]
     saveRecipe(selected.name, newIngr)
     setIngredientSearch('')
   }
@@ -209,9 +244,19 @@ export default function RecipeManager({ sp, sps }) {
     saveRecipe(selected.name, newIngr)
   }
 
-  // Articoli filtrati per ricerca ingrediente
+  // Articoli filtrati per ricerca ingrediente: include sia articoli magazzino sia semilavorati,
+  // marcando i semilavorati con un flag per la UI.
+  const allSelectable = [
+    ...articles.map(a => ({ nome: a.nome, unita: a.unita, prezzoMedio: a.prezzoMedio, isManual: false })),
+    ...manualArticles.map(m => ({
+      nome: m.nome,
+      unita: m.unita,
+      prezzoMedio: ingrUnitCost(m.nome),
+      isManual: true,
+    })),
+  ]
   const filteredArticles = ingredientSearch.length >= 2
-    ? articles.filter(a => a.nome.toLowerCase().includes(ingredientSearch.toLowerCase()) && !ingredienti.some(ig => ig.nome_articolo.toLowerCase() === a.nome.toLowerCase()))
+    ? allSelectable.filter(a => a.nome.toLowerCase().includes(ingredientSearch.toLowerCase()) && !ingredienti.some(ig => ig.nome_articolo.toLowerCase() === a.nome.toLowerCase()))
     : []
 
   const conRicetta = cicProducts.filter(p => recipes[p.name] && (recipes[p.name].ingredienti || []).length > 0).length
@@ -305,9 +350,12 @@ export default function RecipeManager({ sp, sps }) {
             {ingredienti.length === 0 && <tr><td colSpan={6} style={{ ...S.td, color: '#475569', textAlign: 'center', fontSize: 12 }}>Nessun ingrediente. Cerca e aggiungi articoli.</td></tr>}
             {ingredienti.map((ig, idx) => {
               if (!ig || !ig.nome_articolo) return null
-              const art = articles.find(a => a.nome.toLowerCase() === (ig.nome_articolo || '').toLowerCase())
-              const prezzoUmBase = art?.prezzoMedio || 0
-              const igUm = ig.unita || art?.unita || 'PZ'
+              const key = (ig.nome_articolo || '').toLowerCase()
+              const isManual = !!manualByName[key]
+              const art = articles.find(a => a.nome.toLowerCase() === key)
+              // Per i semilavorati uso ingrUnitCost; per articoli usa prezzoMedio
+              const prezzoUmBase = isManual ? ingrUnitCost(ig.nome_articolo) : (art?.prezzoMedio || 0)
+              const igUm = ig.unita || art?.unita || (isManual ? manualByName[key].unita : 'PZ')
               const { qty: qtyBase, baseUm } = toBaseUnit(ig.quantita, igUm)
               const costo = qtyBase * prezzoUmBase
               let prezzoDisplay = '—'
@@ -320,7 +368,10 @@ export default function RecipeManager({ sp, sps }) {
                 }
               } catch { prezzoDisplay = '—' }
               return <tr key={idx} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                <td style={{ ...S.td, fontWeight: 500, fontSize: 12 }}>{ig.nome_articolo}</td>
+                <td style={{ ...S.td, fontWeight: 500, fontSize: 12 }}>
+                  {isManual && <span style={{ marginRight: 4, fontSize: 10 }} title="Semilavorato (sub-ricetta)">🥣</span>}
+                  {ig.nome_articolo}
+                </td>
                 <td style={{ ...S.td, padding: '4px 6px' }}>
                   <input type="text" inputMode="decimal"
                     key={selected.name + '-' + idx}
@@ -361,14 +412,17 @@ export default function RecipeManager({ sp, sps }) {
         {/* Aggiungi ingrediente */}
         <div style={{ background: '#131825', borderRadius: 8, padding: 12, border: '1px solid #2a3042' }}>
           <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>Aggiungi articolo alla ricetta:</div>
-          <input placeholder="Cerca articolo..." value={ingredientSearch}
+          <input placeholder="Cerca articolo o semilavorato..." value={ingredientSearch}
             onChange={e => setIngredientSearch(e.target.value)}
             style={{ ...iS, fontSize: 12, padding: '6px 10px', width: '100%', marginBottom: 6 }} />
-          {filteredArticles.slice(0, 8).map(a => (
-            <div key={a.nome} onClick={() => addIngredient(a.nome)}
+          {filteredArticles.slice(0, 12).map(a => (
+            <div key={a.nome + (a.isManual ? ':m' : '')} onClick={() => addIngredient(a.nome)}
               style={{ padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid #1a1f2e', fontSize: 12, color: '#e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 500 }}>{a.nome}</span>
-              <span style={{ fontSize: 10, color: '#64748b' }}>{a.prezzoMedio > 0 ? fmtD(Math.round(a.prezzoMedio * 100) / 100) + '/' + a.unita : '—'}</span>
+              <span style={{ fontWeight: 500 }}>
+                {a.isManual && <span style={{ marginRight: 4, fontSize: 10 }} title="Semilavorato">🥣</span>}
+                {a.nome}
+              </span>
+              <span style={{ fontSize: 10, color: a.isManual ? '#10B981' : '#64748b' }}>{a.prezzoMedio > 0 ? fmtD(Math.round(a.prezzoMedio * 100) / 100) + '/' + a.unita : '—'}</span>
             </div>
           ))}
           {ingredientSearch.length >= 2 && filteredArticles.length === 0 && (
