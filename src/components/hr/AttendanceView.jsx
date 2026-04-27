@@ -172,19 +172,43 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     return blocks
   }
 
+  // Riassegnazione virtuale ore LABORATORIO: il blocco appare come
+  // LABORATORIO ma per il conteggio le ore vengono attribuite al primo
+  // locale "vero" (non LABORATORIO) della stessa giornata.
+  const LAB_NAME = 'LABORATORIO'
+  const computeAttribuzione = (blocks) => {
+    const out = blocks.map(b => b.locale)
+    for (let i = 0; i < blocks.length; i++) {
+      if (blocks[i].locale === LAB_NAME) {
+        let target = null
+        for (let j = i + 1; j < blocks.length; j++) {
+          if (blocks[j].locale && blocks[j].locale !== LAB_NAME) { target = blocks[j].locale; break }
+        }
+        if (!target) {
+          for (let j = i - 1; j >= 0; j--) {
+            if (blocks[j].locale && blocks[j].locale !== LAB_NAME) { target = blocks[j].locale; break }
+          }
+        }
+        if (target) out[i] = target
+      }
+    }
+    return out
+  }
+
   // Ritorna aggregato giornaliero. Se localeFilter != null, somma solo le ore
-  // dei blocchi relativi a quel locale.
+  // dei blocchi attribuiti a quel locale (incluso LABORATORIO che confluisce).
   const getAttendanceForDay = (empId, dayOffset, localeFilter = null) => {
     const date = new Date(weekStart)
     date.setDate(date.getDate() + dayOffset)
     const ds = date.toISOString().split('T')[0]
-    // Usa il "giorno operativo": una timbratura tra mezzanotte e le 05:00
-    // appartiene al turno del giorno precedente (locali notturni).
     const dayRecords = attendance.filter(a =>
       a.employee_id === empId && a.timestamp && operatingDayOf(a.timestamp) === ds
     )
     const blocks = buildBlocks(dayRecords)
-    const blocksForLocale = localeFilter ? blocks.filter(b => b.locale === localeFilter) : blocks
+    const attrib = computeAttribuzione(blocks)
+    const blocksForLocale = localeFilter
+      ? blocks.filter((_, i) => attrib[i] === localeFilter)
+      : blocks
     const ore = blocksForLocale.reduce((s, b) => s + (b.ore || 0), 0)
     const hasIncompleta = blocks.some(b => b.incompleta)
     const localiCoinvolti = [...new Set(blocks.map(b => b.locale).filter(Boolean))]
@@ -459,30 +483,66 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
         return blocks
       }
 
-      // 5. Costruisco la matrice empRows[emp][ds] = { blocks, ore }
-      // Quando localeFilter e' attivo, mostra SOLO i blocchi di quel locale
-      // (testo e ore). I blocchi di altri locali non vengono nemmeno menzionati.
-      // Se localeFilter, escludo dipendenti senza alcuna timbratura in quel locale nel periodo.
-      const empsToExport = localeFilter ? emps.filter(e => {
-        const days = byEmpDay[e.id] || {}
+      // Riassegnazione VIRTUALE delle ore LABORATORIO: visualmente restano
+      // come blocco LABORATORIO, ma per il CONTEGGIO le ore vengono
+      // attribuite al primo locale "vero" (non LABORATORIO) della stessa
+      // giornata. Se non c'e' un locale successivo, restano su LABORATORIO.
+      const LAB = 'LABORATORIO'
+      const computeAttribuzione = (blocksAll) => {
+        // attribLocale[i] = locale a cui attribuire le ore del blocco i
+        const attribLocale = blocksAll.map(b => b.locale)
+        for (let i = 0; i < blocksAll.length; i++) {
+          if (blocksAll[i].locale === LAB) {
+            // Cerca primo locale != LAB nella stessa giornata (anche prima)
+            let target = null
+            for (let j = i + 1; j < blocksAll.length; j++) {
+              if (blocksAll[j].locale && blocksAll[j].locale !== LAB) { target = blocksAll[j].locale; break }
+            }
+            if (!target) {
+              for (let j = i - 1; j >= 0; j--) {
+                if (blocksAll[j].locale && blocksAll[j].locale !== LAB) { target = blocksAll[j].locale; break }
+              }
+            }
+            if (target) attribLocale[i] = target
+          }
+        }
+        return attribLocale
+      }
+
+      // 5. Filtra dipendenti: se localeFilter, includo chi ha almeno un blocco
+      // ATTRIBUITO a quel locale nel periodo (anche solo via riassegnazione LAB).
+      const hasAttribForLocale = (emp, lf) => {
+        const days = byEmpDay[emp.id] || {}
         for (const ds of dates) {
           const recs = days[ds] || []
-          if (recs.some(r => r.locale === localeFilter)) return true
+          if (recs.length === 0) continue
+          const blocksAll = buildBlocks(recs)
+          const attrib = computeAttribuzione(blocksAll)
+          if (attrib.some(a => a === lf)) return true
         }
         return false
-      }) : emps
+      }
+      const empsToExport = localeFilter ? emps.filter(e => hasAttribForLocale(e, localeFilter)) : emps
+
       const empRows = empsToExport.map(emp => {
         const cells = dates.map(ds => {
           const recs = (byEmpDay[emp.id] || {})[ds] || []
           const blocksAll = buildBlocks(recs)
-          const blocks = localeFilter ? blocksAll.filter(b => b.locale === localeFilter) : blocksAll
-          const ore = blocks.reduce((s, b) => s + (b.ore || 0), 0)
-          const text = blocks.length === 0 ? '' :
-            blocks.map(b => {
+          const attrib = computeAttribuzione(blocksAll)
+          // I blocchi mostrati nella cella: se filtro, includo quelli con
+          // ATTRIBUZIONE = localeFilter (quindi anche LABORATORIO che confluisce su quel locale)
+          const visibleIdx = blocksAll.map((b, i) => ({ b, i }))
+            .filter(({ b, i }) => !localeFilter || attrib[i] === localeFilter)
+          const ore = visibleIdx.reduce((s, { b }) => s + (b.ore || 0), 0)
+          const text = visibleIdx.length === 0 ? '' :
+            visibleIdx.map(({ b }) => {
               const eH = b.entrata ? hmFromTsTz(b.entrata.timestamp) : '—'
               const uH = b.uscita ? hmFromTsTz(b.uscita.timestamp) : '…'
-              // Se filtro per locale, ometto la dicitura locale (e' implicita)
-              return `${eH}→${uH}${(!localeFilter && b.locale) ? ' (' + b.locale + ')' : ''}`
+              // Etichetta locale: sempre se filtro Tutti; se filtro attivo,
+              // mostro solo se LABORATORIO (per evidenziare l'attribuzione virtuale)
+              const showLab = b.locale === LAB
+              const showLabel = !localeFilter || showLab
+              return `${eH}→${uH}${(showLabel && b.locale) ? ' (' + b.locale + ')' : ''}`
             }).join('\n') + (ore > 0 ? `\n= ${ore.toFixed(2)}h` : '')
           return { ore: Math.floor(ore * 100) / 100, text }
         })
