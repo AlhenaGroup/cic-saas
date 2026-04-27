@@ -121,8 +121,101 @@ Cache in memoria con TTL per evitare refetch al remount (vedi `RecipeManager.jsx
 
 - Repo GitHub: https://github.com/AlhenaGroup/cic-saas
 - Ambiente produzione: Vercel (da `main`)
-- DB: Supabase
+- DB: Supabase (URL `https://afdochrjbmxnhviidzpb.supabase.co`)
+- Service key: in `api/attendance.js` linea 4 — utilizzabile per leggere/scrivere via REST (non per DDL)
+- User ID admin: `4bedef4d-cf04-4c34-b614-dd0b78b496be`
+- DDL (ALTER, CREATE INDEX, ecc.): aprire Chrome MCP su `https://supabase.com/dashboard/project/afdochrjbmxnhviidzpb/sql/new`
 - File schema (da aggiornare): `supabase_schema.sql`
 - Shared styles: `src/components/shared/styles.jsx`
 - API client CiC: `src/lib/cicApi.js`
 - Cache IndexedDB già esistente: `src/lib/idbCache.js` (poco usato, espandere)
+
+## Convenzioni operative consolidate
+
+- **Operating day cutoff = 05:00**: turni notturni che finiscono alle 03:00 contano nel giorno precedente (Europe/Rome, DST safe)
+- **Giornata operativa turni HR**: 12:00 → 05:00 del giorno dopo (17 colonne); turni a cavallo mezzanotte salvati come 2 righe in `employee_shifts` (giorno + giorno+1)
+- **Ore reali**: troncate per difetto a 2 decimali (`Math.floor(x*100)/100`) — mai sovrastimare
+- **Multi-tenancy**: RLS attivo, key `(user_id, locale, sub_location)`. Sub-location default `principale`
+- **Coordinate locali timbratura**: REMEMBEER 44.8857895/7.3293777 · CASA DE AMICIS 44.8858039/7.3299022 · LABORATORIO 44.885515/7.329369 · raggio max 50m
+- **PWA `/timbra`**: manifest dinamico via script inline in `index.html` (start_url scoped). Path `/timbra` = app dipendenti (solo PIN), altre pagine = dashboard admin
+- **Mobile/PWA**: griglie multi-colonna collassano via CSS attribute selector; classe `.keep-grid` per esclusioni (es. numpad PIN). Tabelle scroll-x <=900px. Modali fullscreen `.m-modal-fullscreen`
+- **Hover celle timeline turni**: classe `.ts-cell` + figlio `.ts-fill` per il background → la regola globale `tr:hover td{background:...}` non sovrascrive la selezione
+
+## Schema DB chiave
+
+- `employees` — incluso `pin` (4 cifre) e `permissions jsonb` (`{presenza, inventario, spostamenti, consumo}`)
+- `recipes` — `nome_prodotto`, `reparto`, `prezzo_vendita`, `ingredienti jsonb [{nome_articolo, quantita, unita}]`
+- `warehouse_invoices` + `warehouse_invoice_items` con `nome_articolo`, `qty_singola`, `totale_um`, `magazzino`, `escludi_magazzino`
+- `item_rules` — pattern descrizione fattura → defaults (nome_articolo, magazzino, qty, ecc.). Pattern normalizzato (rimuove lotti, date, codici 4+ cifre)
+- `article_stock` + `article_movement` (giacenze + storico append-only)
+- `manual_costs` — costi CE manuali (cadenze: settimanale/mensile/bimestrale/trimestrale/semestrale/annuale, `data_riferimento`, `data_fine`)
+- `daily_stats` (sync da CiC, con `receipt_details`, `hourly_records`)
+- `attendance` (timbrature)
+- `employee_shifts` (turni: settimana, giorno 0-6, ora_inizio, ora_fine)
+- `personnel_costs`, `category_mappings`
+- `warehouse_inventories` + `warehouse_inventory_items` (legacy: `note` JSON contiene `{locale, sub_location, nome_articolo, ...}`. FK su `product_id` rimossa, ora nullable)
+
+## Flusso fatture/magazzino
+
+1. Sync TS Digital → `warehouse_invoices` + items
+2. Per ogni riga: utente associa `nome_articolo`, magazzino, qty fatt./tipo/qty singola/UM, escludi sì/no
+3. Click 💾 → upsert `item_rules` con pattern normalizzato + setta `stato_match='abbinato'` sulla riga
+4. Prossima fattura con stessa descrizione → autocompila in **arancione** (regola), altrimenti **viola**
+5. Ricerca globale: prefetch tutte le pagine in background; click apre fattura anche da pagine diverse
+6. Formula €/UM: `prezzo_totale / (qty_fatt × qty_tipo × qty_singola)` ovunque (PriceAnalysis, ArticoliTab, RecipeManager)
+
+## Modulo Magazzino tabs
+
+Cruscotto · Fatture · Prodotti · Articoli · Ricette · Giacenze · **Movimenti** · Inventario · Ordini · Prezzi
+- Tab "Movimenti" della **dashboard principale** (sospetti monitoring) → rimosso
+- "Articoli" e "Prezzi" leggono direttamente da `warehouse_invoice_items` con `escludi_magazzino=false` (sempre allineati alle esclusioni)
+
+## /timbra (PWA dipendenti, no login)
+
+Menu post-PIN filtrato da `permissions` + viste info sempre visibili:
+- 🕐 Timbra presenza · 🍪 Consumo personale (lista RICETTE → esplode ingredienti) · 🔀 Spostamento merce · 📋 Inventario
+- 📆 I miei turni (last 6 settimane) · ⏱ Le mie ore (oggi/sett/mese/anno) · 🏖️ Le mie ferie (CCNL 26gg, residui)
+- API: `verify`, `timbra`, `history`, `recipes`, `consumo`, `articles`, `trasferimento`, `inv-open`, `inv-articles`, `inv-count`, `inv-close`, `my-shifts`, `my-hours`, `my-timeoff`
+
+## Conto Economico
+
+- Voci CE cliccabili (drill-down con KPI Da fatture/Manuali/Totale, top fornitori, dettaglio righe)
+- `manual_costs` espansi nel periodo (helper `src/lib/manualCosts.js`)
+- Selettore mese/anno in cima
+
+## Personale → Turni
+
+- Toggle "Per settimana" / "Per giorno"
+- Vista giorno: timeline 12:00→05:00, click=ora intera, doppio click=zoom 4 quarti, salva merge intervalli contigui
+- Riga "Staff" pianificato/consigliato (calcolato da `daily_stats` settimana scorsa stesso giorno + `cic_soglia_staff` + `cic_prep_hours`)
+- Celle rosse se sovra-staffato
+
+## Stato dati attuale (snapshot 2026-04-27)
+
+- **Ricette CASA DE AMICIS**: 508 (26 originali aggiornate + 482 importate da Excel)
+- **Articoli magazzino**: ~311 unici da fatture
+- **`article_stock`**: 231 righe da soli carichi (scarichi simulati 1/4-21/4 rimossi)
+- **Inventario REMEMBEER**: vuoto — al primo apertura da `/timbra` popolerà con i 145 articoli
+- **4 ingredienti senza match magazzino**: `Acqua Potabile`, `LAVAZZA CAPSULE`, `NO RICETTA`, `VERMOUTH ROSSO` (food cost = 0 finché non arrivano in fattura)
+- **Sub-location**: nessun locale ne ha configurate, tutto su `principale`
+
+## File chiave dove probabilmente intervenire
+
+- `src/pages/DashboardPage.jsx` (3000+ righe) — dashboard principale, tabs, KPI, calcolo CE inline
+- `src/pages/TimbraPage.jsx` — app dipendenti
+- `src/pages/WarehouseModule.jsx` — modulo magazzino + ArticoliTab inline
+- `src/components/warehouse/InvoiceManager.jsx` — gestione fatture, normalizePattern, regole
+- `src/components/warehouse/RecipeManager.jsx` — ricette + food cost
+- `src/components/warehouse/PriceAnalysis.jsx` — analisi prezzi articoli
+- `src/components/hr/ShiftAssistant.jsx` — turni settimana/giorno + DailyTimelineEditor + SuggestedSchedule
+- `src/components/hr/AttendanceView.jsx` — presenze reali con DayManager
+- `src/components/hr/EmployeeProfile.jsx` — scheda dipendente con tab Permessi
+- `src/components/ContoEconomico.jsx` + `ManualCostsManager.jsx`
+- `src/lib/manualCosts.js` (helper espansione ricorrenze)
+- `src/lib/cicApi.js` — calcolo CE include `manual_costs`
+- `api/attendance.js` — tutti gli endpoint /timbra
+- `index.html` — script inline per manifest PWA dinamico
+
+## Quando aggiornare questo file
+
+Quando finisci una sessione di lavoro significativa, aggiorna la sezione **"Stato dati attuale"** e l'ultima data, ed eventualmente aggiungi note in **"Convenzioni operative consolidate"** se hai introdotto nuove regole. Non riscrivere le sezioni precedenti se restano valide.
