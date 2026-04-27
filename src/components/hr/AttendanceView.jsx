@@ -219,117 +219,8 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
 
   // Stato popup gestione timbrature
   const [managingDay, setManagingDay] = useState(null) // { emp, dayOffset, ds }
-
-  // ─── Export Excel / PDF ────────────────────────────────────────
-  const dateLabel = (offset) => {
-    const d = new Date(weekStart); d.setDate(d.getDate() + offset)
-    return d.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: '2-digit' })
-  }
-  const buildRows = () => {
-    // Per ogni dipendente, una riga: nome + 7 colonne giorno + totale
-    return filteredEmps.map(emp => {
-      let totOre = 0
-      const cells = []
-      for (let day = 0; day < 7; day++) {
-        const att = getAttendanceForDay(emp.id, day, localeFilter)
-        totOre += att.ore
-        if (att.blocks.length === 0) {
-          cells.push({ ore: 0, text: '', incompleta: false })
-        } else {
-          // Mostra orari entrata→uscita di ogni blocco + locale + ore
-          const lines = att.blocks.map(b => {
-            const eH = b.entrata ? hmFromTs(b.entrata.timestamp) : '—'
-            const uH = b.uscita ? hmFromTs(b.uscita.timestamp) : '…'
-            return `${eH}→${uH} ${b.locale ? '(' + b.locale + ')' : ''}`.trim()
-          }).join('\n')
-          cells.push({
-            ore: att.ore || 0,
-            text: lines + (att.ore > 0 ? `\n= ${(att.ore || 0).toFixed(2)}h` : ''),
-            incompleta: att.incompleta,
-          })
-        }
-      }
-      return { nome: emp.nome, cells, totOre: Math.floor(totOre * 100) / 100 }
-    })
-  }
-
-  const exportExcel = () => {
-    const rows = buildRows()
-    const headers = ['Dipendente', ...Array.from({ length: 7 }, (_, i) => DAYS[i] + ' ' + dateLabel(i).split(' ').slice(-1)[0]), 'Totale ore']
-    const data = [headers]
-    rows.forEach(r => {
-      data.push([r.nome, ...r.cells.map(c => c.text || '—'), r.totOre.toFixed(2) + 'h'])
-    })
-    // Riga totali per giorno
-    const dayTot = Array.from({ length: 7 }, (_, day) =>
-      rows.reduce((s, r) => s + (r.cells[day]?.ore || 0), 0)
-    )
-    data.push([
-      'TOTALE GIORNO',
-      ...dayTot.map(t => (Math.floor(t * 100) / 100).toFixed(2) + 'h'),
-      (Math.floor(rows.reduce((s, r) => s + r.totOre, 0) * 100) / 100).toFixed(2) + 'h',
-    ])
-    const ws = XLSX.utils.aoa_to_sheet(data)
-    // Larghezze colonne
-    ws['!cols'] = [{ wch: 22 }, ...Array(7).fill({ wch: 24 }), { wch: 12 }]
-    // Wrap text per le celle dei giorni
-    Object.keys(ws).forEach(k => {
-      if (k.startsWith('!')) return
-      if (!ws[k].s) ws[k].s = {}
-      ws[k].s.alignment = { wrapText: true, vertical: 'top' }
-    })
-    const wb = XLSX.utils.book_new()
-    const sheetName = 'Presenze ' + weekLabel().replace(/[^\w-]/g, '_').slice(0, 24)
-    XLSX.utils.book_append_sheet(wb, ws, sheetName)
-    const fileLabel = (locale ? locale + '_' : '') + weekStart
-    XLSX.writeFile(wb, `Presenze_${fileLabel}.xlsx`)
-  }
-
-  const exportPDF = () => {
-    const rows = buildRows()
-    const dayTot = Array.from({ length: 7 }, (_, day) =>
-      rows.reduce((s, r) => s + (r.cells[day]?.ore || 0), 0)
-    )
-    const grandTot = Math.floor(rows.reduce((s, r) => s + r.totOre, 0) * 100) / 100
-    const titolo = `Presenze reali · ${locale || 'Tutti i locali'} · ${weekLabel()}`
-    let html = `<html><head><title>${titolo}</title>
-    <style>
-      @page { size: A4 landscape; margin: 12mm; }
-      body { font-family: Arial, sans-serif; padding: 0; color: #333; font-size: 10px; }
-      h1 { font-size: 16px; margin: 0 0 6px; }
-      h2 { font-size: 11px; color: #666; font-weight: normal; margin: 0 0 14px; }
-      table { border-collapse: collapse; width: 100%; }
-      th { background: #f1f5f9; padding: 5px 4px; border: 1px solid #ccc; font-weight: 600; font-size: 10px; }
-      td { padding: 5px 4px; border: 1px solid #ddd; vertical-align: top; font-size: 9px; white-space: pre-line; }
-      td.nome { font-weight: 600; background: #fafafa; }
-      td.tot { font-weight: 700; text-align: right; color: #b45309; background: #fef3c7; }
-      tr.totrow { background: #e2e8f0; font-weight: 700; }
-      .ore { font-weight: 700; color: #b45309; }
-      .blocco { display: block; }
-    </style></head><body>
-    <h1>📋 ${titolo}</h1>
-    <h2>Generato il ${new Date().toLocaleString('it-IT')}</h2>
-    <table><thead><tr>
-      <th style="text-align:left">Dipendente</th>
-      ${Array.from({ length: 7 }, (_, i) => `<th>${dateLabel(i)}</th>`).join('')}
-      <th>Totale</th>
-    </tr></thead><tbody>`
-    rows.forEach(r => {
-      html += `<tr><td class="nome">${escapeHtml(r.nome)}</td>`
-      r.cells.forEach(c => {
-        html += `<td>${c.text ? escapeHtml(c.text).replace(/\n/g, '<br/>') : '—'}</td>`
-      })
-      html += `<td class="tot">${r.totOre.toFixed(2)}h</td></tr>`
-    })
-    html += `<tr class="totrow"><td class="nome">TOTALE GIORNO</td>`
-    dayTot.forEach(t => { html += `<td><span class="ore">${(Math.floor(t * 100) / 100).toFixed(2)}h</span></td>` })
-    html += `<td class="tot">${grandTot.toFixed(2)}h</td></tr>`
-    html += `</tbody></table></body></html>`
-    const w = window.open('', '_blank')
-    if (!w) { alert('Popup bloccato — abilita i popup per stampare.'); return }
-    w.document.write(html); w.document.close()
-    setTimeout(() => { w.focus(); w.print() }, 300)
-  }
+  // Stato modale export
+  const [exportModal, setExportModal] = useState(null) // null | 'excel' | 'pdf'
 
   function escapeHtml(s) {
     return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
@@ -376,12 +267,12 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
           <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
           <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>▶</button>
           <button onClick={loadAttendance} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Aggiorna</button>
-          <button onClick={exportExcel} disabled={filteredEmps.length === 0}
+          <button onClick={() => setExportModal('excel')} disabled={filteredEmps.length === 0}
             style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
-            title="Scarica Excel della settimana">📊 Excel</button>
-          <button onClick={exportPDF} disabled={filteredEmps.length === 0}
+            title="Scarica Excel di un periodo a tua scelta">📊 Excel</button>
+          <button onClick={() => setExportModal('pdf')} disabled={filteredEmps.length === 0}
             style={{ ...iS, background: '#EF4444', color: '#fff', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
-            title="Stampa o salva come PDF">🖨 PDF</button>
+            title="Stampa o salva come PDF di un periodo a tua scelta">🖨 PDF</button>
         </div>
       }>
         {filteredEmps.length === 0 ? (
@@ -468,7 +359,220 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
         onChange={loadAttendance}
       />
     )}
+
+    {exportModal && (
+      <ExportModal
+        kind={exportModal}
+        defaultFrom={weekStart}
+        defaultTo={(() => { const d = new Date(weekStart); d.setDate(d.getDate() + 6); return d.toISOString().split('T')[0] })()}
+        emps={filteredEmps}
+        locale={locale}
+        localeFilter={localeFilter}
+        onClose={() => setExportModal(null)}
+      />
+    )}
   </>
+}
+
+// ─── ExportModal: selettore periodo + esecuzione export ─────────────
+function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter, onClose }) {
+  const [from, setFrom] = useState(defaultFrom)
+  const [to, setTo] = useState(defaultTo)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const iS = S.input
+
+  const presetRange = (name) => {
+    const t = new Date()
+    const ymd = (d) => d.toISOString().split('T')[0]
+    const startWk = (d) => { const x = new Date(d); const dow = x.getDay() || 7; x.setDate(x.getDate() - (dow - 1)); return x }
+    if (name === 'week') {
+      const s = startWk(t); const e = new Date(s); e.setDate(s.getDate() + 6)
+      return { from: ymd(s), to: ymd(e) }
+    }
+    if (name === 'lastweek') {
+      const s = startWk(t); s.setDate(s.getDate() - 7); const e = new Date(s); e.setDate(s.getDate() + 6)
+      return { from: ymd(s), to: ymd(e) }
+    }
+    if (name === 'month') {
+      const y = t.getFullYear(), m = t.getMonth() + 1
+      const last = new Date(y, m, 0).getDate()
+      return { from: `${y}-${String(m).padStart(2, '0')}-01`, to: `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}` }
+    }
+    if (name === 'lastmonth') {
+      const d = new Date(t.getFullYear(), t.getMonth() - 1, 1)
+      const y = d.getFullYear(), m = d.getMonth() + 1
+      const last = new Date(y, m, 0).getDate()
+      return { from: `${y}-${String(m).padStart(2, '0')}-01`, to: `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}` }
+    }
+    return null
+  }
+  const setPreset = (n) => { const r = presetRange(n); if (r) { setFrom(r.from); setTo(r.to) } }
+
+  const run = async () => {
+    setBusy(true); setErr('')
+    try {
+      // 1. Carico tutte le timbrature del range esteso (+1g per turni notturni)
+      const start = from
+      const endObj = new Date(to); endObj.setDate(endObj.getDate() + 2)
+      const endStr = endObj.toISOString().split('T')[0]
+      const { data: rows } = await supabase.from('attendance').select('*')
+        .gte('timestamp', start + 'T00:00:00').lt('timestamp', endStr + 'T00:00:00').order('timestamp')
+      // 2. Aggrego per dipendente / giorno operativo / locale
+      const byEmpDay = {} // emp.id → { ds → blocks[] }
+      const byEmp = {}
+      ;(rows || []).forEach(r => {
+        if (!r.timestamp) return
+        const ds = operatingDayOf(r.timestamp)
+        if (!ds || ds < start || ds > to) return
+        if (!byEmpDay[r.employee_id]) byEmpDay[r.employee_id] = {}
+        if (!byEmpDay[r.employee_id][ds]) byEmpDay[r.employee_id][ds] = []
+        byEmpDay[r.employee_id][ds].push(r)
+      })
+
+      // 3. Costruisco lista date del periodo
+      const dates = []
+      let d0 = new Date(start)
+      const dEnd = new Date(to)
+      while (d0 <= dEnd) {
+        dates.push(d0.toISOString().split('T')[0])
+        d0.setDate(d0.getDate() + 1)
+      }
+
+      // 4. Per ogni dipendente, per ogni data: ricreo i blocchi (entrata→uscita)
+      const minutesFromHm = (s) => { if (!s || !s.includes(':')) return null; const [h, m] = s.split(':').map(Number); return h * 60 + (m || 0) }
+      const buildBlocks = (recs) => {
+        const sorted = [...recs].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+        const blocks = []; let open = null
+        for (const r of sorted) {
+          if (r.tipo === 'entrata') { if (open) blocks.push({ entrata: open, uscita: null, locale: open.locale, ore: 0, incompleta: true }); open = r }
+          else if (r.tipo === 'uscita') {
+            if (open) {
+              const e = minutesFromHm(hmFromTsTz(open.timestamp)); const u = minutesFromHm(hmFromTsTz(r.timestamp))
+              let dl = 0; if (e != null && u != null) { dl = u - e; if (dl < 0) dl += 24 * 60 }
+              blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.floor(dl / 60 * 100) / 100, incompleta: false })
+              open = null
+            } else blocks.push({ entrata: null, uscita: r, locale: r.locale, ore: 0, incompleta: true })
+          }
+        }
+        if (open) blocks.push({ entrata: open, uscita: null, locale: open.locale, ore: 0, incompleta: true })
+        return blocks
+      }
+
+      // 5. Costruisco la matrice empRows[emp][ds] = { blocks, ore }
+      const empRows = emps.map(emp => {
+        const cells = dates.map(ds => {
+          const recs = (byEmpDay[emp.id] || {})[ds] || []
+          const blocks = buildBlocks(recs)
+          const filt = localeFilter ? blocks.filter(b => b.locale === localeFilter) : blocks
+          const ore = filt.reduce((s, b) => s + (b.ore || 0), 0)
+          const text = blocks.length === 0 ? '' :
+            blocks.map(b => {
+              const eH = b.entrata ? hmFromTsTz(b.entrata.timestamp) : '—'
+              const uH = b.uscita ? hmFromTsTz(b.uscita.timestamp) : '…'
+              return `${eH}→${uH}${b.locale ? ' (' + b.locale + ')' : ''}`
+            }).join('\n') + (ore > 0 ? `\n= ${ore.toFixed(2)}h` : '')
+          return { ore: Math.floor(ore * 100) / 100, text }
+        })
+        const tot = cells.reduce((s, c) => s + c.ore, 0)
+        return { nome: emp.nome, cells, tot: Math.floor(tot * 100) / 100 }
+      })
+
+      // 6. Esporta
+      const dayLabel = (ds) => {
+        const d = new Date(ds + 'T12:00:00')
+        const wd = d.toLocaleDateString('it-IT', { weekday: 'long' })
+        const dd = d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
+        return wd.charAt(0).toUpperCase() + wd.slice(1) + ' ' + dd
+      }
+      const titolo = `Presenze · ${locale || 'Tutti i locali'} · ${start} → ${to}`
+      if (kind === 'excel') {
+        const headers = ['Dipendente', ...dates.map(dayLabel), 'Totale ore']
+        const data = [headers]
+        empRows.forEach(r => data.push([r.nome, ...r.cells.map(c => c.text || '—'), r.tot.toFixed(2) + 'h']))
+        const dayTot = dates.map((_, i) => empRows.reduce((s, r) => s + (r.cells[i]?.ore || 0), 0))
+        const grand = empRows.reduce((s, r) => s + r.tot, 0)
+        data.push(['TOTALE GIORNO', ...dayTot.map(t => (Math.floor(t * 100) / 100).toFixed(2) + 'h'), (Math.floor(grand * 100) / 100).toFixed(2) + 'h'])
+        const ws = XLSX.utils.aoa_to_sheet(data)
+        ws['!cols'] = [{ wch: 22 }, ...dates.map(() => ({ wch: 26 })), { wch: 12 }]
+        Object.keys(ws).forEach(k => { if (!k.startsWith('!')) { ws[k].s = ws[k].s || {}; ws[k].s.alignment = { wrapText: true, vertical: 'top' } } })
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, 'Presenze')
+        XLSX.writeFile(wb, `Presenze_${(locale || 'tutti').replace(/\s+/g, '_')}_${start}_${to}.xlsx`)
+      } else {
+        let html = `<html><head><title>${escapeHtml(titolo)}</title><style>
+          @page { size: A4 landscape; margin: 10mm; }
+          body { font-family: Arial, sans-serif; padding: 0; color: #333; font-size: 9px; }
+          h1 { font-size: 15px; margin: 0 0 4px; }
+          h2 { font-size: 10px; color: #666; font-weight: normal; margin: 0 0 12px; }
+          table { border-collapse: collapse; width: 100%; }
+          th { background: #f1f5f9; padding: 4px 3px; border: 1px solid #ccc; font-weight: 600; font-size: 9px; }
+          td { padding: 4px 3px; border: 1px solid #ddd; vertical-align: top; font-size: 8px; white-space: pre-line; }
+          td.nome { font-weight: 600; background: #fafafa; }
+          td.tot { font-weight: 700; text-align: right; color: #b45309; background: #fef3c7; }
+          tr.totrow { background: #e2e8f0; font-weight: 700; }
+        </style></head><body>
+        <h1>📋 ${escapeHtml(titolo)}</h1>
+        <h2>Generato il ${new Date().toLocaleString('it-IT')}</h2>
+        <table><thead><tr><th style="text-align:left">Dipendente</th>${dates.map(ds => `<th>${escapeHtml(dayLabel(ds))}</th>`).join('')}<th>Totale</th></tr></thead><tbody>`
+        empRows.forEach(r => {
+          html += `<tr><td class="nome">${escapeHtml(r.nome)}</td>`
+          r.cells.forEach(c => { html += `<td>${c.text ? escapeHtml(c.text).replace(/\n/g, '<br/>') : '—'}</td>` })
+          html += `<td class="tot">${r.tot.toFixed(2)}h</td></tr>`
+        })
+        const dayTot = dates.map((_, i) => empRows.reduce((s, r) => s + (r.cells[i]?.ore || 0), 0))
+        html += `<tr class="totrow"><td class="nome">TOTALE GIORNO</td>${dayTot.map(t => `<td>${(Math.floor(t * 100) / 100).toFixed(2)}h</td>`).join('')}<td class="tot">${(Math.floor(empRows.reduce((s, r) => s + r.tot, 0) * 100) / 100).toFixed(2)}h</td></tr>`
+        html += `</tbody></table></body></html>`
+        const w = window.open('', '_blank')
+        if (!w) { setErr('Popup bloccato — abilita i popup per la stampa.'); setBusy(false); return }
+        w.document.write(html); w.document.close()
+        setTimeout(() => { w.focus(); w.print() }, 300)
+      }
+      onClose()
+    } catch (e) { setErr(e.message); setBusy(false) }
+  }
+
+  return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
+    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 480 }}>
+      <div style={{ padding: 18, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0, fontSize: 16 }}>{kind === 'excel' ? '📊 Esporta Excel' : '🖨 Esporta PDF'}</h3>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}>✕</button>
+      </div>
+      <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button onClick={() => setPreset('week')} style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}>Settimana corrente</button>
+          <button onClick={() => setPreset('lastweek')} style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}>Settimana scorsa</button>
+          <button onClick={() => setPreset('month')} style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}>Mese corrente</button>
+          <button onClick={() => setPreset('lastmonth')} style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}>Mese scorso</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Dal</div>
+            <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ ...iS, width: '100%' }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Al</div>
+            <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ ...iS, width: '100%' }} />
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: '#94a3b8' }}>
+          {(() => {
+            const d1 = new Date(from), d2 = new Date(to)
+            const days = Math.round((d2 - d1) / 86400000) + 1
+            return days > 0 ? `${days} giorni · ${emps.length} dipendenti${locale ? ' · solo ' + locale : ''}` : 'Periodo non valido'
+          })()}
+        </div>
+        {err && <div style={{ color: '#EF4444', fontSize: 12 }}>{err}</div>}
+      </div>
+      <div style={{ padding: 14, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button onClick={onClose} disabled={busy} style={{ ...iS, color: '#94a3b8', border: '1px solid #2a3042', padding: '7px 14px', cursor: 'pointer' }}>Annulla</button>
+        <button onClick={run} disabled={busy || from > to}
+          style={{ ...iS, background: kind === 'excel' ? '#10B981' : '#EF4444', color: kind === 'excel' ? '#0f1420' : '#fff', fontWeight: 700, border: 'none', padding: '7px 18px', cursor: busy ? 'wait' : 'pointer' }}>
+          {busy ? 'Esporto…' : (kind === 'excel' ? 'Scarica Excel' : 'Apri stampa PDF')}
+        </button>
+      </div>
+    </div>
+  </div>
 }
 
 // ─── Popup gestione timbrature del giorno ──────────────────────────────────
