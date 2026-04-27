@@ -149,6 +149,7 @@ Cache in memoria con TTL per evitare refetch al remount (vedi `RecipeManager.jsx
 - `item_rules` — pattern descrizione fattura → defaults (nome_articolo, magazzino, qty, ecc.). Pattern normalizzato (rimuove lotti, date, codici 4+ cifre)
 - `article_stock` + `article_movement` (giacenze + storico append-only)
 - `manual_costs` — costi CE manuali (cadenze: settimanale/mensile/bimestrale/trimestrale/semestrale/annuale, `data_riferimento`, `data_fine`)
+- `manual_articles` — semilavorati / sub-ricette (`nome`, `unita`, `resa`, `ingredienti jsonb`, `locale`). UNIQUE(user_id, nome). RLS auth.uid = user_id
 - `daily_stats` (sync da CiC, con `receipt_details`, `hourly_records`)
 - `attendance` (timbrature)
 - `employee_shifts` (turni: settimana, giorno 0-6, ora_inizio, ora_fine)
@@ -166,9 +167,10 @@ Cache in memoria con TTL per evitare refetch al remount (vedi `RecipeManager.jsx
 
 ## Modulo Magazzino tabs
 
-Cruscotto · Fatture · Prodotti · Articoli · Ricette · Giacenze · **Movimenti** · Inventario · Ordini · Prezzi
+Cruscotto · Fatture · Prodotti · Articoli · **Semilavorati** · Ricette · Giacenze · Movimenti · Inventario · Ordini · Prezzi
 - Tab "Movimenti" della **dashboard principale** (sospetti monitoring) → rimosso
 - "Articoli" e "Prezzi" leggono direttamente da `warehouse_invoice_items` con `escludi_magazzino=false` (sempre allineati alle esclusioni)
+- "Semilavorati": ingredienti prodotti internamente (es. Salsa Remembeer) con sub-ricetta. Costo €/UM = somma costi ingredienti / resa. Possono essere usati come ingredienti in `recipes` (autocomplete con icona 🥣). Ricorsivi (max 8 livelli, protezione cicli). Helper `src/lib/manualArticles.js`
 
 ## /timbra (PWA dipendenti, no login)
 
@@ -192,12 +194,14 @@ Menu post-PIN filtrato da `permissions` + viste info sempre visibili:
 
 ## Stato dati attuale (snapshot 2026-04-27)
 
-- **Ricette CASA DE AMICIS**: 508 (26 originali aggiornate + 482 importate da Excel)
+- **Ricette totali**: 791 (508 CASA DE AMICIS + 223 REMEMBEER da Excel: 93 aggiornate + 130 nuove)
 - **Articoli magazzino**: ~311 unici da fatture
+- **Semilavorati (`manual_articles`)**: 0 — l'utente li crea a mano dal tab Magazzino → 🥣 Semilavorati
 - **`article_stock`**: 231 righe da soli carichi (scarichi simulati 1/4-21/4 rimossi)
 - **Inventario REMEMBEER**: vuoto — al primo apertura da `/timbra` popolerà con i 145 articoli
-- **4 ingredienti senza match magazzino**: `Acqua Potabile`, `LAVAZZA CAPSULE`, `NO RICETTA`, `VERMOUTH ROSSO` (food cost = 0 finché non arrivano in fattura)
+- **Ingredienti senza match magazzino** in DB ricette: ~65 totali (food cost = 0 per quelli, finché non arrivano in fattura o sono creati come semilavorati)
 - **Sub-location**: nessun locale ne ha configurate, tutto su `principale`
+- **Ore reali**: troncate a 2 decimali per difetto (mai sovrastimate)
 
 ## File chiave dove probabilmente intervenire
 
@@ -205,7 +209,9 @@ Menu post-PIN filtrato da `permissions` + viste info sempre visibili:
 - `src/pages/TimbraPage.jsx` — app dipendenti
 - `src/pages/WarehouseModule.jsx` — modulo magazzino + ArticoliTab inline
 - `src/components/warehouse/InvoiceManager.jsx` — gestione fatture, normalizePattern, regole
-- `src/components/warehouse/RecipeManager.jsx` — ricette + food cost
+- `src/components/warehouse/RecipeManager.jsx` — ricette + food cost (include semilavorati)
+- `src/components/warehouse/ManualArticlesManager.jsx` — semilavorati con sub-ricetta
+- `src/lib/manualArticles.js` — helper costo ricorsivo sub-ricette
 - `src/components/warehouse/PriceAnalysis.jsx` — analisi prezzi articoli
 - `src/components/hr/ShiftAssistant.jsx` — turni settimana/giorno + DailyTimelineEditor + SuggestedSchedule
 - `src/components/hr/AttendanceView.jsx` — presenze reali con DayManager
