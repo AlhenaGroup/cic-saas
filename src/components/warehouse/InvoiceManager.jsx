@@ -173,7 +173,7 @@ export default function InvoiceManager({ sp, sps }) {
   const tsFiltered = [...sourceInvoices].filter(f => {
     const assigned = tsLocaleMap[f.hubId]
     if (!assigned) return false
-    if (selectedLocaleName && assigned !== selectedLocaleName && assigned !== 'Alhena Group') return false
+    if (selectedLocaleName && assigned !== selectedLocaleName) return false
     // Filtro completamento
     if (filterStatus !== 'tutte') {
       const key = (f.docId || '') + '||' + (f.senderName || '')
