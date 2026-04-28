@@ -168,9 +168,11 @@ export default function InvoiceManager({ sp, sps }) {
       loadAllPages()
     }
   }, [searchNorm, tsAllInvoices, tsAllLoading, loadAllPages])
-  // Se c'è una ricerca attiva e abbiamo caricato tutto, filtro su tutto. Altrimenti sulla pagina corrente.
-  const sourceInvoices = (searchNorm && tsAllInvoices) ? tsAllInvoices : tsInvoices
-  const tsFiltered = [...sourceInvoices].filter(f => {
+  // Filtro applicato all'intero dataset cacheato se disponibile, altrimenti pagina corrente.
+  // Cosi' i conteggi (badge "X assegnate", filtri 'Da associare/Complete') riflettono
+  // l'intero archivio TS Digital, non solo la pagina visibile.
+  const sourceInvoices = tsAllInvoices || tsInvoices
+  const filterFn = (f) => {
     const assigned = tsLocaleMap[f.hubId]
     if (!assigned) return false
     if (selectedLocaleName && assigned !== selectedLocaleName) return false
@@ -187,7 +189,14 @@ export default function InvoiceManager({ sp, sps }) {
       if (!hay.includes(searchNorm)) return false
     }
     return true
-  }).sort((a, b) => (b.docDate || '').localeCompare(a.docDate || ''))
+  }
+  const tsFiltered = sourceInvoices.filter(filterFn).sort((a, b) => (b.docDate || '').localeCompare(a.docDate || ''))
+  // Paginazione lato client se abbiamo cache completa: 100 per pagina.
+  const PAGE_SIZE = 100
+  const usingFullCache = !!tsAllInvoices
+  const totalPages = usingFullCache ? Math.max(1, Math.ceil(tsFiltered.length / PAGE_SIZE)) : null
+  const safePage = usingFullCache ? Math.min(tsPage, totalPages - 1) : tsPage
+  const tsPaginated = usingFullCache ? tsFiltered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE) : tsFiltered
 
   // ─── XML download + parse ──────────────────────────────────────────
   const downloadXml = async (inv) => {
@@ -603,7 +612,7 @@ export default function InvoiceManager({ sp, sps }) {
 
   // ─── Render ────────────────────────────────────────────────────────
   return <>
-    <Card title="Fatture TS Digital" badge={tsLoading ? '...' : `${tsFiltered.length} · Pag. ${tsPage + 1}`} extra={
+    <Card title="Fatture TS Digital" badge={tsLoading ? '...' : (usingFullCache ? `${tsFiltered.length} · Pag. ${safePage + 1}/${totalPages}` : `${tsFiltered.length} · Pag. ${tsPage + 1}`)} extra={
       <div className="m-wrap" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative' }}>
           <input type="search" placeholder="Cerca fornitore, n° doc, data..." value={searchQuery}
@@ -639,7 +648,7 @@ export default function InvoiceManager({ sp, sps }) {
           {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Importo', 'Locale', 'Stato'].map(h => <th key={h} style={S.th}>{h}</th>)}
         </tr></thead>}
         <tbody>
-          {tsFiltered.map((f, i) => {
+          {tsPaginated.map((f, i) => {
             const isExp = expanded === f.hubId
             const locale = tsLocaleMap[f.hubId] || ''
             return <><tr key={f.hubId || i}
@@ -876,21 +885,37 @@ export default function InvoiceManager({ sp, sps }) {
         </tbody>
       </table>
 
-      {/* Paginazione: nascosta durante ricerca globale */}
-      {!searchNorm && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: '0 4px' }}>
-        <button onClick={() => loadTsPage(tsPage - 1)} disabled={tsPage === 0 || tsLoading}
-          style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: tsPage === 0 ? 'not-allowed' : 'pointer',
-            background: tsPage === 0 ? '#1a1f2e' : '#3B82F6', color: tsPage === 0 ? '#475569' : '#fff', border: 'none' }}
-        >← Precedente</button>
-        <span style={{ fontSize: 12, color: '#94a3b8' }}>
-          Pagina <strong style={{ color: '#e2e8f0' }}>{tsPage + 1}</strong>
-          {' · '}{tsFiltered.length} assegnate su {tsInvoices.length}
-        </span>
-        <button onClick={() => loadTsPage(tsPage + 1)} disabled={!tsHasNext || tsLoading}
-          style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: !tsHasNext ? 'not-allowed' : 'pointer',
-            background: !tsHasNext ? '#1a1f2e' : '#3B82F6', color: !tsHasNext ? '#475569' : '#fff', border: 'none' }}
-        >Successiva →</button>
-      </div>}
+      {/* Paginazione */}
+      {!searchNorm && (usingFullCache ? (
+        // Paginazione client-side sull'intera cache
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: '0 4px' }}>
+          <button onClick={() => setTsPage(p => Math.max(0, p - 1))} disabled={safePage === 0}
+            style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: safePage === 0 ? 'not-allowed' : 'pointer',
+              background: safePage === 0 ? '#1a1f2e' : '#3B82F6', color: safePage === 0 ? '#475569' : '#fff', border: 'none' }}>← Precedente</button>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>
+            Pagina <strong style={{ color: '#e2e8f0' }}>{safePage + 1}/{totalPages}</strong>
+            {' · '}{tsFiltered.length} assegnate su {tsAllInvoices.length}
+          </span>
+          <button onClick={() => setTsPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}
+            style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: safePage >= totalPages - 1 ? 'not-allowed' : 'pointer',
+              background: safePage >= totalPages - 1 ? '#1a1f2e' : '#3B82F6', color: safePage >= totalPages - 1 ? '#475569' : '#fff', border: 'none' }}>Successiva →</button>
+        </div>
+      ) : (
+        // Fallback: cache non ancora pronta, usa paginazione API
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: '0 4px' }}>
+          <button onClick={() => loadTsPage(tsPage - 1)} disabled={tsPage === 0 || tsLoading}
+            style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: tsPage === 0 ? 'not-allowed' : 'pointer',
+              background: tsPage === 0 ? '#1a1f2e' : '#3B82F6', color: tsPage === 0 ? '#475569' : '#fff', border: 'none' }}>← Precedente</button>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>
+            Pagina <strong style={{ color: '#e2e8f0' }}>{tsPage + 1}</strong>
+            {' · '}{tsFiltered.length} assegnate su {tsInvoices.length}
+            {tsAllLoading && <span style={{ marginLeft: 8, color: '#F59E0B' }}>⟳ caricamento completo…</span>}
+          </span>
+          <button onClick={() => loadTsPage(tsPage + 1)} disabled={!tsHasNext || tsLoading}
+            style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: !tsHasNext ? 'not-allowed' : 'pointer',
+              background: !tsHasNext ? '#1a1f2e' : '#3B82F6', color: !tsHasNext ? '#475569' : '#fff', border: 'none' }}>Successiva →</button>
+        </div>
+      ))}
       {/* Hint ricerca globale */}
       {searchNorm && <div style={{ marginTop: 14, padding: '8px 12px', fontSize: 11, color: '#94a3b8', textAlign: 'center', background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 6 }}>
         {tsAllLoading
