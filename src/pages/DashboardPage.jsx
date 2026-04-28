@@ -513,8 +513,11 @@ export default function DashboardPage({ settings }) {
               </tr></thead>
               <tbody>
                 {recs.filter(r=>!recSearch||r.locale?.toLowerCase().includes(recSearch.toLowerCase())||r.id.includes(recSearch)||(r.tavolo||'').toLowerCase().includes(recSearch.toLowerCase())).slice(0,100).map((r,i)=>(
-                  <tr key={i}>
-                    <td style={{...S.td,color:'#475569',fontWeight:600}}>{r.id}</td>
+                  <tr key={i} style={r.isInvoice?{background:'rgba(139,92,246,.06)'}:{}}>
+                    <td style={{...S.td,fontWeight:600,color:r.isInvoice?'#8B5CF6':'#475569'}}>
+                      {r.isInvoice && <span style={S.badge('#8B5CF6','rgba(139,92,246,.15)')} title="Fattura emessa">📄 FATT</span>}
+                      {' '}{r.id}
+                    </td>
                     <td style={S.td}>{r.date}</td>
                     <td style={{...S.td,color:'#10B981',fontWeight:500}}>{r.time||'—'}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{r.chiusura||'—'}</td>
@@ -522,7 +525,7 @@ export default function DashboardPage({ settings }) {
                     <td style={{...S.td,color:'#F59E0B'}}>{r.tavolo||'—'}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{r.coperti||'—'}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{r.items} art.</td>
-                    <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{fmtD(r.total)}</td>
+                    <td style={{...S.td,fontWeight:600,color:r.isInvoice?'#8B5CF6':'#F59E0B'}}>{fmtD(r.total)}</td>
                   </tr>
                 ))}
               </tbody>

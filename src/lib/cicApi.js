@@ -119,7 +119,7 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
       const dateStr = typeof r.date === 'string' ? r.date.substring(0,10) : r.date;
       const spName = r.salespoint_name || 'LOCALE';
       return (r.receipt_details || []).map((rd, i) => ({
-        id: 'S' + String(i+1).padStart(4,'0'),
+        id: rd.isInvoice ? ('F' + String(rd.invoiceNumber || i+1)) : ('S' + String(i+1).padStart(4,'0')),
         date: dateStr,
         time: rd.aperturaComanda || rd.chiusuraComanda || '—',
         items: (rd.items || []).length,
@@ -129,6 +129,8 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
         tavolo: rd.tavolo || null,
         coperti: rd.coperti || null,
         chiusura: rd.chiusuraComanda || null,
+        isInvoice: !!rd.isInvoice,
+        invoiceNumber: rd.invoiceNumber || null,
       }));
     }).sort((a,b) => (b.date + b.time).localeCompare(a.date + a.time)),
     // Monitoring events (annulli, sconti, ecc.) dai dati sincronizzati

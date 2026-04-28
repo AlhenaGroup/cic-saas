@@ -566,6 +566,34 @@ export default async function handler(req, res) {
             agg.revenue = Math.round((agg.revenue + invRevenue) * 100) / 100;
             agg.invoice_count = invoices.length;
             agg.invoice_revenue = Math.round(invRevenue * 100) / 100;
+            // Conta le fatture come scontrini (ai fini KPI N° scontrini)
+            agg.bill_count = (agg.bill_count || 0) + invoices.length;
+            // Aggiungi le fatture a receipt_details marcate isInvoice: true
+            // così appaiono nella lista comande/scontrini con badge "Fattura"
+            for (const inv of invoices) {
+              const dt = inv.datetime || '';
+              const time = (dt.match(/T(\d{2}:\d{2})/) || [])[1] || null;
+              const items = (inv.document?.rows || [])
+                .filter(r => r && !r.subtotal && !r.refund)
+                .map(r => ({
+                  qty: r.quantity || 1,
+                  nome: r.product?.description || r.description || 'Articolo',
+                  prezzo: Number(r.totalPrice || r.price || 0),
+                  reparto: r.product?.department?.description || r.department?.description || null,
+                  categoria: r.product?.category?.description || r.category?.description || null,
+                }));
+              agg.receipt_details.push({
+                isInvoice: true,
+                invoiceNumber: inv.number || null,
+                invoiceId: inv.id,
+                tavolo: inv.customer?.name || inv.customer?.description || `Fattura n. ${inv.number || '—'}`,
+                aperturaComanda: time,
+                chiusuraComanda: time,
+                coperti: 0,
+                totale: Number(inv.document?.amount) || 0,
+                items,
+              });
+            }
             logs.push(`${sp.name} ${date}: +${agg.invoice_count} fatture (+${agg.invoice_revenue}€)`);
           }
           // Monitoring: prima prova fo-services /logs (dati completi), fallback a receipt analysis
