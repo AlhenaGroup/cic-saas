@@ -184,6 +184,46 @@ async function getReceipts(token, date, filterSp, openHour = 10) {
   return { receipts: all, refunds };
 }
 
+// Scarica le FATTURE DI VENDITA EMESSE (separate dagli scontrini) per il giorno operativo.
+// CiC le espone in /documents/invoices. Vanno sommate al revenue del giorno.
+async function getSalesInvoices(token, date, filterSp, openHour = 10) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + 1);
+  const nextDateStr = nextDate.toISOString().split('T')[0];
+  const sorts = encodeURIComponent(JSON.stringify([{ key: 'date', direction: 1 }]));
+  const all = [];
+  for (const d of [date, nextDateStr]) {
+    const dateQ = encodeURIComponent('"' + d + '"');
+    let start = 0;
+    while (true) {
+      const url = `${CIC_BASE}/documents/invoices?start=${start}&limit=100&datetimeFrom=${dateQ}&datetimeTo=${dateQ}&sorts=${sorts}`;
+      let data;
+      try {
+        const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'x-version': '1.0.0' } });
+        if (!r.ok) break;
+        data = await r.json();
+      } catch { break; }
+      const page = data.invoices || [];
+      for (const inv of page) {
+        // Filtra per locale
+        if (inv.document?.idSalesPoint != null && filterSp != null && inv.document.idSalesPoint !== filterSp) continue;
+        // Solo confermate, non rimborsi
+        if (inv.status && inv.status !== 'CONFIRMED') continue;
+        if (inv.document?.refund) continue;
+        // Operating day: filtra l'ora come per receipts
+        const h = inv.datetime ? parseInt(inv.datetime.match(/T(\d{2})/)?.[1]) : null;
+        if (h == null) { all.push(inv); continue; }
+        const inRange = (d === date && h >= openHour) || (d === nextDateStr && h < openHour);
+        if (inRange) all.push(inv);
+      }
+      if (page.length < 100) break;
+      start += 100;
+      await new Promise(r => setTimeout(r, 150));
+    }
+  }
+  return all;
+}
+
 // Estrai monitoring events dai receipt (annulli, sconti, ecc.)
 // Fetch monitoring logs da fo-services (richiede sessionCookie salvato in Supabase settings)
 async function fetchMonitoringLogs(sessionCookie, date) {
@@ -516,8 +556,18 @@ export default async function handler(req, res) {
       for (const date of days) {
         try {
           const { receipts, refunds } = await getReceipts(token, date, sp.filterSp, sp.openHour);
-          if (receipts.length === 0 && refunds.length === 0) continue; // salta giorni senza vendite
+          // Carica anche fatture di vendita emesse separatamente (incluse nel revenue)
+          const invoices = await getSalesInvoices(token, date, sp.filterSp, sp.openHour);
+          if (receipts.length === 0 && refunds.length === 0 && invoices.length === 0) continue;
           const agg = aggregateReceipts(receipts, dynamicCatNames, prodNames, sp.openHour);
+          // Somma il revenue delle fatture al revenue scontrini
+          const invRevenue = invoices.reduce((s, inv) => s + (Number(inv.document?.amount) || 0), 0);
+          if (invRevenue > 0) {
+            agg.revenue = Math.round((agg.revenue + invRevenue) * 100) / 100;
+            agg.invoice_count = invoices.length;
+            agg.invoice_revenue = Math.round(invRevenue * 100) / 100;
+            logs.push(`${sp.name} ${date}: +${agg.invoice_count} fatture (+${agg.invoice_revenue}€)`);
+          }
           // Monitoring: prima prova fo-services /logs (dati completi), fallback a receipt analysis
           const foLogs = []; // fetchMonitoringLogs disabilitato (sessionCookie non disponibile nel cron)
           const spLogs = foLogs.filter(l => l.locale.includes(sp.name) || l.locale === '—');
