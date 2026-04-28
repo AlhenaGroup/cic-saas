@@ -137,18 +137,18 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     const blocks = []
     let openEntry = null
     let pausaBuffer = 0 // minuti pausa accumulati tra openEntry e prossima uscita
+    let orphanPausa = 0 // pause con timestamp fuori da un blocco aperto
     for (const r of sorted) {
       if (r.tipo === 'entrata') {
         if (openEntry) {
-          // entrata senza uscita precedente → segnala come "aperta" incompleta
           blocks.push({ entrata: openEntry, uscita: null, locale: openEntry.locale || '', ore: 0, pausa: pausaBuffer, incompleta: true })
         }
         openEntry = r
         pausaBuffer = 0
       } else if (r.tipo === 'pausa') {
-        // Riga pausa autonoma: la durata in minuti riduce il delta del blocco
-        // entrata→uscita corrente. Pause fuori da un blocco aperto vengono ignorate.
-        if (openEntry) pausaBuffer += Math.max(0, Number(r.pausa_minuti) || 0)
+        const m = Math.max(0, Number(r.pausa_minuti) || 0)
+        if (openEntry) pausaBuffer += m
+        else orphanPausa += m
       } else if (r.tipo === 'uscita') {
         if (openEntry) {
           const eMin = minutesFromHm(hmFromTs(openEntry.timestamp))
@@ -170,13 +170,30 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
           openEntry = null
           pausaBuffer = 0
         } else {
-          // uscita orfana (nessuna entrata prima) → ignorata nel totale ma presente
           blocks.push({ entrata: null, uscita: r, locale: r.locale || '', ore: 0, pausa: 0, incompleta: true })
         }
       }
     }
     if (openEntry) {
       blocks.push({ entrata: openEntry, uscita: null, locale: openEntry.locale || '', ore: 0, pausa: pausaBuffer, incompleta: true })
+    }
+    // Fallback: pause "orfane" (timestamp fuori da blocchi aperti) vengono
+    // attribuite all'ultimo blocco completo del giorno, in modo che le pause
+    // aggiunte con timestamp sbagliato vengano comunque conteggiate.
+    if (orphanPausa > 0) {
+      for (let i = blocks.length - 1; i >= 0; i--) {
+        const b = blocks[i]
+        if (!b.incompleta && b.entrata && b.uscita) {
+          const eMin = minutesFromHm(hmFromTs(b.entrata.timestamp))
+          const uMin = minutesFromHm(hmFromTs(b.uscita.timestamp))
+          let delta = 0
+          if (eMin != null && uMin != null) { delta = uMin - eMin; if (delta < 0) delta += 24 * 60 }
+          const totPausa = (b.pausa || 0) + orphanPausa
+          delta = Math.max(0, delta - totPausa)
+          blocks[i] = { ...b, pausa: totPausa, ore: Math.floor((delta / 60) * 100) / 100 }
+          break
+        }
+      }
     }
     return blocks
   }
@@ -480,13 +497,14 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
       const minutesFromHm = (s) => { if (!s || !s.includes(':')) return null; const [h, m] = s.split(':').map(Number); return h * 60 + (m || 0) }
       const buildBlocks = (recs) => {
         const sorted = [...recs].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
-        const blocks = []; let open = null; let pausaBuf = 0
+        const blocks = []; let open = null; let pausaBuf = 0; let orphan = 0
         for (const r of sorted) {
           if (r.tipo === 'entrata') {
             if (open) blocks.push({ entrata: open, uscita: null, locale: open.locale, ore: 0, pausa: pausaBuf, incompleta: true })
             open = r; pausaBuf = 0
           } else if (r.tipo === 'pausa') {
-            if (open) pausaBuf += Math.max(0, Number(r.pausa_minuti) || 0)
+            const m = Math.max(0, Number(r.pausa_minuti) || 0)
+            if (open) pausaBuf += m; else orphan += m
           } else if (r.tipo === 'uscita') {
             if (open) {
               const e = minutesFromHm(hmFromTsTz(open.timestamp)); const u = minutesFromHm(hmFromTsTz(r.timestamp))
@@ -498,6 +516,19 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
           }
         }
         if (open) blocks.push({ entrata: open, uscita: null, locale: open.locale, ore: 0, pausa: pausaBuf, incompleta: true })
+        if (orphan > 0) {
+          for (let i = blocks.length - 1; i >= 0; i--) {
+            const b = blocks[i]
+            if (!b.incompleta && b.entrata && b.uscita) {
+              const e = minutesFromHm(hmFromTsTz(b.entrata.timestamp)); const u = minutesFromHm(hmFromTsTz(b.uscita.timestamp))
+              let dl = 0; if (e != null && u != null) { dl = u - e; if (dl < 0) dl += 24 * 60 }
+              const tot = (b.pausa || 0) + orphan
+              dl = Math.max(0, dl - tot)
+              blocks[i] = { ...b, pausa: tot, ore: Math.floor(dl / 60 * 100) / 100 }
+              break
+            }
+          }
+        }
         return blocks
       }
 
@@ -692,16 +723,32 @@ function DayManager({ data, allLocali, onClose, onChange }) {
   const addRec = async (tipo) => {
     setSaving(true)
     const nowH = new Date().getHours()
-    let ora
-    if (tipo === 'entrata') ora = String(nowH).padStart(2, '0') + ':00'
-    else if (tipo === 'pausa') ora = String(Math.min(23, nowH)).padStart(2, '0') + ':30'
-    else ora = String(Math.min(23, nowH + 1)).padStart(2, '0') + ':00'
-    const row = {
-      employee_id: emp.id,
-      timestamp: localDateTimeToIsoUtcForOperatingDay(ds, ora, OPERATING_DAY_CUTOFF_HOUR),
-      tipo,
-      locale: defaultLocale,
+    let timestamp
+    if (tipo === 'pausa') {
+      // La pausa deve cadere DENTRO un blocco entrata→uscita per essere conteggiata
+      // dal calcolo cronologico. La piazzo subito dopo l'ultima entrata trovata
+      // (o subito dopo l'ultimo record qualunque, se non ci sono entrate).
+      const sortedRecs = [...records].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+      let anchor = null
+      for (let i = sortedRecs.length - 1; i >= 0; i--) {
+        if (sortedRecs[i].tipo === 'entrata') { anchor = sortedRecs[i]; break }
+      }
+      if (!anchor && sortedRecs.length > 0) anchor = sortedRecs[sortedRecs.length - 1]
+      if (anchor) {
+        // ancora + 1 secondo (assicura ordinamento cronologico stabile)
+        timestamp = new Date(new Date(anchor.timestamp).getTime() + 1000).toISOString()
+      } else {
+        // Nessun record: fallback ora corrente sul giorno operativo
+        const ora = String(Math.min(23, nowH)).padStart(2, '0') + ':30'
+        timestamp = localDateTimeToIsoUtcForOperatingDay(ds, ora, OPERATING_DAY_CUTOFF_HOUR)
+      }
+    } else {
+      const ora = tipo === 'entrata'
+        ? String(nowH).padStart(2, '0') + ':00'
+        : String(Math.min(23, nowH + 1)).padStart(2, '0') + ':00'
+      timestamp = localDateTimeToIsoUtcForOperatingDay(ds, ora, OPERATING_DAY_CUTOFF_HOUR)
     }
+    const row = { employee_id: emp.id, timestamp, tipo, locale: defaultLocale }
     if (tipo === 'pausa') row.pausa_minuti = 30 // default 30 min, modificabile
     const { error } = await supabase.from('attendance').insert(row)
     setSaving(false)
@@ -741,12 +788,14 @@ function DayManager({ data, allLocali, onClose, onChange }) {
   const blocks = []
   let open = null
   let pausaBuf = 0
+  let orphan = 0
   for (const r of sorted) {
     if (r.tipo === 'entrata') {
       if (open) blocks.push({ entrata: open, uscita: null, ore: 0, pausa: pausaBuf })
       open = r; pausaBuf = 0
     } else if (r.tipo === 'pausa') {
-      if (open) pausaBuf += Math.max(0, Number(r.pausa_minuti) || 0)
+      const m = Math.max(0, Number(r.pausa_minuti) || 0)
+      if (open) pausaBuf += m; else orphan += m
     } else if (r.tipo === 'uscita') {
       if (open) {
         const e = minutesFromHm(hm(open.timestamp)); const u = minutesFromHm(hm(r.timestamp))
@@ -758,7 +807,20 @@ function DayManager({ data, allLocali, onClose, onChange }) {
     }
   }
   if (open) blocks.push({ entrata: open, uscita: null, ore: 0, pausa: pausaBuf })
-  const pausaTot = blocks.reduce((s, b) => s + (Number(b.pausa) || 0), 0)
+  if (orphan > 0) {
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      const b = blocks[i]
+      if (b.entrata && b.uscita) {
+        const e = minutesFromHm(hm(b.entrata.timestamp)); const u = minutesFromHm(hm(b.uscita.timestamp))
+        let d = 0; if (e != null && u != null) { d = u - e; if (d < 0) d += 24 * 60 }
+        const tot = (b.pausa || 0) + orphan
+        d = Math.max(0, d - tot)
+        blocks[i] = { ...b, pausa: tot, ore: Math.floor(d / 60 * 100) / 100 }
+        break
+      }
+    }
+  }
+  const pausaTot = blocks.reduce((s, b) => s + (Number(b.pausa) || 0), 0) + (blocks.some(b => b.entrata && b.uscita) ? 0 : orphan)
   const oreByLocale = {}
   blocks.forEach(b => { if (b.locale && b.ore > 0) oreByLocale[b.locale] = (oreByLocale[b.locale] || 0) + b.ore })
   const oreTot = Object.values(oreByLocale).reduce((s, v) => s + v, 0)
