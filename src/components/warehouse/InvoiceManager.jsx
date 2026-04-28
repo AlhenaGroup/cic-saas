@@ -71,6 +71,7 @@ export default function InvoiceManager({ sp, sps }) {
     try {
       const acc = []
       let ct = null
+      let pageCount = 0
       do {
         const r = await fetch('/api/invoices', {
           method: 'POST',
@@ -80,9 +81,12 @@ export default function InvoiceManager({ sp, sps }) {
         if (!r.ok) break
         const d = await r.json()
         acc.push(...(d.invoices || []))
+        pageCount++
+        // Streaming: aggiorna stato ogni pagina cosi' UI mostra dati progressivi
+        setTsAllInvoices([...acc])
         ct = d.hasNext ? d.continuationToken : null
+        if (pageCount > 200) break
       } while (ct)
-      setTsAllInvoices(acc)
     } catch (e) { console.warn('[InvoiceManager] loadAllPages:', e.message) }
     setTsAllLoading(false)
   }, [tsAllLoading])

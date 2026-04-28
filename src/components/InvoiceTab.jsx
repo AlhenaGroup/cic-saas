@@ -67,13 +67,16 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     setTsLoading(false)
   }
 
-  // Prefetch di tutte le pagine in background per filtri/conteggi globali
+  // Prefetch di tutte le pagine in background — STREAMING:
+  // aggiorno tsAllInvoices ad ogni pagina caricata cosi' l'utente vede
+  // i risultati crescere progressivamente invece di aspettare la fine.
   const loadAllPages = useCallback(async () => {
     if (tsAllLoading) return
     setTsAllLoading(true)
     try {
       const acc = []
       let ct = null
+      let pageCount = 0
       do {
         const r = await fetch('/api/invoices', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -82,9 +85,12 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
         if (!r.ok) break
         const d = await r.json()
         acc.push(...(d.invoices || []))
+        pageCount++
+        // Aggiorna lo stato ogni pagina (streaming) — l'UI vede crescere il dataset
+        setTsAllInvoices([...acc])
         ct = d.hasNext ? d.continuationToken : null
+        if (pageCount > 200) break // safety cap
       } while (ct)
-      setTsAllInvoices(acc)
     } catch (e) { console.warn('[InvoiceTab] loadAllPages:', e.message) }
     setTsAllLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
