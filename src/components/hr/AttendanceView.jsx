@@ -813,12 +813,9 @@ function DayManager({ data, allLocali, onClose, onChange }) {
                     <option value="pausa">⏸ Pausa</option>
                     <option value="uscita">Uscita</option>
                   </select>
-                  <input type="time" defaultValue={hm(r.timestamp)}
-                    onBlur={e => { if (e.target.value && e.target.value !== hm(r.timestamp)) updateRec(r.id, { timestamp: localDateTimeToIsoUtcForOperatingDay(ds, e.target.value, OPERATING_DAY_CUTOFF_HOUR) }) }}
-                    style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 90, textAlign: 'center' }} />
                   {isPausa ? (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#F59E0B', flex: 1, minWidth: 110 }} title="Durata pausa in minuti — sottratta dalle ore del blocco entrata→uscita corrente">
-                      <span>durata</span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#F59E0B', flex: 1, minWidth: 110 }} title="Durata pausa in minuti — sottratta dalle ore del blocco entrata→uscita corrente">
+                      <span style={{ fontWeight: 600 }}>durata</span>
                       <input type="number" min={0} max={600} step={5} defaultValue={Number(r.pausa_minuti) || 0}
                         onBlur={e => {
                           const v = Math.max(0, Math.min(600, parseInt(e.target.value, 10) || 0))
@@ -828,12 +825,17 @@ function DayManager({ data, allLocali, onClose, onChange }) {
                       <span style={{ fontSize: 10 }}>min</span>
                     </label>
                   ) : (
-                    <select value={r.locale || ''}
-                      onChange={e => updateRec(r.id, { locale: e.target.value })}
-                      style={{ ...iS, fontSize: 11, padding: '4px 6px', flex: 1, minWidth: 110 }}>
-                      <option value="">(senza locale)</option>
-                      {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
+                    <>
+                      <input type="time" defaultValue={hm(r.timestamp)}
+                        onBlur={e => { if (e.target.value && e.target.value !== hm(r.timestamp)) updateRec(r.id, { timestamp: localDateTimeToIsoUtcForOperatingDay(ds, e.target.value, OPERATING_DAY_CUTOFF_HOUR) }) }}
+                        style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 90, textAlign: 'center' }} />
+                      <select value={r.locale || ''}
+                        onChange={e => updateRec(r.id, { locale: e.target.value })}
+                        style={{ ...iS, fontSize: 11, padding: '4px 6px', flex: 1, minWidth: 110 }}>
+                        <option value="">(senza locale)</option>
+                        {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
+                      </select>
+                    </>
                   )}
                   <button onClick={() => deleteRec(r.id)} title="Elimina"
                     style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, padding: '2px 6px', fontWeight: 700 }}>✕</button>
