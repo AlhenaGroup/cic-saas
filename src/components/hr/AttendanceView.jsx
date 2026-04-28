@@ -136,13 +136,19 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     const sorted = [...dayRecords].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
     const blocks = []
     let openEntry = null
+    let pausaBuffer = 0 // minuti pausa accumulati tra openEntry e prossima uscita
     for (const r of sorted) {
       if (r.tipo === 'entrata') {
         if (openEntry) {
           // entrata senza uscita precedente → segnala come "aperta" incompleta
-          blocks.push({ entrata: openEntry, uscita: null, locale: openEntry.locale || '', ore: 0, incompleta: true })
+          blocks.push({ entrata: openEntry, uscita: null, locale: openEntry.locale || '', ore: 0, pausa: pausaBuffer, incompleta: true })
         }
         openEntry = r
+        pausaBuffer = 0
+      } else if (r.tipo === 'pausa') {
+        // Riga pausa autonoma: la durata in minuti riduce il delta del blocco
+        // entrata→uscita corrente. Pause fuori da un blocco aperto vengono ignorate.
+        if (openEntry) pausaBuffer += Math.max(0, Number(r.pausa_minuti) || 0)
       } else if (r.tipo === 'uscita') {
         if (openEntry) {
           const eMin = minutesFromHm(hmFromTs(openEntry.timestamp))
@@ -152,18 +158,17 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
             delta = uMin - eMin
             if (delta < 0) delta += 24 * 60
           }
-          // Pausa registrata sull'uscita (in minuti) viene sottratta dal delta.
-          const pausa = Math.max(0, Number(r.pausa_minuti) || 0)
-          delta = Math.max(0, delta - pausa)
+          delta = Math.max(0, delta - pausaBuffer)
           blocks.push({
             entrata: openEntry,
             uscita: r,
             locale: openEntry.locale || r.locale || '',
             ore: Math.floor((delta / 60) * 100) / 100,
-            pausa,
+            pausa: pausaBuffer,
             incompleta: false,
           })
           openEntry = null
+          pausaBuffer = 0
         } else {
           // uscita orfana (nessuna entrata prima) → ignorata nel totale ma presente
           blocks.push({ entrata: null, uscita: r, locale: r.locale || '', ore: 0, pausa: 0, incompleta: true })
@@ -171,7 +176,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
       }
     }
     if (openEntry) {
-      blocks.push({ entrata: openEntry, uscita: null, locale: openEntry.locale || '', ore: 0, incompleta: true })
+      blocks.push({ entrata: openEntry, uscita: null, locale: openEntry.locale || '', ore: 0, pausa: pausaBuffer, incompleta: true })
     }
     return blocks
   }
@@ -475,21 +480,24 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
       const minutesFromHm = (s) => { if (!s || !s.includes(':')) return null; const [h, m] = s.split(':').map(Number); return h * 60 + (m || 0) }
       const buildBlocks = (recs) => {
         const sorted = [...recs].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
-        const blocks = []; let open = null
+        const blocks = []; let open = null; let pausaBuf = 0
         for (const r of sorted) {
-          if (r.tipo === 'entrata') { if (open) blocks.push({ entrata: open, uscita: null, locale: open.locale, ore: 0, incompleta: true }); open = r }
-          else if (r.tipo === 'uscita') {
+          if (r.tipo === 'entrata') {
+            if (open) blocks.push({ entrata: open, uscita: null, locale: open.locale, ore: 0, pausa: pausaBuf, incompleta: true })
+            open = r; pausaBuf = 0
+          } else if (r.tipo === 'pausa') {
+            if (open) pausaBuf += Math.max(0, Number(r.pausa_minuti) || 0)
+          } else if (r.tipo === 'uscita') {
             if (open) {
               const e = minutesFromHm(hmFromTsTz(open.timestamp)); const u = minutesFromHm(hmFromTsTz(r.timestamp))
               let dl = 0; if (e != null && u != null) { dl = u - e; if (dl < 0) dl += 24 * 60 }
-              const pausa = Math.max(0, Number(r.pausa_minuti) || 0)
-              dl = Math.max(0, dl - pausa)
-              blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.floor(dl / 60 * 100) / 100, pausa, incompleta: false })
-              open = null
+              dl = Math.max(0, dl - pausaBuf)
+              blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.floor(dl / 60 * 100) / 100, pausa: pausaBuf, incompleta: false })
+              open = null; pausaBuf = 0
             } else blocks.push({ entrata: null, uscita: r, locale: r.locale, ore: 0, pausa: 0, incompleta: true })
           }
         }
-        if (open) blocks.push({ entrata: open, uscita: null, locale: open.locale, ore: 0, incompleta: true })
+        if (open) blocks.push({ entrata: open, uscita: null, locale: open.locale, ore: 0, pausa: pausaBuf, incompleta: true })
         return blocks
       }
 
@@ -684,10 +692,18 @@ function DayManager({ data, allLocali, onClose, onChange }) {
   const addRec = async (tipo) => {
     setSaving(true)
     const nowH = new Date().getHours()
-    const ora = tipo === 'entrata' ? String(nowH).padStart(2, '0') + ':00' : String(Math.min(23, nowH + 1)).padStart(2, '0') + ':00'
-    const { error } = await supabase.from('attendance').insert({
-      employee_id: emp.id, timestamp: localDateTimeToIsoUtcForOperatingDay(ds, ora, OPERATING_DAY_CUTOFF_HOUR), tipo, locale: defaultLocale,
-    })
+    let ora
+    if (tipo === 'entrata') ora = String(nowH).padStart(2, '0') + ':00'
+    else if (tipo === 'pausa') ora = String(Math.min(23, nowH)).padStart(2, '0') + ':30'
+    else ora = String(Math.min(23, nowH + 1)).padStart(2, '0') + ':00'
+    const row = {
+      employee_id: emp.id,
+      timestamp: localDateTimeToIsoUtcForOperatingDay(ds, ora, OPERATING_DAY_CUTOFF_HOUR),
+      tipo,
+      locale: defaultLocale,
+    }
+    if (tipo === 'pausa') row.pausa_minuti = 30 // default 30 min, modificabile
+    const { error } = await supabase.from('attendance').insert(row)
     setSaving(false)
     if (error) { alert('Errore: ' + error.message); return }
     load(); onChange()
@@ -724,22 +740,25 @@ function DayManager({ data, allLocali, onClose, onChange }) {
   const sorted = [...records].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
   const blocks = []
   let open = null
+  let pausaBuf = 0
   for (const r of sorted) {
     if (r.tipo === 'entrata') {
-      if (open) blocks.push({ entrata: open, uscita: null, ore: 0 })
-      open = r
+      if (open) blocks.push({ entrata: open, uscita: null, ore: 0, pausa: pausaBuf })
+      open = r; pausaBuf = 0
+    } else if (r.tipo === 'pausa') {
+      if (open) pausaBuf += Math.max(0, Number(r.pausa_minuti) || 0)
     } else if (r.tipo === 'uscita') {
       if (open) {
         const e = minutesFromHm(hm(open.timestamp)); const u = minutesFromHm(hm(r.timestamp))
         let d = 0; if (e != null && u != null) { d = u - e; if (d < 0) d += 24 * 60 }
-        const pausa = Math.max(0, Number(r.pausa_minuti) || 0)
-        d = Math.max(0, d - pausa)
-        blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.floor(d / 60 * 100) / 100, pausa })
-        open = null
+        d = Math.max(0, d - pausaBuf)
+        blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.floor(d / 60 * 100) / 100, pausa: pausaBuf })
+        open = null; pausaBuf = 0
       } else blocks.push({ entrata: null, uscita: r, ore: 0, pausa: 0 })
     }
   }
-  if (open) blocks.push({ entrata: open, uscita: null, ore: 0 })
+  if (open) blocks.push({ entrata: open, uscita: null, ore: 0, pausa: pausaBuf })
+  const pausaTot = blocks.reduce((s, b) => s + (Number(b.pausa) || 0), 0)
   const oreByLocale = {}
   blocks.forEach(b => { if (b.locale && b.ore > 0) oreByLocale[b.locale] = (oreByLocale[b.locale] || 0) + b.ore })
   const oreTot = Object.values(oreByLocale).reduce((s, v) => s + v, 0)
@@ -760,7 +779,10 @@ function DayManager({ data, allLocali, onClose, onChange }) {
         {/* Riepilogo ore per locale */}
         {Object.keys(oreByLocale).length > 0 && (
           <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 12, marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Totale giornata · {(Math.floor(oreTot * 100) / 100).toFixed(2)}h</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+              Totale giornata · {(Math.floor(oreTot * 100) / 100).toFixed(2)}h
+              {pausaTot > 0 && <span style={{ marginLeft: 8, color: '#94a3b8', fontWeight: 600 }}>(pausa {pausaTot}′ sottratta)</span>}
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {Object.entries(oreByLocale).map(([loc, h]) => (
                 <span key={loc} style={{ fontSize: 12, color: '#e2e8f0', background: '#1a1f2e', padding: '4px 10px', borderRadius: 4 }}>
@@ -779,39 +801,45 @@ function DayManager({ data, allLocali, onClose, onChange }) {
         ) : (
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Timbrature ({records.length})</div>
-            {sorted.map(r => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#131825', borderRadius: 6, marginBottom: 4, border: '1px solid #1e2636', flexWrap: 'wrap' }}>
-                <select value={r.tipo}
-                  onChange={e => updateRec(r.id, { tipo: e.target.value })}
-                  style={{ ...iS, fontSize: 11, padding: '4px 6px', width: 90, color: r.tipo === 'entrata' ? '#10B981' : '#EF4444', fontWeight: 600 }}>
-                  <option value="entrata">Entrata</option>
-                  <option value="uscita">Uscita</option>
-                </select>
-                <input type="time" defaultValue={hm(r.timestamp)}
-                  onBlur={e => { if (e.target.value && e.target.value !== hm(r.timestamp)) updateRec(r.id, { timestamp: localDateTimeToIsoUtcForOperatingDay(ds, e.target.value, OPERATING_DAY_CUTOFF_HOUR) }) }}
-                  style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 90, textAlign: 'center' }} />
-                <select value={r.locale || ''}
-                  onChange={e => updateRec(r.id, { locale: e.target.value })}
-                  style={{ ...iS, fontSize: 11, padding: '4px 6px', flex: 1, minWidth: 110 }}>
-                  <option value="">(senza locale)</option>
-                  {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-                {r.tipo === 'uscita' && (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8' }} title="Minuti di pausa sottratti dalle ore di questo blocco">
-                    <span>⏸</span>
-                    <input type="number" min={0} max={600} step={5} defaultValue={Number(r.pausa_minuti) || 0}
-                      onBlur={e => {
-                        const v = Math.max(0, Math.min(600, parseInt(e.target.value, 10) || 0))
-                        if (v !== (Number(r.pausa_minuti) || 0)) updateRec(r.id, { pausa_minuti: v })
-                      }}
-                      style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 60, textAlign: 'right' }} />
-                    <span style={{ fontSize: 10 }}>min</span>
-                  </label>
-                )}
-                <button onClick={() => deleteRec(r.id)} title="Elimina"
-                  style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, padding: '2px 6px', fontWeight: 700 }}>✕</button>
-              </div>
-            ))}
+            {sorted.map(r => {
+              const isPausa = r.tipo === 'pausa'
+              const tipoColor = r.tipo === 'entrata' ? '#10B981' : r.tipo === 'uscita' ? '#EF4444' : '#F59E0B'
+              return (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: isPausa ? '#1a1408' : '#131825', borderRadius: 6, marginBottom: 4, border: '1px solid ' + (isPausa ? '#3a2f10' : '#1e2636'), flexWrap: 'wrap', marginLeft: isPausa ? 24 : 0 }}>
+                  <select value={r.tipo}
+                    onChange={e => updateRec(r.id, { tipo: e.target.value })}
+                    style={{ ...iS, fontSize: 11, padding: '4px 6px', width: 90, color: tipoColor, fontWeight: 600 }}>
+                    <option value="entrata">Entrata</option>
+                    <option value="pausa">⏸ Pausa</option>
+                    <option value="uscita">Uscita</option>
+                  </select>
+                  <input type="time" defaultValue={hm(r.timestamp)}
+                    onBlur={e => { if (e.target.value && e.target.value !== hm(r.timestamp)) updateRec(r.id, { timestamp: localDateTimeToIsoUtcForOperatingDay(ds, e.target.value, OPERATING_DAY_CUTOFF_HOUR) }) }}
+                    style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 90, textAlign: 'center' }} />
+                  {isPausa ? (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#F59E0B', flex: 1, minWidth: 110 }} title="Durata pausa in minuti — sottratta dalle ore del blocco entrata→uscita corrente">
+                      <span>durata</span>
+                      <input type="number" min={0} max={600} step={5} defaultValue={Number(r.pausa_minuti) || 0}
+                        onBlur={e => {
+                          const v = Math.max(0, Math.min(600, parseInt(e.target.value, 10) || 0))
+                          if (v !== (Number(r.pausa_minuti) || 0)) updateRec(r.id, { pausa_minuti: v })
+                        }}
+                        style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 70, textAlign: 'right' }} />
+                      <span style={{ fontSize: 10 }}>min</span>
+                    </label>
+                  ) : (
+                    <select value={r.locale || ''}
+                      onChange={e => updateRec(r.id, { locale: e.target.value })}
+                      style={{ ...iS, fontSize: 11, padding: '4px 6px', flex: 1, minWidth: 110 }}>
+                      <option value="">(senza locale)</option>
+                      {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  )}
+                  <button onClick={() => deleteRec(r.id)} title="Elimina"
+                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, padding: '2px 6px', fontWeight: 700 }}>✕</button>
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -820,6 +848,11 @@ function DayManager({ data, allLocali, onClose, onChange }) {
           <button onClick={() => addRec('entrata')} disabled={saving}
             style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12 }}>
             + Entrata
+          </button>
+          <button onClick={() => addRec('pausa')} disabled={saving}
+            style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12 }}
+            title="Aggiunge una pausa tra entrata e uscita: i minuti vengono sottratti dalle ore del blocco">
+            + Pausa
           </button>
           <button onClick={() => addRec('uscita')} disabled={saving}
             style={{ ...iS, background: '#EF4444', color: '#fff', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12 }}>
@@ -835,7 +868,8 @@ function DayManager({ data, allLocali, onClose, onChange }) {
         <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5, borderTop: '1px solid #2a3042', paddingTop: 10 }}>
           💡 Le ore vengono calcolate abbinando <strong>entrata→uscita</strong> in ordine cronologico.<br/>
           Turni spezzati (es. 10-13 + 18-22) contano solo le ore effettive, non il buco tra i due.<br/>
-          Ogni blocco eredita il locale dell'<strong>entrata</strong>.
+          Ogni blocco eredita il locale dell'<strong>entrata</strong>.<br/>
+          <strong>⏸ Pausa</strong>: aggiungi una riga pausa tra entrata e uscita, i minuti vengono sottratti dalle ore del blocco.
         </div>
       </div>
 
