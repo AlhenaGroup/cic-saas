@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { S, KPI, Card, fmt, fmtD } from './shared/styles.jsx'
 import { handleInvoiceFile } from '../lib/invoiceParsers.js'
 import { supabase } from '../lib/supabase'
+import { loadAndSyncAssignments, saveAssignment } from '../lib/invoiceAssignments.js'
 
 export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch }) {
   // TS Digital invoices (paginazione server-side)
@@ -99,6 +100,15 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
   useEffect(() => {
     loadTsPage(0)
     const t = setTimeout(() => { loadAllPages() }, 1500)
+    // Sync assegnazioni da DB (cross-device)
+    ;(async () => {
+      try {
+        const { localeMap, autoAssigned, itemMap } = await loadAndSyncAssignments()
+        setTsLocaleMap(localeMap)
+        setTsAutoAssigned(autoAssigned)
+        setTsItemLocaleMap(itemMap)
+      } catch (e) { console.warn('[InvoiceTab] sync assignments:', e.message) }
+    })()
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -140,12 +150,14 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     }
     if (Object.keys(updated).length > Object.keys(currentMap).length) {
       setTsLocaleMap(updated)
-      localStorage.setItem('cic_ts_invoice_locales', JSON.stringify(updated))
-      // Segna come auto-assigned
-      const autoMap = JSON.parse(localStorage.getItem('cic_ts_auto_assigned') || '{}')
-      Object.assign(autoMap, autoNew)
+      const autoMap = { ...tsAutoAssigned, ...autoNew }
       setTsAutoAssigned(autoMap)
-      localStorage.setItem('cic_ts_auto_assigned', JSON.stringify(autoMap))
+      // Salva nuove auto-assignments su DB
+      for (const hubId in autoNew) {
+        if (updated[hubId]) {
+          try { await saveAssignment(hubId, { locale: updated[hubId], autoAssigned: true }) } catch {}
+        }
+      }
     }
     return updated
   }
@@ -155,37 +167,36 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     if (tsInvoices.length > 0) autoAssignHera(tsInvoices, tsLocaleMap)
   }, [tsInvoices])
 
-  // ─── Locale assignment ─────────────────────────────────────────────
-  const setTsInvoiceLocale = (hubId, locale) => {
-    // Assegna locale alla fattura (manuale = conferma)
+  // ─── Locale assignment (sync DB + LS) ──────────────────────────────
+  const setTsInvoiceLocale = async (hubId, locale) => {
     const newMap = { ...tsLocaleMap, [hubId]: locale }
     setTsLocaleMap(newMap)
-    localStorage.setItem('cic_ts_invoice_locales', JSON.stringify(newMap))
-    // Conferma: rimuovi da auto-assigned
     const newAuto = { ...tsAutoAssigned }
     delete newAuto[hubId]
     setTsAutoAssigned(newAuto)
-    localStorage.setItem('cic_ts_auto_assigned', JSON.stringify(newAuto))
-    // Reset tutti gli item-level overrides di questa fattura al nuovo locale
     const newItemMap = { ...tsItemLocaleMap }
     Object.keys(newItemMap).forEach(k => { if (k.startsWith(hubId + ':')) delete newItemMap[k] })
     setTsItemLocaleMap(newItemMap)
-    localStorage.setItem('cic_ts_item_locales', JSON.stringify(newItemMap))
+    // Salva su DB (cross-device)
+    await saveAssignment(hubId, { locale, autoAssigned: false, itemOverrides: {} })
   }
 
-  // Assegna locale a una singola riga (override item-level)
-  const setTsItemLocale = (hubId, lineIdx, locale) => {
+  const setTsItemLocale = async (hubId, lineIdx, locale) => {
     const key = hubId + ':' + lineIdx
     const invoiceLocale = tsLocaleMap[hubId] || ''
     const newItemMap = { ...tsItemLocaleMap }
     if (locale === invoiceLocale || !locale) {
-      // Stessa della fattura → rimuovi override
       delete newItemMap[key]
     } else {
       newItemMap[key] = locale
     }
     setTsItemLocaleMap(newItemMap)
-    localStorage.setItem('cic_ts_item_locales', JSON.stringify(newItemMap))
+    // Costruisci items per questo hubId da salvare su DB
+    const items = {}
+    for (const k in newItemMap) {
+      if (k.startsWith(hubId + ':')) items[k.substring(hubId.length + 1)] = newItemMap[k]
+    }
+    await saveAssignment(hubId, { itemOverrides: items })
   }
 
   // Helper: locale effettivo di una riga

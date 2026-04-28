@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, Card, fmt } from '../shared/styles.jsx'
+import { loadAndSyncAssignments } from '../../lib/invoiceAssignments.js'
 
 const iS = S.input
 const formS = { ...iS, width: '100%', marginBottom: 8 }
@@ -146,6 +147,13 @@ export default function InvoiceManager({ sp, sps }) {
 
   useEffect(() => {
     loadTsPage(0); loadProducts(); loadWhStatus()
+    // Sync assegnazioni fatture da DB (cross-device)
+    ;(async () => {
+      try {
+        const { localeMap } = await loadAndSyncAssignments()
+        setTsLocaleMap(localeMap)
+      } catch (e) { console.warn('[InvoiceManager] sync assignments:', e.message) }
+    })()
     // Pre-carica tutte le pagine in background (senza bloccare UI) così la ricerca e' istantanea.
     // Usa setTimeout per non competere col primo loadTsPage(0).
     const t = setTimeout(() => { loadAllPages() }, 1500)
