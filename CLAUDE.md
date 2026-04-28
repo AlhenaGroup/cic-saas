@@ -2,6 +2,8 @@
 
 Istruzioni per Claude in ogni sessione di lavoro su questo repo.
 
+> **Stato corrente / diario lavori in corso** → leggi anche `SESSION.md` (cosa è stato fatto di recente, cosa è in sospeso, ultimi commit). Aggiornare a ogni milestone.
+
 ## Prodotto
 
 **CIC SaaS** — piattaforma gestionale per ristoranti. Oggi usata da Alhena Group come cliente pilota, in traiettoria per diventare prodotto venduto a terzi ristoratori.
