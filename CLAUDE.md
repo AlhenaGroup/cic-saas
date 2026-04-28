@@ -199,6 +199,7 @@ Menu post-PIN filtrato da `permissions` + viste info sempre visibili:
 - Export: 1 riga per dipendente, 1 colonna per ogni giorno del periodo (es. "Lunedì 01/04") con orari `entrata→uscita (locale)` + ore. Riga finale TOTALE GIORNO. PDF in A4 landscape via `window.print()`
 - Filtro locale strict: con filtro attivo (es. REMEMBEER), le celle mostrano solo blocchi di REMEMBEER (omettendo etichetta locale, implicita), e i dipendenti che non hanno timbrato lì nel periodo vengono esclusi
 - Ore LABORATORIO confluiscono nel locale operativo della giornata (vedi convenzione sopra)
+- **Pausa**: nel `DayManager` ogni riga `uscita` ha input "⏸ Pausa (min)" che salva su `attendance.pausa_minuti`. Le ore del blocco entrata→uscita vengono ridotte di quei minuti (mai sotto 0). La cella settimanale mostra `⏸N'` se pausa>0; gli export Excel/PDF includono `[-Nm pausa]` accanto agli orari
 
 ## Stato dati attuale (snapshot 2026-04-27)
 

@@ -152,17 +152,21 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
             delta = uMin - eMin
             if (delta < 0) delta += 24 * 60
           }
+          // Pausa registrata sull'uscita (in minuti) viene sottratta dal delta.
+          const pausa = Math.max(0, Number(r.pausa_minuti) || 0)
+          delta = Math.max(0, delta - pausa)
           blocks.push({
             entrata: openEntry,
             uscita: r,
             locale: openEntry.locale || r.locale || '',
-            ore: Math.round((delta / 60) * 100) / 100,
+            ore: Math.floor((delta / 60) * 100) / 100,
+            pausa,
             incompleta: false,
           })
           openEntry = null
         } else {
           // uscita orfana (nessuna entrata prima) → ignorata nel totale ma presente
-          blocks.push({ entrata: null, uscita: r, locale: r.locale || '', ore: 0, incompleta: true })
+          blocks.push({ entrata: null, uscita: r, locale: r.locale || '', ore: 0, pausa: 0, incompleta: true })
         }
       }
     }
@@ -354,6 +358,10 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                             {summarySub && <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>{summarySub}</div>}
                             <div style={{ fontSize: 10, color: '#F59E0B', fontWeight: 700, marginTop: 2 }}>
                               {(att.ore || 0).toFixed(2)}h
+                              {(() => {
+                                const pTot = att.blocksForLocale.reduce((s, b) => s + (Number(b.pausa) || 0), 0)
+                                return pTot > 0 ? <span title={`Pausa sottratta: ${pTot} min`} style={{ marginLeft: 3, color: '#94a3b8', fontWeight: 500 }}>⏸{pTot}'</span> : null
+                              })()}
                               {hasMulti && <span title="Turno spezzato" style={{ marginLeft: 3, color: '#3B82F6' }}>ℹ︎</span>}
                               {att.incompleta && <span title="Timbratura incompleta" style={{ marginLeft: 3, color: '#EF4444' }}>⚠</span>}
                             </div>
@@ -474,9 +482,11 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
             if (open) {
               const e = minutesFromHm(hmFromTsTz(open.timestamp)); const u = minutesFromHm(hmFromTsTz(r.timestamp))
               let dl = 0; if (e != null && u != null) { dl = u - e; if (dl < 0) dl += 24 * 60 }
-              blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.floor(dl / 60 * 100) / 100, incompleta: false })
+              const pausa = Math.max(0, Number(r.pausa_minuti) || 0)
+              dl = Math.max(0, dl - pausa)
+              blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.floor(dl / 60 * 100) / 100, pausa, incompleta: false })
               open = null
-            } else blocks.push({ entrata: null, uscita: r, locale: r.locale, ore: 0, incompleta: true })
+            } else blocks.push({ entrata: null, uscita: r, locale: r.locale, ore: 0, pausa: 0, incompleta: true })
           }
         }
         if (open) blocks.push({ entrata: open, uscita: null, locale: open.locale, ore: 0, incompleta: true })
@@ -542,7 +552,8 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
               // mostro solo se LABORATORIO (per evidenziare l'attribuzione virtuale)
               const showLab = b.locale === LAB
               const showLabel = !localeFilter || showLab
-              return `${eH}→${uH}${(showLabel && b.locale) ? ' (' + b.locale + ')' : ''}`
+              const pausaTag = b.pausa > 0 ? ` [-${b.pausa}m pausa]` : ''
+              return `${eH}→${uH}${(showLabel && b.locale) ? ' (' + b.locale + ')' : ''}${pausaTag}`
             }).join('\n') + (ore > 0 ? `\n= ${ore.toFixed(2)}h` : '')
           return { ore: Math.floor(ore * 100) / 100, text }
         })
@@ -721,9 +732,11 @@ function DayManager({ data, allLocali, onClose, onChange }) {
       if (open) {
         const e = minutesFromHm(hm(open.timestamp)); const u = minutesFromHm(hm(r.timestamp))
         let d = 0; if (e != null && u != null) { d = u - e; if (d < 0) d += 24 * 60 }
-        blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.round(d / 60 * 100) / 100 })
+        const pausa = Math.max(0, Number(r.pausa_minuti) || 0)
+        d = Math.max(0, d - pausa)
+        blocks.push({ entrata: open, uscita: r, locale: open.locale || r.locale, ore: Math.floor(d / 60 * 100) / 100, pausa })
         open = null
-      } else blocks.push({ entrata: null, uscita: r, ore: 0 })
+      } else blocks.push({ entrata: null, uscita: r, ore: 0, pausa: 0 })
     }
   }
   if (open) blocks.push({ entrata: open, uscita: null, ore: 0 })
@@ -767,7 +780,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Timbrature ({records.length})</div>
             {sorted.map(r => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#131825', borderRadius: 6, marginBottom: 4, border: '1px solid #1e2636' }}>
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: '#131825', borderRadius: 6, marginBottom: 4, border: '1px solid #1e2636', flexWrap: 'wrap' }}>
                 <select value={r.tipo}
                   onChange={e => updateRec(r.id, { tipo: e.target.value })}
                   style={{ ...iS, fontSize: 11, padding: '4px 6px', width: 90, color: r.tipo === 'entrata' ? '#10B981' : '#EF4444', fontWeight: 600 }}>
@@ -779,10 +792,22 @@ function DayManager({ data, allLocali, onClose, onChange }) {
                   style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 90, textAlign: 'center' }} />
                 <select value={r.locale || ''}
                   onChange={e => updateRec(r.id, { locale: e.target.value })}
-                  style={{ ...iS, fontSize: 11, padding: '4px 6px', flex: 1 }}>
+                  style={{ ...iS, fontSize: 11, padding: '4px 6px', flex: 1, minWidth: 110 }}>
                   <option value="">(senza locale)</option>
                   {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
+                {r.tipo === 'uscita' && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8' }} title="Minuti di pausa sottratti dalle ore di questo blocco">
+                    <span>⏸</span>
+                    <input type="number" min={0} max={600} step={5} defaultValue={Number(r.pausa_minuti) || 0}
+                      onBlur={e => {
+                        const v = Math.max(0, Math.min(600, parseInt(e.target.value, 10) || 0))
+                        if (v !== (Number(r.pausa_minuti) || 0)) updateRec(r.id, { pausa_minuti: v })
+                      }}
+                      style={{ ...iS, fontSize: 12, padding: '4px 6px', width: 60, textAlign: 'right' }} />
+                    <span style={{ fontSize: 10 }}>min</span>
+                  </label>
+                )}
                 <button onClick={() => deleteRec(r.id)} title="Elimina"
                   style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, padding: '2px 6px', fontWeight: 700 }}>✕</button>
               </div>
