@@ -713,8 +713,8 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
       <div style={{ padding: 14, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <button onClick={onClose} disabled={busy} style={{ ...iS, color: '#94a3b8', border: '1px solid #2a3042', padding: '7px 14px', cursor: 'pointer' }}>Annulla</button>
         <button onClick={run} disabled={busy || from > to}
-          style={{ ...iS, background: kind === 'excel' ? '#10B981' : '#EF4444', color: kind === 'excel' ? '#0f1420' : '#fff', fontWeight: 700, border: 'none', padding: '7px 18px', cursor: busy ? 'wait' : 'pointer' }}>
-          {busy ? 'Esporto…' : (kind === 'excel' ? 'Scarica Excel' : 'Apri stampa PDF')}
+          style={{ ...iS, background: kind === 'excel' ? '#10B981' : kind === 'csv' ? '#3B82F6' : '#EF4444', color: kind === 'excel' ? '#0f1420' : '#fff', fontWeight: 700, border: 'none', padding: '7px 18px', cursor: busy ? 'wait' : 'pointer' }}>
+          {busy ? 'Esporto…' : (kind === 'excel' ? 'Scarica Excel' : kind === 'csv' ? 'Scarica CSV' : 'Apri stampa PDF')}
         </button>
       </div>
     </div>
