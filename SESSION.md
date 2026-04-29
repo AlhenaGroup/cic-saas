@@ -7,10 +7,11 @@
 ---
 
 ## Ultimo aggiornamento
-**2026-04-28 sera** — Feature pausa completata + introdotto questo `SESSION.md` per continuità tra chat. **TODO urgente**: rotazione PAT GitHub (vedi sezione TODO).
+**2026-04-29** — Fix export PDF presenze (`escapeHtml is not defined`) + migrazione auth GitHub a **SSH** (niente più PAT scadenze). Push da terminale ora senza prompt.
 
 ## Lavoro recente (ultimi commit su `main`)
 
+- `2f2df29` — fix: export PDF presenze reali — escapeHtml accessibile a ExportModal (era dichiarata dentro AttendanceView, non visibile a ExportModal)
 - `c12d1e2` — fix: pausa ora viene davvero sottratta dalle ore (timestamp = ultima entrata + 1s; fallback orfane → ultimo blocco completo)
 - `5b71f51` — ui: riga pausa mostra solo durata (rimosso input ora)
 - `0f1c48c` — feat: pausa come riga separata tra entrata e uscita
@@ -44,38 +45,8 @@
 
 ## TODO / In sospeso
 
-### 🔴 URGENTE — Rotazione PAT GitHub `cic-saas-deploy` (entro ~2026-05-04)
-
-GitHub ha mandato il 2026-04-28 una mail: il Personal Access Token `cic-saas-deploy` (id `3919082317`, scope `repo`) **scade tra 6 giorni** (~ 2026-05-04). È il token usato da `git push` via HTTPS, salvato nel macOS Keychain. Vercel **NON** lo usa (Vercel usa GitHub App). Se scade, `git push` smette di funzionare.
-
-**Decisione presa**: opzione A — **rigenerare il token** (più rapida; opzione B = passare a SSH scartata per oggi, valutarla al prossimo rinnovo).
-
-**Procedura step-by-step da fare prima della scadenza**:
-
-1. Aprire https://github.com/settings/tokens/3919082317/regenerate
-2. Expiration = **90 days** (NON "no expiration"). Lascia scope `repo` invariato. Clicca **Regenerate token**
-3. **Copiare subito il nuovo token** (`ghp_...` o `github_pat_...`) — viene mostrato una sola volta. Tenerlo in nota temporanea
-4. Nel Terminale del Mac:
-   ```bash
-   printf "host=github.com\nprotocol=https\n\n" | git credential-osxkeychain erase
-   ```
-   (cancella la vecchia password dal Keychain — nessun output = ok)
-5. Triggerare un push per attivare il prompt:
-   ```bash
-   cd ~/cic-saas
-   git pull
-   git commit --allow-empty -m "test: verifica nuovo token"
-   git push
-   ```
-6. Al prompt: `Username` = `AlhenaGroup` ; `Password` = incolla il nuovo token (NON si vedrà scritto, è normale, è il comportamento del terminale)
-7. Verifica: `git push` di nuovo deve dire `Everything up-to-date` senza chiedere credenziali → token risalvato in Keychain
-8. Cancella la nota temporanea con il token
-9. **Su altri PC** che usi per pushare: ripetere step 4-6 con lo **stesso** nuovo token
-10. Aggiornare in questo file la nuova data di scadenza (oggi+90gg = ~2026-07-27 se rigeneri il 28/04)
-
-Quando fatto, sostituire questo blocco con: `- ✅ Token GitHub rigenerato il <data>, prossima scadenza <data+90gg>`
-
----
+- ✅ **2026-04-29** — Migrato auth GitHub a SSH (chiave `~/.ssh/id_ed25519_github`). PAT non più necessario, niente più scadenze. Tutti i worktree (`cic-saas`, `elastic-keller`, `keen-mayer`) usano remote `git@github.com:AlhenaGroup/cic-saas.git`.
+- 🟡 **Manuale**: revocare il vecchio PAT `cic-saas-deploy` (id `3919082317`) su https://github.com/settings/tokens — non più usato da nessuno.
 
 ### Altri TODO
 - (nessuno al momento)
@@ -102,10 +73,11 @@ Quando fatto, sostituire questo blocco con: `- ✅ Token GitHub rigenerato il <d
 ## Stato infra
 
 - Branch attivo: `main`
-- Ultimo push: `c12d1e2 → origin/main`
-- Worktrees: `keen-mayer` (feat/budget-module) sincronizzato; `awesome-ptolemy` obsoleto
+- Ultimo push: `2f2df29 → origin/main`
+- Worktrees: `keen-mayer` (feat/budget-module) sincronizzato; `elastic-keller` per fix corrente
+- Auth GitHub: **SSH** (`~/.ssh/id_ed25519_github`, AddKeysToAgent + UseKeychain)
 - Vercel: build automatica su push main
-- Supabase tables aggiunte questa sessione: `ts_invoice_assignments`, `attendance.pausa_minuti`
+- Supabase tables aggiunte sessione 2026-04-28: `ts_invoice_assignments`, `attendance.pausa_minuti`
 
 ## Come riprendere in una nuova chat
 
