@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, Card, fmtD, fmtN } from '../shared/styles.jsx'
+import { exportToXlsx, exportToCsv, exportToPdf, ExportButtons } from '../../lib/exporters'
 
 const iS = S.input
 
@@ -56,8 +57,8 @@ export default function MovementsView({ sp, sps, from, to }) {
 
   const totValore = filtered.reduce((acc, m) => acc + Math.abs(Number(m.valore_totale || 0)), 0)
 
-  const exportCsv = () => {
-    const header = ['Data', 'Tipo', 'Articolo', 'Quantità', 'UM', '€/UM', 'Valore', 'Locale', 'Sub', 'Fonte', 'Riferimento', 'Note']
+  const buildExportData = () => {
+    const headers = ['Data', 'Tipo', 'Articolo', 'Quantità', 'UM', '€/UM', 'Valore', 'Locale', 'Sub', 'Fonte', 'Riferimento', 'Note']
     const rows = filtered.map(m => [
       new Date(m.created_at).toLocaleString('it-IT'),
       m.tipo, m.nome_articolo, m.quantita, m.unita || '',
@@ -65,12 +66,15 @@ export default function MovementsView({ sp, sps, from, to }) {
       m.locale, m.sub_location,
       m.fonte, m.riferimento_label || '', m.note || '',
     ])
-    const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `movimenti_${from || 'all'}_${to || 'all'}.csv`
-    a.click(); URL.revokeObjectURL(url)
+    const filename = `movimenti_${from || 'all'}_${to || 'all'}`
+    return { headers, rows, filename }
+  }
+  const onExcel = () => { const { headers, rows, filename } = buildExportData(); exportToXlsx(filename, headers, rows, { sheetName: 'Movimenti' }) }
+  const onCsv = () => { const { headers, rows, filename } = buildExportData(); exportToCsv(filename, headers, rows) }
+  const onPdf = () => {
+    const { headers, rows } = buildExportData()
+    const titolo = `📦 Movimenti magazzino · ${selectedLocaleName || 'Tutti i locali'} · ${from || '—'} → ${to || '—'}`
+    exportToPdf(titolo, headers, rows)
   }
 
   return <>
@@ -93,9 +97,7 @@ export default function MovementsView({ sp, sps, from, to }) {
       </select>
       <input placeholder="🔍 Articolo, riferimento, note..." value={search} onChange={e => setSearch(e.target.value)}
         style={{ ...iS, flex: 1, maxWidth: 300 }} />
-      <button onClick={exportCsv} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 14px', fontWeight: 600, cursor: 'pointer' }}>
-        📥 Esporta CSV
-      </button>
+      <ExportButtons onExcel={onExcel} onCsv={onCsv} onPdf={onPdf} disabled={filtered.length === 0} size="lg" />
     </div>
 
     <Card title="Storico movimenti"

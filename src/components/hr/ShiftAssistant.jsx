@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../../lib/supabase'
 import { S, KPI, Card, fmt, fmtD } from '../shared/styles.jsx'
+import { exportToCsv } from '../../lib/exporters'
 
 const DAYS = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
 
@@ -537,6 +538,18 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
     XLSX.writeFile(wb, `Orari_${locale.replace(/\s/g, '_')}_${prevMonday}.xlsx`)
   }
 
+  const downloadCsv = () => {
+    const locale = localeName || 'Tutti i locali'
+    const headers = ['Ora', ...DAYS]
+    const rows = HOURS.map(h => [
+      String(h).padStart(2, '0') + ':00',
+      ...DAYS.map((_, di) => getCell(di, h).staff || 0),
+    ])
+    rows.push(['TOTALE PERSONE', ...dayTotals])
+    rows.push(['INCASSO €', ...dayRevenues.map(r => Math.round(r))])
+    exportToCsv(`Orari_${locale.replace(/\s/g, '_')}_${prevMonday}`, headers, rows)
+  }
+
   const iS = S.input
 
   return <div style={{ marginTop: 12 }}>
@@ -544,8 +557,9 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: '#64748b' }}>Soglia €/h:</span>
         <input type="number" value={soglia} onChange={e => setSoglia(Number(e.target.value) || 50)} style={{ ...iS, width: 55, textAlign: 'center', fontSize: 12 }} />
-        <button onClick={printPDF} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>📄 PDF</button>
-        <button onClick={downloadExcel} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>📊 Excel</button>
+        <button onClick={downloadExcel} style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }}>📊 Excel</button>
+        <button onClick={downloadCsv} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }} title="Scarica CSV riepilogo orario per giorno">📄 CSV</button>
+        <button onClick={printPDF} style={{ ...iS, background: '#EF4444', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }}>🖨 PDF</button>
       </div>
     }>
       <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>

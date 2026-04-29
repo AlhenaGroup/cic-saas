@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { S, Card, KPI, fmt, fmtN } from '../shared/styles.jsx'
 import { idbGet, idbSet, idbDelete } from '../../lib/idbCache.js'
+import { exportToXlsx, exportToCsv, exportToPdf, ExportButtons } from '../../lib/exporters'
 
 // ─── Segmentazione RFM ─────────────────────────────────────────────────────
 // Recency   = giorni dall'ultima visita (lower = better)
@@ -357,21 +358,19 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
     return list.slice(0, 500)
   }, [classified, filter, search])
 
-  const exportCsv = () => {
+  const buildExportData = () => {
     const rows = filter === 'all' ? classified : classified.filter(c => c.__segment === filter)
-    if (!rows.length) return
-    const header = ['nome', 'cognome', 'email', 'telefono', 'locale_id', 'locali_frequentati', 'multi_locale', 'visite', 'ultima_visita', 'totale_speso', 'coperto_medio', 'segmento', 'marketing', 'source', 'tags']
-    const lines = [header.join(',')]
-    rows.forEach(r => {
+    const headers = ['nome', 'cognome', 'email', 'telefono', 'locale_id', 'locali_frequentati', 'multi_locale', 'visite', 'ultima_visita', 'totale_speso', 'coperto_medio', 'segmento', 'marketing', 'source', 'tags']
+    const dataRows = rows.map(r => {
       const email = (r.email || '').trim().toLowerCase()
       const mobile = String(r.mobile || '').replace(/\s+/g, '').trim()
       const key = email || (mobile ? 'tel:' + mobile : null)
       const entry = key ? crossLocale.byKey.get(key) : null
       const locIds = entry ? [...entry.locationIDs] : [Number(r.locationID)]
       const locNames = locIds.map(id => locations[String(id)]?.name || ('Loc ' + id)).join('|')
-      lines.push([
-        (r.name || '').replace(/,/g, ';'),
-        (r.lastname || '').replace(/,/g, ';'),
+      return [
+        r.name || '',
+        r.lastname || '',
         r.email || '',
         r.mobile || '',
         r.locationID || '',
@@ -385,16 +384,20 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
         r.flagMarketing === 1 ? 'SI' : 'NO',
         r.source || '',
         (r.tags || []).join('|')
-      ].join(','))
+      ]
     })
-    const csv = '\uFEFF' + lines.join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
     const locSuffix = locFilter === 'all' ? 'tutti' : `loc${locFilter}`
     const multiSuffix = onlyMulti ? '_MULTI' : ''
-    a.download = `clienti_${locSuffix}_${filter}${multiSuffix}_${new Date().toISOString().substring(0, 10)}.csv`
-    a.click()
+    const filename = `clienti_${locSuffix}_${filter}${multiSuffix}_${new Date().toISOString().substring(0, 10)}`
+    return { headers, dataRows, filename, count: dataRows.length }
+  }
+  const onExportExcel = () => { const { headers, dataRows, filename } = buildExportData(); if (dataRows.length) exportToXlsx(filename, headers, dataRows, { sheetName: 'Clienti' }) }
+  const onExportCsv = () => { const { headers, dataRows, filename } = buildExportData(); if (dataRows.length) exportToCsv(filename, headers, dataRows) }
+  const onExportPdf = () => {
+    const { headers, dataRows } = buildExportData()
+    if (!dataRows.length) return
+    const titolo = `👥 Clienti RFM · ${filter === 'all' ? 'Tutti' : filter} · ${new Date().toLocaleDateString('it-IT')}`
+    exportToPdf(titolo, headers, dataRows)
   }
 
   // ─── Render: setup pannello ──────────────────────────────────────────────
@@ -620,11 +623,8 @@ export default function RFMSegmentation({ sp, sps, from, to }) {
         style={{ ...iS, width: 240 }}
       />
       <div style={{ flex: 1 }} />
-      <button
-        onClick={exportCsv}
-        disabled={!classified.length}
-        style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 14px', fontWeight: 600, cursor: 'pointer' }}
-      >📥 Esporta CSV ({filter === 'all' ? classified.length : counts[filter] || 0})</button>
+      <span style={{ fontSize: 11, color: '#94a3b8' }}>{filter === 'all' ? classified.length : counts[filter] || 0} righe</span>
+      <ExportButtons onExcel={onExportExcel} onCsv={onExportCsv} onPdf={onExportPdf} disabled={!classified.length} size="lg" />
     </div>
 
     {/* Tabella clienti */}

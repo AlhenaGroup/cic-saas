@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import * as XLSX from 'xlsx'
 import { supabase } from '../../lib/supabase'
 import { S, KPI, Card, fmtN } from '../shared/styles.jsx'
+import { exportToXlsx, exportToCsv, exportToPdf } from '../../lib/exporters'
 
 const DAYS = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom']
 
@@ -77,10 +77,6 @@ function operatingDayOf(ts) {
     }
     return datePart
   } catch { return ts.substring(0, 10) }
-}
-
-function escapeHtml(s) {
-  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 }
 
 export default function AttendanceView({ employees, shifts, sp, sps }) {
@@ -611,68 +607,22 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
         return wd.charAt(0).toUpperCase() + wd.slice(1) + ' ' + dd
       }
       const titolo = `Presenze · ${locale || 'Tutti i locali'} · ${start} → ${to}`
+      const headers = ['Dipendente', ...dates.map(dayLabel), 'Totale ore']
+      const tableRows = empRows.map(r => [r.nome, ...r.cells.map(c => c.text || '—'), r.tot.toFixed(2) + 'h'])
+      const dayTot = dates.map((_, i) => empRows.reduce((s, r) => s + (r.cells[i]?.ore || 0), 0))
+      const grand = empRows.reduce((s, r) => s + r.tot, 0)
+      const footerRow = ['TOTALE GIORNO', ...dayTot.map(t => (Math.floor(t * 100) / 100).toFixed(2) + 'h'), (Math.floor(grand * 100) / 100).toFixed(2) + 'h']
+      const filename = `Presenze_${(locale || 'tutti').replace(/\s+/g, '_')}_${start}_${to}`
       if (kind === 'excel') {
-        const headers = ['Dipendente', ...dates.map(dayLabel), 'Totale ore']
-        const data = [headers]
-        empRows.forEach(r => data.push([r.nome, ...r.cells.map(c => c.text || '—'), r.tot.toFixed(2) + 'h']))
-        const dayTot = dates.map((_, i) => empRows.reduce((s, r) => s + (r.cells[i]?.ore || 0), 0))
-        const grand = empRows.reduce((s, r) => s + r.tot, 0)
-        data.push(['TOTALE GIORNO', ...dayTot.map(t => (Math.floor(t * 100) / 100).toFixed(2) + 'h'), (Math.floor(grand * 100) / 100).toFixed(2) + 'h'])
-        const ws = XLSX.utils.aoa_to_sheet(data)
-        ws['!cols'] = [{ wch: 22 }, ...dates.map(() => ({ wch: 26 })), { wch: 12 }]
-        Object.keys(ws).forEach(k => { if (!k.startsWith('!')) { ws[k].s = ws[k].s || {}; ws[k].s.alignment = { wrapText: true, vertical: 'top' } } })
-        const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, 'Presenze')
-        XLSX.writeFile(wb, `Presenze_${(locale || 'tutti').replace(/\s+/g, '_')}_${start}_${to}.xlsx`)
-      } else if (kind === 'csv') {
-        const headers = ['Dipendente', ...dates.map(dayLabel), 'Totale ore']
-        const data = [headers]
-        empRows.forEach(r => data.push([r.nome, ...r.cells.map(c => c.text || '—'), r.tot.toFixed(2) + 'h']))
-        const dayTot = dates.map((_, i) => empRows.reduce((s, r) => s + (r.cells[i]?.ore || 0), 0))
-        const grand = empRows.reduce((s, r) => s + r.tot, 0)
-        data.push(['TOTALE GIORNO', ...dayTot.map(t => (Math.floor(t * 100) / 100).toFixed(2) + 'h'), (Math.floor(grand * 100) / 100).toFixed(2) + 'h'])
-        const csvCell = (v) => {
-          const s = String(v ?? '')
-          return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
-        }
-        const csv = data.map(row => row.map(csvCell).join(';')).join('\r\n')
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `Presenze_${(locale || 'tutti').replace(/\s+/g, '_')}_${start}_${to}.csv`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      } else {
-        let html = `<html><head><title>${escapeHtml(titolo)}</title><style>
-          @page { size: A4 landscape; margin: 10mm; }
-          body { font-family: Arial, sans-serif; padding: 0; color: #333; font-size: 9px; }
-          h1 { font-size: 15px; margin: 0 0 4px; }
-          h2 { font-size: 10px; color: #666; font-weight: normal; margin: 0 0 12px; }
-          table { border-collapse: collapse; width: 100%; }
-          th { background: #f1f5f9; padding: 4px 3px; border: 1px solid #ccc; font-weight: 600; font-size: 9px; }
-          td { padding: 4px 3px; border: 1px solid #ddd; vertical-align: top; font-size: 8px; white-space: pre-line; }
-          td.nome { font-weight: 600; background: #fafafa; }
-          td.tot { font-weight: 700; text-align: right; color: #b45309; background: #fef3c7; }
-          tr.totrow { background: #e2e8f0; font-weight: 700; }
-        </style></head><body>
-        <h1>📋 ${escapeHtml(titolo)}</h1>
-        <h2>Generato il ${new Date().toLocaleString('it-IT')}</h2>
-        <table><thead><tr><th style="text-align:left">Dipendente</th>${dates.map(ds => `<th>${escapeHtml(dayLabel(ds))}</th>`).join('')}<th>Totale</th></tr></thead><tbody>`
-        empRows.forEach(r => {
-          html += `<tr><td class="nome">${escapeHtml(r.nome)}</td>`
-          r.cells.forEach(c => { html += `<td>${c.text ? escapeHtml(c.text).replace(/\n/g, '<br/>') : '—'}</td>` })
-          html += `<td class="tot">${r.tot.toFixed(2)}h</td></tr>`
+        exportToXlsx(filename, headers, [...tableRows, footerRow], {
+          sheetName: 'Presenze',
+          colWidths: [22, ...dates.map(() => 26), 12],
         })
-        const dayTot = dates.map((_, i) => empRows.reduce((s, r) => s + (r.cells[i]?.ore || 0), 0))
-        html += `<tr class="totrow"><td class="nome">TOTALE GIORNO</td>${dayTot.map(t => `<td>${(Math.floor(t * 100) / 100).toFixed(2)}h</td>`).join('')}<td class="tot">${(Math.floor(empRows.reduce((s, r) => s + r.tot, 0) * 100) / 100).toFixed(2)}h</td></tr>`
-        html += `</tbody></table></body></html>`
-        const w = window.open('', '_blank')
-        if (!w) { setErr('Popup bloccato — abilita i popup per la stampa.'); setBusy(false); return }
-        w.document.write(html); w.document.close()
-        setTimeout(() => { w.focus(); w.print() }, 300)
+      } else if (kind === 'csv') {
+        exportToCsv(filename, headers, [...tableRows, footerRow])
+      } else {
+        const ok = exportToPdf('📋 ' + titolo, headers, tableRows, { footerRow })
+        if (!ok) { setErr('Popup bloccato — abilita i popup per la stampa.'); setBusy(false); return }
       }
       onClose()
     } catch (e) { setErr(e.message); setBusy(false) }

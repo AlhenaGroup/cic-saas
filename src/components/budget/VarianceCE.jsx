@@ -5,6 +5,7 @@ import {
   CAT_META, CATS, computeMOL, computeMolPct, computeTotCosti,
   computeForecast, daysElapsedInMonth, daysInMonth,
 } from '../../lib/budgetModel.js'
+import { exportToXlsx, exportToCsv, exportToPdf, ExportButtons } from '../../lib/exporters'
 
 // Color coding for delta % based on whether metric is "better higher" or "better lower"
 function deltaColor(pct, better) {
@@ -100,28 +101,26 @@ export default function VarianceCE({ sp, sps, year, month }) {
     return out
   }, [consuntivo, budget, forecast])
 
-  const handleExportCsv = () => {
-    const header = ['Voce', 'Consuntivo', 'Budget', 'Delta EUR', 'Delta %', 'Forecast', 'Forecast vs Budget %']
-    const lines = [header.join(',')]
-    rows.forEach(r => {
-      lines.push([
-        r.label,
-        r.consuntivo?.toFixed(2) ?? '',
-        r.budget?.toFixed(2) ?? '',
-        r.deltaEur?.toFixed(2) ?? '',
-        r.deltaPct?.toFixed(1) ?? '',
-        r.forecast?.toFixed(2) ?? '',
-        r.forecastVsBudget?.toFixed(1) ?? '',
-      ].join(','))
-    })
-    const csv = lines.join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `ce-scostamenti-${year}-${String(month).padStart(2, '0')}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+  const buildExportData = () => {
+    const headers = ['Voce', 'Consuntivo', 'Budget', 'Delta EUR', 'Delta %', 'Forecast', 'Forecast vs Budget %']
+    const dataRows = rows.map(r => [
+      r.label,
+      r.consuntivo?.toFixed(2) ?? '',
+      r.budget?.toFixed(2) ?? '',
+      r.deltaEur?.toFixed(2) ?? '',
+      r.deltaPct?.toFixed(1) ?? '',
+      r.forecast?.toFixed(2) ?? '',
+      r.forecastVsBudget?.toFixed(1) ?? '',
+    ])
+    const filename = `ce-scostamenti-${year}-${String(month).padStart(2, '0')}`
+    return { headers, dataRows, filename }
+  }
+  const onExcel = () => { const { headers, dataRows, filename } = buildExportData(); exportToXlsx(filename, headers, dataRows, { sheetName: 'CE scostamenti' }) }
+  const onCsv = () => { const { headers, dataRows, filename } = buildExportData(); exportToCsv(filename, headers, dataRows) }
+  const onPdf = () => {
+    const { headers, dataRows } = buildExportData()
+    const titolo = `📊 CE scostamenti · ${year}-${String(month).padStart(2, '0')}`
+    exportToPdf(titolo, headers, dataRows)
   }
 
   if (loading) {
@@ -132,15 +131,7 @@ export default function VarianceCE({ sp, sps, year, month }) {
 
   return <Card
     title="📊 Conto economico: consuntivo vs budget vs forecast"
-    extra={
-      <button
-        onClick={handleExportCsv}
-        style={{
-          background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8',
-          padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer'
-        }}
-      >📥 Esporta CSV</button>
-    }
+    extra={<ExportButtons onExcel={onExcel} onCsv={onCsv} onPdf={onPdf} disabled={!rows.length} />}
   >
     {!budget && (
       <div style={{
