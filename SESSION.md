@@ -45,8 +45,8 @@
 
 ## TODO / In sospeso
 
-- ✅ **2026-04-29** — Migrato auth GitHub a SSH (chiave `~/.ssh/id_ed25519_github`). PAT non più necessario, niente più scadenze. Tutti i worktree (`cic-saas`, `elastic-keller`, `keen-mayer`) usano remote `git@github.com:AlhenaGroup/cic-saas.git`.
-- 🟡 **Manuale**: revocare il vecchio PAT `cic-saas-deploy` (id `3919082317`) su https://github.com/settings/tokens — non più usato da nessuno.
+- ✅ **2026-04-29** — Migrato auth GitHub a SSH (chiave `~/.ssh/id_ed25519_github`). Tutti i worktree (`cic-saas`, `elastic-keller`, `keen-mayer`) usano remote `git@github.com:AlhenaGroup/cic-saas.git`. **Mac di Gianmarco** non usa più il PAT.
+- ℹ️ **Nota**: il PAT `cic-saas-deploy` (id `3919082317`) **resta attivo** perché lo usa Filippo dal suo PC (read+write). Quando scade (2026-05-04 → ricontrollare con Filippo se ha rinnovato), si decide insieme se rinnovare o passare anche lui a SSH.
 
 ### Altri TODO
 - (nessuno al momento)
