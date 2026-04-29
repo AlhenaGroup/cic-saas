@@ -274,7 +274,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
   // Stato popup gestione timbrature
   const [managingDay, setManagingDay] = useState(null) // { emp, dayOffset, ds }
   // Stato modale export
-  const [exportModal, setExportModal] = useState(null) // null | 'excel' | 'pdf'
+  const [exportModal, setExportModal] = useState(null) // null | 'excel' | 'csv' | 'pdf'
 
   return <>
     {/* QR Code Generator */}
@@ -320,6 +320,9 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
           <button onClick={() => setExportModal('excel')} disabled={filteredEmps.length === 0}
             style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
             title="Scarica Excel di un periodo a tua scelta">📊 Excel</button>
+          <button onClick={() => setExportModal('csv')} disabled={filteredEmps.length === 0}
+            style={{ ...iS, background: '#3B82F6', color: '#fff', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
+            title="Scarica CSV di un periodo a tua scelta">📄 CSV</button>
           <button onClick={() => setExportModal('pdf')} disabled={filteredEmps.length === 0}
             style={{ ...iS, background: '#EF4444', color: '#fff', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
             title="Stampa o salva come PDF di un periodo a tua scelta">🖨 PDF</button>
@@ -621,6 +624,27 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
         const wb = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(wb, ws, 'Presenze')
         XLSX.writeFile(wb, `Presenze_${(locale || 'tutti').replace(/\s+/g, '_')}_${start}_${to}.xlsx`)
+      } else if (kind === 'csv') {
+        const headers = ['Dipendente', ...dates.map(dayLabel), 'Totale ore']
+        const data = [headers]
+        empRows.forEach(r => data.push([r.nome, ...r.cells.map(c => c.text || '—'), r.tot.toFixed(2) + 'h']))
+        const dayTot = dates.map((_, i) => empRows.reduce((s, r) => s + (r.cells[i]?.ore || 0), 0))
+        const grand = empRows.reduce((s, r) => s + r.tot, 0)
+        data.push(['TOTALE GIORNO', ...dayTot.map(t => (Math.floor(t * 100) / 100).toFixed(2) + 'h'), (Math.floor(grand * 100) / 100).toFixed(2) + 'h'])
+        const csvCell = (v) => {
+          const s = String(v ?? '')
+          return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+        }
+        const csv = data.map(row => row.map(csvCell).join(';')).join('\r\n')
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `Presenze_${(locale || 'tutti').replace(/\s+/g, '_')}_${start}_${to}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
       } else {
         let html = `<html><head><title>${escapeHtml(titolo)}</title><style>
           @page { size: A4 landscape; margin: 10mm; }
@@ -657,7 +681,7 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 480 }}>
       <div style={{ padding: 18, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>{kind === 'excel' ? '📊 Esporta Excel' : '🖨 Esporta PDF'}</h3>
+        <h3 style={{ margin: 0, fontSize: 16 }}>{kind === 'excel' ? '📊 Esporta Excel' : kind === 'csv' ? '📄 Esporta CSV' : '🖨 Esporta PDF'}</h3>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}>✕</button>
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
