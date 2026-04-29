@@ -79,6 +79,10 @@ function operatingDayOf(ts) {
   } catch { return ts.substring(0, 10) }
 }
 
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
 export default function AttendanceView({ employees, shifts, sp, sps }) {
   const [weekStart, setWeekStart] = useState(weekMonday())
   const [attendance, setAttendance] = useState([])
@@ -271,10 +275,6 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
   const [managingDay, setManagingDay] = useState(null) // { emp, dayOffset, ds }
   // Stato modale export
   const [exportModal, setExportModal] = useState(null) // null | 'excel' | 'pdf'
-
-  function escapeHtml(s) {
-    return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
-  }
 
   return <>
     {/* QR Code Generator */}
