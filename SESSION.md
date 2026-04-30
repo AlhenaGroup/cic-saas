@@ -7,10 +7,14 @@
 ---
 
 ## Ultimo aggiornamento
-**2026-04-29** — Fix export PDF presenze (`escapeHtml is not defined`) + migrazione auth GitHub a **SSH** (niente più PAT scadenze). Push da terminale ora senza prompt.
+**2026-04-30** — Fix coperti fatture vendita: i coperti delle fatture CiC ora vengono contati nei coperti totali della dashboard. **Da fare**: re-sync forzato dei giorni con fatture (24/25/27 aprile CDA + altri).
 
 ## Lavoro recente (ultimi commit su `main`)
 
+- `6cd0dcb` — fix: dashboard - coperti delle fatture vendita ora contano nei coperti totali
+- `8f6ff8a` — feat: helper export uniforme + 3 bottoni Excel/CSV/PDF in 4 schermate
+- `b622294` — fix: bottone modale CSV mostrava 'Apri stampa PDF'
+- `7c89575` — feat: export CSV presenze reali
 - `2f2df29` — fix: export PDF presenze reali — escapeHtml accessibile a ExportModal (era dichiarata dentro AttendanceView, non visibile a ExportModal)
 - `c12d1e2` — fix: pausa ora viene davvero sottratta dalle ore (timestamp = ultima entrata + 1s; fallback orfane → ultimo blocco completo)
 - `5b71f51` — ui: riga pausa mostra solo durata (rimosso input ora)
@@ -21,9 +25,17 @@
 - `b966994` — fix: tab Fatture dashboard — filtro locale + cache full + paginazione client
 - `1a18e0b` — fix: magazzino fatture — conteggi e paginazione su intero archivio
 
-## Cosa è stato fatto questa sessione
+## Cosa è stato fatto questa sessione (2026-04-30)
 
-1. **Bug ricavi mancanti**: dashboard contava solo scontrini, non fatture vendita CiC
+0. **Bug coperti fatture** (questa chat): le fatture vendita CiC non popolavano i coperti totali della dashboard. I coperti si calcolano dal reparto `COPERTO` in `dept_records`, ma le righe della fattura non venivano aggiunte al map. Fix in `api/sync-cron.js`:
+   - per ogni fattura conta `quantity` delle righe con reparto `COPERTO` (case-insensitive) o `coverCharge` flag
+   - somma in `dept_records` (crea record se manca)
+   - popola `receipt_details.coperti` (era sempre 0)
+   - **Da fare ora**: re-sync forzato giorni con fatture per rigenerare i `dept_records`. Endpoint: `GET /api/sync-cron?apiKey=<cic_api_key>&from=2026-04-24&to=2026-04-27`
+
+## Sessioni precedenti
+
+1. **Bug ricavi mancanti** (2026-04-28): dashboard contava solo scontrini, non fatture vendita CiC
    - `api/sync-cron.js`: aggiunta `getSalesInvoices()` da `/documents/invoices`, somma a revenue, popola `invoice_count` / `invoice_revenue`
    - `src/lib/cicApi.js`: scontriniList include fatture con `isInvoice:true`, id `'F'+nr`
    - `src/pages/DashboardPage.jsx`: badge viola "FATT" nelle righe scontrini fattura
@@ -73,8 +85,8 @@
 ## Stato infra
 
 - Branch attivo: `main`
-- Ultimo push: `2f2df29 → origin/main`
-- Worktrees: `keen-mayer` (feat/budget-module) sincronizzato; `elastic-keller` per fix corrente
+- Ultimo push: `6cd0dcb → origin/main`
+- Worktrees: `keen-mayer` (feat/budget-module) sincronizzato; `eloquent-rosalind` per fix corrente
 - Auth GitHub: **SSH** (`~/.ssh/id_ed25519_github`, AddKeysToAgent + UseKeychain)
 - Vercel: build automatica su push main
 - Supabase tables aggiunte sessione 2026-04-28: `ts_invoice_assignments`, `attendance.pausa_minuti`
