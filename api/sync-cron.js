@@ -570,18 +570,27 @@ export default async function handler(req, res) {
             agg.bill_count = (agg.bill_count || 0) + invoices.length;
             // Aggiungi le fatture a receipt_details marcate isInvoice: true
             // così appaiono nella lista comande/scontrini con badge "Fattura"
+            let totalInvCovers = 0;
             for (const inv of invoices) {
               const dt = inv.datetime || '';
               const time = (dt.match(/T(\d{2}:\d{2})/) || [])[1] || null;
-              const items = (inv.document?.rows || [])
-                .filter(r => r && !r.subtotal && !r.refund)
-                .map(r => ({
-                  qty: r.quantity || 1,
-                  nome: r.product?.description || r.description || 'Articolo',
-                  prezzo: Number(r.totalPrice || r.price || 0),
-                  reparto: r.product?.department?.description || r.department?.description || null,
-                  categoria: r.product?.category?.description || r.category?.description || null,
-                }));
+              const rows = (inv.document?.rows || []).filter(r => r && !r.subtotal && !r.refund);
+              // Conta i coperti: righe con reparto "COPERTO" (case-insensitive) o flag coverCharge
+              let invCovers = 0;
+              for (const r of rows) {
+                const dName = (r.product?.department?.description || r.department?.description || '').toUpperCase();
+                if (dName === 'COPERTO' || r.coverCharge) {
+                  invCovers += Number(r.quantity) || 0;
+                }
+              }
+              totalInvCovers += invCovers;
+              const items = rows.map(r => ({
+                qty: r.quantity || 1,
+                nome: r.product?.description || r.description || 'Articolo',
+                prezzo: Number(r.totalPrice || r.price || 0),
+                reparto: r.product?.department?.description || r.department?.description || null,
+                categoria: r.product?.category?.description || r.category?.description || null,
+              }));
               agg.receipt_details.push({
                 isInvoice: true,
                 invoiceNumber: inv.number || null,
@@ -589,10 +598,20 @@ export default async function handler(req, res) {
                 tavolo: inv.customer?.name || inv.customer?.description || `Fattura n. ${inv.number || '—'}`,
                 aperturaComanda: time,
                 chiusuraComanda: time,
-                coperti: 0,
+                coperti: invCovers,
                 totale: Number(inv.document?.amount) || 0,
                 items,
               });
+            }
+            // Aggiungi i coperti delle fatture al dept_records cosi' la dashboard li somma
+            if (totalInvCovers > 0) {
+              const existing = (agg.dept_records || []).find(d => (d.department?.description || '').toUpperCase() === 'COPERTO');
+              if (existing) {
+                existing.quantity = (existing.quantity || 0) + totalInvCovers;
+              } else {
+                agg.dept_records = agg.dept_records || [];
+                agg.dept_records.push({ idDepartment: 'invoice-coperti', department: { description: 'COPERTO' }, profit: 0, quantity: totalInvCovers });
+              }
             }
             logs.push(`${sp.name} ${date}: +${agg.invoice_count} fatture (+${agg.invoice_revenue}€)`);
           }
