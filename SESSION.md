@@ -7,7 +7,7 @@
 ---
 
 ## Ultimo aggiornamento
-**2026-04-30** — Fix coperti fatture vendita: i coperti delle fatture CiC ora vengono contati nei coperti totali della dashboard. **Da fare**: re-sync forzato dei giorni con fatture (24/25/27 aprile CDA + altri).
+**2026-05-01** — Vercel **upgrade a Pro plan**. Risolto 404 su `/api/invoices` causato dal cap di 12 functions del piano Hobby (la 13a era esclusa silenziosamente). Modulo Fatture funzionante. Bonus: log retention 1 mese, niente più cap functions, in regola con ToS uso commerciale.
 
 ## Lavoro recente (ultimi commit su `main`)
 
