@@ -1,4 +1,5 @@
 // API fatture — integrazione TS Digital (API diretta) + CiC legacy (cookie)
+// Trigger redeploy: 2026-05-01
 import crypto from 'crypto'
 
 // Aggrega IVA per aliquota dai blocchi <DatiRiepilogo> dell'XML FatturaPA.
