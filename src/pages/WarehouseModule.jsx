@@ -238,6 +238,7 @@ function ArticoliTab({ sp, sps }) {
   const [sortBy, setSortBy] = useState('name_asc')
   const [magFilter, setMagFilter] = useState('tutti')
   const [search, setSearch] = useState('')
+  const [editingArticle, setEditingArticle] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -332,11 +333,11 @@ function ArticoliTab({ sp, sps }) {
         </tr></thead>
         <tbody>
           {filtered.map((a, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid #1a1f2e' }}>
-              <td style={{ ...S.td, fontWeight: 600, fontSize: 12 }}>{a.nome}</td>
+            <tr key={i} onClick={() => setEditingArticle(a)} style={{ borderBottom: '1px solid #1a1f2e', cursor: 'pointer' }} title="Clicca per modificare">
+              <td style={{ ...S.td, fontWeight: 600, fontSize: 12, color: '#3B82F6' }}>{a.nome}</td>
               <td style={{ ...S.td, fontSize: 10 }}><span style={S.badge(
-                a.magazzino === 'beverage' ? '#3B82F6' : a.magazzino === 'food' ? '#F59E0B' : a.magazzino === 'materiali' ? '#8B5CF6' : '#64748b',
-                a.magazzino === 'beverage' ? 'rgba(59,130,246,.12)' : a.magazzino === 'food' ? 'rgba(245,158,11,.12)' : a.magazzino === 'materiali' ? 'rgba(139,92,246,.12)' : 'rgba(100,116,139,.12)'
+                a.magazzino === 'beverage' ? '#3B82F6' : a.magazzino === 'food' ? '#F59E0B' : a.magazzino === 'materiali' ? '#8B5CF6' : a.magazzino === 'attrezzatura' ? '#10B981' : '#64748b',
+                a.magazzino === 'beverage' ? 'rgba(59,130,246,.12)' : a.magazzino === 'food' ? 'rgba(245,158,11,.12)' : a.magazzino === 'materiali' ? 'rgba(139,92,246,.12)' : a.magazzino === 'attrezzatura' ? 'rgba(16,185,129,.12)' : 'rgba(100,116,139,.12)'
               )}>{a.magazzino}</span></td>
               <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{a.unita}</td>
               <td style={{ ...S.td, fontSize: 10, color: '#94a3b8', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.fornitori}</td>
@@ -352,5 +353,168 @@ function ArticoliTab({ sp, sps }) {
       </table>
       </div>
     </>}
+    {editingArticle && <ArticleEditModal article={editingArticle}
+      onClose={() => setEditingArticle(null)}
+      onSaved={() => { setEditingArticle(null); load() }} />}
   </Card>
+}
+
+// Modal modifica articolo aggregato — applica modifiche globali a TUTTE le righe
+// warehouse_invoice_items con quel nome_articolo (rinomina, magazzino, escludi).
+function ArticleEditModal({ article, onClose, onSaved }) {
+  const [nome, setNome] = useState(article.nome)
+  const [magazzino, setMagazzino] = useState(article.magazzino || 'food')
+  const [unita, setUnita] = useState(article.unita || '')
+  const [escludi, setEscludi] = useState(false) // applica solo se cambiato esplicitamente
+  const [touchedEscludi, setTouchedEscludi] = useState(false)
+  const [rows, setRows] = useState([])
+  const [loadingRows, setLoadingRows] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoadingRows(true)
+      const { data } = await supabase.from('warehouse_invoice_items')
+        .select('id, nome_articolo, nome_fattura, unita, quantita, totale_um, qty_singola, prezzo_totale, magazzino, escludi_magazzino, tipo_confezione, warehouse_invoices!inner(data, fornitore, locale)')
+        .eq('nome_articolo', article.nome)
+        .order('id', { ascending: false })
+      if (!cancelled) {
+        setRows(data || [])
+        setLoadingRows(false)
+        // Pre-set escludi al valore prevalente
+        const allExcl = (data || []).every(r => r.escludi_magazzino)
+        setEscludi(allExcl)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [article.nome])
+
+  const save = async () => {
+    setSaving(true); setErr('')
+    try {
+      const updates = { nome_articolo: nome.trim(), magazzino, unita: unita.trim() }
+      if (touchedEscludi) updates.escludi_magazzino = escludi
+      const { error } = await supabase.from('warehouse_invoice_items')
+        .update(updates).eq('nome_articolo', article.nome)
+      if (error) throw error
+      onSaved()
+    } catch (e) { setErr(e.message); setSaving(false) }
+  }
+
+  const deleteRow = async (id) => {
+    if (!confirm('Rimuovere questa riga dalla fattura? L\'azione è irreversibile.')) return
+    await supabase.from('warehouse_invoice_items').delete().eq('id', id)
+    setRows(rows.filter(r => r.id !== id))
+  }
+
+  const toggleRowExclude = async (row) => {
+    const newVal = !row.escludi_magazzino
+    await supabase.from('warehouse_invoice_items').update({ escludi_magazzino: newVal }).eq('id', row.id)
+    setRows(rows.map(r => r.id === row.id ? { ...r, escludi_magazzino: newVal } : r))
+  }
+
+  const MAG_OPTIONS = [
+    { v: 'food', l: '🍔 Food' }, { v: 'beverage', l: '🍺 Beverage' },
+    { v: 'materiali', l: '🧻 Materiali' }, { v: 'attrezzatura', l: '🔧 Attrezzatura' },
+    { v: 'altro', l: '📦 Altro' },
+  ]
+  const UNIT_OPTIONS = ['', 'PZ', 'KG', 'LT', 'GR', 'ML', 'CONF', 'CASSA']
+
+  return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
+    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 800 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 15 }}>📦 Modifica articolo</h3>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Le modifiche si applicano a tutte le {rows.length} righe fattura di questo articolo</div>
+        </div>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+      </div>
+      <div style={{ padding: 20 }}>
+        {/* Campi modificabili globali */}
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
+          <label style={{ display: 'block' }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Nome articolo</div>
+            <input value={nome} onChange={e => setNome(e.target.value)}
+              style={{ ...S.input, width: '100%' }} />
+          </label>
+          <label style={{ display: 'block' }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Magazzino</div>
+            <select value={magazzino} onChange={e => setMagazzino(e.target.value)} style={{ ...S.input, width: '100%' }}>
+              {MAG_OPTIONS.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'block' }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Unità di misura</div>
+            <select value={unita} onChange={e => setUnita(e.target.value)} style={{ ...S.input, width: '100%' }}>
+              {UNIT_OPTIONS.map(u => <option key={u} value={u}>{u || '—'}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', cursor: 'pointer', fontSize: 13 }}>
+          <input type="checkbox" checked={escludi}
+            onChange={e => { setEscludi(e.target.checked); setTouchedEscludi(true) }}
+            style={{ cursor: 'pointer' }} />
+          <span style={{ color: touchedEscludi ? '#F59E0B' : '#94a3b8' }}>
+            Escludi dal magazzino (tutte le righe){touchedEscludi && <span style={{ fontSize: 10, marginLeft: 6, color: '#F59E0B' }}>· verrà aggiornato</span>}
+          </span>
+        </label>
+
+        {err && <div style={{ color: '#EF4444', fontSize: 12, marginTop: 10 }}>{err}</div>}
+
+        {/* Tabella righe fattura */}
+        <div style={{ marginTop: 14, borderTop: '1px solid #2a3042', paddingTop: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', marginBottom: 8 }}>
+            Righe fattura ({rows.length})
+          </div>
+          {loadingRows ? (
+            <div style={{ padding: 20, color: '#64748b', textAlign: 'center', fontSize: 12 }}>Caricamento…</div>
+          ) : rows.length === 0 ? (
+            <div style={{ padding: 20, color: '#64748b', textAlign: 'center', fontSize: 12 }}>Nessuna riga.</div>
+          ) : (
+            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <thead style={{ position: 'sticky', top: 0, background: '#131825' }}>
+                  <tr style={{ borderBottom: '1px solid #2a3042' }}>
+                    {['Data', 'Fornitore', 'Locale', 'Qty', 'UM', '€/UM', 'Tot.', 'Escl.', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 10 }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(r => {
+                    const totalUnita = (Number(r.quantita || 0) * Number(r.totale_um || 0) * Number(r.qty_singola || 0))
+                    const prezzoUM = totalUnita > 0 ? Math.abs(Number(r.prezzo_totale || 0)) / totalUnita : 0
+                    return <tr key={r.id} style={{ borderBottom: '1px solid #1a1f2e', opacity: r.escludi_magazzino ? 0.5 : 1 }}>
+                      <td style={{ ...S.td, fontSize: 10 }}>{r.warehouse_invoices?.data || '—'}</td>
+                      <td style={{ ...S.td, fontSize: 10, color: '#94a3b8', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.warehouse_invoices?.fornitore || '—'}</td>
+                      <td style={{ ...S.td, fontSize: 10, color: '#94a3b8' }}>{r.warehouse_invoices?.locale || '—'}</td>
+                      <td style={{ ...S.td, fontSize: 10 }}>{r.quantita}</td>
+                      <td style={{ ...S.td, fontSize: 10, color: '#94a3b8' }}>{r.unita || '—'}</td>
+                      <td style={{ ...S.td, fontSize: 10, color: '#F59E0B' }}>{prezzoUM > 0 ? fmtD(Math.round(prezzoUM * 10000) / 10000) : '—'}</td>
+                      <td style={{ ...S.td, fontSize: 10, fontWeight: 600 }}>{fmtD(Math.abs(Number(r.prezzo_totale || 0)))}</td>
+                      <td style={{ ...S.td, textAlign: 'center' }}>
+                        <input type="checkbox" checked={!!r.escludi_magazzino} onChange={() => toggleRowExclude(r)} style={{ cursor: 'pointer' }} />
+                      </td>
+                      <td style={S.td}>
+                        <button onClick={() => deleteRow(r.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>✕</button>
+                      </td>
+                    </tr>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+          <button onClick={onClose} style={{ ...S.input, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
+          <button onClick={save} disabled={saving || !nome.trim()}
+            style={{ ...S.input, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer', opacity: saving || !nome.trim() ? 0.5 : 1 }}>
+            {saving ? 'Salvo…' : '💾 Salva modifiche globali'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 }
