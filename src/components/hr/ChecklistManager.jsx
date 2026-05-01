@@ -22,8 +22,10 @@ const ITEM_TYPES = [
 
 export default function ChecklistManager({ sp, sps }) {
   const [checklists, setChecklists] = useState([])
+  const [respCounts, setRespCounts] = useState({}) // { checklist_id: count }
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null) // null | object (new or existing)
+  const [viewingResponses, setViewingResponses] = useState(null)
   const [filterLocale, setFilterLocale] = useState('')
   const [filterReparto, setFilterReparto] = useState('')
   const [filterMomento, setFilterMomento] = useState('')
@@ -35,6 +37,12 @@ export default function ChecklistManager({ sp, sps }) {
     const { data } = await supabase.from('attendance_checklists')
       .select('*').order('locale').order('reparto').order('momento')
     setChecklists(data || [])
+    // Conta risposte per checklist
+    const { data: resps } = await supabase.from('attendance_checklist_responses')
+      .select('checklist_id')
+    const counts = {}
+    ;(resps || []).forEach(r => { counts[r.checklist_id] = (counts[r.checklist_id] || 0) + 1 })
+    setRespCounts(counts)
     setLoading(false)
   }, [])
   useEffect(() => { load() }, [load])
@@ -109,6 +117,11 @@ export default function ChecklistManager({ sp, sps }) {
                     : <span style={S.badge('#64748b', 'rgba(100,116,139,.12)')}>Off</span>}
                 </td>
                 <td style={S.td} onClick={e => e.stopPropagation()}>
+                  <button onClick={() => setViewingResponses(cl)}
+                    style={{ background: respCounts[cl.id] > 0 ? 'rgba(59,130,246,.12)' : 'none', border: '1px solid ' + (respCounts[cl.id] > 0 ? '#3B82F6' : '#2a3042'), color: respCounts[cl.id] > 0 ? '#3B82F6' : '#94a3b8', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4, fontWeight: respCounts[cl.id] > 0 ? 600 : 400 }}
+                    title="Vedi risposte ricevute">
+                    📊 {respCounts[cl.id] || 0}
+                  </button>
                   <button onClick={() => duplicate(cl)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}>Duplica</button>
                   <button onClick={() => remove(cl)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>✕</button>
                 </td>
@@ -123,7 +136,107 @@ export default function ChecklistManager({ sp, sps }) {
       allLocali={allLocali}
       onClose={() => setEditing(null)}
       onSaved={() => { setEditing(null); load() }} />}
+
+    {viewingResponses && <ResponsesViewer checklist={viewingResponses}
+      onClose={() => setViewingResponses(null)} />}
   </Card>
+}
+
+// Modal storico risposte di una checklist
+function ResponsesViewer({ checklist, onClose }) {
+  const [responses, setResponses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      const { data } = await supabase.from('attendance_checklist_responses')
+        .select('*').eq('checklist_id', checklist.id)
+        .order('created_at', { ascending: false }).limit(200)
+      if (!cancelled) { setResponses(data || []); setLoading(false) }
+    })()
+    return () => { cancelled = true }
+  }, [checklist.id])
+
+  const items = Array.isArray(checklist.items) ? checklist.items : []
+  const itemById = Object.fromEntries(items.map(it => [it.id, it]))
+  const formatAns = (v) => {
+    if (v == null || v === '') return '—'
+    if (typeof v === 'boolean') return v ? '✓ Sì' : '✕ No'
+    if (Array.isArray(v)) return v.join(', ')
+    return String(v)
+  }
+
+  return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
+    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 880 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 15 }}>📊 Risposte: {checklist.nome}</h3>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{checklist.locale} · {checklist.reparto} · {checklist.momento}</div>
+        </div>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+      </div>
+      <div style={{ padding: 20 }}>
+        {loading ? (
+          <div style={{ padding: 20, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+        ) : responses.length === 0 ? (
+          <div style={{ padding: 24, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
+            Nessuna risposta ricevuta per questa checklist.
+          </div>
+        ) : (
+          <div style={{ maxHeight: 540, overflowY: 'auto' }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
+              {responses.length} compilazioni · ordinate dalla più recente
+            </div>
+            {responses.map(r => {
+              const isOpen = expanded === r.id
+              const ts = new Date(r.created_at)
+              const ans = r.risposte || {}
+              return <div key={r.id} style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
+                <div onClick={() => setExpanded(isOpen ? null : r.id)} style={{ padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{r.employee_name || '—'}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                      {ts.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {r.google_sheet_synced && <span style={{ color: '#10B981', marginLeft: 8 }}>· ✓ Sheet</span>}
+                    </div>
+                  </div>
+                  <span style={{ color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>{isOpen ? '▲' : '▼'}</span>
+                </div>
+                {isOpen && (
+                  <div style={{ padding: '0 10px 10px', borderTop: '1px solid #2a3042' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginTop: 8 }}>
+                      <tbody>
+                        {items.map(it => {
+                          const v = ans[it.id]
+                          const isCritical = (it.tipo === 'scelta' && (v === 'Non completato' || v === 'Da verificare'))
+                            || (it.tipo === 'sino' && v === false)
+                          return <tr key={it.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                            <td style={{ ...S.td, color: '#94a3b8', verticalAlign: 'top', maxWidth: 380 }}>{it.label}</td>
+                            <td style={{ ...S.td, fontWeight: 600, color: isCritical ? '#EF4444' : '#10B981', whiteSpace: 'nowrap' }}>
+                              {formatAns(v)}
+                            </td>
+                          </tr>
+                        })}
+                        {Object.keys(ans).filter(k => !itemById[k]).map(k => (
+                          <tr key={k} style={{ borderBottom: '1px solid #1a1f2e', opacity: .6 }}>
+                            <td style={{ ...S.td, color: '#64748b', fontStyle: 'italic' }}>(item rimosso) {k.substring(0, 8)}</td>
+                            <td style={{ ...S.td }}>{formatAns(ans[k])}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
 }
 
 function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
