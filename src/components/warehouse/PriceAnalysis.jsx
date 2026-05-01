@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, Card, fmt } from '../shared/styles.jsx'
 
@@ -99,14 +99,6 @@ export default function PriceAnalysis() {
   const fornitori = useMemo(() => [...new Set(articles.map(a => a.fornitore_principale).filter(f => f && f !== '-'))], [articles])
 
   const selected = selectedArt ? articles.find(a => a.nome === selectedArt) : null
-  const detailRef = useRef(null)
-  useEffect(() => {
-    // Scroll al pannello solo se aperto dalla tabella (in basso). Da Allerta
-    // il pannello appare inline subito sotto, niente scroll.
-    if (selected && selectedSource === 'table' && detailRef.current) {
-      detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }, [selected, selectedSource])
 
   const closeDetail = () => { setSelectedArt(null); setSelectedSource(null) }
   const selectFrom = (nome, source) => {
@@ -204,38 +196,40 @@ export default function PriceAnalysis() {
           {filtered.map(a => {
             const varColor = a.variazione > 5 ? '#EF4444' : a.variazione < -5 ? '#10B981' : '#64748b'
             const isSel = selectedArt === a.nome && selectedSource === 'table'
-            return <tr key={a.nome}
-              onClick={() => selectFrom(a.nome, 'table')}
-              style={{ background: isSel ? '#131825' : 'transparent', cursor: 'pointer' }}
-              title="Clicca per vedere lo storico prezzi">
-              <td style={{ ...S.td, fontWeight: 500 }}>{a.nome}</td>
-              <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{a.categoria}</td>
-              <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{a.fornitore_principale}</td>
-              <td style={{ ...S.td, fontWeight: 600 }}>{a.ultimo_prezzo ? fmt(a.ultimo_prezzo) + '/' + a.unita : '-'}</td>
-              <td style={{ ...S.td, color: '#64748b' }}>{a.prezzo_medio ? fmt(a.prezzo_medio) + '/' + a.unita : '-'}</td>
-              <td style={S.td}>
-                {a.historyCount >= 2
-                  ? <span style={S.badge(varColor, a.variazione > 5 ? 'rgba(239,68,68,.12)' : a.variazione < -5 ? 'rgba(16,185,129,.12)' : 'rgba(148,163,184,.1)')}>
-                      {a.variazione > 0 ? '+' : ''}{a.variazione.toFixed(1)}%
-                    </span>
-                  : <span style={{ color: '#475569', fontSize: 12 }}>-</span>
-                }
-              </td>
-              <td style={{ ...S.td, color: '#64748b', fontSize: 12 }}>{a.historyCount} registrazioni</td>
-              <td style={{ ...S.td, color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>
-                {isSel ? 'Chiudi' : 'Dettaglio →'}
-              </td>
-            </tr>
+            return <Fragment key={a.nome}>
+              <tr onClick={() => selectFrom(a.nome, 'table')}
+                style={{ background: isSel ? '#131825' : 'transparent', cursor: 'pointer', borderBottom: isSel ? 'none' : '1px solid #1a1f2e' }}
+                title="Clicca per vedere lo storico prezzi">
+                <td style={{ ...S.td, fontWeight: 500 }}>{a.nome}</td>
+                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{a.categoria}</td>
+                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{a.fornitore_principale}</td>
+                <td style={{ ...S.td, fontWeight: 600 }}>{a.ultimo_prezzo ? fmt(a.ultimo_prezzo) + '/' + a.unita : '-'}</td>
+                <td style={{ ...S.td, color: '#64748b' }}>{a.prezzo_medio ? fmt(a.prezzo_medio) + '/' + a.unita : '-'}</td>
+                <td style={S.td}>
+                  {a.historyCount >= 2
+                    ? <span style={S.badge(varColor, a.variazione > 5 ? 'rgba(239,68,68,.12)' : a.variazione < -5 ? 'rgba(16,185,129,.12)' : 'rgba(148,163,184,.1)')}>
+                        {a.variazione > 0 ? '+' : ''}{a.variazione.toFixed(1)}%
+                      </span>
+                    : <span style={{ color: '#475569', fontSize: 12 }}>-</span>
+                  }
+                </td>
+                <td style={{ ...S.td, color: '#64748b', fontSize: 12 }}>{a.historyCount} registrazioni</td>
+                <td style={{ ...S.td, color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>
+                  {isSel ? 'Chiudi ▲' : 'Dettaglio ▼'}
+                </td>
+              </tr>
+              {isSel && (
+                <tr style={{ background: '#0f1420' }}>
+                  <td colSpan={8} style={{ padding: 12, borderBottom: '1px solid #2a3042' }}>
+                    {renderDetail()}
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           })}
         </tbody>
       </table>
     </Card>
 
-    {/* Pannello dettaglio in fondo, solo quando aperto dalla tabella (con scroll) */}
-    {selected && selectedSource === 'table' && (
-      <div ref={detailRef} style={{ marginTop: 12 }}>
-        {renderDetail()}
-      </div>
-    )}
   </>
 }
