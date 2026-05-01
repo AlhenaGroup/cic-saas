@@ -382,6 +382,8 @@ export default async function handler(req, res) {
             giacenza_reale: it.giacenza_reale,
             prezzo_medio: meta.prezzo_medio || null,
             magazzino: meta.magazzino || magByName[nome] || null,
+            counted_by_name: meta.counted_by_name || null,
+            counted_at: meta.counted_at || null,
           };
         }).filter(x => x.nome_articolo).sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
         return res.status(200).json({ inventory: inv, items: mapped });
@@ -394,12 +396,19 @@ export default async function handler(req, res) {
         if (!inventory_id || !nome_articolo || giacenza_reale == null) return res.status(400).json({ error: 'inventory_id, nome_articolo, giacenza_reale richiesti' });
         // Trova la riga cercando nel JSON note
         const items = await sbQuery(`warehouse_inventory_items?inventory_id=eq.${inventory_id}&select=id,giacenza_teorica,note`);
-        const match = (items || []).find(it => { try { return JSON.parse(it.note || '{}').nome_articolo === nome_articolo; } catch { return false; } });
+        const itemsArr = Array.isArray(items) ? items : [];
+        const match = itemsArr.find(it => { try { return JSON.parse(it.note || '{}').nome_articolo === nome_articolo; } catch { return false; } });
         if (!match) return res.status(404).json({ error: 'Riga inventario non trovata per ' + nome_articolo });
         const real = Number(giacenza_reale);
         const diff = real - Number(match.giacenza_teorica || 0);
+        // Aggiorna il JSON note con tracking del collaboratore (chi/quando)
+        let meta = {};
+        try { meta = JSON.parse(match.note || '{}'); } catch {}
+        meta.counted_by_employee_id = v.emp.id;
+        meta.counted_by_name = v.emp.nome || '';
+        meta.counted_at = new Date().toISOString();
         await sbQuery(`warehouse_inventory_items?id=eq.${match.id}`, 'PATCH', {
-          giacenza_reale: real, differenza: diff,
+          giacenza_reale: real, differenza: diff, note: JSON.stringify(meta),
         });
         return res.status(200).json({ ok: true });
       }

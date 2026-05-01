@@ -232,22 +232,24 @@ function InventoryDetail({ inventory, onClose, onChange }) {
     : items
 
   const stats = useMemo(() => {
-    let contati = 0, diffCount = 0, diffVal = 0
+    let contati = 0, diffCount = 0, diffVal = 0, byStaff = 0
     items.forEach(it => {
       if (it.giacenza_reale != null) contati++
+      if (it.counted_by_name) byStaff++
       const d = Number(it.giacenza_reale || 0) - Number(it.giacenza_teorica || 0)
       if (Math.abs(d) > 0.001) diffCount++
       if (it.valore_differenza) diffVal += Number(it.valore_differenza)
     })
-    return { contati, diffCount, diffVal }
+    return { contati, diffCount, diffVal, byStaff }
   }, [items])
 
   return <Modal onClose={onClose}
     title={`📋 Inventario ${inventory.data}`}
     subtitle={`${meta.locale || '—'}${meta.sub_location && meta.sub_location !== 'principale' ? ' / ' + meta.sub_location : ''} · ${isApertura ? '🎯 Apertura' : '📋 Regolare'} · ${isChiuso ? 'Chiuso' : 'In corso'}`}
     maxWidth={880}>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: stats.byStaff > 0 ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
       <KpiMini label="Articoli contati" value={`${stats.contati}/${items.length}`} />
+      {stats.byStaff > 0 && <KpiMini label="Da collaboratori" value={`${stats.byStaff}/${stats.contati}`} color="#3B82F6" />}
       {!isApertura && <KpiMini label="Differenze" value={stats.diffCount} />}
       {!isApertura && <KpiMini label="Valore diff." value={fmtD(stats.diffVal)} color={stats.diffVal < 0 ? '#EF4444' : '#10B981'} />}
       {isApertura && <KpiMini label="Tipo" value="🎯 Apertura" color="#3B82F6" />}
@@ -273,8 +275,10 @@ function InventoryDetail({ inventory, onClose, onChange }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead style={{ position: 'sticky', top: 0, background: '#131825' }}>
             <tr style={{ borderBottom: '1px solid #2a3042' }}>
-              {(isApertura ? ['Articolo', 'UM', 'Giac. reale', 'Valore'] : ['Articolo', 'UM', 'Teorica', 'Reale', 'Diff', 'Valore diff']).map(h =>
-                <th key={h} style={S.th}>{h}</th>)}
+              {(isApertura
+                ? ['Articolo', 'UM', 'Giac. reale', 'Valore', 'Contato da']
+                : ['Articolo', 'UM', 'Teorica', 'Reale', 'Diff', 'Valore diff', 'Contato da']
+              ).map(h => <th key={h} style={S.th}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -283,17 +287,23 @@ function InventoryDetail({ inventory, onClose, onChange }) {
               const real = it.giacenza_reale == null ? '' : Number(it.giacenza_reale)
               const diff = real === '' ? null : real - teo
               const valDiff = diff != null && it.prezzo_medio ? diff * Number(it.prezzo_medio) : null
-              return <tr key={it.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
+              const byCollab = !!it.counted_by_name
+              const collabBg = byCollab ? 'rgba(59,130,246,.08)' : 'transparent'
+              const collabColor = byCollab ? '#3B82F6' : '#e2e8f0'
+              const ts = it.counted_at ? new Date(it.counted_at) : null
+              const tsStr = ts ? ts.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
+              return <tr key={it.id} style={{ borderBottom: '1px solid #1a1f2e', background: collabBg }}>
                 <td style={{ ...S.td, fontWeight: 500 }}>{it.nome_articolo || '—'}</td>
                 <td style={{ ...S.td, color: '#94a3b8' }}>{it.unita || '—'}</td>
                 {!isApertura && <td style={{ ...S.td, color: '#94a3b8' }}>{fmtN(teo)}</td>}
                 <td style={{ ...S.td, padding: 4 }}>
-                  {isChiuso ? <span>{real}</span> : (
+                  {isChiuso ? <span style={{ color: collabColor, fontWeight: byCollab ? 700 : 500 }}>{real}</span> : (
                     <input type="number" step="0.01"
                       defaultValue={real}
                       key={it.id + '-' + real}
                       onBlur={e => updateReale(it.id, e.target.value)}
-                      style={{ ...iS, width: 80, textAlign: 'center' }} />
+                      style={{ ...iS, width: 80, textAlign: 'center', color: collabColor, fontWeight: byCollab ? 700 : 500, borderColor: byCollab ? '#3B82F6' : '#2a3042' }}
+                      title={byCollab ? `Contato da ${it.counted_by_name} il ${tsStr}` : ''} />
                   )}
                 </td>
                 {!isApertura && <td style={{ ...S.td, color: diff > 0 ? '#10B981' : diff < 0 ? '#EF4444' : '#94a3b8', fontWeight: 600 }}>
@@ -305,6 +315,14 @@ function InventoryDetail({ inventory, onClose, onChange }) {
                 {isApertura && <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>
                   {real === '' ? '—' : fmtD(Number(real) * Number(it.prezzo_medio || 0))}
                 </td>}
+                <td style={{ ...S.td, fontSize: 11 }}>
+                  {byCollab
+                    ? <div style={{ color: '#3B82F6' }}>
+                        <div style={{ fontWeight: 600 }}>👤 {it.counted_by_name}</div>
+                        {tsStr && <div style={{ color: '#64748b', fontSize: 10 }}>{tsStr}</div>}
+                      </div>
+                    : <span style={{ color: '#475569' }}>—</span>}
+                </td>
               </tr>
             })}
           </tbody>

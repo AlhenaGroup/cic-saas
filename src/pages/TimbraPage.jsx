@@ -409,22 +409,34 @@ function TrasferimentoPanel({ pin, locale, onDone, onBack }) {
 }
 
 // ─── INVENTARIO ─────────────────────────────────────────────────────
-// Magazzini standard + colori coerenti con WarehouseModule (ArticoliTab)
+// Magazzini standard + colori coerenti con WarehouseModule (ArticoliTab).
+// "non_assegnato" = articoli con magazzino null/'' (da classificare in fattura).
 const MAG_OPTIONS = [
-  { key: 'tutti',        label: 'Tutti',        color: '#94a3b8', bg: 'rgba(148,163,184,.15)' },
-  { key: 'food',         label: 'Food',         color: '#F59E0B', bg: 'rgba(245,158,11,.15)' },
-  { key: 'beverage',     label: 'Beverage',     color: '#3B82F6', bg: 'rgba(59,130,246,.15)' },
-  { key: 'materiali',    label: 'Materiali',    color: '#8B5CF6', bg: 'rgba(139,92,246,.15)' },
-  { key: 'attrezzatura', label: 'Attrezzatura', color: '#10B981', bg: 'rgba(16,185,129,.15)' },
-  { key: 'altro',        label: 'Altro',        color: '#64748b', bg: 'rgba(100,116,139,.15)' },
+  { key: 'tutti',          label: 'Tutti',         color: '#94a3b8', bg: 'rgba(148,163,184,.15)' },
+  { key: 'food',           label: 'Food',          color: '#F59E0B', bg: 'rgba(245,158,11,.15)' },
+  { key: 'beverage',       label: 'Beverage',      color: '#3B82F6', bg: 'rgba(59,130,246,.15)' },
+  { key: 'materiali',      label: 'Materiali',     color: '#8B5CF6', bg: 'rgba(139,92,246,.15)' },
+  { key: 'attrezzatura',   label: 'Attrezzatura',  color: '#10B981', bg: 'rgba(16,185,129,.15)' },
+  { key: 'altro',          label: 'Altro',         color: '#64748b', bg: 'rgba(100,116,139,.15)' },
+  { key: 'non_assegnato',  label: 'Da assegnare',  color: '#F59E0B', bg: 'rgba(245,158,11,.15)' },
 ]
 const MAG_COLOR = Object.fromEntries(MAG_OPTIONS.map(m => [m.key, m]))
+// Badge label per magazzino "non_assegnato"
+const MAG_BADGE = { ...MAG_COLOR, non_assegnato: { ...MAG_COLOR.non_assegnato, label: 'Da assegnare' } }
+
+// Risolve la chiave magazzino di un articolo (null/'' → 'non_assegnato')
+const magKeyOf = (a) => {
+  const m = (a.magazzino || '').toLowerCase().trim()
+  if (!m) return 'non_assegnato'
+  return m
+}
 
 function InventarioPanel({ pin, locale, onDone, onBack }) {
   const [inventory, setInventory] = useState(null)
   const [items, setItems] = useState([])
   const [q, setQ] = useState('')
   const [magFilter, setMagFilter] = useState('tutti')
+  const [onlyTodo, setOnlyTodo] = useState(false)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState({})
@@ -443,18 +455,18 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
 
   // Conteggio articoli per magazzino (per badge sui chip)
   const countByMag = items.reduce((acc, a) => {
-    const k = a.magazzino || 'altro'
+    const k = magKeyOf(a)
     acc[k] = (acc[k] || 0) + 1
     return acc
   }, {})
   countByMag.tutti = items.length
 
+  const todoCount = items.filter(i => i.giacenza_reale == null || Number.isNaN(Number(i.giacenza_reale))).length
+
   const filtered = items.filter(a => {
     if (q && !a.nome_articolo.toLowerCase().includes(q.toLowerCase())) return false
-    if (magFilter !== 'tutti') {
-      const m = a.magazzino || 'altro'
-      if (m !== magFilter) return false
-    }
+    if (magFilter !== 'tutti' && magKeyOf(a) !== magFilter) return false
+    if (onlyTodo && a.giacenza_reale != null && !Number.isNaN(Number(a.giacenza_reale))) return false
     return true
   })
   const counted = items.filter(i => i.giacenza_reale != null && !Number.isNaN(Number(i.giacenza_reale))).length
@@ -492,7 +504,7 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
     </div>}
     <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Cerca..."
       style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none' }} />
-    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 10, WebkitOverflowScrolling: 'touch' }} className="keep-grid">
+    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 8, WebkitOverflowScrolling: 'touch' }} className="keep-grid">
       {MAG_OPTIONS.filter(m => m.key === 'tutti' || (countByMag[m.key] || 0) > 0).map(m => {
         const active = magFilter === m.key
         return <button key={m.key} onClick={() => setMagFilter(m.key)}
@@ -504,18 +516,22 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
         </button>
       })}
     </div>
+    <button onClick={() => setOnlyTodo(v => !v)}
+      style={{ width: '100%', padding: '8px 12px', fontSize: 12, fontWeight: 600, borderRadius: 8, marginBottom: 10,
+        border: `1px solid ${onlyTodo ? '#F59E0B' : '#2a3042'}`,
+        background: onlyTodo ? 'rgba(245,158,11,.15)' : 'transparent',
+        color: onlyTodo ? '#F59E0B' : '#94a3b8', cursor: 'pointer' }}>
+      {onlyTodo ? '☑ Mostra solo da contare' : '☐ Mostra solo da contare'} ({todoCount})
+    </button>
     {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
     <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
       {filtered.length === 0 && <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center', padding: 20 }}>Nessun articolo in questo magazzino.</div>}
       {filtered.map(a => {
-        const mag = MAG_COLOR[a.magazzino || 'altro'] || MAG_COLOR.altro
+        const mag = MAG_BADGE[magKeyOf(a)] || MAG_BADGE.altro
         return <div key={a.nome_articolo} style={{ background: '#1a1f2e', borderRadius: 10, padding: 10, marginBottom: 6, border: `1px solid ${a.giacenza_reale != null ? '#10B98144' : '#2a3042'}` }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, color: mag.color, background: mag.bg, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em', flexShrink: 0 }}>{mag.label}</span>
-              <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nome_articolo}</div>
-            </div>
-            <div style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>teorico: {Number(a.giacenza_teorica || 0).toFixed(1)}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, minWidth: 0 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: mag.color, background: mag.bg, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em', flexShrink: 0 }}>{mag.label}</span>
+            <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nome_articolo}</div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <input type="number" step="0.01" placeholder="Conta reale"
