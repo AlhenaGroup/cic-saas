@@ -324,16 +324,7 @@ function PresenzaPanel({ employee, suggestedTipo, history, checklistEntrata, che
         style={{ flex: 1, height: 56, borderRadius: 12, border: '2px solid #EF4444', fontSize: 16, fontWeight: 700, cursor: 'pointer',
           background: suggestedTipo === 'uscita' ? '#EF4444' : '#1a1f2e', color: suggestedTipo === 'uscita' ? '#fff' : '#EF4444' }}>USCITA</button>
     </div>
-    {(checklistEntrata || checklistUscita) && (
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, fontSize: 10, fontWeight: 600 }}>
-        <div style={{ flex: 1, color: checklistEntrata ? '#F59E0B' : '#475569' }}>
-          {checklistEntrata ? '📋 Checklist obbligatoria' : '\u00a0'}
-        </div>
-        <div style={{ flex: 1, color: checklistUscita ? '#F59E0B' : '#475569' }}>
-          {checklistUscita ? '📋 Checklist obbligatoria' : '\u00a0'}
-        </div>
-      </div>
-    )}
+    <div style={{ marginBottom: 8 }} />
     {message && <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 8, padding: 12, fontSize: 13, color: '#FCA5A5', marginBottom: 12 }}>{message}</div>}
     <button onClick={onBack} style={{ background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '8px 20px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Indietro</button>
     {history.length > 0 && <div style={{ marginTop: 20, textAlign: 'left' }}>
