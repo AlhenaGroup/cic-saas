@@ -11,6 +11,7 @@ export default function PriceAnalysis() {
   // Articoli aggregati dalle righe fattura (esclude escludi_magazzino)
   const [articles, setArticles] = useState([])
   const [selectedArt, setSelectedArt] = useState(null)
+  const [selectedSource, setSelectedSource] = useState(null) // 'alert' | 'table'
   const [filter, setFilter] = useState('')
   const [catFilter, setCatFilter] = useState('')
   const [fornFilter, setFornFilter] = useState('')
@@ -100,26 +101,83 @@ export default function PriceAnalysis() {
   const selected = selectedArt ? articles.find(a => a.nome === selectedArt) : null
   const detailRef = useRef(null)
   useEffect(() => {
-    if (selected && detailRef.current) {
+    // Scroll al pannello solo se aperto dalla tabella (in basso). Da Allerta
+    // il pannello appare inline subito sotto, niente scroll.
+    if (selected && selectedSource === 'table' && detailRef.current) {
       detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [selected])
+  }, [selected, selectedSource])
+
+  const closeDetail = () => { setSelectedArt(null); setSelectedSource(null) }
+  const selectFrom = (nome, source) => {
+    if (selectedArt === nome) { closeDetail(); return }
+    setSelectedArt(nome); setSelectedSource(source)
+  }
+
+  // Pannello dettaglio storico — riusato sia inline (sotto Allerta) che in fondo (sotto tabella)
+  const renderDetail = () => selected && (
+    <Card title={'Storico prezzi: ' + selected.nome} badge={selected.storico.length + ' registrazioni'}
+      extra={<button onClick={closeDetail} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>✕ Chiudi</button>}>
+      {selected.storico.length === 0
+        ? <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Nessuno storico prezzi</div>
+        : <>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120, marginBottom: 16, padding: '0 8px' }}>
+            {(() => {
+              const maxP = Math.max(...selected.storico.map(p => p.prezzo || 0), 0.01)
+              return selected.storico.slice().reverse().map((p, i) => (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 9, color: '#94a3b8' }}>{fmt(p.prezzo)}</span>
+                  <div style={{ width: '100%', maxWidth: 30, height: Math.max((p.prezzo / maxP) * 100, 4), background: '#F59E0B', borderRadius: 3 }} />
+                  <span style={{ fontSize: 8, color: '#475569' }}>{(p.data || '').slice(5)}</span>
+                </div>
+              ))
+            })()}
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+              {['Data', 'Fornitore', 'Locale', 'Prezzo/UM'].map(h => <th key={h} style={S.th}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {selected.storico.map((p, i) => (
+                <tr key={i}>
+                  <td style={S.td}>{p.data}</td>
+                  <td style={{ ...S.td, color: '#94a3b8' }}>{p.fornitore}</td>
+                  <td style={{ ...S.td, color: '#94a3b8' }}>{p.locale}</td>
+                  <td style={{ ...S.td, fontWeight: 600 }}>{fmt(p.prezzo)}/{selected.unita}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      }
+    </Card>
+  )
 
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontSize: 13 }}>Caricamento prezzi...</div>
 
   return <>
     {alerts.length > 0 && <Card title="Allerta prezzi" badge={alerts.length + ' aumenti significativi'}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {alerts.slice(0, 8).map(a => (
-          <div key={a.nome} style={{ ...S.card, padding: '10px 14px', minWidth: 180, flex: '0 0 auto', cursor: 'pointer' }}
-            onClick={() => setSelectedArt(a.nome)}>
+        {alerts.slice(0, 8).map(a => {
+          const isSel = selectedArt === a.nome && selectedSource === 'alert'
+          return <div key={a.nome}
+            style={{ ...S.card, padding: '10px 14px', minWidth: 180, flex: '0 0 auto', cursor: 'pointer',
+              border: isSel ? '1px solid #F59E0B' : S.card.border,
+              background: isSel ? 'rgba(245,158,11,.08)' : S.card.background }}
+            onClick={() => selectFrom(a.nome, 'alert')}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 4 }}>{a.nome}</div>
             <div style={{ fontSize: 12, color: '#94a3b8' }}>{a.fornitore_principale}</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#EF4444', marginTop: 4 }}>+{a.variazione.toFixed(1)}%</div>
             <div style={{ fontSize: 11, color: '#64748b' }}>{fmt(a.ultimo_prezzo)}/{a.unita}</div>
           </div>
-        ))}
+        })}
       </div>
+      {/* Pannello dettaglio inline quando aperto da Allerta */}
+      {selected && selectedSource === 'alert' && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+          {renderDetail()}
+        </div>
+      )}
     </Card>}
 
     {alerts.length > 0 && <div style={{ marginTop: 12 }} />}
@@ -145,9 +203,9 @@ export default function PriceAnalysis() {
           {filtered.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessun articolo trovato</td></tr>}
           {filtered.map(a => {
             const varColor = a.variazione > 5 ? '#EF4444' : a.variazione < -5 ? '#10B981' : '#64748b'
-            const isSel = selectedArt === a.nome
+            const isSel = selectedArt === a.nome && selectedSource === 'table'
             return <tr key={a.nome}
-              onClick={() => setSelectedArt(isSel ? null : a.nome)}
+              onClick={() => selectFrom(a.nome, 'table')}
               style={{ background: isSel ? '#131825' : 'transparent', cursor: 'pointer' }}
               title="Clicca per vedere lo storico prezzi">
               <td style={{ ...S.td, fontWeight: 500 }}>{a.nome}</td>
@@ -173,43 +231,11 @@ export default function PriceAnalysis() {
       </table>
     </Card>
 
-    {selected && <div ref={detailRef} style={{ marginTop: 12 }}>
-      <Card title={'Storico prezzi: ' + selected.nome} badge={selected.storico.length + ' registrazioni'}
-        extra={<button onClick={() => setSelectedArt(null)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>✕ Chiudi</button>}>
-        {selected.storico.length === 0
-          ? <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Nessuno storico prezzi</div>
-          : <>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120, marginBottom: 16, padding: '0 8px' }}>
-              {(() => {
-                const maxP = Math.max(...selected.storico.map(p => p.prezzo || 0), 0.01)
-                return selected.storico.slice().reverse().map((p, i) => (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 9, color: '#94a3b8' }}>{fmt(p.prezzo)}</span>
-                    <div style={{ width: '100%', maxWidth: 30, height: Math.max((p.prezzo / maxP) * 100, 4), background: '#F59E0B', borderRadius: 3 }} />
-                    <span style={{ fontSize: 8, color: '#475569' }}>{(p.data || '').slice(5)}</span>
-                  </div>
-                ))
-              })()}
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-                {['Data', 'Fornitore', 'Locale', 'Prezzo/UM'].map(h => <th key={h} style={S.th}>{h}</th>)}
-              </tr></thead>
-              <tbody>
-                {selected.storico.map((p, i) => (
-                  <tr key={i}>
-                    <td style={S.td}>{p.data}</td>
-                    <td style={{ ...S.td, color: '#94a3b8' }}>{p.fornitore}</td>
-                    <td style={{ ...S.td, color: '#94a3b8' }}>{p.locale}</td>
-                    <td style={{ ...S.td, fontWeight: 600 }}>{fmt(p.prezzo)}/{selected.unita}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        }
-      </Card>
-    </div>}
+    {/* Pannello dettaglio in fondo, solo quando aperto dalla tabella (con scroll) */}
+    {selected && selectedSource === 'table' && (
+      <div ref={detailRef} style={{ marginTop: 12 }}>
+        {renderDetail()}
+      </div>
+    )}
   </>
 }
