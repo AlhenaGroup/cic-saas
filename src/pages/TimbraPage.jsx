@@ -636,7 +636,7 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
     try {
       const d = await apiCall({ action: 'inv-open', pin, locale })
       setInventory(d.inventory)
-      const items = await apiCall({ action: 'inv-articles', pin, inventory_id: d.inventory.id })
+      const items = await apiCall({ action: 'inv-articles', pin, inventory_id: d.inventory.id, locale })
       setItems(items.items || [])
     } catch (e) { setErr(e.message) }
     setLoading(false)

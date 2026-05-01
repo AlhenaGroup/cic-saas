@@ -384,13 +384,21 @@ export default async function handler(req, res) {
       }
 
       case 'inv-articles': {
-        const { pin, inventory_id } = req.body;
+        const { pin, inventory_id, locale: reqLocale } = req.body;
         const v = await verifyPin(pin, 'inventario');
         if (v.error) return res.status(v.code).json({ error: v.error });
         if (!inventory_id) return res.status(400).json({ error: 'inventory_id richiesto' });
         const invs = await sbQuery(`warehouse_inventories?id=eq.${inventory_id}&select=*&limit=1`);
         if (!invs?.[0]) return res.status(404).json({ error: 'Inventario non trovato' });
         const inv = invs[0];
+        // Verifica che l'inventario appartenga al locale del QR corrente.
+        // Garantisce che un dipendente che timbra su CASA DE AMICIS non
+        // veda articoli di REMEMBEER e viceversa.
+        let invMeta = {};
+        try { invMeta = JSON.parse(inv.note || '{}'); } catch {}
+        if (reqLocale && invMeta.locale && invMeta.locale !== reqLocale) {
+          return res.status(403).json({ error: `Inventario di ${invMeta.locale}, non corrisponde al locale corrente (${reqLocale})` });
+        }
         const items = await sbQuery(`warehouse_inventory_items?inventory_id=eq.${inventory_id}&select=*`);
         // Lookup magazzino per ogni articolo: priorità a `meta.magazzino` (salvato in inv-open),
         // fallback su article_stock del locale (per inventari già aperti senza magazzino in note),
@@ -423,6 +431,7 @@ export default async function handler(req, res) {
         } catch (lookupErr) {
           console.error('[inv-articles] magazzino lookup failed:', lookupErr?.message || lookupErr);
         }
+        const expectedLocale = invMeta.locale || reqLocale || null;
         const mapped = itemsArr.map(it => {
           let meta = {};
           try { meta = JSON.parse(it.note || '{}'); } catch {}
@@ -438,8 +447,14 @@ export default async function handler(req, res) {
             counted_by_name: meta.counted_by_name || null,
             counted_at: meta.counted_at || null,
             is_user_added: !!meta.is_user_added,
+            _itemLocale: meta.locale || null,
           };
-        }).filter(x => x.nome_articolo).sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
+        })
+        .filter(x => x.nome_articolo)
+        // Doppia safety: scarto eventuali items con locale diverso da quello dell'inventario
+        .filter(x => !expectedLocale || !x._itemLocale || x._itemLocale === expectedLocale)
+        .map(({ _itemLocale, ...x }) => x)
+        .sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
         return res.status(200).json({ inventory: inv, items: mapped });
       }
 
