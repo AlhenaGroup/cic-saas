@@ -243,6 +243,8 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
   const [c, setC] = useState({ ...checklist })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const [dragId, setDragId] = useState(null)
+  const [dragOverId, setDragOverId] = useState(null)
   const isNew = !checklist.id
 
   const updateField = (k, v) => setC(prev => ({ ...prev, [k]: v }))
@@ -255,6 +257,18 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
     ...prev, items: (prev.items || []).map(it => it.id === id ? { ...it, ...patch } : it)
   }))
   const removeItem = (id) => setC(prev => ({ ...prev, items: (prev.items || []).filter(it => it.id !== id) }))
+  const reorderItem = (sourceId, targetId, position = 'before') => setC(prev => {
+    if (sourceId === targetId) return prev
+    const items = [...(prev.items || [])]
+    const sIdx = items.findIndex(x => x.id === sourceId)
+    if (sIdx < 0) return prev
+    const [moved] = items.splice(sIdx, 1)
+    let tIdx = items.findIndex(x => x.id === targetId)
+    if (tIdx < 0) { items.push(moved); return { ...prev, items } }
+    if (position === 'after') tIdx += 1
+    items.splice(tIdx, 0, moved)
+    return { ...prev, items }
+  })
   const moveItem = (id, dir) => setC(prev => {
     const items = [...(prev.items || [])]
     const i = items.findIndex(x => x.id === id)
@@ -348,9 +362,37 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
               Nessuna domanda. Aggiungine almeno una.
             </div>
           )}
-          {(c.items || []).map((it, i) => (
-            <div key={it.id} style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 10, marginBottom: 6 }}>
+          {(c.items || []).map((it, i) => {
+            const isDragging = dragId === it.id
+            const isOver = dragOverId === it.id && !isDragging
+            return <div key={it.id}
+              draggable
+              onDragStart={(e) => { setDragId(it.id); e.dataTransfer.effectAllowed = 'move' }}
+              onDragEnd={() => { setDragId(null); setDragOverId(null) }}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverId !== it.id) setDragOverId(it.id) }}
+              onDragLeave={() => { if (dragOverId === it.id) setDragOverId(null) }}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (dragId && dragId !== it.id) {
+                  // Decide se posizionare prima o dopo in base a metà altezza
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  const pos = (e.clientY - rect.top) > rect.height / 2 ? 'after' : 'before'
+                  reorderItem(dragId, it.id, pos)
+                }
+                setDragId(null); setDragOverId(null)
+              }}
+              style={{
+                background: isDragging ? '#0f1420' : (isOver ? '#1e2636' : '#131825'),
+                border: `1px solid ${isOver ? '#3B82F6' : '#2a3042'}`,
+                borderRadius: 8, padding: 10, marginBottom: 6,
+                opacity: isDragging ? 0.4 : 1,
+                transition: 'background .1s, border-color .1s, opacity .1s',
+              }}>
               <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                <div title="Trascina per riordinare"
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'grab', color: '#475569', fontSize: 14, lineHeight: 1, padding: '0 4px', userSelect: 'none' }}>
+                  ⋮⋮
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <button onClick={() => moveItem(it.id, -1)} disabled={i === 0} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === 0 ? 'not-allowed' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}>▲</button>
                   <button onClick={() => moveItem(it.id, +1)} disabled={i === c.items.length - 1} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === c.items.length - 1 ? 'not-allowed' : 'pointer', opacity: i === c.items.length - 1 ? 0.3 : 1 }}>▼</button>
@@ -372,7 +414,7 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
                 <button onClick={() => removeItem(it.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: 4 }}>✕</button>
               </div>
             </div>
-          ))}
+          })}
         </div>
 
         {err && <div style={{ color: '#EF4444', fontSize: 12, marginTop: 12 }}>{err}</div>}
