@@ -407,6 +407,7 @@ export default async function handler(req, res) {
             magazzino: meta.magazzino || magByName[nome] || null,
             counted_by_name: meta.counted_by_name || null,
             counted_at: meta.counted_at || null,
+            is_user_added: !!meta.is_user_added,
           };
         }).filter(x => x.nome_articolo).sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
         return res.status(200).json({ inventory: inv, items: mapped });
@@ -434,6 +435,49 @@ export default async function handler(req, res) {
           giacenza_reale: real, differenza: diff, note: JSON.stringify(meta),
         });
         return res.status(200).json({ ok: true });
+      }
+
+      case 'inv-add-article': {
+        const { pin, inventory_id, nome_articolo, unita, magazzino, giacenza_reale } = req.body;
+        const v = await verifyPin(pin, 'inventario');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!inventory_id || !nome_articolo) return res.status(400).json({ error: 'inventory_id e nome_articolo richiesti' });
+        // Normalizza nome
+        const nome = String(nome_articolo).trim();
+        if (!nome) return res.status(400).json({ error: 'nome_articolo vuoto' });
+        // Recupera locale dall'inventario
+        const invs = await sbQuery(`warehouse_inventories?id=eq.${inventory_id}&select=note,user_id&limit=1`);
+        if (!invs?.[0]) return res.status(404).json({ error: 'Inventario non trovato' });
+        let invMeta = {};
+        try { invMeta = JSON.parse(invs[0].note || '{}'); } catch {}
+        // Controlla duplicati nello stesso inventario
+        const existing = await sbQuery(`warehouse_inventory_items?inventory_id=eq.${inventory_id}&select=id,note`);
+        const existingArr = Array.isArray(existing) ? existing : [];
+        const dup = existingArr.find(it => { try { return JSON.parse(it.note || '{}').nome_articolo?.toLowerCase().trim() === nome.toLowerCase(); } catch { return false; } });
+        if (dup) return res.status(409).json({ error: `"${nome}" è già presente nell'inventario` });
+        const realNum = giacenza_reale != null && giacenza_reale !== '' ? Number(giacenza_reale) : null;
+        const meta = {
+          nome_articolo: nome,
+          unita: unita || '',
+          magazzino: (magazzino || '').toLowerCase() || null,
+          locale: invMeta.locale || '',
+          sub_location: invMeta.sub_location || 'principale',
+          prezzo_medio: null,
+          is_user_added: true,
+          counted_by_employee_id: v.emp.id,
+          counted_by_name: v.emp.nome || '',
+          counted_at: new Date().toISOString(),
+        };
+        const row = {
+          inventory_id,
+          product_id: inventory_id, // fallback uuid valido
+          giacenza_teorica: 0,
+          giacenza_reale: realNum,
+          differenza: realNum != null ? realNum : null,
+          note: JSON.stringify(meta),
+        };
+        const inserted = await sbQuery('warehouse_inventory_items', 'POST', row);
+        return res.status(201).json({ ok: true, item: Array.isArray(inserted) ? inserted[0] : inserted });
       }
 
       case 'inv-close': {
@@ -630,7 +674,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-close, my-shifts, my-hours, my-timeoff' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, my-shifts, my-hours, my-timeoff' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);

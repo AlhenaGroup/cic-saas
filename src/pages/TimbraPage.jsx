@@ -436,6 +436,13 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState({})
+  // Form aggiunta nuovo articolo
+  const [showAdd, setShowAdd] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newQty, setNewQty] = useState('')
+  const [newUnit, setNewUnit] = useState('PZ')
+  const [newMag, setNewMag] = useState('food')
+  const [adding, setAdding] = useState(false)
 
   const open = useCallback(async () => {
     setLoading(true); setErr('')
@@ -476,6 +483,31 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
     setSaving(s => ({ ...s, [nome_articolo]: false }))
   }
 
+  const addArticle = async () => {
+    const nome = newName.trim()
+    if (!nome) { alert('Nome articolo obbligatorio'); return }
+    if (!newQty || Number.isNaN(Number(newQty))) { alert('Quantità obbligatoria'); return }
+    setAdding(true)
+    try {
+      const d = await apiCall({
+        action: 'inv-add-article', pin, inventory_id: inventory.id,
+        nome_articolo: nome, unita: newUnit, magazzino: newMag,
+        giacenza_reale: Number(newQty),
+      })
+      // Inserisci nello state e ordina alfabeticamente
+      const newItem = {
+        id: d.item?.id || `temp-${Date.now()}`,
+        nome_articolo: nome, unita: newUnit, magazzino: newMag,
+        giacenza_teorica: 0, giacenza_reale: Number(newQty),
+        prezzo_medio: null, is_user_added: true,
+        counted_by_name: '(tu)', counted_at: new Date().toISOString(),
+      }
+      setItems(prev => [...prev, newItem].sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo)))
+      setShowAdd(false); setNewName(''); setNewQty(''); setNewMag('food')
+    } catch (e) { alert(e.message) }
+    setAdding(false)
+  }
+
   const chiudi = async () => {
     if (!confirm('Chiudere l\'inventario? Verranno applicate le correzioni al magazzino.')) return
     setLoading(true)
@@ -513,12 +545,47 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
       })}
     </div>
     <button onClick={() => setOnlyTodo(v => !v)}
-      style={{ width: '100%', padding: '8px 12px', fontSize: 12, fontWeight: 600, borderRadius: 8, marginBottom: 10,
+      style={{ width: '100%', padding: '8px 12px', fontSize: 12, fontWeight: 600, borderRadius: 8, marginBottom: 8,
         border: `1px solid ${onlyTodo ? '#F59E0B' : '#2a3042'}`,
         background: onlyTodo ? 'rgba(245,158,11,.15)' : 'transparent',
         color: onlyTodo ? '#F59E0B' : '#94a3b8', cursor: 'pointer' }}>
       {onlyTodo ? '☑ Mostra solo da contare' : '☐ Mostra solo da contare'} ({todoCount})
     </button>
+    {!showAdd ? (
+      <button onClick={() => setShowAdd(true)}
+        style={{ width: '100%', padding: '8px 12px', fontSize: 12, fontWeight: 600, borderRadius: 8, marginBottom: 10,
+          border: '1px dashed #10B981', background: 'transparent', color: '#10B981', cursor: 'pointer' }}>
+        ➕ Aggiungi articolo non in lista
+      </button>
+    ) : (
+      <div style={{ background: '#0f1420', border: '1px solid #10B981', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', marginBottom: 8 }}>➕ Nuovo articolo</div>
+        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome articolo (es. Birra MORETTI)"
+          style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          <input type="number" step="0.01" value={newQty} onChange={e => setNewQty(e.target.value)} placeholder="Quantità"
+            style={{ flex: 2, padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+          <select value={newUnit} onChange={e => setNewUnit(e.target.value)}
+            style={{ flex: 1, padding: '10px 8px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', outline: 'none' }}>
+            {['PZ', 'KG', 'LT', 'GR', 'ML', 'CONF', 'CASSA'].map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+        <select value={newMag} onChange={e => setNewMag(e.target.value)}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }}>
+          {MAG_OPTIONS.filter(m => m.key !== 'tutti').map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+        </select>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => { setShowAdd(false); setNewName(''); setNewQty('') }} disabled={adding}
+            style={{ flex: 1, padding: '10px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: '1px solid #2a3042', background: 'transparent', color: '#94a3b8', cursor: 'pointer' }}>
+            Annulla
+          </button>
+          <button onClick={addArticle} disabled={adding || !newName.trim() || !newQty}
+            style={{ flex: 2, padding: '10px', fontSize: 13, fontWeight: 700, borderRadius: 8, border: 'none', background: '#10B981', color: '#0f1420', cursor: adding ? 'wait' : 'pointer', opacity: adding || !newName.trim() || !newQty ? 0.5 : 1 }}>
+            {adding ? 'Aggiungo…' : '✓ Aggiungi'}
+          </button>
+        </div>
+      </div>
+    )}
     {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
     <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
       {filtered.length === 0 && <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center', padding: 20 }}>Nessun articolo in questo magazzino.</div>}

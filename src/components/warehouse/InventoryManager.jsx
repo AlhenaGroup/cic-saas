@@ -232,29 +232,73 @@ function InventoryDetail({ inventory, onClose, onChange }) {
     : items
 
   const stats = useMemo(() => {
-    let contati = 0, diffCount = 0, diffVal = 0, byStaff = 0
+    let contati = 0, diffCount = 0, diffVal = 0, byStaff = 0, userAdded = 0
     items.forEach(it => {
       if (it.giacenza_reale != null) contati++
       if (it.counted_by_name) byStaff++
+      if (it.is_user_added) userAdded++
       const d = Number(it.giacenza_reale || 0) - Number(it.giacenza_teorica || 0)
       if (Math.abs(d) > 0.001) diffCount++
       if (it.valore_differenza) diffVal += Number(it.valore_differenza)
     })
-    return { contati, diffCount, diffVal, byStaff }
+    return { contati, diffCount, diffVal, byStaff, userAdded }
   }, [items])
+
+  const userAddedItems = useMemo(() => items.filter(it => it.is_user_added), [items])
 
   return <Modal onClose={onClose}
     title={`📋 Inventario ${inventory.data}`}
     subtitle={`${meta.locale || '—'}${meta.sub_location && meta.sub_location !== 'principale' ? ' / ' + meta.sub_location : ''} · ${isApertura ? '🎯 Apertura' : '📋 Regolare'} · ${isChiuso ? 'Chiuso' : 'In corso'}`}
     maxWidth={880}>
-    <div style={{ display: 'grid', gridTemplateColumns: stats.byStaff > 0 ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${3 + (stats.byStaff > 0 ? 1 : 0) + (stats.userAdded > 0 ? 1 : 0)}, 1fr)`, gap: 10, marginBottom: 14 }}>
       <KpiMini label="Articoli contati" value={`${stats.contati}/${items.length}`} />
       {stats.byStaff > 0 && <KpiMini label="Da collaboratori" value={`${stats.byStaff}/${stats.contati}`} color="#3B82F6" />}
+      {stats.userAdded > 0 && <KpiMini label="Aggiunti dallo staff" value={stats.userAdded} color="#10B981" />}
       {!isApertura && <KpiMini label="Differenze" value={stats.diffCount} />}
       {!isApertura && <KpiMini label="Valore diff." value={fmtD(stats.diffVal)} color={stats.diffVal < 0 ? '#EF4444' : '#10B981'} />}
       {isApertura && <KpiMini label="Tipo" value="🎯 Apertura" color="#3B82F6" />}
       {isApertura && <KpiMini label="Effetto" value="No correzioni" color="#94a3b8" />}
     </div>
+
+    {userAddedItems.length > 0 && (
+      <div style={{ marginBottom: 14, background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 10, padding: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          ➕ Articoli aggiunti dai collaboratori durante l'inventario
+          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>({userAddedItems.length})</span>
+        </div>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
+          Questi articoli non erano in giacenza né in fattura — alla chiusura inventario verranno creati come carichi sullo stock.
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead><tr style={{ borderBottom: '1px solid rgba(16,185,129,.3)' }}>
+            {['Articolo', 'Magazzino', 'UM', 'Quantità', 'Aggiunto da', ''].map(h => <th key={h} style={{ ...S.th, color: '#10B981' }}>{h}</th>)}
+          </tr></thead>
+          <tbody>
+            {userAddedItems.map(it => {
+              const ts = it.counted_at ? new Date(it.counted_at) : null
+              const tsStr = ts ? ts.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
+              return <tr key={it.id} style={{ borderBottom: '1px solid rgba(16,185,129,.15)' }}>
+                <td style={{ ...S.td, fontWeight: 600 }}>{it.nome_articolo}</td>
+                <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>{it.magazzino || '—'}</td>
+                <td style={{ ...S.td, color: '#94a3b8' }}>{it.unita || '—'}</td>
+                <td style={{ ...S.td, fontWeight: 700, color: '#10B981' }}>{it.giacenza_reale != null ? fmtN(it.giacenza_reale) : '—'}</td>
+                <td style={{ ...S.td, fontSize: 11 }}>
+                  <div style={{ color: '#3B82F6', fontWeight: 600 }}>{it.counted_by_name || '—'}</div>
+                  {tsStr && <div style={{ color: '#64748b', fontSize: 10 }}>{tsStr}</div>}
+                </td>
+                <td style={S.td}>
+                  {!isChiuso && <button onClick={async () => {
+                    if (!confirm(`Eliminare "${it.nome_articolo}" dall'inventario?`)) return
+                    await supabase.from('warehouse_inventory_items').delete().eq('id', it.id)
+                    load()
+                  }} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>✕</button>}
+                </td>
+              </tr>
+            })}
+          </tbody>
+        </table>
+      </div>
+    )}
 
     {!isChiuso && (
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
