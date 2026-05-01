@@ -130,16 +130,23 @@ export default async function handler(req, res) {
         const lastTipo = last?.[0]?.tipo || null;
         const suggestedTipo = lastTipo === 'entrata' ? 'uscita' : 'entrata';
 
-        // Carica le checklist assegnate al dipendente (se presenti) — il client le usa
-        // per sapere se mostrare il form prima di timbrare entrata/uscita.
+        // Carica le checklist assegnate al dipendente. Supporto sia il vecchio
+        // formato singolo (checklist_entrata_id) sia il nuovo array (_ids).
+        // La checklist effettivamente mostrata è quella che matcha il LOCALE
+        // corrente del QR (così un dipendente che lavora su più locali vede
+        // la checklist giusta in base a dove sta timbrando).
         const perms = emp.permissions || {};
-        const ids = [perms.checklist_entrata_id, perms.checklist_uscita_id].filter(Boolean);
+        const entrataIds = Array.isArray(perms.checklist_entrata_ids) ? perms.checklist_entrata_ids
+                          : (perms.checklist_entrata_id ? [perms.checklist_entrata_id] : []);
+        const uscitaIds  = Array.isArray(perms.checklist_uscita_ids) ? perms.checklist_uscita_ids
+                          : (perms.checklist_uscita_id  ? [perms.checklist_uscita_id]  : []);
+        const allIds = [...new Set([...entrataIds, ...uscitaIds].filter(Boolean))];
         let checklistEntrata = null, checklistUscita = null;
-        if (ids.length > 0) {
-          const cls = await sbQuery(`attendance_checklists?id=in.(${ids.join(',')})&select=id,nome,locale,reparto,momento,items,google_sheet_tab,attivo`);
+        if (allIds.length > 0) {
+          const cls = await sbQuery(`attendance_checklists?id=in.(${allIds.join(',')})&select=id,nome,locale,reparto,momento,items,google_sheet_tab,attivo`);
           const arr = Array.isArray(cls) ? cls : [];
-          checklistEntrata = arr.find(c => c.id === perms.checklist_entrata_id && c.attivo) || null;
-          checklistUscita  = arr.find(c => c.id === perms.checklist_uscita_id  && c.attivo) || null;
+          checklistEntrata = arr.find(c => entrataIds.includes(c.id) && c.locale === locale && c.attivo) || null;
+          checklistUscita  = arr.find(c => uscitaIds.includes(c.id)  && c.locale === locale && c.attivo) || null;
         }
 
         return res.status(200).json({
@@ -604,8 +611,10 @@ export default async function handler(req, res) {
         if (!emps?.length) return res.status(404).json({ error: 'PIN non trovato' });
         const emp = emps[0];
         const perms = emp.permissions || {};
-        const expectedId = momento === 'entrata' ? perms.checklist_entrata_id : perms.checklist_uscita_id;
-        if (!expectedId || expectedId !== checklist_id) {
+        const expectedKey = momento === 'entrata' ? 'checklist_entrata' : 'checklist_uscita';
+        const expectedIds = Array.isArray(perms[expectedKey + '_ids']) ? perms[expectedKey + '_ids']
+                           : (perms[expectedKey + '_id'] ? [perms[expectedKey + '_id']] : []);
+        if (!expectedIds.includes(checklist_id)) {
           return res.status(403).json({ error: 'Checklist non assegnata a questo dipendente' });
         }
 
@@ -698,8 +707,10 @@ export default async function handler(req, res) {
         if (!emps?.length) return res.status(404).json({ error: 'PIN non trovato' });
         const emp = emps[0];
         const perms = emp.permissions || {};
-        const expectedId = momento === 'entrata' ? perms.checklist_entrata_id : perms.checklist_uscita_id;
-        if (!expectedId || expectedId !== checklist_id) {
+        const expectedKey = momento === 'entrata' ? 'checklist_entrata' : 'checklist_uscita';
+        const expectedIds = Array.isArray(perms[expectedKey + '_ids']) ? perms[expectedKey + '_ids']
+                           : (perms[expectedKey + '_id'] ? [perms[expectedKey + '_id']] : []);
+        if (!expectedIds.includes(checklist_id)) {
           return res.status(403).json({ error: 'Checklist non assegnata a questo dipendente' });
         }
         const cls = await sbQuery(`attendance_checklists?id=eq.${checklist_id}&select=*&limit=1`);

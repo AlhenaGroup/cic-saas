@@ -350,7 +350,7 @@ function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timest
     </div>
     {alreadyTimbrato && (
       <div style={{ background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#10B981' }}>
-        ✓ Entrata registrata alle <strong>{tsStr}</strong>. Compila la checklist quando hai un momento.
+        ✓ Entrata registrata alle <strong>{tsStr}</strong>. Compila la checklist.
       </div>
     )}
 

@@ -442,20 +442,34 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
 
 function PermessiTab({ emp, onSaved }) {
   const perms = emp.permissions || { presenza: true, inventario: false, spostamenti: false, consumo: false }
-  const [p, setP] = useState(perms)
+  // Normalizza il formato vecchio (singolo id) in array
+  const normalize = (x) => {
+    const next = { ...x }
+    if (next.checklist_entrata_id && !next.checklist_entrata_ids) next.checklist_entrata_ids = [next.checklist_entrata_id]
+    if (next.checklist_uscita_id  && !next.checklist_uscita_ids)  next.checklist_uscita_ids  = [next.checklist_uscita_id]
+    if (!next.checklist_entrata_ids) next.checklist_entrata_ids = []
+    if (!next.checklist_uscita_ids)  next.checklist_uscita_ids  = []
+    delete next.checklist_entrata_id
+    delete next.checklist_uscita_id
+    return next
+  }
+  const [p, setP] = useState(normalize(perms))
   const [saving, setSaving] = useState(false)
   const [checklists, setChecklists] = useState([])
 
-  // Carica checklist disponibili per il locale del dipendente
+  // Carica TUTTE le checklist attive (di qualsiasi locale) — il dipendente
+  // può lavorare su più locali e quindi avere checklist di più locali.
   useEffect(() => {
-    if (!emp.locale) { setChecklists([]); return }
-    supabase.from('attendance_checklists').select('id,nome,reparto,momento,attivo')
-      .eq('locale', emp.locale).eq('attivo', true).order('momento').order('reparto')
+    supabase.from('attendance_checklists').select('id,nome,locale,reparto,momento,attivo')
+      .eq('attivo', true).order('locale').order('reparto').order('momento')
       .then(({ data }) => setChecklists(data || []))
-  }, [emp.locale])
+  }, [])
 
   const toggle = (k) => setP(prev => ({ ...prev, [k]: !prev[k] }))
-  const setChecklistId = (k, v) => setP(prev => ({ ...prev, [k]: v || null }))
+  const toggleChecklist = (key, id) => setP(prev => {
+    const arr = Array.isArray(prev[key]) ? prev[key] : []
+    return { ...prev, [key]: arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id] }
+  })
   const save = async () => {
     setSaving(true)
     const { error } = await supabase.from('employees').update({ permissions: p }).eq('id', emp.id)
@@ -472,8 +486,36 @@ function PermessiTab({ emp, onSaved }) {
     { k: 'inventario',  t: '📋 Inventario', d: 'Puo\' aprire, contare e chiudere inventari del locale' },
   ]
 
-  const checklistsEntrata = checklists.filter(c => c.momento === 'entrata')
-  const checklistsUscita  = checklists.filter(c => c.momento === 'uscita')
+  // Raggruppa per locale → mostro una sezione per locale per leggibilità
+  const groupByLocale = (list) => {
+    const map = {}
+    for (const c of list) { (map[c.locale] = map[c.locale] || []).push(c) }
+    return map
+  }
+  const entrataByLoc = groupByLocale(checklists.filter(c => c.momento === 'entrata'))
+  const uscitaByLoc  = groupByLocale(checklists.filter(c => c.momento === 'uscita'))
+
+  const renderChecklistGroup = (key, byLoc, accent) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {Object.entries(byLoc).length === 0 && (
+        <div style={{ fontSize: 11, color: '#64748b' }}>Nessuna checklist disponibile.</div>
+      )}
+      {Object.entries(byLoc).map(([loc, list]) => (
+        <div key={loc} style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 8 }}>
+          <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>{loc}</div>
+          {list.map(c => {
+            const checked = (p[key] || []).includes(c.id)
+            return <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 12 }}>
+              <input type="checkbox" checked={checked} onChange={() => toggleChecklist(key, c.id)} style={{ accentColor: accent }} />
+              <span style={{ color: checked ? accent : '#e2e8f0', fontWeight: checked ? 600 : 400 }}>
+                {c.reparto} · {c.nome}
+              </span>
+            </label>
+          })}
+        </div>
+      ))}
+    </div>
+  )
 
   return <Card title="Permessi app dipendente" badge={Object.values(p).filter(v => v === true).length + '/4 abilitati'}>
     <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14, lineHeight: 1.5 }}>
@@ -495,31 +537,23 @@ function PermessiTab({ emp, onSaved }) {
     {/* Checklist obbligatorie entrata/uscita */}
     <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #2a3042' }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>📋 Checklist obbligatorie alla timbratura</div>
-      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10 }}>
-        Se assegnate, {emp.nome} dovrà compilarle <strong>prima</strong> di poter timbrare entrata/uscita.
-        Solo checklist del locale <strong style={{ color: '#e2e8f0' }}>{emp.locale || '—'}</strong>.
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+        Seleziona le checklist che <strong style={{ color: '#e2e8f0' }}>{emp.nome}</strong> dovrà compilare quando timbra.
+        Se lavora su più locali, seleziona la checklist di ognuno: il sistema mostrerà automaticamente quella giusta in base al locale dove sta timbrando.
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <label>
-          <div style={{ fontSize: 11, color: '#10B981', fontWeight: 600, marginBottom: 4 }}>🟢 All'entrata</div>
-          <select value={p.checklist_entrata_id || ''} onChange={e => setChecklistId('checklist_entrata_id', e.target.value)}
-            style={{ ...S.input, width: '100%' }}>
-            <option value="">— nessuna —</option>
-            {checklistsEntrata.map(c => <option key={c.id} value={c.id}>{c.reparto} · {c.nome}</option>)}
-          </select>
-        </label>
-        <label>
-          <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 600, marginBottom: 4 }}>🔴 All'uscita</div>
-          <select value={p.checklist_uscita_id || ''} onChange={e => setChecklistId('checklist_uscita_id', e.target.value)}
-            style={{ ...S.input, width: '100%' }}>
-            <option value="">— nessuna —</option>
-            {checklistsUscita.map(c => <option key={c.id} value={c.id}>{c.reparto} · {c.nome}</option>)}
-          </select>
-        </label>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, color: '#10B981', fontWeight: 700, marginBottom: 6 }}>🟢 All'entrata ({(p.checklist_entrata_ids || []).length})</div>
+          {renderChecklistGroup('checklist_entrata_ids', entrataByLoc, '#10B981')}
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 700, marginBottom: 6 }}>🔴 All'uscita ({(p.checklist_uscita_ids || []).length})</div>
+          {renderChecklistGroup('checklist_uscita_ids', uscitaByLoc, '#EF4444')}
+        </div>
       </div>
-      {checklists.length === 0 && emp.locale && (
+      {checklists.length === 0 && (
         <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 8 }}>
-          Nessuna checklist attiva per {emp.locale}. Creale prima nella sezione "📋 Checklist timbratura" del modulo Personale.
+          Nessuna checklist attiva. Creale prima nella sezione "📋 Checklist timbratura" del modulo Personale.
         </div>
       )}
     </div>
