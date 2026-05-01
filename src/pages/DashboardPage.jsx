@@ -11,6 +11,7 @@ import InvoiceTab from '../components/InvoiceTab'
 import ContoEconomico from '../components/ContoEconomico'
 import IvaTab from '../components/IvaTab'
 import WidgetGrid from '../components/WidgetGrid'
+import DailyReportSettings from '../components/DailyReportSettings'
 import { useUserPlan } from '../lib/features'
 
 // ─── Preset periodo globali (validi per tutti i moduli) ────────────────────
@@ -100,6 +101,7 @@ export default function DashboardPage({ settings }) {
   const [loading,setLoading]      = useState(true)
   const [error,  setError]        = useState('')
   const [tab,    setTab]          = useState(() => localStorage.getItem('cic_tab') || 'ov')
+  const [showDailyReport, setShowDailyReport] = useState(false)
   const [recSearch,setRecSearch]  = useState('')
   const [fatSearch,setFatSearch]  = useState('')
   const [fatFilter,setFatFilter]  = useState('all')
@@ -410,6 +412,8 @@ export default function DashboardPage({ settings }) {
           title="Forza sync dati CiC nel periodo">
           {syncing?'⏳':'🔄'}
         </button>
+        <button onClick={()=>setShowDailyReport(true)} title="Configura il resoconto giornaliero via email"
+          style={{...iS,color:'#94a3b8',border:'1px solid #2a3042',padding:'6px 10px',cursor:'pointer'}}>📧</button>
         <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'#475569',border:'1px solid #2a3042',padding:'6px 12px'}}>Esci</button>
       </div>
     </div>
@@ -1084,5 +1088,7 @@ export default function DashboardPage({ settings }) {
 
       </>}
     </div>
+
+    {showDailyReport && <DailyReportSettings onClose={()=>setShowDailyReport(false)}/>}
   </div>
 }

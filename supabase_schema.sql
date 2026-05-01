@@ -412,6 +412,21 @@ CREATE TABLE IF NOT EXISTS public.employee_time_off (
   created_at timestamp with time zone DEFAULT now()
 );
 
+-- ─── Daily report settings (email mattutina automatica) ─────────
+-- 1 riga per user_id. recipients: array di {email, ruolo, sections[]}
+-- Il cron /api/daily-report-cron alle 06:00 legge questa tabella
+-- e invia un'email a tutti i recipients con le sezioni selezionate.
+CREATE TABLE IF NOT EXISTS public.daily_report_settings (
+  user_id uuid PRIMARY KEY,
+  enabled boolean DEFAULT false,
+  recipients jsonb NOT NULL DEFAULT '[]'::jsonb,
+  default_sections jsonb NOT NULL DEFAULT '{"vendite":true,"confronto":true,"personale":true,"alert":true}'::jsonb,
+  last_sent_at timestamptz,
+  last_error text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.attendance (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   employee_id uuid NOT NULL,
@@ -751,6 +766,7 @@ ALTER TABLE public.employee_pay_history       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employee_shifts            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employee_time_off          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance                 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_report_settings      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance_checklists      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance_checklist_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_events            ENABLE ROW LEVEL SECURITY;
@@ -791,6 +807,7 @@ CREATE POLICY "own_warehouse_inventories"     ON public.warehouse_inventories   
 CREATE POLICY "own_warehouse_orders"          ON public.warehouse_orders          FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_warehouse_recipes"         ON public.warehouse_recipes         FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_recipes"                   ON public.recipes                   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_daily_report"              ON public.daily_report_settings     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "checklists_owner"              ON public.attendance_checklists     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "responses_owner"               ON public.attendance_checklist_responses FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 

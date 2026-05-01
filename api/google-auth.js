@@ -13,8 +13,15 @@ export default async function handler(req, res) {
 
   switch (action) {
     case 'authorize': {
-      const scope = encodeURIComponent('https://www.googleapis.com/auth/calendar.events');
-      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+      // Scope: calendar.events (per HR) + gmail.send (per resoconto giornaliero) + userinfo.email
+      const scopes = [
+        'https://www.googleapis.com/auth/calendar.events',
+        'https://www.googleapis.com/auth/gmail.send',
+        'https://www.googleapis.com/auth/userinfo.email',
+      ];
+      const scope = encodeURIComponent(scopes.join(' '));
+      const userId = req.query.state || '';
+      const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent${userId ? '&state=' + encodeURIComponent(userId) : ''}`;
       return res.redirect(302, url);
     }
 
