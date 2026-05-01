@@ -409,10 +409,22 @@ function TrasferimentoPanel({ pin, locale, onDone, onBack }) {
 }
 
 // ─── INVENTARIO ─────────────────────────────────────────────────────
+// Magazzini standard + colori coerenti con WarehouseModule (ArticoliTab)
+const MAG_OPTIONS = [
+  { key: 'tutti',        label: 'Tutti',        color: '#94a3b8', bg: 'rgba(148,163,184,.15)' },
+  { key: 'food',         label: 'Food',         color: '#F59E0B', bg: 'rgba(245,158,11,.15)' },
+  { key: 'beverage',     label: 'Beverage',     color: '#3B82F6', bg: 'rgba(59,130,246,.15)' },
+  { key: 'materiali',    label: 'Materiali',    color: '#8B5CF6', bg: 'rgba(139,92,246,.15)' },
+  { key: 'attrezzatura', label: 'Attrezzatura', color: '#10B981', bg: 'rgba(16,185,129,.15)' },
+  { key: 'altro',        label: 'Altro',        color: '#64748b', bg: 'rgba(100,116,139,.15)' },
+]
+const MAG_COLOR = Object.fromEntries(MAG_OPTIONS.map(m => [m.key, m]))
+
 function InventarioPanel({ pin, locale, onDone, onBack }) {
   const [inventory, setInventory] = useState(null)
   const [items, setItems] = useState([])
   const [q, setQ] = useState('')
+  const [magFilter, setMagFilter] = useState('tutti')
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState({})
@@ -429,7 +441,22 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
   }, [pin, locale])
   useEffect(() => { open() }, [open])
 
-  const filtered = q ? items.filter(a => a.nome_articolo.toLowerCase().includes(q.toLowerCase())) : items
+  // Conteggio articoli per magazzino (per badge sui chip)
+  const countByMag = items.reduce((acc, a) => {
+    const k = a.magazzino || 'altro'
+    acc[k] = (acc[k] || 0) + 1
+    return acc
+  }, {})
+  countByMag.tutti = items.length
+
+  const filtered = items.filter(a => {
+    if (q && !a.nome_articolo.toLowerCase().includes(q.toLowerCase())) return false
+    if (magFilter !== 'tutti') {
+      const m = a.magazzino || 'altro'
+      if (m !== magFilter) return false
+    }
+    return true
+  })
   const counted = items.filter(i => i.giacenza_reale != null && !Number.isNaN(Number(i.giacenza_reale))).length
 
   const saveCount = async (nome_articolo, val, unita, prezzo_medio) => {
@@ -464,14 +491,31 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
       </button>
     </div>}
     <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Cerca..."
-      style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 10, outline: 'none' }} />
+      style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none' }} />
+    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 10, WebkitOverflowScrolling: 'touch' }} className="keep-grid">
+      {MAG_OPTIONS.filter(m => m.key === 'tutti' || (countByMag[m.key] || 0) > 0).map(m => {
+        const active = magFilter === m.key
+        return <button key={m.key} onClick={() => setMagFilter(m.key)}
+          style={{ flex: '0 0 auto', padding: '6px 12px', fontSize: 12, fontWeight: 600, borderRadius: 999,
+            border: `1px solid ${active ? m.color : '#2a3042'}`,
+            background: active ? m.bg : 'transparent',
+            color: active ? m.color : '#94a3b8', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          {m.label} <span style={{ opacity: 0.7, marginLeft: 4 }}>{countByMag[m.key] || 0}</span>
+        </button>
+      })}
+    </div>
     {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
     <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
-      {filtered.map(a => (
-        <div key={a.nome_articolo} style={{ background: '#1a1f2e', borderRadius: 10, padding: 10, marginBottom: 6, border: `1px solid ${a.giacenza_reale != null ? '#10B98144' : '#2a3042'}` }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{a.nome_articolo}</div>
-            <div style={{ fontSize: 10, color: '#64748b' }}>teorico: {Number(a.giacenza_teorica || 0).toFixed(1)}</div>
+      {filtered.length === 0 && <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center', padding: 20 }}>Nessun articolo in questo magazzino.</div>}
+      {filtered.map(a => {
+        const mag = MAG_COLOR[a.magazzino || 'altro'] || MAG_COLOR.altro
+        return <div key={a.nome_articolo} style={{ background: '#1a1f2e', borderRadius: 10, padding: 10, marginBottom: 6, border: `1px solid ${a.giacenza_reale != null ? '#10B98144' : '#2a3042'}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: mag.color, background: mag.bg, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em', flexShrink: 0 }}>{mag.label}</span>
+              <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nome_articolo}</div>
+            </div>
+            <div style={{ fontSize: 10, color: '#64748b', flexShrink: 0 }}>teorico: {Number(a.giacenza_teorica || 0).toFixed(1)}</div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <input type="number" step="0.01" placeholder="Conta reale"
@@ -482,7 +526,7 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
             {saving[a.nome_articolo] && <span style={{ padding: '10px', color: '#F59E0B', fontSize: 12 }}>…</span>}
           </div>
         </div>
-      ))}
+      })}
     </div>
     <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
   </div>

@@ -281,12 +281,12 @@ export default async function handler(req, res) {
         //   - da article_stock (giacenza corrente)
         //   - da warehouse_invoice_items (articoli acquistati in fatture di quel locale)
         // Cosi' anche quando article_stock e' vuoto, l'inventario mostra comunque tutto.
-        const stock = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&select=id,nome_articolo,unita,quantita,prezzo_medio`);
+        const stock = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&select=id,nome_articolo,unita,quantita,prezzo_medio,magazzino`);
         const invs = await sbQuery(`warehouse_invoices?locale=eq.${encodeURIComponent(locale)}&user_id=eq.${v.emp.user_id}&select=id`);
         const invIds = (invs || []).map(x => x.id);
         let invoiceArts = [];
         if (invIds.length > 0) {
-          invoiceArts = await sbQuery(`warehouse_invoice_items?invoice_id=in.(${invIds.join(',')})&escludi_magazzino=eq.false&nome_articolo=not.is.null&select=nome_articolo,unita`);
+          invoiceArts = await sbQuery(`warehouse_invoice_items?invoice_id=in.(${invIds.join(',')})&escludi_magazzino=eq.false&nome_articolo=not.is.null&select=nome_articolo,unita,magazzino`);
         }
         // Unione per nome_articolo; stock ha priorita' (ha giacenza e prezzo_medio)
         const byName = {};
@@ -296,13 +296,19 @@ export default async function handler(req, res) {
             nome_articolo: s.nome_articolo, unita: s.unita || '',
             quantita: Number(s.quantita || 0),
             prezzo_medio: s.prezzo_medio || null,
+            magazzino: s.magazzino || null,
             stock_id: s.id,
           };
         });
         (invoiceArts || []).forEach(it => {
           const n = (it.nome_articolo || '').trim();
-          if (!n || byName[n]) return; // gia' presente da stock
-          byName[n] = { nome_articolo: n, unita: it.unita || '', quantita: 0, prezzo_medio: null, stock_id: null };
+          if (!n) return;
+          if (byName[n]) {
+            // Se stock non ha magazzino ma la fattura sì, completiamo
+            if (!byName[n].magazzino && it.magazzino) byName[n].magazzino = it.magazzino;
+            return;
+          }
+          byName[n] = { nome_articolo: n, unita: it.unita || '', quantita: 0, prezzo_medio: null, magazzino: it.magazzino || null, stock_id: null };
         });
         const rows = Object.values(byName).sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
 
@@ -314,7 +320,7 @@ export default async function handler(req, res) {
             product_id: r.stock_id || inv.id,
             giacenza_teorica: r.quantita,
             giacenza_reale: null,
-            note: JSON.stringify({ nome_articolo: r.nome_articolo, unita: r.unita, prezzo_medio: r.prezzo_medio, sub_location: 'principale', locale }),
+            note: JSON.stringify({ nome_articolo: r.nome_articolo, unita: r.unita, prezzo_medio: r.prezzo_medio, magazzino: r.magazzino, sub_location: 'principale', locale }),
           }));
           await sbQuery('warehouse_inventory_items', 'POST', items);
         }
@@ -330,16 +336,43 @@ export default async function handler(req, res) {
         if (!invs?.[0]) return res.status(404).json({ error: 'Inventario non trovato' });
         const inv = invs[0];
         const items = await sbQuery(`warehouse_inventory_items?inventory_id=eq.${inventory_id}&select=*`);
+        // Lookup magazzino per ogni articolo: priorità a `meta.magazzino` (salvato in inv-open),
+        // fallback su article_stock del locale (per inventari già aperti senza magazzino in note),
+        // ulteriore fallback su warehouse_invoice_items.
+        let invLocale = '';
+        for (const it of (items || [])) {
+          try { invLocale = JSON.parse(it.note || '{}').locale || ''; if (invLocale) break } catch {}
+        }
+        const stocks = invLocale
+          ? (await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(invLocale)}&select=nome_articolo,magazzino`)) || []
+          : [];
+        const magByName = {};
+        stocks.forEach(s => { if (s.nome_articolo && s.magazzino) magByName[s.nome_articolo] = s.magazzino });
+        // Per articoli senza magazzino in stock, lookup da warehouse_invoice_items (locale del fattura)
+        const invsLoc = invLocale
+          ? (await sbQuery(`warehouse_invoices?locale=eq.${encodeURIComponent(invLocale)}&user_id=eq.${v.emp.user_id}&select=id`)) || []
+          : [];
+        if (invsLoc.length > 0) {
+          const invIds = invsLoc.map(x => x.id);
+          const itemsInv = await sbQuery(`warehouse_invoice_items?invoice_id=in.(${invIds.join(',')})&nome_articolo=not.is.null&magazzino=not.is.null&select=nome_articolo,magazzino`);
+          (itemsInv || []).forEach(it => {
+            if (it.nome_articolo && it.magazzino && !magByName[it.nome_articolo]) {
+              magByName[it.nome_articolo] = it.magazzino;
+            }
+          });
+        }
         const mapped = (items || []).map(it => {
           let meta = {};
           try { meta = JSON.parse(it.note || '{}'); } catch {}
+          const nome = meta.nome_articolo || '';
           return {
             id: it.id,
-            nome_articolo: meta.nome_articolo || '',
+            nome_articolo: nome,
             unita: meta.unita || '',
             giacenza_teorica: Number(it.giacenza_teorica || 0),
             giacenza_reale: it.giacenza_reale,
             prezzo_medio: meta.prezzo_medio || null,
+            magazzino: meta.magazzino || magByName[nome] || null,
           };
         }).filter(x => x.nome_articolo).sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
         return res.status(200).json({ inventory: inv, items: mapped });
