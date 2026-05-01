@@ -281,14 +281,40 @@ export default async function handler(req, res) {
         //   - da article_stock (giacenza corrente)
         //   - da warehouse_invoice_items (articoli acquistati in fatture di quel locale)
         // Cosi' anche quando article_stock e' vuoto, l'inventario mostra comunque tutto.
-        const stock = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&select=id,nome_articolo,unita,quantita,prezzo_medio,magazzino`);
+        // article_stock al momento NON ha colonna `magazzino` su questo schema:
+        // selezionarla a vuoto, il fallback lookup userà invoice_items + storico inventari.
+        const stock = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&select=id,nome_articolo,unita,quantita,prezzo_medio`);
         const invs = await sbQuery(`warehouse_invoices?locale=eq.${encodeURIComponent(locale)}&user_id=eq.${v.emp.user_id}&select=id`);
-        const invIds = (invs || []).map(x => x.id);
+        const invIds = Array.isArray(invs) ? invs.map(x => x.id).filter(Boolean) : [];
         let invoiceArts = [];
         if (invIds.length > 0) {
-          invoiceArts = await sbQuery(`warehouse_invoice_items?invoice_id=in.(${invIds.join(',')})&escludi_magazzino=eq.false&nome_articolo=not.is.null&select=nome_articolo,unita,magazzino`);
+          const ia = await sbQuery(`warehouse_invoice_items?invoice_id=in.(${invIds.join(',')})&escludi_magazzino=eq.false&nome_articolo=not.is.null&select=nome_articolo,unita,magazzino`);
+          invoiceArts = Array.isArray(ia) ? ia : [];
         }
-        // Unione per nome_articolo; stock ha priorita' (ha giacenza e prezzo_medio)
+        // Lookup storico: leggo il `note` JSON degli inventory_items di inventari precedenti
+        // dello stesso locale, per ricordare il magazzino di articoli "fantasma" (mai fatturati).
+        const histMagByName = {};
+        try {
+          const prevInvs = await sbQuery(`warehouse_inventories?user_id=eq.${v.emp.user_id}&select=id,note&order=data.desc&limit=20`);
+          const prevInvIds = Array.isArray(prevInvs)
+            ? prevInvs.filter(p => { try { return JSON.parse(p.note || '{}').locale === locale } catch { return false } }).map(p => p.id).filter(Boolean)
+            : [];
+          if (prevInvIds.length > 0) {
+            const prevItemsRes = await sbQuery(`warehouse_inventory_items?inventory_id=in.(${prevInvIds.join(',')})&select=note`);
+            const prevItems = Array.isArray(prevItemsRes) ? prevItemsRes : [];
+            for (const it of prevItems) {
+              try {
+                const m = JSON.parse(it.note || '{}');
+                if (m.nome_articolo && m.magazzino && !histMagByName[m.nome_articolo]) {
+                  histMagByName[m.nome_articolo] = m.magazzino;
+                }
+              } catch {}
+            }
+          }
+        } catch (e) { /* best-effort */ }
+        // Unione per nome_articolo; stock ha priorita' (ha giacenza e prezzo_medio).
+        // Magazzino: 1) invoice_items, 2) histMagByName (inventari precedenti) — perché
+        // article_stock non ha la colonna magazzino su questo schema.
         const byName = {};
         (stock || []).forEach(s => {
           if (!s.nome_articolo) return;
@@ -296,7 +322,7 @@ export default async function handler(req, res) {
             nome_articolo: s.nome_articolo, unita: s.unita || '',
             quantita: Number(s.quantita || 0),
             prezzo_medio: s.prezzo_medio || null,
-            magazzino: s.magazzino || null,
+            magazzino: histMagByName[s.nome_articolo] || null,
             stock_id: s.id,
           };
         });
@@ -304,11 +330,11 @@ export default async function handler(req, res) {
           const n = (it.nome_articolo || '').trim();
           if (!n) return;
           if (byName[n]) {
-            // Se stock non ha magazzino ma la fattura sì, completiamo
-            if (!byName[n].magazzino && it.magazzino) byName[n].magazzino = it.magazzino;
+            // Fattura ha priorità sullo storico inventari per il magazzino
+            if (it.magazzino) byName[n].magazzino = it.magazzino;
             return;
           }
-          byName[n] = { nome_articolo: n, unita: it.unita || '', quantita: 0, prezzo_medio: null, magazzino: it.magazzino || null, stock_id: null };
+          byName[n] = { nome_articolo: n, unita: it.unita || '', quantita: 0, prezzo_medio: null, magazzino: it.magazzino || histMagByName[n] || null, stock_id: null };
         });
         const rows = Object.values(byName).sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
 
@@ -347,9 +373,8 @@ export default async function handler(req, res) {
         const magByName = {};
         try {
           if (invLocale) {
-            const stocksRes = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(invLocale)}&select=nome_articolo,magazzino`);
-            const stocks = Array.isArray(stocksRes) ? stocksRes : [];
-            stocks.forEach(s => { if (s && s.nome_articolo && s.magazzino) magByName[s.nome_articolo] = s.magazzino });
+            // Lookup magazzino da warehouse_invoice_items dello stesso locale.
+            // (article_stock non ha colonna magazzino su questo schema.)
             const invsRes = await sbQuery(`warehouse_invoices?locale=eq.${encodeURIComponent(invLocale)}&user_id=eq.${v.emp.user_id}&select=id`);
             const invsLoc = Array.isArray(invsRes) ? invsRes : [];
             if (invsLoc.length > 0) {
@@ -366,8 +391,6 @@ export default async function handler(req, res) {
             }
           }
         } catch (lookupErr) {
-          // Lookup magazzino è best-effort: se fallisce, restituiamo gli items senza arricchimento
-          // (gli articoli appariranno come "Altro").
           console.error('[inv-articles] magazzino lookup failed:', lookupErr?.message || lookupErr);
         }
         const mapped = itemsArr.map(it => {

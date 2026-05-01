@@ -410,7 +410,7 @@ function TrasferimentoPanel({ pin, locale, onDone, onBack }) {
 
 // ─── INVENTARIO ─────────────────────────────────────────────────────
 // Magazzini standard + colori coerenti con WarehouseModule (ArticoliTab).
-// "non_assegnato" = articoli con magazzino null/'' (da classificare in fattura).
+// Articoli con magazzino mancante finiscono in "Altro" come fallback.
 const MAG_OPTIONS = [
   { key: 'tutti',          label: 'Tutti',         color: '#94a3b8', bg: 'rgba(148,163,184,.15)' },
   { key: 'food',           label: 'Food',          color: '#F59E0B', bg: 'rgba(245,158,11,.15)' },
@@ -418,17 +418,13 @@ const MAG_OPTIONS = [
   { key: 'materiali',      label: 'Materiali',     color: '#8B5CF6', bg: 'rgba(139,92,246,.15)' },
   { key: 'attrezzatura',   label: 'Attrezzatura',  color: '#10B981', bg: 'rgba(16,185,129,.15)' },
   { key: 'altro',          label: 'Altro',         color: '#64748b', bg: 'rgba(100,116,139,.15)' },
-  { key: 'non_assegnato',  label: 'Da assegnare',  color: '#F59E0B', bg: 'rgba(245,158,11,.15)' },
 ]
-const MAG_COLOR = Object.fromEntries(MAG_OPTIONS.map(m => [m.key, m]))
-// Badge label per magazzino "non_assegnato"
-const MAG_BADGE = { ...MAG_COLOR, non_assegnato: { ...MAG_COLOR.non_assegnato, label: 'Da assegnare' } }
+const MAG_BADGE = Object.fromEntries(MAG_OPTIONS.map(m => [m.key, m]))
 
-// Risolve la chiave magazzino di un articolo (null/'' → 'non_assegnato')
+// Risolve la chiave magazzino di un articolo (null/'' → 'altro')
 const magKeyOf = (a) => {
   const m = (a.magazzino || '').toLowerCase().trim()
-  if (!m) return 'non_assegnato'
-  return m
+  return m || 'altro'
 }
 
 function InventarioPanel({ pin, locale, onDone, onBack }) {
