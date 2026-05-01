@@ -378,6 +378,12 @@ function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timest
         ✓ Entrata registrata alle <strong>{tsStr}</strong>. Compila la checklist.
       </div>
     )}
+    {onSkip && (
+      <button onClick={onSkip} disabled={loading}
+        style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px dashed #F59E0B', background: 'transparent', color: '#F59E0B', fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', marginBottom: 12 }}>
+        🤝 La compila un collega in turno
+      </button>
+    )}
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
       {items.map((it, i) => (
@@ -424,12 +430,6 @@ function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timest
       style={{ width: '100%', height: 56, borderRadius: 12, border: 'none', background: allRequired ? momentoColor : '#2a3042', color: allRequired ? '#fff' : '#64748b', fontSize: 16, fontWeight: 700, cursor: allRequired && !loading ? 'pointer' : 'not-allowed', marginBottom: 8 }}>
       {loading ? 'Salvataggio…' : (alreadyTimbrato ? '✓ Salva checklist' : `✓ Conferma e timbra ${tipo}`)}
     </button>
-    {onSkip && (
-      <button onClick={onSkip} disabled={loading}
-        style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px dashed #F59E0B', background: 'transparent', color: '#F59E0B', fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', marginBottom: 8 }}>
-        🤝 La compila un collega in turno
-      </button>
-    )}
     {!alreadyTimbrato && (
       <button onClick={onBack} disabled={loading} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Indietro</button>
     )}
@@ -576,14 +576,14 @@ function TrasferimentoPanel({ pin, locale, onDone, onBack }) {
           <button key={a.nome_articolo} onClick={() => setSelected(a)}
             style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '12px 14px', marginBottom: 6, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', cursor: 'pointer', textAlign: 'left' }}>
             <span>{a.nome_articolo}</span>
-            <span style={{ color: '#94a3b8', fontSize: 12 }}>{Number(a.quantita || 0).toFixed(1)} {a.unita || ''}</span>
+            <span style={{ color: '#94a3b8', fontSize: 12 }}>{a.unita || ''}</span>
           </button>
         ))}
       </div>
     </> : <>
       <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 16, marginBottom: 12 }}>
         <div style={{ fontSize: 16, fontWeight: 700 }}>{selected.nome_articolo}</div>
-        <div style={{ fontSize: 12, color: '#94a3b8' }}>Disponibili: {Number(selected.quantita || 0).toFixed(1)} {selected.unita || ''}</div>
+        {selected.unita && <div style={{ fontSize: 12, color: '#94a3b8' }}>Unità: {selected.unita}</div>}
       </div>
       <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Quantità da spostare ({selected.unita || ''})</label>
       <input type="number" step="0.01" value={qty} onChange={e => setQty(e.target.value)}
