@@ -574,6 +574,7 @@ export default async function handler(req, res) {
           timestamp: new Date().toISOString(),
           lat: lat || null, lng: lng || null, distanza_m: distanza
         }]);
+        const attId = Array.isArray(r) && r[0]?.id ? r[0].id : null;
 
         // Scrivi su Google Sheets
         const now = new Date();
@@ -581,7 +582,7 @@ export default async function handler(req, res) {
         const ora = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
         appendToSheet(locale, [data, ora, emp.nome, tipo, '', locale]);
 
-        return res.status(201).json({ ok: true, nome: emp.nome, tipo, distanza, timestamp: now.toISOString() });
+        return res.status(201).json({ ok: true, nome: emp.nome, tipo, distanza, timestamp: now.toISOString(), attendance_id: attId });
       }
 
       // ─── CHECKLIST: timbra atomico con compilazione obbligatoria ────
@@ -682,6 +683,66 @@ export default async function handler(req, res) {
           ok: true, nome: emp.nome, tipo: momento, distanza, timestamp: nowISO,
           attendance_id: attId, response_id: respId,
         });
+      }
+
+      // ─── CHECKLIST: salva solo la risposta (timbratura già esistente) ─
+      // Usato dopo ENTRATA: il dipendente timbra subito (orario reale di
+      // arrivo), poi compila la checklist senza che blocchi la timbratura.
+      // La response viene collegata all'attendance_id già creato.
+      case 'checklist-response': {
+        const { pin, locale, momento, checklist_id, risposte, attendance_id } = req.body;
+        if (!pin || !momento || !checklist_id) {
+          return res.status(400).json({ error: 'pin, momento, checklist_id richiesti' });
+        }
+        const emps = await sbQuery(`employees?pin=eq.${pin}&select=id,nome,permissions,user_id`);
+        if (!emps?.length) return res.status(404).json({ error: 'PIN non trovato' });
+        const emp = emps[0];
+        const perms = emp.permissions || {};
+        const expectedId = momento === 'entrata' ? perms.checklist_entrata_id : perms.checklist_uscita_id;
+        if (!expectedId || expectedId !== checklist_id) {
+          return res.status(403).json({ error: 'Checklist non assegnata a questo dipendente' });
+        }
+        const cls = await sbQuery(`attendance_checklists?id=eq.${checklist_id}&select=*&limit=1`);
+        if (!cls?.[0]) return res.status(404).json({ error: 'Checklist non trovata' });
+        const cl = cls[0];
+        const items = Array.isArray(cl.items) ? cl.items : [];
+        const ans = risposte || {};
+        for (const it of items) {
+          if (!it.required) continue;
+          const v = ans[it.id];
+          if (v == null || v === '' || (Array.isArray(v) && v.length === 0)) {
+            return res.status(400).json({ error: `Domanda obbligatoria non compilata: "${it.label}"` });
+          }
+        }
+
+        const respRow = {
+          user_id: emp.user_id,
+          checklist_id: cl.id,
+          attendance_id: attendance_id || null,
+          employee_id: emp.id,
+          employee_name: emp.nome,
+          locale: locale || cl.locale,
+          reparto: cl.reparto,
+          momento,
+          risposte: ans,
+          google_sheet_synced: false,
+        };
+        const respRes = await sbQuery('attendance_checklist_responses', 'POST', [respRow]);
+        const respId = Array.isArray(respRes) && respRes[0]?.id ? respRes[0].id : null;
+
+        // Google Sheet sync sul tab dedicato (best-effort)
+        if (cl.google_sheet_tab) {
+          const now = new Date();
+          const dataIt = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const oraIt = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
+          const labelsRow = [dataIt, oraIt, emp.nome, cl.reparto, momento, ...items.map(it => formatAnswer(ans[it.id]))];
+          const synced = await appendToSheet(locale || cl.locale, labelsRow, `${cl.google_sheet_tab}!A:Z`);
+          if (synced && respId) {
+            await sbQuery(`attendance_checklist_responses?id=eq.${respId}`, 'PATCH', { google_sheet_synced: true });
+          }
+        }
+
+        return res.status(201).json({ ok: true, response_id: respId });
       }
 
       // ─── INFO PERSONALI (sola lettura, richiede solo PIN valido) ──
@@ -797,7 +858,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, my-shifts, my-hours, my-timeoff' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, my-shifts, my-hours, my-timeoff' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);

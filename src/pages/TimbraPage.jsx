@@ -35,7 +35,10 @@ export default function TimbraPage() {
   // Checklist obbligatorie assegnate al dipendente
   const [checklistEntrata, setChecklistEntrata] = useState(null)
   const [checklistUscita, setChecklistUscita] = useState(null)
-  const [pendingChecklist, setPendingChecklist] = useState(null) // { checklist, tipo }
+  // pendingChecklist: { checklist, tipo, alreadyTimbrato?, attendanceId? }
+  // Se alreadyTimbrato=true (caso ENTRATA), la timbratura è già salvata e
+  // la checklist viene fatta DOPO. Per uscita resta atomic.
+  const [pendingChecklist, setPendingChecklist] = useState(null)
 
   useEffect(() => {
     setGpsStatus('loading')
@@ -83,14 +86,30 @@ export default function TimbraPage() {
 
   const timbra = async (tipo) => {
     if (gpsStatus !== 'ok') { setMessage('GPS non disponibile. Attiva la localizzazione.'); return }
-    // Se serve checklist per questo tipo, mostra il form prima di timbrare
     const cl = tipo === 'entrata' ? checklistEntrata : checklistUscita
-    if (cl) {
-      setPendingChecklist({ checklist: cl, tipo })
+
+    // ENTRATA con checklist: timbra SUBITO (orario reale di arrivo), poi checklist
+    if (tipo === 'entrata' && cl) {
+      setLoading(true); setMessage('')
+      try {
+        const d = await apiCall({ action: 'timbra', pin, locale, tipo, lat: coords?.lat, lng: coords?.lng })
+        // Timbratura salvata con orario reale; ora apri checklist
+        setPendingChecklist({ checklist: cl, tipo, alreadyTimbrato: true, attendanceId: d.attendance_id, timestamp: d.timestamp })
+        setStep('checklist')
+        setLoading(false)
+        return
+      } catch (e) { setMessage(e.message); setLoading(false); return }
+    }
+
+    // USCITA con checklist: atomic — checklist prima, timbratura dopo (la checklist BLOCCA l'uscita)
+    if (tipo === 'uscita' && cl) {
+      setPendingChecklist({ checklist: cl, tipo, alreadyTimbrato: false })
       setStep('checklist')
       setMessage('')
       return
     }
+
+    // Senza checklist: timbra direttamente
     setLoading(true); setMessage('')
     try {
       const d = await apiCall({ action: 'timbra', pin, locale, tipo, lat: coords?.lat, lng: coords?.lng })
@@ -102,17 +121,30 @@ export default function TimbraPage() {
 
   const submitChecklist = async (risposte) => {
     if (!pendingChecklist) return
-    if (gpsStatus !== 'ok') { setMessage('GPS non disponibile. Attiva la localizzazione.'); return }
     setLoading(true); setMessage('')
     try {
-      const d = await apiCall({
-        action: 'checklist-submit', pin, locale,
-        momento: pendingChecklist.tipo,
-        checklist_id: pendingChecklist.checklist.id,
-        risposte,
-        lat: coords?.lat, lng: coords?.lng,
-      })
-      setMessage(`${pendingChecklist.tipo.toUpperCase()} registrata alle ${new Date(d.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`)
+      if (pendingChecklist.alreadyTimbrato) {
+        // ENTRATA: timbratura già fatta — salva solo la response
+        await apiCall({
+          action: 'checklist-response', pin, locale,
+          momento: pendingChecklist.tipo,
+          checklist_id: pendingChecklist.checklist.id,
+          attendance_id: pendingChecklist.attendanceId || null,
+          risposte,
+        })
+        setMessage(`ENTRATA registrata alle ${new Date(pendingChecklist.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}\nChecklist completata ✓`)
+      } else {
+        // USCITA: atomic timbra + response
+        if (gpsStatus !== 'ok') { setMessage('GPS non disponibile. Attiva la localizzazione.'); setLoading(false); return }
+        const d = await apiCall({
+          action: 'checklist-submit', pin, locale,
+          momento: pendingChecklist.tipo,
+          checklist_id: pendingChecklist.checklist.id,
+          risposte,
+          lat: coords?.lat, lng: coords?.lng,
+        })
+        setMessage(`USCITA registrata alle ${new Date(d.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`)
+      }
       setPendingChecklist(null)
       setStep('done')
     } catch (e) { setMessage(e.message) }
@@ -149,6 +181,8 @@ export default function TimbraPage() {
     {step === 'checklist' && pendingChecklist && <ChecklistFormPanel
       checklist={pendingChecklist.checklist} tipo={pendingChecklist.tipo}
       employee={employee}
+      alreadyTimbrato={pendingChecklist.alreadyTimbrato}
+      timestamp={pendingChecklist.timestamp}
       loading={loading} message={message}
       onSubmit={submitChecklist}
       onBack={() => { setPendingChecklist(null); setStep('presenza'); setMessage('') }}
@@ -291,7 +325,7 @@ function PresenzaPanel({ employee, suggestedTipo, history, checklistEntrata, che
 // Mostrato prima della timbratura entrata/uscita quando il dipendente
 // ha una checklist assegnata. Tutti gli item required devono essere
 // compilati prima del bottone "Conferma e timbra".
-function ChecklistFormPanel({ checklist, tipo, employee, onSubmit, onBack, loading, message }) {
+function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timestamp, onSubmit, onBack, loading, message }) {
   const items = Array.isArray(checklist.items) ? checklist.items : []
   const [risposte, setRisposte] = useState({})
   const setAns = (id, v) => setRisposte(prev => ({ ...prev, [id]: v }))
@@ -306,13 +340,19 @@ function ChecklistFormPanel({ checklist, tipo, employee, onSubmit, onBack, loadi
   const allRequired = items.every(isCompiled)
   const momentoLabel = tipo === 'entrata' ? '🟢 ENTRATA' : '🔴 USCITA'
   const momentoColor = tipo === 'entrata' ? '#10B981' : '#EF4444'
+  const tsStr = timestamp ? new Date(timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : ''
 
   return <div style={{ maxWidth: 420, width: '100%' }}>
     <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 12 }}>
       <div style={{ fontSize: 11, color: momentoColor, fontWeight: 700, letterSpacing: '.06em' }}>{momentoLabel} · {checklist.reparto?.toUpperCase()}</div>
       <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{checklist.nome}</div>
-      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{employee?.nome} · compila per timbrare</div>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{employee?.nome} · {alreadyTimbrato ? `entrata ${tsStr} ✓ — completa la checklist` : 'compila per timbrare'}</div>
     </div>
+    {alreadyTimbrato && (
+      <div style={{ background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#10B981' }}>
+        ✓ Entrata registrata alle <strong>{tsStr}</strong>. Compila la checklist quando hai un momento.
+      </div>
+    )}
 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
       {items.map((it, i) => (
@@ -357,9 +397,11 @@ function ChecklistFormPanel({ checklist, tipo, employee, onSubmit, onBack, loadi
 
     <button onClick={() => onSubmit(risposte)} disabled={!allRequired || loading}
       style={{ width: '100%', height: 56, borderRadius: 12, border: 'none', background: allRequired ? momentoColor : '#2a3042', color: allRequired ? '#fff' : '#64748b', fontSize: 16, fontWeight: 700, cursor: allRequired && !loading ? 'pointer' : 'not-allowed', marginBottom: 8 }}>
-      {loading ? 'Salvataggio…' : `✓ Conferma e timbra ${tipo}`}
+      {loading ? 'Salvataggio…' : (alreadyTimbrato ? '✓ Salva checklist' : `✓ Conferma e timbra ${tipo}`)}
     </button>
-    <button onClick={onBack} disabled={loading} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Indietro</button>
+    {!alreadyTimbrato && (
+      <button onClick={onBack} disabled={loading} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Indietro</button>
+    )}
   </div>
 }
 
