@@ -124,8 +124,8 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
     </div>
 
     {/* Sub-tabs */}
-    <div style={{display:'flex',gap:4,marginBottom:16,borderBottom:'1px solid #2a3042',paddingBottom:8}}>
-      {[['info','Anagrafica'],['paga','Compensi'],['timeoff','Ferie/Permessi'],['ore','Banca Ore'],['permessi','🔐 Permessi app']].map(([k,l])=>
+    <div style={{display:'flex',gap:4,marginBottom:16,borderBottom:'1px solid #2a3042',paddingBottom:8,flexWrap:'wrap'}}>
+      {[['info','Anagrafica'],['paga','Compensi'],['timeoff','Ferie/Permessi'],['ore','Banca Ore'],['consumi','🍪 Consumi'],['permessi','🔐 Permessi app']].map(([k,l])=>
         <button key={k} onClick={()=>setSubTab(k)} style={tabStyle(k)}>{l}</button>
       )}
     </div>
@@ -436,6 +436,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
     </>})()}
 
     {/* PERMESSI APP DIPENDENTE */}
+    {subTab==='consumi' && <ConsumiTab emp={emp} />}
     {subTab==='permessi' && <PermessiTab emp={emp} onSaved={(newPerms)=>{ setEmp({...emp, permissions: newPerms}); if (onUpdate) onUpdate() }} />}
   </div>
 }
@@ -566,3 +567,102 @@ function PermessiTab({ emp, onSaved }) {
     </div>
   </Card>
 }
+
+
+// ─── CONSUMI PERSONALI ───────────────────────────────────────────────
+// Storico dei consumi del dipendente, ricostruito da article_movement
+// con fonte='consumo_dipendente' e riferimento_id=emp.id.
+// Il riferimento_label contiene già il prodotto consumato e le porzioni
+// (es. 'Consumo Mario Rossi · Pizza Margherita x2').
+function ConsumiTab({ emp }) {
+  const [consumi, setConsumi] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      const { data } = await supabase.from('article_movement')
+        .select('id, created_at, locale, valore_totale, riferimento_label, note')
+        .eq('riferimento_id', emp.id)
+        .eq('fonte', 'consumo_dipendente')
+        .order('created_at', { ascending: false })
+        .limit(500)
+      if (cancelled) return
+      // Raggruppo per timestamp+riferimento_label (un consumo = N righe ingredienti)
+      const groups = {}
+      for (const m of data || []) {
+        const key = m.riferimento_label + '|' + m.created_at.substring(0, 19)
+        if (!groups[key]) {
+          groups[key] = {
+            id: m.id, created_at: m.created_at, locale: m.locale,
+            riferimento_label: m.riferimento_label, note: m.note,
+            valore_totale: 0,
+          }
+        }
+        groups[key].valore_totale += Number(m.valore_totale || 0)
+      }
+      // Estraggo nome prodotto + porzioni dal label
+      const list = Object.values(groups).map(g => {
+        // Pattern: 'Consumo <nome dipendente> · <prodotto>[ x<porzioni>]'
+        const m = (g.riferimento_label || '').match(/^Consumo .+? · (.+?)(?:\s+x(\d+))?$/)
+        return { ...g, prodotto: m?.[1] || g.riferimento_label, porzioni: m?.[2] ? Number(m[2]) : 1 }
+      }).sort((a, b) => b.created_at.localeCompare(a.created_at))
+      setConsumi(list)
+      setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [emp.id])
+
+  // Statistiche
+  const totConsumi = consumi.reduce((s, c) => s + c.porzioni, 0)
+  const totValore = consumi.reduce((s, c) => s + (c.valore_totale || 0), 0)
+  const today = new Date().toISOString().substring(0, 10)
+  const oggi = consumi.filter(c => c.created_at.substring(0, 10) === today).length
+  // Ultimi 30 giorni
+  const trenta = new Date(Date.now() - 30 * 86400000).toISOString().substring(0, 10)
+  const last30 = consumi.filter(c => c.created_at.substring(0, 10) >= trenta).length
+
+  return <Card title='🍪 Consumi personali' badge={loading ? 'Caricamento…' : consumi.length + ' totali'}>
+    {!loading && (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
+        <KPI label='Totali' icon='🍪' value={totConsumi} sub='porzioni' accent='#F59E0B' />
+        <KPI label='Oggi' icon='📅' value={oggi} sub='consumi' accent='#10B981' />
+        <KPI label='Ultimi 30gg' icon='📊' value={last30} sub='consumi' accent='#3B82F6' />
+        <KPI label='Valore' icon='💰' value={fmtD(totValore)} sub='magazzino' accent='#EF4444' />
+      </div>
+    )}
+    {loading ? (
+      <div style={{ padding: 20, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+    ) : consumi.length === 0 ? (
+      <div style={{ padding: 24, color: '#64748b', textAlign: 'center', fontSize: 13 }}>Nessun consumo registrato.</div>
+    ) : (
+      <div style={{ overflowX: 'auto', maxHeight: 460 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead style={{ position: 'sticky', top: 0, background: '#131825' }}>
+            <tr style={{ borderBottom: '1px solid #2a3042' }}>
+              {['Data', 'Locale', 'Prodotto', 'Porzioni', 'Valore', 'Note'].map(h => <th key={h} style={S.th}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {consumi.map(c => {
+              const dt = new Date(c.created_at)
+              return <tr key={c.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                <td style={{ ...S.td, whiteSpace: 'nowrap', fontSize: 11, color: '#94a3b8' }}>
+                  {dt.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                  <span style={{ color: '#475569', marginLeft: 6 }}>{dt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+                </td>
+                <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{c.locale || '—'}</td>
+                <td style={{ ...S.td, fontWeight: 600 }}>{c.prodotto}</td>
+                <td style={{ ...S.td, fontWeight: 700, color: '#F59E0B' }}>{c.porzioni}x</td>
+                <td style={{ ...S.td, fontWeight: 600, color: '#EF4444' }}>{c.valore_totale > 0 ? fmtD(c.valore_totale) : '—'}</td>
+                <td style={{ ...S.td, fontSize: 11, color: '#64748b', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.note || '—'}</td>
+              </tr>
+            })}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </Card>
+}
+

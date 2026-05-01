@@ -492,7 +492,7 @@ function ConsumoPanel({ pin, locale, onDone, onBack }) {
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '12px 14px', marginBottom: 6, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', cursor: 'pointer', textAlign: 'left' }}>
             <div>
               <div style={{ fontWeight: 600 }}>{r.nome_prodotto}</div>
-              <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{r.reparto || ''} {r.ingredienti?.length ? '· ' + r.ingredienti.length + ' ingr.' : ''}</div>
+              {r.reparto && <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{r.reparto}</div>}
             </div>
             {r.prezzo_vendita > 0 && <span style={{ color: '#F59E0B', fontSize: 12, fontWeight: 600 }}>€ {Number(r.prezzo_vendita).toFixed(2)}</span>}
           </button>
@@ -501,13 +501,7 @@ function ConsumoPanel({ pin, locale, onDone, onBack }) {
     </> : <>
       <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 16, marginBottom: 12 }}>
         <div style={{ fontSize: 18, fontWeight: 700 }}>{selected.nome_prodotto}</div>
-        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{selected.reparto || ''}</div>
-        <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>Ingredienti che verranno scaricati:</div>
-        <div style={{ marginTop: 4, fontSize: 12, color: '#94a3b8' }}>
-          {(selected.ingredienti || []).map((i, idx) => (
-            <div key={idx}>• {i.nome_articolo}: {i.quantita} {i.unita}</div>
-          ))}
-        </div>
+        {selected.reparto && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{selected.reparto}</div>}
       </div>
       <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Quante porzioni?</label>
       <div className="keep-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 12 }}>
