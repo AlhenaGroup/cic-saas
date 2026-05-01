@@ -444,8 +444,18 @@ function PermessiTab({ emp, onSaved }) {
   const perms = emp.permissions || { presenza: true, inventario: false, spostamenti: false, consumo: false }
   const [p, setP] = useState(perms)
   const [saving, setSaving] = useState(false)
+  const [checklists, setChecklists] = useState([])
+
+  // Carica checklist disponibili per il locale del dipendente
+  useEffect(() => {
+    if (!emp.locale) { setChecklists([]); return }
+    supabase.from('attendance_checklists').select('id,nome,reparto,momento,attivo')
+      .eq('locale', emp.locale).eq('attivo', true).order('momento').order('reparto')
+      .then(({ data }) => setChecklists(data || []))
+  }, [emp.locale])
 
   const toggle = (k) => setP(prev => ({ ...prev, [k]: !prev[k] }))
+  const setChecklistId = (k, v) => setP(prev => ({ ...prev, [k]: v || null }))
   const save = async () => {
     setSaving(true)
     const { error } = await supabase.from('employees').update({ permissions: p }).eq('id', emp.id)
@@ -462,7 +472,10 @@ function PermessiTab({ emp, onSaved }) {
     { k: 'inventario',  t: '📋 Inventario', d: 'Puo\' aprire, contare e chiudere inventari del locale' },
   ]
 
-  return <Card title="Permessi app dipendente" badge={Object.values(p).filter(Boolean).length + '/4 abilitati'}>
+  const checklistsEntrata = checklists.filter(c => c.momento === 'entrata')
+  const checklistsUscita  = checklists.filter(c => c.momento === 'uscita')
+
+  return <Card title="Permessi app dipendente" badge={Object.values(p).filter(v => v === true).length + '/4 abilitati'}>
     <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14, lineHeight: 1.5 }}>
       Definisci cosa puo\' fare <strong style={{ color: '#e2e8f0' }}>{emp.nome}</strong> dopo aver inserito il PIN sulla pagina di timbratura.
       Il menu delle azioni nell\'app mobile verra\' filtrato automaticamente.
@@ -478,6 +491,39 @@ function PermessiTab({ emp, onSaved }) {
         </label>
       ))}
     </div>
+
+    {/* Checklist obbligatorie entrata/uscita */}
+    <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #2a3042' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>📋 Checklist obbligatorie alla timbratura</div>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10 }}>
+        Se assegnate, {emp.nome} dovrà compilarle <strong>prima</strong> di poter timbrare entrata/uscita.
+        Solo checklist del locale <strong style={{ color: '#e2e8f0' }}>{emp.locale || '—'}</strong>.
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <label>
+          <div style={{ fontSize: 11, color: '#10B981', fontWeight: 600, marginBottom: 4 }}>🟢 All'entrata</div>
+          <select value={p.checklist_entrata_id || ''} onChange={e => setChecklistId('checklist_entrata_id', e.target.value)}
+            style={{ ...S.input, width: '100%' }}>
+            <option value="">— nessuna —</option>
+            {checklistsEntrata.map(c => <option key={c.id} value={c.id}>{c.reparto} · {c.nome}</option>)}
+          </select>
+        </label>
+        <label>
+          <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 600, marginBottom: 4 }}>🔴 All'uscita</div>
+          <select value={p.checklist_uscita_id || ''} onChange={e => setChecklistId('checklist_uscita_id', e.target.value)}
+            style={{ ...S.input, width: '100%' }}>
+            <option value="">— nessuna —</option>
+            {checklistsUscita.map(c => <option key={c.id} value={c.id}>{c.reparto} · {c.nome}</option>)}
+          </select>
+        </label>
+      </div>
+      {checklists.length === 0 && emp.locale && (
+        <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 8 }}>
+          Nessuna checklist attiva per {emp.locale}. Creale prima nella sezione "📋 Checklist timbratura" del modulo Personale.
+        </div>
+      )}
+    </div>
+
     <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
       <button onClick={save} disabled={saving}
         style={{ background: '#F59E0B', color: '#0f1420', border: 'none', padding: '8px 18px', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: saving ? 'wait' : 'pointer' }}>

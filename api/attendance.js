@@ -14,19 +14,28 @@ const GOOGLE_CREDS = process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? JSON.parse(proces
   private_key: process.env.GOOGLE_PRIVATE_KEY || ''
 };
 
-async function appendToSheet(locale, row) {
+// Serializza una risposta checklist per la riga Google Sheet
+function formatAnswer(v) {
+  if (v == null) return '';
+  if (typeof v === 'boolean') return v ? 'SI' : 'NO';
+  if (Array.isArray(v)) return v.join(', ');
+  return String(v);
+}
+
+async function appendToSheet(locale, row, range = 'A:F') {
   const sheetId = SHEETS[locale];
-  if (!sheetId || !GOOGLE_CREDS.private_key) return;
+  if (!sheetId || !GOOGLE_CREDS.private_key) return false;
   try {
     const auth = new GoogleAuth({ credentials: GOOGLE_CREDS, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
     const client = await auth.getClient();
     const token = await client.getAccessToken();
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:F:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+    const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token.token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [row] })
     });
-  } catch (e) { console.error('[SHEETS]', e.message); }
+    return r.ok;
+  } catch (e) { console.error('[SHEETS]', e.message); return false; }
 }
 
 async function sbQuery(path, method = 'GET', body = null) {
@@ -121,10 +130,24 @@ export default async function handler(req, res) {
         const lastTipo = last?.[0]?.tipo || null;
         const suggestedTipo = lastTipo === 'entrata' ? 'uscita' : 'entrata';
 
+        // Carica le checklist assegnate al dipendente (se presenti) — il client le usa
+        // per sapere se mostrare il form prima di timbrare entrata/uscita.
+        const perms = emp.permissions || {};
+        const ids = [perms.checklist_entrata_id, perms.checklist_uscita_id].filter(Boolean);
+        let checklistEntrata = null, checklistUscita = null;
+        if (ids.length > 0) {
+          const cls = await sbQuery(`attendance_checklists?id=in.(${ids.join(',')})&select=id,nome,locale,reparto,momento,items,google_sheet_tab,attivo`);
+          const arr = Array.isArray(cls) ? cls : [];
+          checklistEntrata = arr.find(c => c.id === perms.checklist_entrata_id && c.attivo) || null;
+          checklistUscita  = arr.find(c => c.id === perms.checklist_uscita_id  && c.attivo) || null;
+        }
+
         return res.status(200).json({
           employee: { id: emp.id, nome: emp.nome, ruolo: emp.ruolo, locale: emp.locale, stato: emp.stato },
-          permissions: emp.permissions || { presenza: true, inventario: false, spostamenti: false, consumo: false },
+          permissions: perms,
           lastTipo, suggestedTipo, lastTimestamp: last?.[0]?.timestamp,
+          checklist_entrata: checklistEntrata,
+          checklist_uscita: checklistUscita,
         });
       }
 
@@ -561,6 +584,106 @@ export default async function handler(req, res) {
         return res.status(201).json({ ok: true, nome: emp.nome, tipo, distanza, timestamp: now.toISOString() });
       }
 
+      // ─── CHECKLIST: timbra atomico con compilazione obbligatoria ────
+      // Chiamato dal mobile quando il dipendente ha una checklist assegnata
+      // per il momento (entrata/uscita). Equivalente a `timbra` ma con
+      // verifica risposte + insert su attendance_checklist_responses + sync
+      // sul tab Google Sheet della checklist.
+      case 'checklist-submit': {
+        const { pin, locale, momento, lat, lng, checklist_id, risposte } = req.body;
+        if (!pin || !locale || !momento || !checklist_id) {
+          return res.status(400).json({ error: 'pin, locale, momento, checklist_id richiesti' });
+        }
+        if (momento !== 'entrata' && momento !== 'uscita') {
+          return res.status(400).json({ error: "momento deve essere 'entrata' o 'uscita'" });
+        }
+
+        // Verifica PIN + permessi checklist
+        const emps = await sbQuery(`employees?pin=eq.${pin}&select=id,nome,permissions,user_id`);
+        if (!emps?.length) return res.status(404).json({ error: 'PIN non trovato' });
+        const emp = emps[0];
+        const perms = emp.permissions || {};
+        const expectedId = momento === 'entrata' ? perms.checklist_entrata_id : perms.checklist_uscita_id;
+        if (!expectedId || expectedId !== checklist_id) {
+          return res.status(403).json({ error: 'Checklist non assegnata a questo dipendente' });
+        }
+
+        // Carica checklist e verifica items required
+        const cls = await sbQuery(`attendance_checklists?id=eq.${checklist_id}&select=*&limit=1`);
+        if (!cls?.[0]) return res.status(404).json({ error: 'Checklist non trovata' });
+        const cl = cls[0];
+        if (!cl.attivo) return res.status(403).json({ error: 'Checklist disabilitata' });
+        const items = Array.isArray(cl.items) ? cl.items : [];
+        const ans = risposte || {};
+        for (const it of items) {
+          if (!it.required) continue;
+          const v = ans[it.id];
+          if (v == null || v === '' || (Array.isArray(v) && v.length === 0)) {
+            return res.status(400).json({ error: `Domanda obbligatoria non compilata: "${it.label}"` });
+          }
+        }
+
+        // Verifica GPS (riusa logica di timbra)
+        let distanza = null;
+        const coords = LOCALE_COORDS[locale];
+        if (coords && lat && lng) {
+          distanza = Math.round(haversineDistance(lat, lng, coords.lat, coords.lng));
+          if (distanza > MAX_DISTANCE) {
+            return res.status(403).json({ error: `Troppo lontano dal locale (${distanza}m, max ${MAX_DISTANCE}m)`, distanza });
+          }
+        }
+
+        // Rate limit
+        const fiveMinAgo = new Date(Date.now() - 5 * 60000).toISOString();
+        const recent = await sbQuery(`attendance?employee_id=eq.${emp.id}&timestamp=gte.${fiveMinAgo}&limit=1`);
+        if (recent?.length) {
+          return res.status(429).json({ error: 'Attendi almeno 5 minuti tra una timbratura e l\'altra' });
+        }
+
+        // Salva attendance
+        const nowISO = new Date().toISOString();
+        const attRes = await sbQuery('attendance', 'POST', [{
+          employee_id: emp.id, locale, tipo: momento,
+          timestamp: nowISO,
+          lat: lat || null, lng: lng || null, distanza_m: distanza
+        }]);
+        const attId = Array.isArray(attRes) && attRes[0]?.id ? attRes[0].id : null;
+
+        // Salva risposta checklist
+        const respRow = {
+          user_id: emp.user_id,
+          checklist_id: cl.id,
+          attendance_id: attId,
+          employee_id: emp.id,
+          employee_name: emp.nome,
+          locale, reparto: cl.reparto, momento,
+          risposte: ans,
+          google_sheet_synced: false,
+        };
+        const respRes = await sbQuery('attendance_checklist_responses', 'POST', [respRow]);
+        const respId = Array.isArray(respRes) && respRes[0]?.id ? respRes[0].id : null;
+
+        // Google Sheet sync (best-effort)
+        const now = new Date();
+        const dataIt = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const oraIt = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
+        // Riga timbratura (tab default)
+        appendToSheet(locale, [dataIt, oraIt, emp.nome, momento, '', locale]);
+        // Riga risposte sul tab dedicato
+        if (cl.google_sheet_tab) {
+          const labelsRow = [dataIt, oraIt, emp.nome, cl.reparto, momento, ...items.map(it => formatAnswer(ans[it.id]))];
+          const synced = await appendToSheet(locale, labelsRow, `${cl.google_sheet_tab}!A:Z`);
+          if (synced && respId) {
+            await sbQuery(`attendance_checklist_responses?id=eq.${respId}`, 'PATCH', { google_sheet_synced: true });
+          }
+        }
+
+        return res.status(201).json({
+          ok: true, nome: emp.nome, tipo: momento, distanza, timestamp: nowISO,
+          attendance_id: attId, response_id: respId,
+        });
+      }
+
       // ─── INFO PERSONALI (sola lettura, richiede solo PIN valido) ──
 
       // Turni settimanali del dipendente (employee_shifts)
@@ -674,7 +797,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, my-shifts, my-hours, my-timeoff' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, my-shifts, my-hours, my-timeoff' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);

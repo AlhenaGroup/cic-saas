@@ -23,7 +23,7 @@ export default function TimbraPage() {
   useEffect(() => { document.title = locale ? 'Timbra · ' + locale : 'Timbra' }, [locale])
 
   const [pin, setPin] = useState('')
-  const [step, setStep] = useState('pin') // pin | menu | presenza | consumo | trasferimento | inventario | done | error
+  const [step, setStep] = useState('pin') // pin | menu | presenza | consumo | trasferimento | inventario | checklist | done | error
   const [employee, setEmployee] = useState(null)
   const [permissions, setPermissions] = useState({})
   const [suggestedTipo, setSuggestedTipo] = useState('entrata')
@@ -32,6 +32,10 @@ export default function TimbraPage() {
   const [gpsStatus, setGpsStatus] = useState('waiting')
   const [coords, setCoords] = useState(null)
   const [history, setHistory] = useState([])
+  // Checklist obbligatorie assegnate al dipendente
+  const [checklistEntrata, setChecklistEntrata] = useState(null)
+  const [checklistUscita, setChecklistUscita] = useState(null)
+  const [pendingChecklist, setPendingChecklist] = useState(null) // { checklist, tipo }
 
   useEffect(() => {
     setGpsStatus('loading')
@@ -57,6 +61,8 @@ export default function TimbraPage() {
       setEmployee(d.employee)
       setPermissions(d.permissions || {})
       setSuggestedTipo(d.suggestedTipo)
+      setChecklistEntrata(d.checklist_entrata || null)
+      setChecklistUscita(d.checklist_uscita || null)
       // Carico storico timbrature (sempre utile)
       try {
         const h = await apiCall({ action: 'history', pin: p, locale })
@@ -77,10 +83,37 @@ export default function TimbraPage() {
 
   const timbra = async (tipo) => {
     if (gpsStatus !== 'ok') { setMessage('GPS non disponibile. Attiva la localizzazione.'); return }
+    // Se serve checklist per questo tipo, mostra il form prima di timbrare
+    const cl = tipo === 'entrata' ? checklistEntrata : checklistUscita
+    if (cl) {
+      setPendingChecklist({ checklist: cl, tipo })
+      setStep('checklist')
+      setMessage('')
+      return
+    }
     setLoading(true); setMessage('')
     try {
       const d = await apiCall({ action: 'timbra', pin, locale, tipo, lat: coords?.lat, lng: coords?.lng })
       setMessage(`${tipo.toUpperCase()} registrata alle ${new Date(d.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`)
+      setStep('done')
+    } catch (e) { setMessage(e.message) }
+    setLoading(false)
+  }
+
+  const submitChecklist = async (risposte) => {
+    if (!pendingChecklist) return
+    if (gpsStatus !== 'ok') { setMessage('GPS non disponibile. Attiva la localizzazione.'); return }
+    setLoading(true); setMessage('')
+    try {
+      const d = await apiCall({
+        action: 'checklist-submit', pin, locale,
+        momento: pendingChecklist.tipo,
+        checklist_id: pendingChecklist.checklist.id,
+        risposte,
+        lat: coords?.lat, lng: coords?.lng,
+      })
+      setMessage(`${pendingChecklist.tipo.toUpperCase()} registrata alle ${new Date(d.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`)
+      setPendingChecklist(null)
       setStep('done')
     } catch (e) { setMessage(e.message) }
     setLoading(false)
@@ -109,7 +142,16 @@ export default function TimbraPage() {
 
     {step === 'presenza' && employee && <PresenzaPanel
       employee={employee} suggestedTipo={suggestedTipo} history={history}
+      checklistEntrata={checklistEntrata} checklistUscita={checklistUscita}
       onTimbra={timbra} onBack={() => goTo('menu')} loading={loading} message={message} gpsStatus={gpsStatus}
+    />}
+
+    {step === 'checklist' && pendingChecklist && <ChecklistFormPanel
+      checklist={pendingChecklist.checklist} tipo={pendingChecklist.tipo}
+      employee={employee}
+      loading={loading} message={message}
+      onSubmit={submitChecklist}
+      onBack={() => { setPendingChecklist(null); setStep('presenza'); setMessage('') }}
     />}
 
     {step === 'consumo' && <ConsumoPanel pin={pin} locale={locale} employee={employee}
@@ -134,6 +176,7 @@ function stepLabel(s) {
   return {
     presenza: 'Timbratura presenza', consumo: 'Consumo personale',
     trasferimento: 'Spostamento merce', inventario: 'Inventario',
+    checklist: 'Checklist obbligatoria',
     'miei-turni': 'I miei turni', 'mie-ore': 'Le mie ore', 'mie-ferie': 'Le mie ferie',
     done: 'Fatto', error: 'Errore',
   }[s] || ''
@@ -208,13 +251,13 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
 }
 
 // ─── PRESENZA ───────────────────────────────────────────────────────
-function PresenzaPanel({ employee, suggestedTipo, history, onTimbra, onBack, loading, message, gpsStatus }) {
+function PresenzaPanel({ employee, suggestedTipo, history, checklistEntrata, checklistUscita, onTimbra, onBack, loading, message, gpsStatus }) {
   return <div style={{ maxWidth: 320, width: '100%', textAlign: 'center' }}>
     <div style={{ background: '#1a1f2e', borderRadius: 16, padding: 20, marginBottom: 16 }}>
       <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{employee.nome}</div>
       <div style={{ fontSize: 12, color: '#94a3b8' }}>GPS: {gpsStatus === 'ok' ? '✓' : '⚠ ' + gpsStatus}</div>
     </div>
-    <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+    <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
       <button onClick={() => onTimbra('entrata')} disabled={loading}
         style={{ flex: 1, height: 56, borderRadius: 12, border: '2px solid #10B981', fontSize: 16, fontWeight: 700, cursor: 'pointer',
           background: suggestedTipo === 'entrata' ? '#10B981' : '#1a1f2e', color: suggestedTipo === 'entrata' ? '#fff' : '#10B981' }}>ENTRATA</button>
@@ -222,6 +265,16 @@ function PresenzaPanel({ employee, suggestedTipo, history, onTimbra, onBack, loa
         style={{ flex: 1, height: 56, borderRadius: 12, border: '2px solid #EF4444', fontSize: 16, fontWeight: 700, cursor: 'pointer',
           background: suggestedTipo === 'uscita' ? '#EF4444' : '#1a1f2e', color: suggestedTipo === 'uscita' ? '#fff' : '#EF4444' }}>USCITA</button>
     </div>
+    {(checklistEntrata || checklistUscita) && (
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, fontSize: 10, fontWeight: 600 }}>
+        <div style={{ flex: 1, color: checklistEntrata ? '#F59E0B' : '#475569' }}>
+          {checklistEntrata ? '📋 Checklist obbligatoria' : '\u00a0'}
+        </div>
+        <div style={{ flex: 1, color: checklistUscita ? '#F59E0B' : '#475569' }}>
+          {checklistUscita ? '📋 Checklist obbligatoria' : '\u00a0'}
+        </div>
+      </div>
+    )}
     {message && <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 8, padding: 12, fontSize: 13, color: '#FCA5A5', marginBottom: 12 }}>{message}</div>}
     <button onClick={onBack} style={{ background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '8px 20px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Indietro</button>
     {history.length > 0 && <div style={{ marginTop: 20, textAlign: 'left' }}>
@@ -231,6 +284,82 @@ function PresenzaPanel({ employee, suggestedTipo, history, onTimbra, onBack, loa
         <span style={{ color: '#94a3b8' }}>{new Date(h.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>)}
     </div>}
+  </div>
+}
+
+// ─── CHECKLIST FORM ────────────────────────────────────────────────
+// Mostrato prima della timbratura entrata/uscita quando il dipendente
+// ha una checklist assegnata. Tutti gli item required devono essere
+// compilati prima del bottone "Conferma e timbra".
+function ChecklistFormPanel({ checklist, tipo, employee, onSubmit, onBack, loading, message }) {
+  const items = Array.isArray(checklist.items) ? checklist.items : []
+  const [risposte, setRisposte] = useState({})
+  const setAns = (id, v) => setRisposte(prev => ({ ...prev, [id]: v }))
+
+  const isCompiled = (it) => {
+    if (!it.required) return true
+    const v = risposte[it.id]
+    if (v == null || v === '') return false
+    if (Array.isArray(v) && v.length === 0) return false
+    return true
+  }
+  const allRequired = items.every(isCompiled)
+  const momentoLabel = tipo === 'entrata' ? '🟢 ENTRATA' : '🔴 USCITA'
+  const momentoColor = tipo === 'entrata' ? '#10B981' : '#EF4444'
+
+  return <div style={{ maxWidth: 420, width: '100%' }}>
+    <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+      <div style={{ fontSize: 11, color: momentoColor, fontWeight: 700, letterSpacing: '.06em' }}>{momentoLabel} · {checklist.reparto?.toUpperCase()}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{checklist.nome}</div>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{employee?.nome} · compila per timbrare</div>
+    </div>
+
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+      {items.map((it, i) => (
+        <div key={it.id} style={{ background: '#1a1f2e', borderRadius: 10, padding: 12, border: `1px solid ${isCompiled(it) ? '#10B98144' : it.required ? '#2a3042' : '#2a3042'}` }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+            {i + 1}. {it.label}
+            {it.required && <span style={{ color: '#F59E0B', marginLeft: 4, fontSize: 11 }}>*</span>}
+          </div>
+          {it.tipo === 'sino' && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setAns(it.id, true)}
+                style={{ flex: 1, padding: '12px', borderRadius: 8, border: `1px solid ${risposte[it.id] === true ? '#10B981' : '#2a3042'}`, background: risposte[it.id] === true ? 'rgba(16,185,129,.15)' : '#0f1420', color: risposte[it.id] === true ? '#10B981' : '#e2e8f0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                ✓ Sì
+              </button>
+              <button onClick={() => setAns(it.id, false)}
+                style={{ flex: 1, padding: '12px', borderRadius: 8, border: `1px solid ${risposte[it.id] === false ? '#EF4444' : '#2a3042'}`, background: risposte[it.id] === false ? 'rgba(239,68,68,.15)' : '#0f1420', color: risposte[it.id] === false ? '#EF4444' : '#e2e8f0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                ✕ No
+              </button>
+            </div>
+          )}
+          {it.tipo === 'testo' && (
+            <textarea value={risposte[it.id] ?? ''} onChange={e => setAns(it.id, e.target.value)}
+              placeholder="Scrivi qui…" rows={2}
+              style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }} />
+          )}
+          {it.tipo === 'numero' && (
+            <input type="number" inputMode="decimal" step="0.01" value={risposte[it.id] ?? ''} onChange={e => setAns(it.id, e.target.value === '' ? '' : Number(e.target.value))}
+              style={{ width: '100%', padding: '12px', fontSize: 16, borderRadius: 8, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+          )}
+          {it.tipo === 'scelta' && (
+            <select value={risposte[it.id] ?? ''} onChange={e => setAns(it.id, e.target.value)}
+              style={{ width: '100%', padding: '12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }}>
+              <option value="">— scegli —</option>
+              {(it.opzioni || []).map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          )}
+        </div>
+      ))}
+    </div>
+
+    {message && <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 8, padding: 12, fontSize: 13, color: '#FCA5A5', marginBottom: 12 }}>{message}</div>}
+
+    <button onClick={() => onSubmit(risposte)} disabled={!allRequired || loading}
+      style={{ width: '100%', height: 56, borderRadius: 12, border: 'none', background: allRequired ? momentoColor : '#2a3042', color: allRequired ? '#fff' : '#64748b', fontSize: 16, fontWeight: 700, cursor: allRequired && !loading ? 'pointer' : 'not-allowed', marginBottom: 8 }}>
+      {loading ? 'Salvataggio…' : `✓ Conferma e timbra ${tipo}`}
+    </button>
+    <button onClick={onBack} disabled={loading} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Indietro</button>
   </div>
 }
 

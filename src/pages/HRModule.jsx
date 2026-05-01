@@ -5,6 +5,7 @@ import EmployeeProfile from '../components/hr/EmployeeProfile'
 import ShiftAssistant from '../components/hr/ShiftAssistant'
 import HRCalendar from '../components/hr/HRCalendar'
 import AttendanceView from '../components/hr/AttendanceView'
+import ChecklistManager from '../components/hr/ChecklistManager'
 
 export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps }) {
   const [employees, setEmployees]       = useState([])
@@ -217,6 +218,11 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
     {/* Timbrature + QR + Presenze reali */}
     <div style={{marginTop:12}}>
       <AttendanceView employees={employees} shifts={[]} sp={sp} sps={sps}/>
+    </div>
+
+    {/* Checklist timbratura */}
+    <div style={{marginTop:12}}>
+      <ChecklistManager sp={sp} sps={sps}/>
     </div>
 
     {/* Assistente Turni + Costi */}

@@ -424,6 +424,40 @@ CREATE TABLE IF NOT EXISTS public.attendance (
   created_at timestamp with time zone DEFAULT now()
 );
 
+-- ─── Checklist timbratura: definizioni + risposte ────────────────
+-- Una checklist e' (locale, reparto, momento). Es: REMEMBEER · Bar · entrata.
+-- Items JSONB: [{ id, tipo: 'sino'|'testo'|'numero'|'scelta', label, opzioni?, required }].
+-- Le risposte vengono salvate in attendance_checklist_responses e
+-- (opzionalmente) sincronizzate su Google Sheet via google_sheet_tab.
+CREATE TABLE IF NOT EXISTS public.attendance_checklists (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  nome text NOT NULL,
+  locale text NOT NULL,
+  reparto text NOT NULL,
+  momento text NOT NULL CHECK (momento IN ('entrata','uscita')),
+  attivo boolean DEFAULT true,
+  items jsonb NOT NULL DEFAULT '[]'::jsonb,
+  google_sheet_tab text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.attendance_checklist_responses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  checklist_id uuid NOT NULL REFERENCES public.attendance_checklists(id) ON DELETE CASCADE,
+  attendance_id uuid REFERENCES public.attendance(id) ON DELETE SET NULL,
+  employee_id uuid NOT NULL,
+  employee_name text,
+  locale text,
+  reparto text,
+  momento text,
+  risposte jsonb NOT NULL DEFAULT '{}'::jsonb,
+  google_sheet_synced boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.calendar_events (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid NOT NULL,
@@ -716,6 +750,8 @@ ALTER TABLE public.employee_pay_history       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employee_shifts            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employee_time_off          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance                 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance_checklists      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance_checklist_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_events            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.staff_schedules            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.personnel_costs            ENABLE ROW LEVEL SECURITY;
@@ -754,6 +790,8 @@ CREATE POLICY "own_warehouse_inventories"     ON public.warehouse_inventories   
 CREATE POLICY "own_warehouse_orders"          ON public.warehouse_orders          FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_warehouse_recipes"         ON public.warehouse_recipes         FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_recipes"                   ON public.recipes                   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "checklists_owner"              ON public.attendance_checklists     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "responses_owner"               ON public.attendance_checklist_responses FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- WAREHOUSE: child tables senza user_id, via parent EXISTS()
 CREATE POLICY "via_parent_wia" ON public.warehouse_aliases         FOR ALL
