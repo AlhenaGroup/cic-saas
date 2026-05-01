@@ -194,18 +194,23 @@ function ResponsesViewer({ checklist, onClose }) {
               const isOpen = expanded === r.id
               const ts = new Date(r.created_at)
               const ans = r.risposte || {}
-              return <div key={r.id} style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
-                <div onClick={() => setExpanded(isOpen ? null : r.id)} style={{ padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', gap: 12 }}>
+              const skipped = !!r.skipped
+              return <div key={r.id} style={{ background: skipped ? 'rgba(245,158,11,.06)' : '#131825', border: `1px solid ${skipped ? '#F59E0B44' : '#2a3042'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
+                <div onClick={() => !skipped && setExpanded(isOpen ? null : r.id)} style={{ padding: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: skipped ? 'default' : 'pointer', gap: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{r.employee_name || '—'}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {r.employee_name || '—'}
+                      {skipped && <span style={{ fontSize: 10, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.15)', padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>🤝 Delegata</span>}
+                    </div>
                     <div style={{ fontSize: 11, color: '#94a3b8' }}>
                       {ts.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      {r.google_sheet_synced && <span style={{ color: '#10B981', marginLeft: 8 }}>· ✓ Sheet</span>}
+                      {skipped && <span style={{ color: '#F59E0B', marginLeft: 8 }}>· ha delegato a un collega</span>}
+                      {!skipped && r.google_sheet_synced && <span style={{ color: '#10B981', marginLeft: 8 }}>· ✓ Sheet</span>}
                     </div>
                   </div>
-                  <span style={{ color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>{isOpen ? '▲' : '▼'}</span>
+                  {!skipped && <span style={{ color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>{isOpen ? '▲' : '▼'}</span>}
                 </div>
-                {isOpen && (
+                {isOpen && !skipped && (
                   <div style={{ padding: '0 10px 10px', borderTop: '1px solid #2a3042' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginTop: 8 }}>
                       <tbody>

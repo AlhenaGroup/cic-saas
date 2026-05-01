@@ -455,6 +455,7 @@ CREATE TABLE IF NOT EXISTS public.attendance_checklist_responses (
   momento text,
   risposte jsonb NOT NULL DEFAULT '{}'::jsonb,
   google_sheet_synced boolean DEFAULT false,
+  skipped boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
 );
 

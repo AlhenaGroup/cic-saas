@@ -151,6 +151,30 @@ export default function TimbraPage() {
     setLoading(false)
   }
 
+  const skipChecklist = async () => {
+    if (!pendingChecklist) return
+    if (!confirm('Confermi che la checklist verrà compilata da un collega in turno? Verrà registrato chi e quando ha delegato.')) return
+    setLoading(true); setMessage('')
+    try {
+      const isUscita = pendingChecklist.tipo === 'uscita'
+      if (isUscita && gpsStatus !== 'ok') {
+        setMessage('GPS non disponibile. Attiva la localizzazione.'); setLoading(false); return
+      }
+      const d = await apiCall({
+        action: 'checklist-skip', pin, locale,
+        momento: pendingChecklist.tipo,
+        checklist_id: pendingChecklist.checklist.id,
+        attendance_id: pendingChecklist.attendanceId || null,
+        lat: coords?.lat, lng: coords?.lng,
+      })
+      const ts = isUscita ? d.timestamp : pendingChecklist.timestamp
+      setMessage(`${pendingChecklist.tipo.toUpperCase()} registrata alle ${ts ? new Date(ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : 'ora'}\nChecklist delegata a un collega ✓`)
+      setPendingChecklist(null)
+      setStep('done')
+    } catch (e) { setMessage(e.message) }
+    setLoading(false)
+  }
+
   return <div style={{ minHeight: '100vh', background: bgColor, fontFamily: "'DM Sans',system-ui,sans-serif", color: '#e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 16px' }}>
     <div style={{ textAlign: 'center', marginBottom: 16 }}>
       <div style={{ width: 40, height: 40, background: accent, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: bgColor, fontSize: 16, marginBottom: 8 }}>C</div>
@@ -185,6 +209,7 @@ export default function TimbraPage() {
       timestamp={pendingChecklist.timestamp}
       loading={loading} message={message}
       onSubmit={submitChecklist}
+      onSkip={skipChecklist}
       onBack={() => { setPendingChecklist(null); setStep('presenza'); setMessage('') }}
     />}
 
@@ -325,7 +350,7 @@ function PresenzaPanel({ employee, suggestedTipo, history, checklistEntrata, che
 // Mostrato prima della timbratura entrata/uscita quando il dipendente
 // ha una checklist assegnata. Tutti gli item required devono essere
 // compilati prima del bottone "Conferma e timbra".
-function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timestamp, onSubmit, onBack, loading, message }) {
+function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timestamp, onSubmit, onSkip, onBack, loading, message }) {
   const items = Array.isArray(checklist.items) ? checklist.items : []
   const [risposte, setRisposte] = useState({})
   const setAns = (id, v) => setRisposte(prev => ({ ...prev, [id]: v }))
@@ -399,6 +424,12 @@ function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timest
       style={{ width: '100%', height: 56, borderRadius: 12, border: 'none', background: allRequired ? momentoColor : '#2a3042', color: allRequired ? '#fff' : '#64748b', fontSize: 16, fontWeight: 700, cursor: allRequired && !loading ? 'pointer' : 'not-allowed', marginBottom: 8 }}>
       {loading ? 'Salvataggio…' : (alreadyTimbrato ? '✓ Salva checklist' : `✓ Conferma e timbra ${tipo}`)}
     </button>
+    {onSkip && (
+      <button onClick={onSkip} disabled={loading}
+        style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px dashed #F59E0B', background: 'transparent', color: '#F59E0B', fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', marginBottom: 8 }}>
+        🤝 La compila un collega in turno
+      </button>
+    )}
     {!alreadyTimbrato && (
       <button onClick={onBack} disabled={loading} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Indietro</button>
     )}

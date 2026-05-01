@@ -756,6 +756,77 @@ export default async function handler(req, res) {
         return res.status(201).json({ ok: true, response_id: respId });
       }
 
+      // ─── CHECKLIST SKIP: il dipendente delega la compilazione al collega ─
+      // Salva una response "skipped=true" per tracking. Per ENTRATA, l'attendance
+      // è già stata creata: salva solo lo skip. Per USCITA, crea anche
+      // l'attendance (non blocca la timbratura).
+      case 'checklist-skip': {
+        const { pin, locale, momento, checklist_id, attendance_id, lat, lng } = req.body;
+        if (!pin || !locale || !momento || !checklist_id) {
+          return res.status(400).json({ error: 'pin, locale, momento, checklist_id richiesti' });
+        }
+        const emps = await sbQuery(`employees?pin=eq.${pin}&select=id,nome,permissions,user_id`);
+        if (!emps?.length) return res.status(404).json({ error: 'PIN non trovato' });
+        const emp = emps[0];
+        const perms = emp.permissions || {};
+        const expectedKey = momento === 'entrata' ? 'checklist_entrata' : 'checklist_uscita';
+        const expectedIds = Array.isArray(perms[expectedKey + '_ids']) ? perms[expectedKey + '_ids']
+                           : (perms[expectedKey + '_id'] ? [perms[expectedKey + '_id']] : []);
+        if (!expectedIds.includes(checklist_id)) {
+          return res.status(403).json({ error: 'Checklist non assegnata a questo dipendente' });
+        }
+        const cls = await sbQuery(`attendance_checklists?id=eq.${checklist_id}&select=id,locale,reparto&limit=1`);
+        if (!cls?.[0]) return res.status(404).json({ error: 'Checklist non trovata' });
+        const cl = cls[0];
+
+        let attId = attendance_id || null;
+        let attTimestamp = null;
+        // Per USCITA: creo l'attendance ora (lo skip non blocca la timbratura)
+        if (momento === 'uscita') {
+          let distanza = null;
+          const coords = LOCALE_COORDS[locale];
+          if (coords && lat && lng) {
+            distanza = Math.round(haversineDistance(lat, lng, coords.lat, coords.lng));
+            if (distanza > MAX_DISTANCE) {
+              return res.status(403).json({ error: `Troppo lontano dal locale (${distanza}m, max ${MAX_DISTANCE}m)`, distanza });
+            }
+          }
+          const fiveMinAgo = new Date(Date.now() - 5 * 60000).toISOString();
+          const recent = await sbQuery(`attendance?employee_id=eq.${emp.id}&timestamp=gte.${fiveMinAgo}&limit=1`);
+          if (recent?.length) {
+            return res.status(429).json({ error: 'Attendi almeno 5 minuti tra una timbratura e l\'altra' });
+          }
+          attTimestamp = new Date().toISOString();
+          const r = await sbQuery('attendance', 'POST', [{
+            employee_id: emp.id, locale, tipo: 'uscita',
+            timestamp: attTimestamp,
+            lat: lat || null, lng: lng || null, distanza_m: distanza
+          }]);
+          attId = Array.isArray(r) && r[0]?.id ? r[0].id : null;
+          // Google Sheet timbratura
+          const now = new Date();
+          const dataIt = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const oraIt = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' });
+          appendToSheet(locale, [dataIt, oraIt, emp.nome, 'uscita', '', locale]);
+        }
+
+        // Salva response skipped
+        const respRow = {
+          user_id: emp.user_id,
+          checklist_id: cl.id,
+          attendance_id: attId,
+          employee_id: emp.id,
+          employee_name: emp.nome,
+          locale, reparto: cl.reparto, momento,
+          risposte: {}, skipped: true,
+          google_sheet_synced: false,
+        };
+        const respRes = await sbQuery('attendance_checklist_responses', 'POST', [respRow]);
+        const respId = Array.isArray(respRes) && respRes[0]?.id ? respRes[0].id : null;
+
+        return res.status(201).json({ ok: true, skipped: true, response_id: respId, attendance_id: attId, timestamp: attTimestamp });
+      }
+
       // ─── INFO PERSONALI (sola lettura, richiede solo PIN valido) ──
 
       // Turni settimanali del dipendente (employee_shifts)
@@ -869,7 +940,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, my-shifts, my-hours, my-timeoff' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, checklist-skip, my-shifts, my-hours, my-timeoff' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);
