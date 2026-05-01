@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, Card, fmt } from '../shared/styles.jsx'
 
@@ -98,6 +98,12 @@ export default function PriceAnalysis() {
   const fornitori = useMemo(() => [...new Set(articles.map(a => a.fornitore_principale).filter(f => f && f !== '-'))], [articles])
 
   const selected = selectedArt ? articles.find(a => a.nome === selectedArt) : null
+  const detailRef = useRef(null)
+  useEffect(() => {
+    if (selected && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [selected])
 
   if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontSize: 13 }}>Caricamento prezzi...</div>
 
@@ -139,7 +145,11 @@ export default function PriceAnalysis() {
           {filtered.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessun articolo trovato</td></tr>}
           {filtered.map(a => {
             const varColor = a.variazione > 5 ? '#EF4444' : a.variazione < -5 ? '#10B981' : '#64748b'
-            return <tr key={a.nome} style={{ background: selectedArt === a.nome ? '#131825' : 'transparent' }}>
+            const isSel = selectedArt === a.nome
+            return <tr key={a.nome}
+              onClick={() => setSelectedArt(isSel ? null : a.nome)}
+              style={{ background: isSel ? '#131825' : 'transparent', cursor: 'pointer' }}
+              title="Clicca per vedere lo storico prezzi">
               <td style={{ ...S.td, fontWeight: 500 }}>{a.nome}</td>
               <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{a.categoria}</td>
               <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{a.fornitore_principale}</td>
@@ -154,11 +164,8 @@ export default function PriceAnalysis() {
                 }
               </td>
               <td style={{ ...S.td, color: '#64748b', fontSize: 12 }}>{a.historyCount} registrazioni</td>
-              <td style={S.td}>
-                <button onClick={() => setSelectedArt(selectedArt === a.nome ? null : a.nome)}
-                  style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11 }}>
-                  {selectedArt === a.nome ? 'Chiudi' : 'Dettaglio'}
-                </button>
+              <td style={{ ...S.td, color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>
+                {isSel ? 'Chiudi' : 'Dettaglio →'}
               </td>
             </tr>
           })}
@@ -166,8 +173,9 @@ export default function PriceAnalysis() {
       </table>
     </Card>
 
-    {selected && <div style={{ marginTop: 12 }}>
-      <Card title={'Storico prezzi: ' + selected.nome} badge={selected.storico.length + ' registrazioni'}>
+    {selected && <div ref={detailRef} style={{ marginTop: 12 }}>
+      <Card title={'Storico prezzi: ' + selected.nome} badge={selected.storico.length + ' registrazioni'}
+        extra={<button onClick={() => setSelectedArt(null)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>✕ Chiudi</button>}>
         {selected.storico.length === 0
           ? <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Nessuno storico prezzi</div>
           : <>

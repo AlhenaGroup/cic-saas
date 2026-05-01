@@ -257,16 +257,21 @@ export default function DashboardPage({ settings }) {
   const prods  = data?.topProducts||[]
   const recs   = data?.scontriniList||[]
   const ore    = data?.prodOre||[]
-  // Coperti per fascia oraria: aggrego dagli scontrini dettaglio usando aperturaComanda
-  const copertiBySlot = (() => {
-    const map = {}
-    ;(data?.receiptDetails || []).forEach(r => {
+  // Coperti / ricavi / scontrini per fascia oraria: aggrego dagli scontrini dettaglio
+  // usando aperturaComanda (ora di presa ordine al tavolo), NON l'ora di chiusura/pagamento.
+  // Per i ricavi questo è il dato corretto per misurare la produttività della fascia.
+  const { copertiBySlot, ricaviBySlot, scontriniBySlot, hasReceiptDetails } = (() => {
+    const cMap = {}, rMap = {}, sMap = {}
+    const rd = data?.receiptDetails || []
+    rd.forEach(r => {
       const h = (r.aperturaComanda || '').substring(0, 2)
       if (!h || !/^\d{2}$/.test(h)) return
       const key = h + ':00'
-      map[key] = (map[key] || 0) + (Number(r.coperti) || 0)
+      cMap[key] = (cMap[key] || 0) + (Number(r.coperti) || 0)
+      rMap[key] = (rMap[key] || 0) + (Number(r.totale) || 0)
+      sMap[key] = (sMap[key] || 0) + 1
     })
-    return map
+    return { copertiBySlot: cMap, ricaviBySlot: rMap, scontriniBySlot: sMap, hasReceiptDetails: rd.length > 0 }
   })()
   const susp   = data?.suspicious||[]
   const fat    = data?.fatture||[]
@@ -899,17 +904,21 @@ export default function DashboardPage({ settings }) {
         const prodColor = v => v < sogliaRed ? '#EF4444' : v < sogliaYel ? '#F59E0B' : '#10B981'
         const prodLabel = v => v < sogliaRed ? 'Sotto soglia' : v < sogliaYel ? 'Attenzione' : 'OK'
         // Ore lavorate per fascia: reali dalle timbrature se useRealHours, altrimenti da staffSchedule pianificato
-        // Unione di tutte le ore disponibili da qualunque fonte, non solo hourly_records.
-        // Necessario perché i coperti seguono l'apertura comanda mentre i ricavi seguono
-        // la chiusura: un'ora può avere solo coperti (nessun ricavo ancora registrato).
+        // Unione di tutte le ore disponibili da qualunque fonte.
+        // Ricavi e scontrini sono aggregati per ora di APERTURA COMANDA (presa ordine),
+        // non per ora di chiusura/pagamento — vedi ricaviBySlot/scontriniBySlot sopra.
+        // Solo se receipt_details non è disponibile, fallback su hourly_records (chiusura).
         const hourKeys = new Set(ore.map(o => o.ora))
         Object.keys(workedHoursBySlot).forEach(k => hourKeys.add(k))
         Object.keys(staffSchedule).forEach(k => hourKeys.add(k))
         Object.keys(personsBySlot).forEach(k => hourKeys.add(k))
         Object.keys(copertiBySlot).forEach(k => hourKeys.add(k))
+        Object.keys(ricaviBySlot).forEach(k => hourKeys.add(k))
         const oreMap = Object.fromEntries(ore.map(o => [o.ora, o]))
         const oreWithProd = [...hourKeys].sort().map(ora => {
-          const base = oreMap[ora] || { ora, ricavi: 0, scontrini: 0 }
+          const fallback = oreMap[ora] || { ora, ricavi: 0, scontrini: 0 }
+          const ricavi = hasReceiptDetails ? (ricaviBySlot[ora] || 0) : (fallback.ricavi || 0)
+          const scontrini = hasReceiptDetails ? (scontriniBySlot[ora] || 0) : (fallback.scontrini || 0)
           const oreReali = workedHoursBySlot[ora] || 0
           const orePianif = staffSchedule[ora] || 0
           const persone = personsBySlot[ora] || 0
@@ -917,9 +926,9 @@ export default function DashboardPage({ settings }) {
           const oreLavorate = useRealHours
             ? (oreReali > 0 ? oreReali : 0)
             : orePianif
-          const prodOraria = oreLavorate > 0 ? base.ricavi / oreLavorate : 0
+          const prodOraria = oreLavorate > 0 ? ricavi / oreLavorate : 0
           const copPerDip = persone > 0 ? coperti / persone : 0
-          return { ...base, staff: oreLavorate, oreLavorate, oreReali, orePianif, persone, coperti, copPerDip, prodOraria }
+          return { ora, ricavi, scontrini, staff: oreLavorate, oreLavorate, oreReali, orePianif, persone, coperti, copPerDip, prodOraria }
         })
         const totOreReali = Object.values(workedHoursBySlot).reduce((s, v) => s + (Number(v) || 0), 0)
         const totOreDay = oreWithProd.reduce((s,o) => s + o.oreLavorate, 0)
