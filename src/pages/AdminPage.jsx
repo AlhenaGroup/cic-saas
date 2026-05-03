@@ -16,6 +16,7 @@ const TAB_CATALOG = [
   { key: 'hr', label: 'HR' },
   { key: 'prod', label: 'Produttività' },
   { key: 'conta', label: 'Contabilità' },
+  { key: 'mkt', label: 'Marketing' },
   { key: 'ce', label: 'Conto Economico' },
   { key: 'bud', label: 'Budget' },
   { key: 'avvisi', label: 'Avvisi' },

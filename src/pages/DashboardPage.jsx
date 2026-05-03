@@ -13,6 +13,7 @@ import WidgetGrid from '../components/WidgetGrid'
 import DailyReportSettings from '../components/DailyReportSettings'
 import SubTabsBar from '../components/SubTabsBar'
 import ImpostazioniModule from '../components/ImpostazioniModule'
+import MarketingModule from './MarketingModule'
 import ReceiptDetailModal from '../components/ReceiptDetailModal'
 import AvvisiModule from '../components/AvvisiModule'
 import { useUserPlan } from '../lib/features'
@@ -306,7 +307,7 @@ export default function DashboardPage({ settings }) {
   // 'scontrini', 'cat', 'rep' restano come keys interne ai sotto-tab di Vendite — le keys di
   // ALL_TABS per la barra principale sono solo quelle qui sotto.
   const ALL_TABS=[['ov','Panoramica'],['vendite','Vendite'],['mag','Magazzino'],['hr','HR'],
-              ['prod','Produttività'],['conta','Contabilità'],
+              ['prod','Produttività'],['conta','Contabilità'],['mkt','Marketing'],
               ['ce','Conto Economico'],['bud','Budget'],['avvisi','Avvisi'],['imp','Impostazioni']]
   // Sotto-tab Vendite (state separato per persistenza)
   const [vendSubTab, setVendSubTab] = useState(() => localStorage.getItem('vend_subtab') || 'scontrini')
@@ -1105,6 +1106,9 @@ export default function DashboardPage({ settings }) {
 
       {/* ── PERSONALE ── */}
       {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps}/>}
+
+      {/* ── MARKETING / CRM ── */}
+      {tab==='mkt'&&<MarketingModule sp={sp} sps={sps}/>}
 
       {/* ── AVVISI ── */}
       {tab==='avvisi'&&<AvvisiModule/>}

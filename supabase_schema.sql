@@ -758,9 +758,56 @@ CREATE POLICY "own_layout"     ON public.user_widget_layout     FOR ALL    USING
 -- Piano default 'Full' (tutto incluso)
 INSERT INTO public.feature_plans (id, name, description, features, is_default)
 VALUES ('full', 'Full', 'Tutto incluso. Piano default per fase pilota Alhena Group.',
-  '{"tabs":["ov","scontrini","cat","iva","rep","susp","fat","prod","ce","hr","bud","mag"],"widgets":["*"]}'::jsonb,
+  '{"tabs":["ov","scontrini","cat","iva","rep","susp","fat","prod","ce","hr","mkt","bud","mag"],"widgets":["*"]}'::jsonb,
   true)
 ON CONFLICT (id) DO NOTHING;
+
+
+-- ============================================================
+-- 5. MARKETING / CRM
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS public.tag_definitions (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  nome text NOT NULL,
+  colore text NOT NULL DEFAULT '#94a3b8',
+  icona text,
+  descrizione text,
+  is_system boolean NOT NULL DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, locale, nome)
+);
+
+CREATE TABLE IF NOT EXISTS public.customers (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  nome text,
+  cognome text,
+  telefono text,
+  email text,
+  data_nascita date,
+  lingua text DEFAULT 'it',
+  note text,
+  source text,
+  gdpr_marketing boolean DEFAULT false,
+  gdpr_profilazione boolean DEFAULT false,
+  gdpr_consent_at timestamptz,
+  first_seen_at timestamptz DEFAULT now(),
+  last_seen_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.customer_tags (
+  customer_id uuid NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  tag_id uuid NOT NULL REFERENCES public.tag_definitions(id) ON DELETE CASCADE,
+  assigned_at timestamptz DEFAULT now(),
+  PRIMARY KEY (customer_id, tag_id)
+);
 
 
 -- ============================================================
@@ -805,6 +852,11 @@ CREATE INDEX IF NOT EXISTS idx_catmap_user              ON public.category_mappi
 CREATE INDEX IF NOT EXISTS idx_recipes_user             ON public.recipes(user_id);
 CREATE INDEX IF NOT EXISTS idx_we_date                  ON public.webhook_events(document_date);
 CREATE INDEX IF NOT EXISTS idx_we_sp                    ON public.webhook_events(salespoint_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_customers_phone    ON public.customers(user_id, locale, telefono) WHERE telefono IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_customers_email    ON public.customers(user_id, locale, lower(email)) WHERE email IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_customers_user_locale    ON public.customers(user_id, locale);
+CREATE INDEX IF NOT EXISTS idx_customers_lastseen       ON public.customers(user_id, locale, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_customer_tags_tag        ON public.customer_tags(tag_id);
 
 
 -- ============================================================
@@ -870,6 +922,10 @@ ALTER TABLE public.personnel_costs            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budget_periods             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budget_rows                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budget_scenarios           ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.tag_definitions            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customers                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_tags              ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -947,6 +1003,13 @@ CREATE POLICY "own_budget_periods"   ON public.budget_periods   FOR ALL USING (a
 CREATE POLICY "own_budget_scenarios" ON public.budget_scenarios FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "via_parent_br" ON public.budget_rows FOR ALL
   USING (EXISTS (SELECT 1 FROM public.budget_periods p WHERE p.id = budget_rows.budget_period_id AND p.user_id = auth.uid()));
+
+-- MARKETING / CRM
+CREATE POLICY "own_tag_defs"   ON public.tag_definitions FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_customers"  ON public.customers       FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_cust_tags"  ON public.customer_tags   FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.customers c WHERE c.id = customer_tags.customer_id AND c.user_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.customers c WHERE c.id = customer_tags.customer_id AND c.user_id = auth.uid()));
 
 
 
