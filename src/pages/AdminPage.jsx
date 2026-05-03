@@ -19,6 +19,7 @@ const TAB_CATALOG = [
   { key: 'mkt', label: 'Marketing' },
   { key: 'ce', label: 'Conto Economico' },
   { key: 'bud', label: 'Budget' },
+  { key: 'avvisi', label: 'Avvisi' },
   { key: 'imp', label: 'Impostazioni' },
   // ── Legacy (backward compat) ──
   { key: 'scontrini', label: '[legacy] Scontrini' },

@@ -493,6 +493,35 @@ CREATE TABLE IF NOT EXISTS public.production_batches (
   UNIQUE(user_id, lotto)
 );
 
+-- ─── Modulo Avvisi: regole + eventi ─────────────────────────────
+-- Le regole sono per (user_id, alert_key). alert_key è una stringa
+-- predefinita dal codice (es. 'magazzino.sotto_soglia',
+-- 'produzione.resa_anomala'). Se non esiste riga → regola disattiva.
+CREATE TABLE IF NOT EXISTS public.alert_rules (
+  user_id uuid NOT NULL,
+  alert_key text NOT NULL,
+  enabled boolean DEFAULT false,
+  threshold jsonb DEFAULT '{}'::jsonb,
+  channels jsonb DEFAULT '[]'::jsonb,
+  updated_at timestamptz DEFAULT now(),
+  PRIMARY KEY (user_id, alert_key)
+);
+
+CREATE TABLE IF NOT EXISTS public.alert_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  alert_key text NOT NULL,
+  categoria text NOT NULL CHECK (categoria IN ('vendite','magazzino','hr','produzione')),
+  livello text DEFAULT 'info' CHECK (livello IN ('info','warning','critical')),
+  titolo text NOT NULL,
+  descrizione text,
+  link_url text,
+  meta jsonb DEFAULT '{}'::jsonb,
+  letto boolean DEFAULT false,
+  letto_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
 -- ─── Daily report settings (email mattutina automatica) ─────────
 -- 1 riga per user_id. recipients: array di {email, ruolo, sections[]}
 -- Il cron /api/daily-report-cron alle 06:00 legge questa tabella
@@ -848,6 +877,8 @@ ALTER TABLE public.employee_shifts            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employee_time_off          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_report_settings      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.alert_rules                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.alert_events               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.article_allergens          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.production_recipes         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.production_batches         ENABLE ROW LEVEL SECURITY;
@@ -892,6 +923,8 @@ CREATE POLICY "own_warehouse_orders"          ON public.warehouse_orders        
 CREATE POLICY "own_warehouse_recipes"         ON public.warehouse_recipes         FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_recipes"                   ON public.recipes                   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_daily_report"              ON public.daily_report_settings     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_alert_rules"               ON public.alert_rules               FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_alert_events"              ON public.alert_events              FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_article_allergens"         ON public.article_allergens         FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_production_recipes"        ON public.production_recipes        FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_production_batches"        ON public.production_batches        FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);

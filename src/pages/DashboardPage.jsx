@@ -15,6 +15,7 @@ import DailyReportSettings from '../components/DailyReportSettings'
 import SubTabsBar from '../components/SubTabsBar'
 import ImpostazioniModule from '../components/ImpostazioniModule'
 import ReceiptDetailModal from '../components/ReceiptDetailModal'
+import AvvisiModule from '../components/AvvisiModule'
 import { useUserPlan } from '../lib/features'
 
 // ─── Preset periodo globali (validi per tutti i moduli) ────────────────────
@@ -326,7 +327,7 @@ export default function DashboardPage({ settings }) {
   // ALL_TABS per la barra principale sono solo quelle qui sotto.
   const ALL_TABS=[['ov','Panoramica'],['vendite','Vendite'],['mag','Magazzino'],['hr','HR'],
               ['prod','Produttività'],['conta','Contabilità'],['mkt','Marketing'],
-              ['ce','Conto Economico'],['bud','Budget'],['imp','Impostazioni']]
+              ['ce','Conto Economico'],['bud','Budget'],['avvisi','Avvisi'],['imp','Impostazioni']]
   // Sotto-tab Vendite (state separato per persistenza)
   const [vendSubTab, setVendSubTab] = useState(() => localStorage.getItem('vend_subtab') || 'scontrini')
   useEffect(() => { localStorage.setItem('vend_subtab', vendSubTab) }, [vendSubTab])
@@ -1131,6 +1132,9 @@ export default function DashboardPage({ settings }) {
 
       {/* ── MARKETING ── */}
       {tab==='mkt'&&<MarketingModule sp={sp} sps={sps} from={from} to={to} onTasksChange={loadMktBadge}/>}
+
+      {/* ── AVVISI ── */}
+      {tab==='avvisi'&&<AvvisiModule/>}
 
       {/* ── IMPOSTAZIONI ── */}
       {tab==='imp'&&<ImpostazioniModule settings={settings} sps={sps}/>}
