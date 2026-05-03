@@ -897,6 +897,34 @@ CREATE TABLE IF NOT EXISTS public.fidelity_movements (
   expires_at timestamptz
 );
 
+CREATE TABLE IF NOT EXISTS public.reservations (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
+  guest_nome text,
+  guest_telefono text,
+  guest_email text,
+  data_ora timestamptz NOT NULL,
+  durata_min int NOT NULL DEFAULT 90,
+  pax int NOT NULL,
+  sala text,
+  tavoli text[] DEFAULT '{}',
+  stato text NOT NULL DEFAULT 'pending',
+  source text,
+  occasione text,
+  note text,
+  allergie text,
+  campi_custom jsonb DEFAULT '{}'::jsonb,
+  confirmed_at timestamptz,
+  seated_at timestamptz,
+  completed_at timestamptz,
+  cancelled_at timestamptz,
+  cancelled_reason text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
 
 -- ============================================================
 -- 6. FOREIGN KEYS (nome semplificato)
@@ -956,6 +984,10 @@ CREATE INDEX IF NOT EXISTS idx_fid_mov_customer         ON public.fidelity_movem
 CREATE INDEX IF NOT EXISTS idx_fid_mov_program          ON public.fidelity_movements(program_id, movimento_at DESC);
 CREATE INDEX IF NOT EXISTS idx_fid_mov_user             ON public.fidelity_movements(user_id, movimento_at DESC);
 CREATE INDEX IF NOT EXISTS idx_fid_mov_exp              ON public.fidelity_movements(customer_id, expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_reserv_user_locale_dt    ON public.reservations(user_id, locale, data_ora);
+CREATE INDEX IF NOT EXISTS idx_reserv_customer          ON public.reservations(customer_id);
+CREATE INDEX IF NOT EXISTS idx_reserv_user_stato        ON public.reservations(user_id, locale, stato, data_ora);
+CREATE INDEX IF NOT EXISTS idx_reserv_guest_phone       ON public.reservations(user_id, locale, guest_telefono) WHERE guest_telefono IS NOT NULL;
 
 
 -- ============================================================
@@ -1030,6 +1062,7 @@ ALTER TABLE public.promotion_redemptions      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fidelity_programs          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fidelity_rewards           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fidelity_movements         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reservations               ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -1119,6 +1152,7 @@ CREATE POLICY "own_promotion_redemptions" ON public.promotion_redemptions  FOR A
 CREATE POLICY "own_fid_programs"          ON public.fidelity_programs      FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_fid_rewards"           ON public.fidelity_rewards       FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_fid_movements"         ON public.fidelity_movements     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_reservations"          ON public.reservations           FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 
 

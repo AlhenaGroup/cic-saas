@@ -6,20 +6,21 @@ import { useState, useEffect } from 'react'
 import CustomersManager from '../components/marketing/CustomersManager'
 import PromotionsManager from '../components/marketing/PromotionsManager'
 import FidelityManager from '../components/marketing/FidelityManager'
+import ReservationsManager from '../components/marketing/ReservationsManager'
 
 const SUBTABS = [
+  { key: 'prenotaz', label: 'Prenotazioni' },
   { key: 'clienti',  label: 'Clienti' },
   { key: 'promo',    label: 'Promozioni' },
   { key: 'fidelity', label: 'Fidelity' },
   // prossimi step:
-  // { key: 'prenotaz', label: 'Prenotazioni' },
   // { key: 'campagne', label: 'Campagne' },
   // { key: 'reviews',  label: 'Recensioni' },
   // { key: 'centralino', label: 'Centralino' },
 ]
 
 export default function MarketingModule({ sp, sps }) {
-  const [tab, setTab] = useState(() => localStorage.getItem('mkt_tab') || 'clienti')
+  const [tab, setTab] = useState(() => localStorage.getItem('mkt_tab') || 'prenotaz')
   useEffect(() => { localStorage.setItem('mkt_tab', tab) }, [tab])
 
   return <div>
@@ -33,6 +34,7 @@ export default function MarketingModule({ sp, sps }) {
       }}>{t.label}</button>)}
     </div>
 
+    {tab === 'prenotaz' && <ReservationsManager sp={sp} sps={sps} />}
     {tab === 'clienti'  && <CustomersManager sp={sp} sps={sps} />}
     {tab === 'promo'    && <PromotionsManager sp={sp} sps={sps} />}
     {tab === 'fidelity' && <FidelityManager sp={sp} sps={sps} />}
