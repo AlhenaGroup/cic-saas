@@ -124,13 +124,19 @@ export async function getFromDailyStats(from, to, idsSalesPoint = []) {
         time: rd.aperturaComanda || rd.chiusuraComanda || '—',
         items: (rd.items || []).length,
         total: rd.totale || 0,
-        payment: '—',
+        payment: rd.metodoPagamento || rd.payment || '—',
         locale: spName,
         tavolo: rd.tavolo || null,
         coperti: rd.coperti || null,
         chiusura: rd.chiusuraComanda || null,
         isInvoice: !!rd.isInvoice,
         invoiceNumber: rd.invoiceNumber || null,
+        // Dettaglio comanda completo per il modal
+        cassiere: rd.cassiere || rd.user || null,
+        sconto: rd.sconto || null,
+        promozioni: rd.promozioni || null,
+        itemsList: rd.items || [],
+        rawReceipt: rd,
       }));
     }).sort((a,b) => (b.date + b.time).localeCompare(a.date + a.time)),
     // Monitoring events (annulli, sconti, ecc.) dai dati sincronizzati

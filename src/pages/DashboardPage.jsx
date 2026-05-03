@@ -12,6 +12,9 @@ import ContoEconomico from '../components/ContoEconomico'
 import IvaTab from '../components/IvaTab'
 import WidgetGrid from '../components/WidgetGrid'
 import DailyReportSettings from '../components/DailyReportSettings'
+import SubTabsBar from '../components/SubTabsBar'
+import ImpostazioniModule from '../components/ImpostazioniModule'
+import ReceiptDetailModal from '../components/ReceiptDetailModal'
 import { useUserPlan } from '../lib/features'
 
 // ─── Preset periodo globali (validi per tutti i moduli) ────────────────────
@@ -102,6 +105,7 @@ export default function DashboardPage({ settings }) {
   const [error,  setError]        = useState('')
   const [tab,    setTab]          = useState(() => localStorage.getItem('cic_tab') || 'ov')
   const [showDailyReport, setShowDailyReport] = useState(false)
+  const [openReceipt, setOpenReceipt] = useState(null) // scontrino aperto in modal
   const [recSearch,setRecSearch]  = useState('')
   const [fatSearch,setFatSearch]  = useState('')
   const [fatFilter,setFatFilter]  = useState('all')
@@ -315,9 +319,20 @@ export default function DashboardPage({ settings }) {
   const tS = (t) => ({padding:'8px 16px',borderRadius:6,fontSize:13,fontWeight:500,cursor:'pointer',border:'none',
     background:tab===t?'#F59E0B':'transparent',color:tab===t?'#0f1420':'#64748b',transition:'all .2s',position:'relative'})
 
-  const ALL_TABS=[['ov','📊 Panoramica'],['scontrini','🧾 Scontrini'],['cat','🏷️ Categorie'],
-              ['iva','📋 IVA'],['rep','🏪 Reparti'],
-              ['fat','📄 Fatture'],['mag','📦 Magazzino'],['prod','⏱️ Produttività'],['ce','📊 Conto Econ.'],['bud','💰 Budget'],['hr','👥 Personale'],['mkt','📣 Marketing']]
+  // Ordine top-level e label senza emoji.
+  // Vendite include scontrini/categorie/reparti come sotto-tab (gestiti via subTab state).
+  // Contabilità include fatture/IVA/chiusure come sotto-tab.
+  // 'scontrini', 'cat', 'rep' restano come keys interne ai sotto-tab di Vendite — le keys di
+  // ALL_TABS per la barra principale sono solo quelle qui sotto.
+  const ALL_TABS=[['ov','Panoramica'],['vendite','Vendite'],['mag','Magazzino'],['hr','HR'],
+              ['prod','Produttività'],['conta','Contabilità'],['mkt','Marketing'],
+              ['ce','Conto Economico'],['bud','Budget'],['imp','Impostazioni']]
+  // Sotto-tab Vendite (state separato per persistenza)
+  const [vendSubTab, setVendSubTab] = useState(() => localStorage.getItem('vend_subtab') || 'scontrini')
+  useEffect(() => { localStorage.setItem('vend_subtab', vendSubTab) }, [vendSubTab])
+  // Sotto-tab Contabilità
+  const [contaSubTab, setContaSubTab] = useState(() => localStorage.getItem('conta_subtab') || 'fatture')
+  useEffect(() => { localStorage.setItem('conta_subtab', contaSubTab) }, [contaSubTab])
   // Filtra in base al piano dell'utente (feature flag tab.X)
   const { features: planFeatures } = useUserPlan()
   const TABS = planFeatures ? ALL_TABS.filter(([k]) => planFeatures.tabs.has(k)) : ALL_TABS
@@ -412,8 +427,6 @@ export default function DashboardPage({ settings }) {
           title="Forza sync dati CiC nel periodo">
           {syncing?'⏳':'🔄'}
         </button>
-        <button onClick={()=>setShowDailyReport(true)} title="Configura il resoconto giornaliero via email"
-          style={{...iS,color:'#94a3b8',border:'1px solid #2a3042',padding:'6px 10px',cursor:'pointer'}}>📧</button>
         <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'#475569',border:'1px solid #2a3042',padding:'6px 12px'}}>Esci</button>
       </div>
     </div>
@@ -434,8 +447,8 @@ export default function DashboardPage({ settings }) {
     <div className="m-compact" style={{padding:'1.5rem',maxWidth:1400,margin:'0 auto'}}>
       {error&&<div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.25)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#FCA5A5',marginBottom:'1.5rem'}}>{error}</div>}
       {isEmpty&&<div style={{background:'rgba(148,163,184,.06)',border:'1px solid rgba(148,163,184,.2)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#94a3b8',marginBottom:'1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-        <span>📭 Nessun dato in questo periodo. Il sync notturno potrebbe non aver ancora processato queste date.</span>
-        <button onClick={forceSync} disabled={syncing} style={{...iS,background:syncing?'#1a1f2e':'#10B981',color:syncing?'#94a3b8':'#0f1420',fontWeight:600,border:'none',padding:'6px 14px',cursor:syncing?'wait':'pointer'}}>{syncing?'⏳ Sync in corso…':'🔄 Forza sync ora'}</button>
+        <span>Nessun dato in questo periodo. Il sync notturno potrebbe non aver ancora processato queste date.</span>
+        <button onClick={forceSync} disabled={syncing} style={{...iS,background:syncing?'#1a1f2e':'#10B981',color:syncing?'#94a3b8':'#0f1420',fontWeight:600,border:'none',padding:'6px 14px',cursor:syncing?'wait':'pointer'}}>{syncing?'Sync in corso…':'Forza sync ora'}</button>
       </div>}
       {isLive&&<div style={{background:'rgba(59,130,246,.06)',border:'1px solid rgba(59,130,246,.2)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'#60A5FA',marginBottom:'1.25rem'}}>
         🔵 Dati live da CiC (non ancora salvati nel DB). Il sync notturno li archivierà automaticamente.
@@ -505,8 +518,21 @@ export default function DashboardPage({ settings }) {
         </div>
       </>}
 
-      {/* ── SCONTRINI ── */}
-      {tab==='scontrini'&&<>
+      {/* ── VENDITE: wrapper con sotto-tab Scontrini/Categorie/Reparti ── */}
+      {tab==='vendite'&&<>
+        <SubTabsBar
+          tabs={[
+            { key: 'scontrini', label: 'Scontrini' },
+            { key: 'cat',       label: 'Categorie' },
+            { key: 'rep',       label: 'Reparti' },
+          ]}
+          value={vendSubTab}
+          onChange={setVendSubTab}
+        />
+      </>}
+
+      {/* ── SCONTRINI (dentro Vendite) ── */}
+      {tab==='vendite' && vendSubTab==='scontrini'&&<>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
           <KPI label="Totale" value={fmt(totale)} sub="periodo" accent='#F59E0B'/>
           <KPI label="N° scontrini" value={fmtN(data?.scontrini)} sub="emessi" accent='#3B82F6'/>
@@ -522,9 +548,11 @@ export default function DashboardPage({ settings }) {
               </tr></thead>
               <tbody>
                 {recs.filter(r=>!recSearch||r.locale?.toLowerCase().includes(recSearch.toLowerCase())||r.id.includes(recSearch)||(r.tavolo||'').toLowerCase().includes(recSearch.toLowerCase())).slice(0,100).map((r,i)=>(
-                  <tr key={i} style={r.isInvoice?{background:'rgba(139,92,246,.06)'}:{}}>
-                    <td style={{...S.td,fontWeight:600,color:r.isInvoice?'#8B5CF6':'#475569'}}>
-                      {r.isInvoice && <span style={S.badge('#8B5CF6','rgba(139,92,246,.15)')} title="Fattura emessa">📄 FATT</span>}
+                  <tr key={i} onClick={()=>setOpenReceipt(r)}
+                    style={{...(r.isInvoice?{background:'rgba(139,92,246,.06)'}:{}), cursor:'pointer'}}
+                    title="Clicca per vedere il dettaglio comanda">
+                    <td style={{...S.td,fontWeight:600,color:r.isInvoice?'#8B5CF6':'#3B82F6'}}>
+                      {r.isInvoice && <span style={S.badge('#8B5CF6','rgba(139,92,246,.15)')} title="Fattura emessa">FATT</span>}
                       {' '}{r.id}
                     </td>
                     <td style={S.td}>{r.date}</td>
@@ -544,7 +572,7 @@ export default function DashboardPage({ settings }) {
       </>}
 
       {/* ── CATEGORIE ── */}
-      {tab==='cat'&&<>
+      {tab==='vendite' && vendSubTab==='cat'&&<>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:'1.25rem'}}>
           <Card title="Venduto per categoria">
             {cats.map((c,i)=><Bar2 key={i} label={c.description} value={c.total||0} max={cats[0]?.total||1} color={C[i%C.length]} pct={totale>0?(c.total/totale*100).toFixed(1):0}/>)}
@@ -566,10 +594,28 @@ export default function DashboardPage({ settings }) {
       </>}
 
       {/* ── IVA (nuovo: a debito + a credito + saldo, mensile/trimestrale) ── */}
-      {tab==='iva'&&<IvaTab sp={sp} sps={sps} from={from} to={to}/>}
+      {/* ── CONTABILITÀ: wrapper con sotto-tab Fatture/IVA/Chiusure ── */}
+      {tab==='conta'&&<>
+        <SubTabsBar
+          tabs={[
+            { key: 'fatture',   label: 'Fatture' },
+            { key: 'iva',       label: 'IVA' },
+            { key: 'chiusure',  label: 'Chiusure & Versamenti' },
+          ]}
+          value={contaSubTab}
+          onChange={setContaSubTab}
+        />
+      </>}
+
+      {tab==='conta' && contaSubTab==='iva'&&<IvaTab sp={sp} sps={sps} from={from} to={to}/>}
+      {tab==='conta' && contaSubTab==='chiusure'&&<Card title="Chiusure & Versamenti">
+        <div style={{ padding: 30, color: '#94a3b8', textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
+          Sezione in arrivo. Da definire insieme a Gianmarco: chiusure di cassa, versamenti contanti/POS/Satispay, riconciliazione con fatture e scontrini.
+        </div>
+      </Card>}
 
       {/* ── REPARTI ── */}
-      {tab==='rep'&&<>
+      {tab==='vendite' && vendSubTab==='rep'&&<>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
           {depts.filter(d=>d.profit>0).map((d,i)=>(
             <div key={i} style={S.card}>
@@ -764,7 +810,7 @@ export default function DashboardPage({ settings }) {
       })()}
 
       {/* ── FATTURE PASSIVE ── */}
-      {tab==='fat'&&<InvoiceTab sp={sp} sps={sps} from={from} to={to} fatSearch={fatSearch} setFatSearch={setFatSearch}/>}
+      {tab==='conta' && contaSubTab==='fatture'&&<InvoiceTab sp={sp} sps={sps} from={from} to={to} fatSearch={fatSearch} setFatSearch={setFatSearch}/>}
 
       {/* vecchio tab fatture rimosso - ora usa InvoiceTab */}
       {false&&(()=>{
@@ -1086,9 +1132,13 @@ export default function DashboardPage({ settings }) {
       {/* ── MARKETING ── */}
       {tab==='mkt'&&<MarketingModule sp={sp} sps={sps} from={from} to={to} onTasksChange={loadMktBadge}/>}
 
+      {/* ── IMPOSTAZIONI ── */}
+      {tab==='imp'&&<ImpostazioniModule settings={settings} sps={sps}/>}
+
       </>}
     </div>
 
     {showDailyReport && <DailyReportSettings onClose={()=>setShowDailyReport(false)}/>}
+    {openReceipt && <ReceiptDetailModal receipt={openReceipt} onClose={()=>setOpenReceipt(null)}/>}
   </div>
 }
