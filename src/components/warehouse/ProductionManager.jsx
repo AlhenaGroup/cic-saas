@@ -143,6 +143,7 @@ function SchedeTab({ sp, sps }) {
       nome: '', locale_produzione: allLocali[0] || '', locale_destinazione: '',
       ingredienti: [], procedimento: '', allergeni: [], conservazione: '+4°C frigo',
       shelf_life_days: 3, resa_quantita: '', resa_unita: 'KG', attivo: true,
+      checklist_haccp_template: [], richiede_foto: false, durata_attesa_minuti: '',
     })}
       style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '6px 14px', cursor: 'pointer' }}>
       + Nuova scheda
@@ -274,6 +275,8 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
         ingredienti: (r.ingredienti || []).filter(i => i.nome_articolo?.trim() && i.quantita),
         resa_quantita: r.resa_quantita ? Number(r.resa_quantita) : null,
         shelf_life_days: r.shelf_life_days ? Number(r.shelf_life_days) : null,
+        durata_attesa_minuti: r.durata_attesa_minuti ? Number(r.durata_attesa_minuti) : null,
+        checklist_haccp_template: Array.isArray(r.checklist_haccp_template) ? r.checklist_haccp_template.filter(it => it.label?.trim()) : [],
       }
       if (isNew) {
         const { data: { user } } = await supabase.auth.getUser()
@@ -408,6 +411,48 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
             rows={4} style={{ ...iS, width: '100%', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
         </label>
 
+        {/* Configurazione mobile produzione */}
+        <div style={{ borderTop: '1px solid #2a3042', paddingTop: 14, marginTop: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📱 Configurazione mobile (per dipendenti)</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <label>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Durata attesa (min)</div>
+              <input type="number" value={r.durata_attesa_minuti ?? ''} onChange={e => update('durata_attesa_minuti', e.target.value)}
+                placeholder="es. 30" style={{ ...iS, width: '100%' }} />
+              <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>Mostrato come riferimento al dipendente</div>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#e2e8f0', cursor: 'pointer', padding: '20px 0 0' }}>
+              <input type="checkbox" checked={!!r.richiede_foto} onChange={e => update('richiede_foto', e.target.checked)} />
+              Richiedi foto del prodotto finito
+            </label>
+          </div>
+          {/* Checklist HACCP */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>Checklist HACCP <span style={{ color: '#64748b' }}>(domande OK/KO da compilare durante la produzione)</span></div>
+              <button onClick={() => update('checklist_haccp_template', [...(r.checklist_haccp_template || []), { id: crypto.randomUUID(), label: '', required: true }])}
+                style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                + Domanda
+              </button>
+            </div>
+            {(r.checklist_haccp_template || []).length === 0 && (
+              <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>Nessuna domanda. Esempi: "Temperatura cottura corretta", "Attrezzatura sanificata", "Conservazione coperta".</div>
+            )}
+            {(r.checklist_haccp_template || []).map((it, i) => (
+              <div key={it.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 6, marginBottom: 4 }}>
+                <input value={it.label} onChange={e => update('checklist_haccp_template', r.checklist_haccp_template.map((x, idx) => idx === i ? { ...x, label: e.target.value } : x))}
+                  placeholder={`Domanda ${i + 1}`} style={{ ...iS, width: '100%' }} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8' }}>
+                  <input type="checkbox" checked={!!it.required} onChange={e => update('checklist_haccp_template', r.checklist_haccp_template.map((x, idx) => idx === i ? { ...x, required: e.target.checked } : x))} />
+                  Obbl.
+                </label>
+                <button onClick={() => update('checklist_haccp_template', r.checklist_haccp_template.filter((_, idx) => idx !== i))}
+                  style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#94a3b8', cursor: 'pointer' }}>
           <input type="checkbox" checked={!!r.attivo} onChange={e => update('attivo', e.target.checked)} />
           Scheda attiva (i dipendenti possono usarla per nuovi lotti)
@@ -450,6 +495,7 @@ function LottiTab({ sp, sps }) {
   const [creating, setCreating] = useState(null) // null | { recipe, qty, ... }
   const [filterLocale, setFilterLocale] = useState('')
   const [filterStato, setFilterStato] = useState('')
+  const [filterMobile, setFilterMobile] = useState('') // '' | 'mobile' | 'admin'
 
   const allLocali = useMemo(() => [...new Set((sps || []).map(s => s.description).filter(Boolean))], [sps])
 
@@ -468,8 +514,35 @@ function LottiTab({ sp, sps }) {
   const filtered = useMemo(() => batches.filter(b => {
     if (filterLocale && b.locale_produzione !== filterLocale) return false
     if (filterStato && b.stato !== filterStato) return false
+    if (filterMobile === 'mobile' && !b.da_mobile) return false
+    if (filterMobile === 'admin' && b.da_mobile) return false
     return true
-  }), [batches, filterLocale, filterStato])
+  }), [batches, filterLocale, filterStato, filterMobile])
+
+  // Helper anomalie
+  const getAnomalie = (b) => {
+    const anom = []
+    const recipe = recipes.find(r => r.id === b.recipe_id)
+    if (recipe) {
+      // Resa anomala (±20% rispetto a scheda)
+      if (recipe.resa_quantita && b.quantita_prodotta) {
+        const ratio = Number(b.quantita_prodotta) / Number(recipe.resa_quantita)
+        if (ratio < 0.8 || ratio > 1.2) anom.push({ tipo: 'resa', label: `Resa ${Math.round(ratio * 100)}% (atteso 100%)` })
+      }
+      // Durata anomala
+      if (recipe.durata_attesa_minuti && b.durata_minuti) {
+        if (b.durata_minuti < recipe.durata_attesa_minuti * 0.5) {
+          anom.push({ tipo: 'durata', label: `Solo ${b.durata_minuti}min (attesi ~${recipe.durata_attesa_minuti}min)` })
+        }
+      }
+    }
+    // Checklist HACCP con risposte KO
+    if (b.checklist_haccp && typeof b.checklist_haccp === 'object') {
+      const ko = Object.values(b.checklist_haccp).filter(v => v === false).length
+      if (ko > 0) anom.push({ tipo: 'checklist', label: `${ko} check KO` })
+    }
+    return anom
+  }
 
   const annulla = async (b) => {
     if (!confirm(`Annullare il lotto ${b.lotto}? I movimenti magazzino NON vengono ripristinati automaticamente.`)) return
@@ -500,6 +573,11 @@ function LottiTab({ sp, sps }) {
           <option value="scaduto">Scaduti</option>
           <option value="annullato">Annullati</option>
         </select>
+        <select value={filterMobile} onChange={e => setFilterMobile(e.target.value)} style={iS}>
+          <option value="">Tutte le origini</option>
+          <option value="mobile">📱 Da mobile</option>
+          <option value="admin">Solo da admin</option>
+        </select>
       </div>
 
       {loading ? (
@@ -512,7 +590,7 @@ function LottiTab({ sp, sps }) {
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
-              {['Lotto', 'Prodotto', 'Data', 'Scadenza', 'Locale', 'Quantità', 'Operatore', 'Stato', ''].map(h =>
+              {['Lotto', 'Prodotto', 'Data', 'Scadenza', 'Locale', 'Quantità', 'Durata', 'Operatore', 'Anomalie', 'Stato', ''].map(h =>
                 <th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
             <tbody>
@@ -520,8 +598,12 @@ function LottiTab({ sp, sps }) {
                 const oggi = new Date().toISOString().slice(0, 10)
                 const isScaduto = b.data_scadenza && b.data_scadenza < oggi
                 const giorniMancanti = b.data_scadenza ? Math.ceil((new Date(b.data_scadenza) - new Date(oggi)) / 86400000) : null
+                const anomalie = getAnomalie(b)
                 return <tr key={b.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                  <td style={{ ...S.td, fontFamily: 'monospace', fontWeight: 700, color: '#3B82F6' }}>{b.lotto}</td>
+                  <td style={{ ...S.td, fontFamily: 'monospace', fontWeight: 700, color: '#3B82F6' }}>
+                    {b.lotto}
+                    {b.da_mobile && <span title="Creato da mobile (dipendente)" style={{ marginLeft: 4, fontSize: 11 }}>📱</span>}
+                  </td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{b.recipe_id ? (recipes.find(r => r.id === b.recipe_id)?.nome || '—') : '—'}</td>
                   <td style={{ ...S.td, fontSize: 11 }}>{b.data_produzione} <span style={{ color: '#64748b' }}>{(b.ora_produzione || '').slice(0, 5)}</span></td>
                   <td style={{ ...S.td, color: isScaduto ? '#EF4444' : (giorniMancanti != null && giorniMancanti <= 1 ? '#F59E0B' : '#94a3b8') }}>
@@ -537,7 +619,23 @@ function LottiTab({ sp, sps }) {
                     )}
                   </td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{b.quantita_prodotta} {b.unita || ''}</td>
+                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
+                    {b.durata_minuti != null ? `${b.durata_minuti} min` : '—'}
+                  </td>
                   <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{b.operatore_nome || '—'}</td>
+                  <td style={S.td}>
+                    {anomalie.length === 0 ? (
+                      <span style={{ color: '#475569', fontSize: 11 }}>—</span>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {anomalie.map((a, i) => (
+                          <span key={i} title={a.label} style={{ ...S.badge('#F59E0B', 'rgba(245,158,11,.12)'), fontSize: 10 }}>
+                            ⚠ {a.tipo}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td style={S.td}>
                     {b.stato === 'attivo' && <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Attivo</span>}
                     {b.stato === 'consumato' && <span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>Consumato</span>}

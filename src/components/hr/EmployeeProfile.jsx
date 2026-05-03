@@ -125,7 +125,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
 
     {/* Sub-tabs */}
     <div style={{display:'flex',gap:4,marginBottom:16,borderBottom:'1px solid #2a3042',paddingBottom:8,flexWrap:'wrap'}}>
-      {[['info','Anagrafica'],['paga','Compensi'],['timeoff','Ferie/Permessi'],['ore','Banca Ore'],['consumi','🍪 Consumi'],['permessi','🔐 Permessi app']].map(([k,l])=>
+      {[['info','Anagrafica'],['paga','Compensi'],['timeoff','Ferie/Permessi'],['ore','Banca Ore'],['consumi','🍪 Consumi'],['produzioni','🥘 Produzioni'],['permessi','🔐 Permessi app']].map(([k,l])=>
         <button key={k} onClick={()=>setSubTab(k)} style={tabStyle(k)}>{l}</button>
       )}
     </div>
@@ -437,6 +437,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
 
     {/* PERMESSI APP DIPENDENTE */}
     {subTab==='consumi' && <ConsumiTab emp={emp} />}
+    {subTab==='produzioni' && <ProduzioniTab emp={emp} />}
     {subTab==='permessi' && <PermessiTab emp={emp} onSaved={(newPerms)=>{ setEmp({...emp, permissions: newPerms}); if (onUpdate) onUpdate() }} />}
   </div>
 }
@@ -667,3 +668,116 @@ function ConsumiTab({ emp }) {
   </Card>
 }
 
+
+// ─── PRODUZIONI ──────────────────────────────────────────────────────
+// Storico lotti production_batches creati dal dipendente (operatore_id = emp.id)
+function ProduzioniTab({ emp }) {
+  const [batches, setBatches] = useState([])
+  const [recipes, setRecipes] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      const [b, r] = await Promise.all([
+        supabase.from('production_batches').select('*').eq('operatore_id', emp.id).order('created_at', { ascending: false }).limit(200),
+        supabase.from('production_recipes').select('id,nome,resa_quantita,resa_unita,durata_attesa_minuti'),
+      ])
+      if (cancelled) return
+      setBatches(b.data || [])
+      setRecipes(r.data || [])
+      setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [emp.id])
+
+  const recipesById = Object.fromEntries(recipes.map(r => [r.id, r]))
+
+  // Statistiche
+  const totLotti = batches.length
+  const today = new Date().toISOString().slice(0, 10)
+  const oggi = batches.filter(b => b.data_produzione === today).length
+  const trenta = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  const last30 = batches.filter(b => b.data_produzione >= trenta).length
+  const totDurata = batches.reduce((s, b) => s + (Number(b.durata_minuti) || 0), 0)
+  const mediaDurata = totLotti > 0 ? Math.round(totDurata / totLotti) : 0
+
+  // Anomalie
+  const getAnomalie = (b) => {
+    const anom = []
+    const recipe = recipesById[b.recipe_id]
+    if (recipe) {
+      if (recipe.resa_quantita && b.quantita_prodotta) {
+        const ratio = Number(b.quantita_prodotta) / Number(recipe.resa_quantita)
+        if (ratio < 0.8 || ratio > 1.2) anom.push(`Resa ${Math.round(ratio * 100)}%`)
+      }
+      if (recipe.durata_attesa_minuti && b.durata_minuti && b.durata_minuti < recipe.durata_attesa_minuti * 0.5) {
+        anom.push(`Solo ${b.durata_minuti}'`)
+      }
+    }
+    if (b.checklist_haccp && typeof b.checklist_haccp === 'object') {
+      const ko = Object.values(b.checklist_haccp).filter(v => v === false).length
+      if (ko > 0) anom.push(`${ko} check KO`)
+    }
+    return anom
+  }
+
+  return <Card title='🥘 Produzioni' badge={loading ? 'Caricamento…' : totLotti + ' lotti totali'}>
+    {!loading && (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
+        <KPI label='Lotti totali' icon='🥘' value={totLotti} sub='prodotti' accent='#EF4444' />
+        <KPI label='Oggi' icon='📅' value={oggi} sub='lotti' accent='#10B981' />
+        <KPI label='Ultimi 30gg' icon='📊' value={last30} sub='lotti' accent='#3B82F6' />
+        <KPI label='Durata media' icon='⏱' value={mediaDurata + " '"} sub='per lotto' accent='#F59E0B' />
+      </div>
+    )}
+    {loading ? (
+      <div style={{ padding: 20, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+    ) : totLotti === 0 ? (
+      <div style={{ padding: 24, color: '#64748b', textAlign: 'center', fontSize: 13 }}>Nessun lotto registrato.</div>
+    ) : (
+      <div style={{ overflowX: 'auto', maxHeight: 500 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead style={{ position: 'sticky', top: 0, background: '#131825' }}>
+            <tr style={{ borderBottom: '1px solid #2a3042' }}>
+              {['Data', 'Lotto', 'Prodotto', 'Locale', 'Quantità', 'Durata', 'Anomalie'].map(h => <th key={h} style={S.th}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {batches.map(b => {
+              const dt = b.data_produzione
+              const ora = (b.ora_produzione || '').slice(0, 5)
+              const recipe = recipesById[b.recipe_id]
+              const anomalie = getAnomalie(b)
+              return <tr key={b.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                <td style={{ ...S.td, fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                  {dt} <span style={{ color: '#64748b', marginLeft: 4 }}>{ora}</span>
+                </td>
+                <td style={{ ...S.td, fontFamily: 'monospace', color: '#3B82F6', fontWeight: 600 }}>
+                  {b.lotto}
+                  {b.da_mobile && <span title='Da mobile' style={{ marginLeft: 4, fontSize: 11 }}>📱</span>}
+                </td>
+                <td style={{ ...S.td, fontWeight: 600 }}>{recipe?.nome || '—'}</td>
+                <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{b.locale_produzione}</td>
+                <td style={{ ...S.td, fontWeight: 600 }}>{b.quantita_prodotta} {b.unita || ''}</td>
+                <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{b.durata_minuti != null ? b.durata_minuti + ' min' : '—'}</td>
+                <td style={S.td}>
+                  {anomalie.length === 0 ? (
+                    <span style={{ color: '#475569', fontSize: 11 }}>—</span>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                      {anomalie.map((a, i) => (
+                        <span key={i} style={{ ...S.badge('#F59E0B', 'rgba(245,158,11,.12)'), fontSize: 10 }}>⚠ {a}</span>
+                      ))}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            })}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </Card>
+}
