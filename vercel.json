@@ -4,7 +4,8 @@
   ],
   "rewrites": [
     { "source": "/timbra", "destination": "/index.html" },
-    { "source": "/admin", "destination": "/index.html" }
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/lotto/:code*", "destination": "/index.html" }
   ],
   "functions": {
     "api/*.js": {

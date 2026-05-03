@@ -87,8 +87,7 @@ export default function ProductionManager({ sp, sps }) {
 
     {subTab === 'schede' && <SchedeTab sp={sp} sps={sps} />}
     {subTab === 'lotti' && <LottiTab sp={sp} sps={sps} />}
-    {subTab === 'tracciabilita' && <PlaceholderTab title="🔍 Tracciabilità lotti"
-      msg="In arrivo (commit 3): cerca un lotto e vedi da quali ingredienti deriva (con i loro lotti origine fattura), dove è andato (trasferimenti), quali consumi/vendite hanno usato questo lotto." />}
+    {subTab === 'tracciabilita' && <TracciabilitaTab sp={sp} sps={sps} />}
   </>
 }
 
@@ -861,4 +860,172 @@ async function printEtichetta(batches, recipe) {
   if (!w) { alert('Popup bloccato — abilita i popup per stampare l\'etichetta.'); return }
   w.document.write(html); w.document.close()
   setTimeout(() => { w.focus(); w.print() }, 400)
+}
+
+// ─── TRACCIABILITÀ ──────────────────────────────────────────────
+// Cerca un lotto, mostra: scheda origine, ingredienti usati con
+// lotti origine fattura (one step back), movimenti magazzino
+// generati dal batch (one step forward = dove sono finiti i prodotti).
+function TracciabilitaTab({ sp, sps }) {
+  const [search, setSearch] = useState('')
+  const [batches, setBatches] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [movements, setMovements] = useState([])
+  const [origini, setOrigini] = useState({}) // nome_articolo → [{fattura, fornitore, data}]
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const { data } = await supabase.from('production_batches')
+      .select('*').order('created_at', { ascending: false }).limit(100)
+    setBatches(data || [])
+    setLoading(false)
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const openBatch = async (b) => {
+    setSelected(b)
+    // Movimenti generati dal batch (carico prodotto + scarichi ingredienti)
+    const { data: movs } = await supabase.from('article_movement')
+      .select('*').eq('production_batch_id', b.id).order('created_at')
+    setMovements(movs || [])
+    // Origini ingredienti: per ogni ingrediente cerco le fatture recenti (last 90gg) dello stesso locale
+    const origs = {}
+    for (const ing of (b.ingredienti_usati || [])) {
+      if (!ing.nome_articolo) continue
+      const { data: items } = await supabase.from('warehouse_invoice_items')
+        .select('warehouse_invoices!inner(data,fornitore,locale,numero)')
+        .eq('nome_articolo', ing.nome_articolo)
+        .eq('warehouse_invoices.locale', b.locale_produzione)
+        .lte('warehouse_invoices.data', b.data_produzione)
+        .order('warehouse_invoices(data)', { ascending: false })
+        .limit(3)
+      origs[ing.nome_articolo] = (items || []).map(it => it.warehouse_invoices).filter(Boolean)
+    }
+    setOrigini(origs)
+  }
+
+  const filtered = batches.filter(b => {
+    if (!search) return true
+    const s = search.toLowerCase()
+    return b.lotto.toLowerCase().includes(s)
+      || (b.operatore_nome || '').toLowerCase().includes(s)
+      || (b.locale_produzione || '').toLowerCase().includes(s)
+  })
+
+  return <Card title="🔍 Tracciabilità lotti" badge={loading ? '...' : `${filtered.length} lotti`}>
+    <input value={search} onChange={e => setSearch(e.target.value)}
+      placeholder="🔍 Cerca lotto (es. P-20260503-001)…"
+      style={{ ...iS, width: '100%', marginBottom: 12 }} />
+
+    {loading ? (
+      <div style={{ padding: 24, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+    ) : filtered.length === 0 ? (
+      <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
+        Nessun lotto trovato. Crea un primo lotto nella tab "Lotti".
+      </div>
+    ) : (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+        {/* Lista lotti */}
+        <div style={{ maxHeight: 540, overflowY: 'auto', borderRight: '1px solid #2a3042', paddingRight: 8 }}>
+          {filtered.map(b => {
+            const sel = selected?.id === b.id
+            return <button key={b.id} onClick={() => openBatch(b)}
+              style={{ width: '100%', textAlign: 'left', padding: '10px 12px', marginBottom: 4,
+                background: sel ? 'rgba(59,130,246,.12)' : '#131825',
+                border: `1px solid ${sel ? '#3B82F6' : '#2a3042'}`,
+                borderRadius: 8, cursor: 'pointer', color: '#e2e8f0' }}>
+              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color: '#3B82F6' }}>{b.lotto}</div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{b.data_produzione} · {b.locale_produzione}</div>
+            </button>
+          })}
+        </div>
+
+        {/* Dettaglio + timeline */}
+        <div style={{ maxHeight: 540, overflowY: 'auto' }}>
+          {!selected ? (
+            <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 12 }}>
+              ← Seleziona un lotto per vedere la tracciabilità
+            </div>
+          ) : <>
+            <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+              <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#3B82F6', fontSize: 14 }}>{selected.lotto}</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+                {selected.data_produzione} {(selected.ora_produzione || '').slice(0, 5)} · {selected.locale_produzione}
+                {selected.locale_destinazione && selected.locale_destinazione !== selected.locale_produzione && ` → ${selected.locale_destinazione}`}
+              </div>
+              <div style={{ fontSize: 12, marginTop: 6 }}>{selected.quantita_prodotta} {selected.unita || ''} prodotti{selected.operatore_nome ? ` · ${selected.operatore_nome}` : ''}</div>
+            </div>
+
+            {/* ONE STEP BACK: ingredienti origine */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                ◀ Ingredienti origine (one step back)
+              </div>
+              {(selected.ingredienti_usati || []).length === 0 ? (
+                <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>Nessun ingrediente registrato.</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+                    {['Articolo', 'Quantità', 'Ultima fattura'].map(h => <th key={h} style={S.th}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {(selected.ingredienti_usati || []).map((i, idx) => {
+                      const orig = origini[i.nome_articolo] || []
+                      const last = orig[0]
+                      return <tr key={idx} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                        <td style={{ ...S.td, fontWeight: 600 }}>{i.nome_articolo}</td>
+                        <td style={{ ...S.td }}>{i.quantita} {i.unita || ''}</td>
+                        <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
+                          {last ? <>{last.data} · {last.fornitore}{last.numero ? ` (#${last.numero})` : ''}</> : <span style={{ color: '#475569' }}>—</span>}
+                        </td>
+                      </tr>
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* ONE STEP FORWARD: movimenti magazzino generati */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+                ▶ Movimenti generati (one step forward)
+              </div>
+              {movements.length === 0 ? (
+                <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>Nessun movimento collegato.</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+                    {['Tipo', 'Articolo', 'Quantità', 'Locale'].map(h => <th key={h} style={S.th}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {movements.map(m => {
+                      const colorByTipo = { carico: '#10B981', scarico: '#EF4444', trasferimento_out: '#8B5CF6', trasferimento_in: '#06B6D4' }
+                      return <tr key={m.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                        <td style={S.td}>
+                          <span style={S.badge(colorByTipo[m.tipo] || '#94a3b8', (colorByTipo[m.tipo] || '#94a3b8') + '22')}>{m.tipo}</span>
+                        </td>
+                        <td style={{ ...S.td, fontWeight: 600 }}>{m.nome_articolo}</td>
+                        <td style={{ ...S.td }}>{Number(m.quantita).toFixed(2)} {m.unita || ''}</td>
+                        <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{m.locale}{m.sub_location_target ? ` → ${m.sub_location_target}` : ''}</td>
+                      </tr>
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Link pagina pubblica */}
+            <div style={{ marginTop: 16, padding: 10, background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 6, fontSize: 11 }}>
+              🔗 Pagina pubblica del lotto:&nbsp;
+              <a href={`/lotto/${encodeURIComponent(selected.lotto)}`} target="_blank" rel="noreferrer"
+                style={{ color: '#3B82F6', fontFamily: 'monospace', textDecoration: 'underline' }}>
+                /lotto/{selected.lotto}
+              </a>
+            </div>
+          </>}
+        </div>
+      </div>
+    )}
+  </Card>
 }

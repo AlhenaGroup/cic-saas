@@ -6,6 +6,7 @@ import TimbraPage from './pages/TimbraPage'
 import AdminPage from './pages/AdminPage'
 import WaitingPage from './pages/WaitingPage'
 import SetPasswordPage from './pages/SetPasswordPage'
+import LottoPage from './pages/LottoPage'
 
 // Detect magic link arrivato dal supabase auth redirect (invite o recovery).
 // Nel hash dopo '#' c'e' qualcosa tipo: access_token=...&type=invite&...
@@ -22,6 +23,11 @@ export default function App() {
   // Routing: /timbra → pagina pubblica timbratura
   if (window.location.pathname === '/timbra' || window.location.search.includes('timbra=1')) {
     return <TimbraPage />
+  }
+  // Routing: /lotto/<codice> → pagina pubblica tracciabilità lotto produzione (per ASL/clienti)
+  if (window.location.pathname.startsWith('/lotto/')) {
+    const code = decodeURIComponent(window.location.pathname.slice('/lotto/'.length).split('/')[0])
+    return <LottoPage code={code} />
   }
   // Routing: /admin → pagina admin (richiede login + flag is_admin)
   const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')
