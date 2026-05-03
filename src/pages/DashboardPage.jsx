@@ -5,7 +5,6 @@ import { getToken, getSalesPoints, getReportData, getFromDailyStats } from '../l
 import { fmt, fmtD, fmtN, pct, today, monthStart, prevPeriod, deltaFmt, C, S, KPI, Card, Bar2, Tip, Loader } from '../components/shared/styles.jsx'
 import HRModule from './HRModule'
 import WarehouseModule from './WarehouseModule'
-import MarketingModule from './MarketingModule'
 import BudgetModule from './BudgetModule'
 import InvoiceTab from '../components/InvoiceTab'
 import ContoEconomico from '../components/ContoEconomico'
@@ -296,25 +295,6 @@ export default function DashboardPage({ settings }) {
     } finally { setSyncing(false) }
   }, [settings?.cic_api_key, from, to, load])
 
-  // ─── Marketing tasks urgent badge ────────────────────────────────────────
-  const [mktUrgentCount, setMktUrgentCount] = useState(0)
-  const loadMktBadge = useCallback(async () => {
-    try {
-      const today = new Date()
-      const tomorrow = new Date(today.getTime() + 86400000)
-      const tomorrowStr = tomorrow.toISOString().slice(0, 10)
-      const { count } = await supabase
-        .from('marketing_tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('stato', 'open')
-        .not('scadenza', 'is', null)
-        .lte('scadenza', tomorrowStr)
-      setMktUrgentCount(count || 0)
-    } catch { /* tabella non ancora presente: fallback silenzioso */ }
-  }, [])
-  useEffect(() => { loadMktBadge() }, [loadMktBadge])
-  // Refresh del badge quando si torna sulla tab marketing o si lascia la tab
-  useEffect(() => { if (tab === 'mkt' || tab === 'ov') loadMktBadge() }, [tab, loadMktBadge])
 
   const iS = S.input
   const tS = (t) => ({padding:'8px 16px',borderRadius:6,fontSize:13,fontWeight:500,cursor:'pointer',border:'none',
@@ -326,7 +306,7 @@ export default function DashboardPage({ settings }) {
   // 'scontrini', 'cat', 'rep' restano come keys interne ai sotto-tab di Vendite — le keys di
   // ALL_TABS per la barra principale sono solo quelle qui sotto.
   const ALL_TABS=[['ov','Panoramica'],['vendite','Vendite'],['mag','Magazzino'],['hr','HR'],
-              ['prod','Produttività'],['conta','Contabilità'],['mkt','Marketing'],
+              ['prod','Produttività'],['conta','Contabilità'],
               ['ce','Conto Economico'],['bud','Budget'],['avvisi','Avvisi'],['imp','Impostazioni']]
   // Sotto-tab Vendite (state separato per persistenza)
   const [vendSubTab, setVendSubTab] = useState(() => localStorage.getItem('vend_subtab') || 'scontrini')
@@ -437,10 +417,6 @@ export default function DashboardPage({ settings }) {
       {TABS.map(([t,l])=>(
         <button key={t} onClick={()=>setTab(t)} style={{...tS(t),whiteSpace:'nowrap',flexShrink:0}}>
           {l}
-          {t==='mkt'&&mktUrgentCount>0&&<span style={{
-            marginLeft:6,background:'#EF4444',color:'#fff',borderRadius:10,
-            padding:'1px 7px',fontSize:10,fontWeight:700,verticalAlign:'middle'
-          }}>{mktUrgentCount}</span>}
         </button>
       ))}
     </div>
@@ -1129,9 +1105,6 @@ export default function DashboardPage({ settings }) {
 
       {/* ── PERSONALE ── */}
       {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps}/>}
-
-      {/* ── MARKETING ── */}
-      {tab==='mkt'&&<MarketingModule sp={sp} sps={sps} from={from} to={to} onTasksChange={loadMktBadge}/>}
 
       {/* ── AVVISI ── */}
       {tab==='avvisi'&&<AvvisiModule/>}

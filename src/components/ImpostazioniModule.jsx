@@ -138,12 +138,6 @@ function IntegrazioniTab({ settings }) {
       descr: 'Auto-assegnazione fatture utenze (POD/PDR) ai locali corrispondenti.',
       stato: 'connected',
     },
-    {
-      id: 'plateform',
-      nome: 'Plateform CRM',
-      descr: 'Importazione clienti e prenotazioni per analisi RFM nel modulo Marketing.',
-      stato: 'pending',
-    },
   ]
 
   const STATO = {

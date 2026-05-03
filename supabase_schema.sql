@@ -758,57 +758,9 @@ CREATE POLICY "own_layout"     ON public.user_widget_layout     FOR ALL    USING
 -- Piano default 'Full' (tutto incluso)
 INSERT INTO public.feature_plans (id, name, description, features, is_default)
 VALUES ('full', 'Full', 'Tutto incluso. Piano default per fase pilota Alhena Group.',
-  '{"tabs":["ov","scontrini","cat","iva","rep","susp","fat","prod","ce","hr","mkt","bud","mag"],"widgets":["*"]}'::jsonb,
+  '{"tabs":["ov","scontrini","cat","iva","rep","susp","fat","prod","ce","hr","bud","mag"],"widgets":["*"]}'::jsonb,
   true)
 ON CONFLICT (id) DO NOTHING;
-
-
--- ============================================================
--- 5. MARKETING TABLES
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS public.marketing_tasks (
-  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid NOT NULL,
-  titolo text NOT NULL,
-  tipo text NOT NULL DEFAULT 'altro'::text,
-  locale text,
-  scadenza date,
-  priorita text NOT NULL DEFAULT 'planned'::text,
-  stato text NOT NULL DEFAULT 'open'::text,
-  note text,
-  auto_generated boolean NOT NULL DEFAULT false,
-  source text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  completed_at timestamp with time zone
-);
-
--- NOTA: plateform_customers e' referenziata dal codice (RFMSegmentation)
--- ma NON esiste in produzione. Creandola qui rendiamo l'ambiente coerente.
-CREATE TABLE IF NOT EXISTS public.plateform_customers (
-  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid NOT NULL,
-  external_id text NOT NULL,
-  nome text, cognome text, email text, telefono text, citta text,
-  locale text, location_id integer,
-  visite integer DEFAULT 0,
-  ultima_visita date, prima_visita date,
-  totale_speso numeric(10,2) DEFAULT 0,
-  coperto_medio numeric(10,2) DEFAULT 0,
-  coperti_totali integer DEFAULT 0,
-  flag_marketing boolean DEFAULT false,
-  flag_privacy boolean DEFAULT false,
-  flag_unsubscribe boolean DEFAULT false,
-  flag_blacklist boolean DEFAULT false,
-  flag_vip boolean DEFAULT false,
-  source text, tags text[], note text,
-  rfm_segment text, rfm_score integer,
-  imported_at timestamp with time zone DEFAULT now(),
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  UNIQUE(user_id, external_id)
-);
 
 
 -- ============================================================
@@ -850,15 +802,9 @@ CREATE INDEX IF NOT EXISTS idx_budget_periods_user      ON public.budget_periods
 CREATE INDEX IF NOT EXISTS idx_budget_rows_period       ON public.budget_rows(budget_period_id, category);
 CREATE INDEX IF NOT EXISTS idx_budget_scenarios_user    ON public.budget_scenarios(user_id, locale);
 CREATE INDEX IF NOT EXISTS idx_catmap_user              ON public.category_mappings(user_id);
-CREATE INDEX IF NOT EXISTS idx_marketing_tasks_scadenza ON public.marketing_tasks(scadenza) WHERE stato = 'open';
-CREATE INDEX IF NOT EXISTS idx_marketing_tasks_user     ON public.marketing_tasks(user_id, stato, priorita);
 CREATE INDEX IF NOT EXISTS idx_recipes_user             ON public.recipes(user_id);
 CREATE INDEX IF NOT EXISTS idx_we_date                  ON public.webhook_events(document_date);
 CREATE INDEX IF NOT EXISTS idx_we_sp                    ON public.webhook_events(salespoint_id);
-CREATE INDEX IF NOT EXISTS idx_plat_cust_user           ON public.plateform_customers(user_id);
-CREATE INDEX IF NOT EXISTS idx_plat_cust_segment        ON public.plateform_customers(user_id, rfm_segment);
-CREATE INDEX IF NOT EXISTS idx_plat_cust_locale         ON public.plateform_customers(user_id, locale);
-CREATE INDEX IF NOT EXISTS idx_plat_cust_lastvis        ON public.plateform_customers(user_id, ultima_visita DESC);
 
 
 -- ============================================================
@@ -924,9 +870,6 @@ ALTER TABLE public.personnel_costs            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budget_periods             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budget_rows                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budget_scenarios           ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE public.marketing_tasks            ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.plateform_customers        ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -1005,9 +948,6 @@ CREATE POLICY "own_budget_scenarios" ON public.budget_scenarios FOR ALL USING (a
 CREATE POLICY "via_parent_br" ON public.budget_rows FOR ALL
   USING (EXISTS (SELECT 1 FROM public.budget_periods p WHERE p.id = budget_rows.budget_period_id AND p.user_id = auth.uid()));
 
--- MARKETING
-CREATE POLICY "own_marketing_tasks"      ON public.marketing_tasks     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "own_plateform_customers"  ON public.plateform_customers FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 
 -- ============================================================
