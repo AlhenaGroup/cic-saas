@@ -809,6 +809,44 @@ CREATE TABLE IF NOT EXISTS public.customer_tags (
   PRIMARY KEY (customer_id, tag_id)
 );
 
+CREATE TABLE IF NOT EXISTS public.promotions (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  codice text NOT NULL,
+  nome text NOT NULL,
+  descrizione text,
+  target_tag_ids uuid[] DEFAULT '{}',
+  target_min_visite int DEFAULT 0,
+  tipo_sconto text NOT NULL DEFAULT 'percentuale',
+  valore_sconto numeric(10,2) NOT NULL DEFAULT 0,
+  importo_minimo numeric(10,2) DEFAULT 0,
+  data_inizio date,
+  data_fine date,
+  giorni_settimana int[] DEFAULT NULL,
+  ora_inizio time,
+  ora_fine time,
+  max_utilizzi int,
+  max_utilizzi_per_cliente int DEFAULT 1,
+  utilizzi_totali int NOT NULL DEFAULT 0,
+  attivo boolean NOT NULL DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, locale, codice)
+);
+
+CREATE TABLE IF NOT EXISTS public.promotion_redemptions (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  promotion_id uuid NOT NULL REFERENCES public.promotions(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL,
+  customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
+  redeemed_at timestamptz DEFAULT now(),
+  importo_scontrino numeric(10,2),
+  importo_scontato numeric(10,2),
+  scontrino_id text,
+  note text
+);
+
 
 -- ============================================================
 -- 6. FOREIGN KEYS (nome semplificato)
@@ -857,6 +895,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_customers_email    ON public.customers(user
 CREATE INDEX IF NOT EXISTS idx_customers_user_locale    ON public.customers(user_id, locale);
 CREATE INDEX IF NOT EXISTS idx_customers_lastseen       ON public.customers(user_id, locale, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_customer_tags_tag        ON public.customer_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_promo_user_locale        ON public.promotions(user_id, locale, attivo);
+CREATE INDEX IF NOT EXISTS idx_promo_codice             ON public.promotions(user_id, locale, codice) WHERE attivo;
+CREATE INDEX IF NOT EXISTS idx_promo_red_promo          ON public.promotion_redemptions(promotion_id, redeemed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_promo_red_customer       ON public.promotion_redemptions(customer_id, redeemed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_promo_red_user           ON public.promotion_redemptions(user_id, redeemed_at DESC);
 
 
 -- ============================================================
@@ -926,6 +969,8 @@ ALTER TABLE public.budget_scenarios           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tag_definitions            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customer_tags              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotions                 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.promotion_redemptions      ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -1010,6 +1055,8 @@ CREATE POLICY "own_customers"  ON public.customers       FOR ALL USING (auth.uid
 CREATE POLICY "own_cust_tags"  ON public.customer_tags   FOR ALL
   USING (EXISTS (SELECT 1 FROM public.customers c WHERE c.id = customer_tags.customer_id AND c.user_id = auth.uid()))
   WITH CHECK (EXISTS (SELECT 1 FROM public.customers c WHERE c.id = customer_tags.customer_id AND c.user_id = auth.uid()));
+CREATE POLICY "own_promotions"            ON public.promotions             FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_promotion_redemptions" ON public.promotion_redemptions  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 
 

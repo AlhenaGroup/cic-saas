@@ -4,13 +4,14 @@
 
 import { useState, useEffect } from 'react'
 import CustomersManager from '../components/marketing/CustomersManager'
+import PromotionsManager from '../components/marketing/PromotionsManager'
 
 const SUBTABS = [
-  { key: 'clienti',   label: 'Clienti' },
+  { key: 'clienti', label: 'Clienti' },
+  { key: 'promo',   label: 'Promozioni' },
   // prossimi step:
   // { key: 'prenotaz', label: 'Prenotazioni' },
   // { key: 'campagne', label: 'Campagne' },
-  // { key: 'promo',    label: 'Promozioni' },
   // { key: 'fidelity', label: 'Fidelity' },
   // { key: 'reviews',  label: 'Recensioni' },
   // { key: 'centralino', label: 'Centralino' },
@@ -32,5 +33,6 @@ export default function MarketingModule({ sp, sps }) {
     </div>
 
     {tab === 'clienti' && <CustomersManager sp={sp} sps={sps} />}
+    {tab === 'promo'   && <PromotionsManager sp={sp} sps={sps} />}
   </div>
 }
