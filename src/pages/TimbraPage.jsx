@@ -1303,6 +1303,18 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
                 ))}
               </tbody>
             </table>
+
+            {/* Procedimento (se presente nella scheda) */}
+            {selected.procedimento && (
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(16,185,129,.3)' }}>
+                <div style={{ fontSize: 11, color: '#10B981', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+                  Procedimento
+                </div>
+                <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                  {selected.procedimento}
+                </div>
+              </div>
+            )}
           </div>
         })()}
 
@@ -1357,6 +1369,19 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
         <div style={{ fontSize: 10, opacity: 0.85, marginTop: 4 }}>Tempo atteso: ~{selected.durata_attesa_minuti} min</div>
       )}
     </div>
+
+    {/* Procedimento (collassabile, se presente nella scheda) */}
+    {selected.procedimento && (
+      <details style={{ background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 10, padding: 0, marginBottom: 10 }}>
+        <summary style={{ padding: 12, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#10B981', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>📋 Procedimento</span>
+          <span style={{ fontSize: 10, color: '#64748b' }}>tocca per leggere</span>
+        </summary>
+        <div style={{ padding: '0 12px 12px', fontSize: 13, color: '#e2e8f0', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+          {selected.procedimento}
+        </div>
+      </details>
+    )}
 
     {/* Quantità prodotta */}
     <div style={{ background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 10, padding: 12, marginBottom: 10 }}>
