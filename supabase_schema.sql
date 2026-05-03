@@ -925,6 +925,52 @@ CREATE TABLE IF NOT EXISTS public.reservations (
   updated_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.centralino_config (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  twilio_number text,
+  twilio_phone_sid text,
+  attivo boolean NOT NULL DEFAULT false,
+  lingua text NOT NULL DEFAULT 'it-IT',
+  greeting_mode text NOT NULL DEFAULT 'tts',
+  greeting_text text,
+  greeting_audio_url text,
+  opt1_enabled boolean NOT NULL DEFAULT true,
+  whatsapp_template text,
+  prenotazione_url text,
+  opt2_enabled boolean NOT NULL DEFAULT true,
+  parallel_ring_numbers text[] DEFAULT '{}',
+  parallel_ring_timeout_sec int DEFAULT 20,
+  voicemail_enabled boolean NOT NULL DEFAULT true,
+  voicemail_text text,
+  orari_attivi jsonb NOT NULL DEFAULT '{}'::jsonb,
+  fuori_orario_text text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, locale),
+  UNIQUE(twilio_number)
+);
+
+CREATE TABLE IF NOT EXISTS public.centralino_calls (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  call_sid text UNIQUE,
+  from_number text NOT NULL,
+  to_number text NOT NULL,
+  esito text,
+  digit_pressed text,
+  durata_sec int,
+  recording_url text,
+  trascrizione text,
+  customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
+  whatsapp_msg_sid text,
+  started_at timestamptz DEFAULT now(),
+  ended_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
 
 -- ============================================================
 -- 6. FOREIGN KEYS (nome semplificato)
@@ -988,6 +1034,11 @@ CREATE INDEX IF NOT EXISTS idx_reserv_user_locale_dt    ON public.reservations(u
 CREATE INDEX IF NOT EXISTS idx_reserv_customer          ON public.reservations(customer_id);
 CREATE INDEX IF NOT EXISTS idx_reserv_user_stato        ON public.reservations(user_id, locale, stato, data_ora);
 CREATE INDEX IF NOT EXISTS idx_reserv_guest_phone       ON public.reservations(user_id, locale, guest_telefono) WHERE guest_telefono IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_cent_config_user         ON public.centralino_config(user_id, locale);
+CREATE INDEX IF NOT EXISTS idx_cent_config_number       ON public.centralino_config(twilio_number) WHERE twilio_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_cent_calls_user_dt       ON public.centralino_calls(user_id, locale, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cent_calls_from          ON public.centralino_calls(user_id, locale, from_number);
+CREATE INDEX IF NOT EXISTS idx_cent_calls_customer      ON public.centralino_calls(customer_id, started_at DESC) WHERE customer_id IS NOT NULL;
 
 
 -- ============================================================
@@ -1063,6 +1114,8 @@ ALTER TABLE public.fidelity_programs          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fidelity_rewards           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fidelity_movements         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reservations               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.centralino_config          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.centralino_calls           ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -1153,6 +1206,8 @@ CREATE POLICY "own_fid_programs"          ON public.fidelity_programs      FOR A
 CREATE POLICY "own_fid_rewards"           ON public.fidelity_rewards       FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_fid_movements"         ON public.fidelity_movements     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_reservations"          ON public.reservations           FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_cent_config"           ON public.centralino_config      FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_cent_calls"            ON public.centralino_calls       FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 
 
