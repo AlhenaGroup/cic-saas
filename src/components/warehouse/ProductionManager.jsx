@@ -5,7 +5,9 @@
 // Lotti e Tracciabilità sono placeholder per i prossimi commit.
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import QRCode from 'qrcode'
 import { supabase } from '../../lib/supabase'
+import { applyMovement } from '../../lib/warehouse.js'
 import { S, Card } from '../shared/styles.jsx'
 
 const iS = S.input
@@ -84,10 +86,9 @@ export default function ProductionManager({ sp, sps }) {
     </div>
 
     {subTab === 'schede' && <SchedeTab sp={sp} sps={sps} />}
-    {subTab === 'lotti' && <PlaceholderTab title="🏷️ Lotti produzione"
-      msg="In arrivo: crea un lotto da una scheda → genera codice univoco, scarica ingredienti dal magazzino di produzione, carica il prodotto finito sul magazzino di destinazione, stampa etichetta PDF con QR code per tracciabilità ASL." />}
+    {subTab === 'lotti' && <LottiTab sp={sp} sps={sps} />}
     {subTab === 'tracciabilita' && <PlaceholderTab title="🔍 Tracciabilità lotti"
-      msg="In arrivo: cerca un lotto e vedi da quali ingredienti deriva (con i loro lotti origine fattura), dove è andato (trasferimenti), quali consumi/vendite hanno usato questo lotto." />}
+      msg="In arrivo (commit 3): cerca un lotto e vedi da quali ingredienti deriva (con i loro lotti origine fattura), dove è andato (trasferimenti), quali consumi/vendite hanno usato questo lotto." />}
   </>
 }
 
@@ -425,4 +426,439 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
       </div>
     </div>
   </div>
+}
+
+// ─── LOTTI PRODUZIONE ───────────────────────────────────────────
+// Generazione codice lotto univoco: P-YYYYMMDD-NNN (NNN progressivo del giorno per user)
+async function generateLottoCode(userId) {
+  const today = new Date()
+  const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0')
+  const prefix = `P-${yyyymmdd}`
+  const { data } = await supabase.from('production_batches')
+    .select('lotto').eq('user_id', userId).like('lotto', prefix + '%').order('lotto', { ascending: false }).limit(1)
+  let next = 1
+  if (data?.[0]?.lotto) {
+    const m = data[0].lotto.match(/-(\d+)$/)
+    if (m) next = Number(m[1]) + 1
+  }
+  return `${prefix}-${String(next).padStart(3, '0')}`
+}
+
+function LottiTab({ sp, sps }) {
+  const [batches, setBatches] = useState([])
+  const [recipes, setRecipes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(null) // null | { recipe, qty, ... }
+  const [filterLocale, setFilterLocale] = useState('')
+  const [filterStato, setFilterStato] = useState('')
+
+  const allLocali = useMemo(() => [...new Set((sps || []).map(s => s.description).filter(Boolean))], [sps])
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const [b, r] = await Promise.all([
+      supabase.from('production_batches').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('production_recipes').select('*').eq('attivo', true).order('nome'),
+    ])
+    setBatches(b.data || [])
+    setRecipes(r.data || [])
+    setLoading(false)
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const filtered = useMemo(() => batches.filter(b => {
+    if (filterLocale && b.locale_produzione !== filterLocale) return false
+    if (filterStato && b.stato !== filterStato) return false
+    return true
+  }), [batches, filterLocale, filterStato])
+
+  const annulla = async (b) => {
+    if (!confirm(`Annullare il lotto ${b.lotto}? I movimenti magazzino NON vengono ripristinati automaticamente.`)) return
+    await supabase.from('production_batches').update({ stato: 'annullato' }).eq('id', b.id)
+    load()
+  }
+
+  return <Card title="🏷️ Lotti produzione" badge={`${filtered.length}/${batches.length}`} extra={
+    <button onClick={() => setCreating({ recipe: null })} disabled={recipes.length === 0}
+      style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '6px 14px', cursor: recipes.length ? 'pointer' : 'not-allowed', opacity: recipes.length ? 1 : 0.5 }}>
+      + Nuovo lotto
+    </button>
+  }>
+    {recipes.length === 0 ? (
+      <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
+        Per creare lotti devi prima definire delle <strong>Schede produzione</strong> (tab Schede).
+      </div>
+    ) : <>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <select value={filterLocale} onChange={e => setFilterLocale(e.target.value)} style={iS}>
+          <option value="">Tutti i locali</option>
+          {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
+        <select value={filterStato} onChange={e => setFilterStato(e.target.value)} style={iS}>
+          <option value="">Tutti gli stati</option>
+          <option value="attivo">Attivi</option>
+          <option value="consumato">Consumati</option>
+          <option value="scaduto">Scaduti</option>
+          <option value="annullato">Annullati</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 24, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+      ) : batches.length === 0 ? (
+        <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
+          Nessun lotto prodotto. Click "+ Nuovo lotto" per registrarne uno.
+        </div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+              {['Lotto', 'Prodotto', 'Data', 'Scadenza', 'Locale', 'Quantità', 'Operatore', 'Stato', ''].map(h =>
+                <th key={h} style={S.th}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {filtered.map(b => {
+                const oggi = new Date().toISOString().slice(0, 10)
+                const isScaduto = b.data_scadenza && b.data_scadenza < oggi
+                const giorniMancanti = b.data_scadenza ? Math.ceil((new Date(b.data_scadenza) - new Date(oggi)) / 86400000) : null
+                return <tr key={b.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
+                  <td style={{ ...S.td, fontFamily: 'monospace', fontWeight: 700, color: '#3B82F6' }}>{b.lotto}</td>
+                  <td style={{ ...S.td, fontWeight: 600 }}>{b.recipe_id ? (recipes.find(r => r.id === b.recipe_id)?.nome || '—') : '—'}</td>
+                  <td style={{ ...S.td, fontSize: 11 }}>{b.data_produzione} <span style={{ color: '#64748b' }}>{(b.ora_produzione || '').slice(0, 5)}</span></td>
+                  <td style={{ ...S.td, color: isScaduto ? '#EF4444' : (giorniMancanti != null && giorniMancanti <= 1 ? '#F59E0B' : '#94a3b8') }}>
+                    {b.data_scadenza || '—'}
+                    {giorniMancanti != null && b.stato === 'attivo' && (
+                      <div style={{ fontSize: 10 }}>{giorniMancanti < 0 ? `${Math.abs(giorniMancanti)}gg fa` : giorniMancanti === 0 ? 'OGGI' : `${giorniMancanti}gg`}</div>
+                    )}
+                  </td>
+                  <td style={{ ...S.td, fontSize: 11 }}>
+                    {b.locale_produzione}
+                    {b.locale_destinazione && b.locale_destinazione !== b.locale_produzione && (
+                      <div style={{ color: '#64748b' }}>→ {b.locale_destinazione}</div>
+                    )}
+                  </td>
+                  <td style={{ ...S.td, fontWeight: 600 }}>{b.quantita_prodotta} {b.unita || ''}</td>
+                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{b.operatore_nome || '—'}</td>
+                  <td style={S.td}>
+                    {b.stato === 'attivo' && <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Attivo</span>}
+                    {b.stato === 'consumato' && <span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>Consumato</span>}
+                    {b.stato === 'scaduto' && <span style={S.badge('#EF4444', 'rgba(239,68,68,.12)')}>Scaduto</span>}
+                    {b.stato === 'annullato' && <span style={S.badge('#64748b', 'rgba(100,116,139,.12)')}>Annullato</span>}
+                  </td>
+                  <td style={S.td}>
+                    <button onClick={() => printEtichetta([b], recipes.find(r => r.id === b.recipe_id))}
+                      style={{ background: 'none', border: '1px solid #2a3042', color: '#3B82F6', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}
+                      title="Stampa etichetta PDF (1 lotto)">🖨</button>
+                    {b.stato !== 'annullato' && (
+                      <button onClick={() => annulla(b)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }} title="Annulla lotto">✕</button>
+                    )}
+                  </td>
+                </tr>
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>}
+
+    {creating && <NuovoLotto recipes={recipes} allLocali={allLocali}
+      onClose={() => setCreating(null)}
+      onCreated={(batch, recipe) => {
+        setCreating(null)
+        load()
+        // Auto-stampa etichetta dopo creazione
+        setTimeout(() => printEtichetta([batch], recipe), 300)
+      }} />}
+  </Card>
+}
+
+function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
+  const [recipeId, setRecipeId] = useState('')
+  const [qty, setQty] = useState('')
+  const [unita, setUnita] = useState('')
+  const [data, setData] = useState(new Date().toISOString().slice(0, 10))
+  const [oraOra, setOraOra] = useState(new Date().toTimeString().slice(0, 5))
+  const [scadenza, setScadenza] = useState('')
+  const [localeProd, setLocaleProd] = useState(allLocali[0] || '')
+  const [localeDest, setLocaleDest] = useState('')
+  const [operatoreNome, setOperatoreNome] = useState('')
+  const [note, setNote] = useState('')
+  const [employees, setEmployees] = useState([])
+  const [creating, setCreating] = useState(false)
+  const [err, setErr] = useState('')
+
+  const recipe = recipes.find(r => r.id === recipeId)
+
+  // Carica dipendenti per autocomplete operatore
+  useEffect(() => {
+    supabase.from('employees').select('id,nome,locale').eq('stato', 'Attivo').order('nome')
+      .then(({ data }) => setEmployees(data || []))
+  }, [])
+
+  // Quando cambio ricetta, precompilo i campi
+  useEffect(() => {
+    if (!recipe) return
+    setUnita(recipe.resa_unita || '')
+    setLocaleProd(recipe.locale_produzione || allLocali[0] || '')
+    setLocaleDest(recipe.locale_destinazione || '')
+    if (recipe.resa_quantita) setQty(String(recipe.resa_quantita))
+    if (recipe.shelf_life_days) {
+      const sc = new Date(data); sc.setDate(sc.getDate() + Number(recipe.shelf_life_days))
+      setScadenza(sc.toISOString().slice(0, 10))
+    }
+  }, [recipeId])
+
+  // Aggiorna scadenza quando cambia data o shelf life della ricetta
+  useEffect(() => {
+    if (!recipe?.shelf_life_days) return
+    const sc = new Date(data); sc.setDate(sc.getDate() + Number(recipe.shelf_life_days))
+    setScadenza(sc.toISOString().slice(0, 10))
+  }, [data, recipe?.shelf_life_days])
+
+  const submit = async () => {
+    setErr('')
+    if (!recipe) { setErr('Scegli una scheda'); return }
+    if (!qty || Number(qty) <= 0) { setErr('Quantità prodotta non valida'); return }
+    if (!localeProd) { setErr('Locale di produzione richiesto'); return }
+    setCreating(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const lotto = await generateLottoCode(user.id)
+
+      // Calcola ingredienti scalati alla quantità prodotta vs resa attesa
+      const ratio = recipe.resa_quantita ? Number(qty) / Number(recipe.resa_quantita) : 1
+      const ingredientiUsati = (recipe.ingredienti || []).map(i => ({
+        nome_articolo: i.nome_articolo,
+        quantita: Math.round((Number(i.quantita) || 0) * ratio * 1000) / 1000,
+        unita: i.unita || '',
+      }))
+
+      // 1. Crea il batch
+      const { data: insBatch, error: insErr } = await supabase.from('production_batches').insert({
+        user_id: user.id,
+        recipe_id: recipe.id,
+        lotto,
+        data_produzione: data,
+        ora_produzione: oraOra + ':00',
+        data_scadenza: scadenza || null,
+        locale_produzione: localeProd,
+        locale_destinazione: localeDest || localeProd,
+        operatore_nome: operatoreNome || null,
+        quantita_prodotta: Number(qty),
+        unita,
+        ingredienti_usati: ingredientiUsati,
+        allergeni: recipe.allergeni || [],
+        conservazione: recipe.conservazione || null,
+        note: note || null,
+        stato: 'attivo',
+      }).select().single()
+      if (insErr) throw insErr
+
+      // 2. Movimenti magazzino: scarico ingredienti + carico prodotto finito
+      // Scarico ogni ingrediente dal locale di produzione
+      for (const ing of ingredientiUsati) {
+        if (!ing.nome_articolo || !ing.quantita) continue
+        try {
+          await applyMovement({
+            locale: localeProd, subLocation: 'principale',
+            nomeArticolo: ing.nome_articolo,
+            tipo: 'scarico', quantita: ing.quantita, unita: ing.unita,
+            fonte: 'produzione', riferimentoId: insBatch.id,
+            riferimentoLabel: `Produzione ${recipe.nome} · lotto ${lotto}`,
+          })
+        } catch (e) {
+          console.warn('[produzione scarico]', ing.nome_articolo, e.message)
+        }
+      }
+      // Carico del prodotto finito sul locale di destinazione
+      const localeFinale = localeDest || localeProd
+      try {
+        await applyMovement({
+          locale: localeFinale, subLocation: 'principale',
+          nomeArticolo: recipe.nome,
+          tipo: 'carico', quantita: Number(qty), unita,
+          fonte: 'produzione', riferimentoId: insBatch.id,
+          riferimentoLabel: `Lotto ${lotto}`,
+        })
+      } catch (e) {
+        console.warn('[produzione carico]', recipe.nome, e.message)
+      }
+
+      // Aggiorna batch con production_batch_id sui movimenti appena creati
+      await supabase.from('article_movement')
+        .update({ production_batch_id: insBatch.id })
+        .eq('riferimento_id', insBatch.id).is('production_batch_id', null)
+
+      onCreated(insBatch, recipe)
+    } catch (e) { setErr(e.message); setCreating(false) }
+  }
+
+  return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
+    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 640 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 15 }}>+ Nuovo lotto produzione</h3>
+          <div style={{ fontSize: 11, color: '#64748b' }}>Crea un lotto: scarica ingredienti, carica prodotto, stampa etichetta</div>
+        </div>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+      </div>
+      <div style={{ padding: 20 }}>
+        <label style={{ display: 'block', marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Scheda produzione</div>
+          <select value={recipeId} onChange={e => setRecipeId(e.target.value)} style={{ ...iS, width: '100%' }}>
+            <option value="">— scegli scheda —</option>
+            {recipes.map(r => <option key={r.id} value={r.id}>{r.nome} ({r.locale_produzione})</option>)}
+          </select>
+        </label>
+
+        {recipe && <>
+          <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12 }}>
+            <div style={{ color: '#94a3b8', marginBottom: 6 }}>Da scheda:</div>
+            <div><strong>{recipe.ingredienti?.length || 0} ingredienti</strong> · resa attesa: <strong>{recipe.resa_quantita} {recipe.resa_unita}</strong> · shelf life: <strong>{recipe.shelf_life_days}gg</strong></div>
+            {recipe.allergeni?.length > 0 && (
+              <div style={{ marginTop: 6 }}>Allergeni: {recipe.allergeni.map(a => ALLERGENI_BY_KEY[a]?.l || a).join(', ')}</div>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10, marginBottom: 10 }}>
+            <label>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Quantità prodotta</div>
+              <input type="number" step="0.001" value={qty} onChange={e => setQty(e.target.value)} style={{ ...iS, width: '100%' }} />
+            </label>
+            <label>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>UM</div>
+              <select value={unita} onChange={e => setUnita(e.target.value)} style={{ ...iS, width: '100%' }}>
+                {['', 'KG', 'GR', 'LT', 'ML', 'PZ', 'PORZIONI'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <label>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Data produzione</div>
+              <input type="date" value={data} onChange={e => setData(e.target.value)} style={{ ...iS, width: '100%' }} />
+            </label>
+            <label>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Ora</div>
+              <input type="time" value={oraOra} onChange={e => setOraOra(e.target.value)} style={{ ...iS, width: '100%' }} />
+            </label>
+            <label>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Scadenza</div>
+              <input type="date" value={scadenza} onChange={e => setScadenza(e.target.value)} style={{ ...iS, width: '100%' }} />
+            </label>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <label>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Locale produzione</div>
+              <select value={localeProd} onChange={e => setLocaleProd(e.target.value)} style={{ ...iS, width: '100%' }}>
+                {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </label>
+            <label>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Locale destinazione</div>
+              <select value={localeDest} onChange={e => setLocaleDest(e.target.value)} style={{ ...iS, width: '100%' }}>
+                <option value="">— uguale a produzione —</option>
+                {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <label style={{ display: 'block', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Operatore (chi sta producendo)</div>
+            <input list="emp-list" value={operatoreNome} onChange={e => setOperatoreNome(e.target.value)}
+              placeholder="Nome dipendente" style={{ ...iS, width: '100%' }} />
+            <datalist id="emp-list">
+              {employees.map(e => <option key={e.id} value={e.nome} />)}
+            </datalist>
+          </label>
+
+          <label style={{ display: 'block', marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Note (opz.)</div>
+            <input value={note} onChange={e => setNote(e.target.value)} placeholder="Es. sostituito panna con mascarpone, doppia dose..." style={{ ...iS, width: '100%' }} />
+          </label>
+
+          {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
+
+          <div style={{ background: 'rgba(245,158,11,.06)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 6, padding: 10, fontSize: 11, color: '#F59E0B', marginBottom: 14 }}>
+            ⚠ Confermando il lotto: <br/>
+            • Verranno scaricati gli ingredienti dal magazzino di {localeProd}<br/>
+            • Verrà caricato il prodotto finito sul magazzino di {localeDest || localeProd}<br/>
+            • Verrà generato un codice lotto univoco e l'etichetta PDF
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button onClick={onClose} disabled={creating} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
+            <button onClick={submit} disabled={creating}
+              style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
+              {creating ? 'Creo lotto…' : '✓ Conferma e crea lotto'}
+            </button>
+          </div>
+        </>}
+      </div>
+    </div>
+  </div>
+}
+
+// ─── Etichetta PDF A4 multi-lotto ───────────────────────────────
+// Genera un PDF A4 con N etichette per pagina (8 etichette su griglia 2x4),
+// una per lotto. Apre la finestra di stampa del browser (window.print).
+async function printEtichetta(batches, recipe) {
+  if (!batches || batches.length === 0) return
+  // Genera QR per ogni batch
+  const qrs = await Promise.all(batches.map(async b => {
+    const url = window.location.origin + '/lotto/' + encodeURIComponent(b.lotto)
+    try {
+      return await QRCode.toDataURL(url, { width: 200, margin: 1, errorCorrectionLevel: 'M' })
+    } catch { return null }
+  }))
+
+  const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+  const allergLabel = (b) => (b.allergeni || []).map(a => (ALLERGENI_BY_KEY[a]?.l || a).toUpperCase()).join(', ')
+
+  const cards = batches.map((b, i) => `
+    <div class="lab">
+      <div class="head">
+        <div class="nome">${escHtml(b.recipe_id ? (recipe?.nome || '') : '')}</div>
+        <div class="lot">Lotto: <strong>${escHtml(b.lotto)}</strong></div>
+      </div>
+      <div class="dates">
+        <div><span class="k">Prod.:</span> <strong>${escHtml(b.data_produzione)}</strong></div>
+        <div><span class="k">Scad.:</span> <strong>${escHtml(b.data_scadenza || '—')}</strong></div>
+      </div>
+      <div class="ingr">
+        <span class="k">Ingredienti:</span> ${escHtml((b.ingredienti_usati || []).map(i => i.nome_articolo).join(', '))}
+      </div>
+      ${(b.allergeni || []).length > 0 ? `<div class="allerg"><span class="k">Allergeni:</span> <strong>${escHtml(allergLabel(b))}</strong></div>` : ''}
+      ${b.conservazione ? `<div class="cons"><span class="k">Conservazione:</span> ${escHtml(b.conservazione)}</div>` : ''}
+      <div class="footer">
+        <div class="loc">${escHtml(b.locale_produzione)}${b.locale_destinazione && b.locale_destinazione !== b.locale_produzione ? ' → ' + escHtml(b.locale_destinazione) : ''}</div>
+        ${qrs[i] ? `<img src="${qrs[i]}" class="qr"/>` : ''}
+      </div>
+    </div>
+  `).join('')
+
+  const html = `<!DOCTYPE html><html><head><title>Etichette Produzione</title><style>
+    @page { size: A4; margin: 8mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #111; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+    .lab { border: 1px solid #333; border-radius: 4px; padding: 6mm; height: 65mm; overflow: hidden; page-break-inside: avoid; display: flex; flex-direction: column; gap: 2mm; }
+    .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 4mm; }
+    .nome { font-size: 14px; font-weight: 700; line-height: 1.2; max-width: 70%; }
+    .lot { font-size: 10px; }
+    .dates { display: flex; gap: 6mm; font-size: 11px; }
+    .ingr, .allerg, .cons { font-size: 9px; line-height: 1.3; }
+    .allerg strong { text-transform: uppercase; }
+    .k { color: #555; }
+    .footer { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 4mm; font-size: 9px; }
+    .loc { color: #555; }
+    .qr { width: 22mm; height: 22mm; }
+    @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+  </style></head><body><div class="grid">${cards}</div></body></html>`
+
+  const w = window.open('', '_blank')
+  if (!w) { alert('Popup bloccato — abilita i popup per stampare l\'etichetta.'); return }
+  w.document.write(html); w.document.close()
+  setTimeout(() => { w.focus(); w.print() }, 400)
 }
