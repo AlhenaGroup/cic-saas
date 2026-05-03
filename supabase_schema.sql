@@ -847,6 +847,56 @@ CREATE TABLE IF NOT EXISTS public.promotion_redemptions (
   note text
 );
 
+CREATE TABLE IF NOT EXISTS public.fidelity_programs (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  nome text NOT NULL,
+  descrizione text,
+  punti_per_euro numeric(8,4) NOT NULL DEFAULT 1.0,
+  punti_visita int DEFAULT 0,
+  punti_iscrizione int DEFAULT 0,
+  punti_compleanno int DEFAULT 0,
+  durata_punti_giorni int,
+  attivo boolean NOT NULL DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, locale)
+);
+
+CREATE TABLE IF NOT EXISTS public.fidelity_rewards (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  program_id uuid NOT NULL REFERENCES public.fidelity_programs(id) ON DELETE CASCADE,
+  nome text NOT NULL,
+  descrizione text,
+  punti_richiesti int NOT NULL,
+  tipo text NOT NULL DEFAULT 'omaggio',
+  valore numeric(10,2) DEFAULT 0,
+  max_riscatti_globali int,
+  max_riscatti_per_cliente int DEFAULT 1,
+  riscatti_totali int NOT NULL DEFAULT 0,
+  attivo boolean NOT NULL DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.fidelity_movements (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  customer_id uuid NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  program_id uuid NOT NULL REFERENCES public.fidelity_programs(id) ON DELETE CASCADE,
+  tipo text NOT NULL,
+  punti int NOT NULL,
+  reward_id uuid REFERENCES public.fidelity_rewards(id) ON DELETE SET NULL,
+  scontrino_id text,
+  importo_scontrino numeric(10,2),
+  note text,
+  movimento_at timestamptz DEFAULT now(),
+  expires_at timestamptz
+);
+
 
 -- ============================================================
 -- 6. FOREIGN KEYS (nome semplificato)
@@ -900,6 +950,12 @@ CREATE INDEX IF NOT EXISTS idx_promo_codice             ON public.promotions(use
 CREATE INDEX IF NOT EXISTS idx_promo_red_promo          ON public.promotion_redemptions(promotion_id, redeemed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_promo_red_customer       ON public.promotion_redemptions(customer_id, redeemed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_promo_red_user           ON public.promotion_redemptions(user_id, redeemed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fid_programs_user        ON public.fidelity_programs(user_id, locale);
+CREATE INDEX IF NOT EXISTS idx_fid_rewards_program      ON public.fidelity_rewards(program_id, attivo);
+CREATE INDEX IF NOT EXISTS idx_fid_mov_customer         ON public.fidelity_movements(customer_id, movimento_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fid_mov_program          ON public.fidelity_movements(program_id, movimento_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fid_mov_user             ON public.fidelity_movements(user_id, movimento_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fid_mov_exp              ON public.fidelity_movements(customer_id, expires_at) WHERE expires_at IS NOT NULL;
 
 
 -- ============================================================
@@ -971,6 +1027,9 @@ ALTER TABLE public.customers                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customer_tags              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.promotions                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.promotion_redemptions      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fidelity_programs          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fidelity_rewards           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fidelity_movements         ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -1057,6 +1116,9 @@ CREATE POLICY "own_cust_tags"  ON public.customer_tags   FOR ALL
   WITH CHECK (EXISTS (SELECT 1 FROM public.customers c WHERE c.id = customer_tags.customer_id AND c.user_id = auth.uid()));
 CREATE POLICY "own_promotions"            ON public.promotions             FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_promotion_redemptions" ON public.promotion_redemptions  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_fid_programs"          ON public.fidelity_programs      FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_fid_rewards"           ON public.fidelity_rewards       FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_fid_movements"         ON public.fidelity_movements     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 
 
