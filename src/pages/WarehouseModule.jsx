@@ -246,7 +246,7 @@ function ArticoliTab({ sp, sps }) {
   const load = useCallback(async () => {
     setLoading(true)
     const { data: items } = await supabase.from('warehouse_invoice_items')
-      .select('nome_articolo, nome_fattura, quantita, unita, prezzo_totale, magazzino, escludi_magazzino, tipo_confezione, qty_singola, totale_um, warehouse_invoices!inner(fornitore, data, locale)')
+      .select('nome_articolo, nome_fattura, quantita, unita, prezzo_totale, magazzino, escludi_magazzino, escludi_inventario_staff, tipo_confezione, qty_singola, totale_um, warehouse_invoices!inner(fornitore, data, locale)')
     // Aggrega per nome_articolo
     const artMap = {}
     ;(items || []).forEach(it => {
@@ -259,9 +259,10 @@ function ArticoliTab({ sp, sps }) {
         nome, magazzino: it.magazzino || 'food', unita: it.unita || '',
         tipo: it.tipo_confezione || '', fornitori: new Set(),
         totQty: 0, totUm: 0, totSpesa: 0, acquisti: 0, ultimaData: '',
-        prezzi: [],
+        prezzi: [], hiddenStaff: false,
       }
       const a = artMap[key]
+      if (it.escludi_inventario_staff) a.hiddenStaff = true
       a.fornitori.add(it.warehouse_invoices?.fornitore || '?')
       const qtyFatt = Number(it.quantita) || 0      // quantita dalla fattura (righe fatturate)
       const qtyTipo = Number(it.totale_um) || 0     // quantita del tipo (es. 6 fusti)
@@ -337,7 +338,15 @@ function ArticoliTab({ sp, sps }) {
         <tbody>
           {filtered.map((a, i) => (
             <tr key={i} onClick={() => setEditingArticle(a)} style={{ borderBottom: '1px solid #1a1f2e', cursor: 'pointer' }} title="Clicca per modificare">
-              <td style={{ ...S.td, fontWeight: 600, fontSize: 12, color: '#3B82F6' }}>{a.nome}</td>
+              <td style={{ ...S.td, fontWeight: 600, fontSize: 12, color: '#3B82F6' }}>
+                {a.nome}
+                {a.hiddenStaff && (
+                  <span title="Nascosto dall'inventario dei collaboratori"
+                    style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.12)', padding: '1px 5px', borderRadius: 3, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                    No staff
+                  </span>
+                )}
+              </td>
               <td style={{ ...S.td, fontSize: 10 }}><span style={S.badge(
                 a.magazzino === 'beverage' ? '#3B82F6' : a.magazzino === 'food' ? '#F59E0B' : a.magazzino === 'materiali' ? '#8B5CF6' : a.magazzino === 'attrezzatura' ? '#10B981' : '#64748b',
                 a.magazzino === 'beverage' ? 'rgba(59,130,246,.12)' : a.magazzino === 'food' ? 'rgba(245,158,11,.12)' : a.magazzino === 'materiali' ? 'rgba(139,92,246,.12)' : a.magazzino === 'attrezzatura' ? 'rgba(16,185,129,.12)' : 'rgba(100,116,139,.12)'
@@ -370,6 +379,8 @@ function ArticleEditModal({ article, onClose, onSaved }) {
   const [unita, setUnita] = useState(article.unita || '')
   const [escludi, setEscludi] = useState(false) // applica solo se cambiato esplicitamente
   const [touchedEscludi, setTouchedEscludi] = useState(false)
+  const [escludiStaff, setEscludiStaff] = useState(false)
+  const [touchedEscludiStaff, setTouchedEscludiStaff] = useState(false)
   const [rows, setRows] = useState([])
   const [loadingRows, setLoadingRows] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -380,7 +391,7 @@ function ArticleEditModal({ article, onClose, onSaved }) {
     ;(async () => {
       setLoadingRows(true)
       const { data } = await supabase.from('warehouse_invoice_items')
-        .select('id, nome_articolo, nome_fattura, unita, quantita, totale_um, qty_singola, prezzo_totale, magazzino, escludi_magazzino, tipo_confezione, warehouse_invoices!inner(data, fornitore, locale)')
+        .select('id, nome_articolo, nome_fattura, unita, quantita, totale_um, qty_singola, prezzo_totale, magazzino, escludi_magazzino, escludi_inventario_staff, tipo_confezione, warehouse_invoices!inner(data, fornitore, locale)')
         .eq('nome_articolo', article.nome)
         .order('id', { ascending: false })
       if (!cancelled) {
@@ -389,6 +400,8 @@ function ArticleEditModal({ article, onClose, onSaved }) {
         // Pre-set escludi al valore prevalente
         const allExcl = (data || []).every(r => r.escludi_magazzino)
         setEscludi(allExcl)
+        const anyHidden = (data || []).some(r => r.escludi_inventario_staff)
+        setEscludiStaff(anyHidden)
       }
     })()
     return () => { cancelled = true }
@@ -399,6 +412,7 @@ function ArticleEditModal({ article, onClose, onSaved }) {
     try {
       const updates = { nome_articolo: nome.trim(), magazzino, unita: unita.trim() }
       if (touchedEscludi) updates.escludi_magazzino = escludi
+      if (touchedEscludiStaff) updates.escludi_inventario_staff = escludiStaff
       const { error } = await supabase.from('warehouse_invoice_items')
         .update(updates).eq('nome_articolo', article.nome)
       if (error) throw error
@@ -462,6 +476,17 @@ function ArticleEditModal({ article, onClose, onSaved }) {
             style={{ cursor: 'pointer' }} />
           <span style={{ color: touchedEscludi ? '#F59E0B' : '#94a3b8' }}>
             Escludi dal magazzino (tutte le righe){touchedEscludi && <span style={{ fontSize: 10, marginLeft: 6, color: '#F59E0B' }}>· verrà aggiornato</span>}
+          </span>
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 8px', cursor: 'pointer', fontSize: 13 }}>
+          <input type="checkbox" checked={escludiStaff}
+            onChange={e => { setEscludiStaff(e.target.checked); setTouchedEscludiStaff(true) }}
+            style={{ cursor: 'pointer' }} />
+          <span style={{ color: touchedEscludiStaff ? '#F59E0B' : '#94a3b8' }}>
+            Nascondi dall'inventario dei collaboratori
+            <span style={{ fontSize: 10, marginLeft: 6, color: '#64748b' }}>· l'articolo non comparirà nell'inventario fatto dal mobile (resta nelle viste admin)</span>
+            {touchedEscludiStaff && <span style={{ fontSize: 10, marginLeft: 6, color: '#F59E0B' }}>· verrà aggiornato</span>}
           </span>
         </label>
 

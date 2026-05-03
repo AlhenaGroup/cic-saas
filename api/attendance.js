@@ -317,9 +317,13 @@ export default async function handler(req, res) {
         const invs = await sbQuery(`warehouse_invoices?locale=eq.${encodeURIComponent(locale)}&user_id=eq.${v.emp.user_id}&select=id`);
         const invIds = Array.isArray(invs) ? invs.map(x => x.id).filter(Boolean) : [];
         let invoiceArts = [];
+        // Set di articoli da nascondere allo staff (qualsiasi riga con escludi_inventario_staff=true)
+        const hiddenStaff = new Set();
         if (invIds.length > 0) {
-          const ia = await sbQuery(`warehouse_invoice_items?invoice_id=in.(${invIds.join(',')})&escludi_magazzino=eq.false&nome_articolo=not.is.null&select=nome_articolo,unita,magazzino`);
-          invoiceArts = Array.isArray(ia) ? ia : [];
+          const ia = await sbQuery(`warehouse_invoice_items?invoice_id=in.(${invIds.join(',')})&escludi_magazzino=eq.false&nome_articolo=not.is.null&select=nome_articolo,unita,magazzino,escludi_inventario_staff`);
+          const arr = Array.isArray(ia) ? ia : [];
+          invoiceArts = arr;
+          arr.forEach(it => { if (it.escludi_inventario_staff && it.nome_articolo) hiddenStaff.add(it.nome_articolo); });
         }
         // Lookup storico: leggo il `note` JSON degli inventory_items di inventari precedenti
         // dello stesso locale, per ricordare il magazzino di articoli "fantasma" (mai fatturati).
@@ -366,7 +370,10 @@ export default async function handler(req, res) {
           }
           byName[n] = { nome_articolo: n, unita: it.unita || '', quantita: 0, prezzo_medio: null, magazzino: it.magazzino || histMagByName[n] || null, stock_id: null };
         });
-        const rows = Object.values(byName).sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
+        // Filtra articoli marcati "escludi_inventario_staff" (admin li ha nascosti dal mobile)
+        const rows = Object.values(byName)
+          .filter(r => !hiddenStaff.has(r.nome_articolo))
+          .sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
 
         if (rows.length > 0) {
           // product_id NOT NULL: uso stock.id quando disponibile, altrimenti genero uuid dummy dal nome.

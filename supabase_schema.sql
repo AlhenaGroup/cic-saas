@@ -248,7 +248,10 @@ CREATE TABLE IF NOT EXISTS public.warehouse_invoice_items (
   escludi_magazzino boolean DEFAULT false,
   tipo_confezione text,
   totale_um numeric(10,2),
-  qty_singola numeric(10,3)
+  qty_singola numeric(10,3),
+  -- Se true, l'articolo NON compare nell'inventario fatto dai
+  -- collaboratori da /timbra (resta visibile in dashboard admin).
+  escludi_inventario_staff boolean DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS public.warehouse_prices (
