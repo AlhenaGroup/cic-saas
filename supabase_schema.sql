@@ -451,6 +451,10 @@ CREATE TABLE IF NOT EXISTS public.production_recipes (
   resa_unita text,
   immagine_url text,
   attivo boolean DEFAULT true,
+  -- Mobile produzione: configurazione opzionale per dipendenti
+  checklist_haccp_template jsonb DEFAULT '[]'::jsonb, -- [{id, label, required}]
+  richiede_foto boolean DEFAULT false,
+  durata_attesa_minuti integer,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -477,6 +481,14 @@ CREATE TABLE IF NOT EXISTS public.production_batches (
   conservazione text,
   note text,
   stato text DEFAULT 'attivo' CHECK (stato IN ('attivo','consumato','scaduto','annullato')),
+  -- Mobile produzione tracking
+  data_inizio timestamptz,
+  data_fine timestamptz,
+  durata_minuti integer,
+  foto_url text,
+  ingredienti_effettivi jsonb,  -- override degli ingredienti standard se modificati dall'operatore
+  checklist_haccp jsonb,         -- risposte alla checklist HACCP della scheda
+  da_mobile boolean DEFAULT false,
   created_at timestamptz DEFAULT now(),
   UNIQUE(user_id, lotto)
 );

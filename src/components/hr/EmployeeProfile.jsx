@@ -485,6 +485,7 @@ function PermessiTab({ emp, onSaved }) {
     { k: 'consumo',     t: '🍪 Consumo personale', d: 'Puo\' registrare consumi personali (scarica dal magazzino e crea log per dipendente)' },
     { k: 'spostamenti', t: '🔀 Spostamenti tra locali', d: 'Puo\' spostare merce da un locale all\'altro (es. REMEMBEER → CASA DE AMICIS)' },
     { k: 'inventario',  t: '📋 Inventario', d: 'Puo\' aprire, contare e chiudere inventari del locale' },
+    { k: 'produzione',  t: '🥘 Produzione', d: 'Puo\' avviare e completare lotti di produzione interna (tiramisù, farinate, salse, ecc.) con tracking durata, foto e checklist HACCP' },
   ]
 
   // Raggruppa per locale → mostro una sezione per locale per leggibilità
@@ -518,7 +519,7 @@ function PermessiTab({ emp, onSaved }) {
     </div>
   )
 
-  return <Card title="Permessi app dipendente" badge={Object.values(p).filter(v => v === true).length + '/4 abilitati'}>
+  return <Card title="Permessi app dipendente" badge={Object.values(p).filter(v => v === true).length + '/5 abilitati'}>
     <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14, lineHeight: 1.5 }}>
       Definisci cosa puo\' fare <strong style={{ color: '#e2e8f0' }}>{emp.nome}</strong> dopo aver inserito il PIN sulla pagina di timbratura.
       Il menu delle azioni nell\'app mobile verra\' filtrato automaticamente.

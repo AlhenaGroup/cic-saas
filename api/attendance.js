@@ -842,6 +842,145 @@ export default async function handler(req, res) {
         return res.status(201).json({ ok: true, skipped: true, response_id: respId, attendance_id: attId, timestamp: attTimestamp });
       }
 
+      // ─── PRODUZIONE MOBILE: lista schede del locale ─────────────────
+      case 'prod-recipes': {
+        const { pin, locale } = req.body;
+        const v = await verifyPin(pin, 'produzione');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!locale) return res.status(400).json({ error: 'locale richiesto' });
+        const rec = await sbQuery(`production_recipes?user_id=eq.${v.emp.user_id}&locale_produzione=eq.${encodeURIComponent(locale)}&attivo=eq.true&select=*&order=nome`);
+        return res.status(200).json({ recipes: Array.isArray(rec) ? rec : [] });
+      }
+
+      // ─── PRODUZIONE MOBILE: avvia un lotto (timestamp inizio) ────────
+      // Restituisce un draft_id per il client. Il vero lotto viene creato
+      // alla chiusura (action prod-finish) per evitare orfani in caso di abbandono.
+      case 'prod-start': {
+        const { pin, locale, recipe_id } = req.body;
+        const v = await verifyPin(pin, 'produzione');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!locale || !recipe_id) return res.status(400).json({ error: 'locale e recipe_id richiesti' });
+        const recs = await sbQuery(`production_recipes?id=eq.${recipe_id}&user_id=eq.${v.emp.user_id}&select=*&limit=1`);
+        if (!recs?.[0]) return res.status(404).json({ error: 'Scheda non trovata' });
+        // Il draft non viene salvato in DB: restituiamo il timestamp e basta
+        return res.status(200).json({
+          recipe: recs[0],
+          data_inizio: new Date().toISOString(),
+        });
+      }
+
+      // ─── PRODUZIONE MOBILE: chiudi lotto (crea batch + movimenti) ────
+      case 'prod-finish': {
+        const { pin, locale, recipe_id, data_inizio, quantita_prodotta, ingredienti_effettivi,
+                checklist_haccp, foto_url, note } = req.body;
+        const v = await verifyPin(pin, 'produzione');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!recipe_id || !quantita_prodotta) return res.status(400).json({ error: 'recipe_id e quantita_prodotta richiesti' });
+
+        const recs = await sbQuery(`production_recipes?id=eq.${recipe_id}&user_id=eq.${v.emp.user_id}&select=*&limit=1`);
+        if (!recs?.[0]) return res.status(404).json({ error: 'Scheda non trovata' });
+        const recipe = recs[0];
+
+        // Verifica checklist required
+        const checklistTpl = Array.isArray(recipe.checklist_haccp_template) ? recipe.checklist_haccp_template : [];
+        const ans = checklist_haccp || {};
+        for (const it of checklistTpl) {
+          if (it.required && (ans[it.id] == null || ans[it.id] === '')) {
+            return res.status(400).json({ error: `Checklist HACCP non compilata: ${it.label}` });
+          }
+        }
+
+        // Genera codice lotto univoco (P-YYYYMMDD-NNN per user)
+        const today = new Date();
+        const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+        const prefix = `P-${yyyymmdd}`;
+        const last = await sbQuery(`production_batches?user_id=eq.${v.emp.user_id}&lotto=like.${prefix}%25&select=lotto&order=lotto.desc&limit=1`);
+        let next = 1;
+        if (last?.[0]?.lotto) { const m = last[0].lotto.match(/-(\d+)$/); if (m) next = Number(m[1]) + 1; }
+        const lotto = `${prefix}-${String(next).padStart(3, '0')}`;
+
+        // Calcola scadenza
+        let scadenza = null;
+        if (recipe.shelf_life_days) {
+          const sc = new Date(); sc.setDate(sc.getDate() + Number(recipe.shelf_life_days));
+          scadenza = sc.toISOString().slice(0, 10);
+        }
+
+        // Durata
+        const dataInizio = data_inizio || new Date().toISOString();
+        const dataFine = new Date().toISOString();
+        const durataMin = Math.max(0, Math.round((new Date(dataFine) - new Date(dataInizio)) / 60000));
+
+        // Ingredienti usati (effettivi se forniti, altrimenti scalati dalla ricetta)
+        const ratio = recipe.resa_quantita ? Number(quantita_prodotta) / Number(recipe.resa_quantita) : 1;
+        const ingredientiUsati = (ingredienti_effettivi && ingredienti_effettivi.length > 0)
+          ? ingredienti_effettivi
+          : (Array.isArray(recipe.ingredienti) ? recipe.ingredienti : []).map(i => ({
+              nome_articolo: i.nome_articolo,
+              quantita: Math.round((Number(i.quantita) || 0) * ratio * 1000) / 1000,
+              unita: i.unita || '',
+            }));
+
+        // Insert batch
+        const batchRow = {
+          user_id: v.emp.user_id,
+          recipe_id,
+          lotto,
+          data_produzione: today.toISOString().slice(0, 10),
+          ora_produzione: today.toTimeString().slice(0, 8),
+          data_scadenza: scadenza,
+          locale_produzione: locale,
+          locale_destinazione: recipe.locale_destinazione || locale,
+          operatore_id: v.emp.id,
+          operatore_nome: v.emp.nome,
+          quantita_prodotta: Number(quantita_prodotta),
+          unita: recipe.resa_unita || null,
+          ingredienti_usati: ingredientiUsati,
+          allergeni: recipe.allergeni || [],
+          conservazione: recipe.conservazione || null,
+          note: note || null,
+          stato: 'attivo',
+          data_inizio: dataInizio,
+          data_fine: dataFine,
+          durata_minuti: durataMin,
+          foto_url: foto_url || null,
+          ingredienti_effettivi: ingredienti_effettivi || null,
+          checklist_haccp: ans,
+          da_mobile: true,
+        };
+        const insRes = await sbQuery('production_batches', 'POST', [batchRow]);
+        const batch = Array.isArray(insRes) && insRes[0] ? insRes[0] : null;
+
+        // Movimenti magazzino (best-effort, errori solo loggati)
+        try {
+          // Scarico ingredienti
+          for (const ing of ingredientiUsati) {
+            if (!ing.nome_articolo || !ing.quantita) continue;
+            const movRows = [{
+              user_id: v.emp.user_id, locale, sub_location: 'principale',
+              nome_articolo: ing.nome_articolo, tipo: 'scarico',
+              quantita: Number(ing.quantita), unita: ing.unita || null,
+              fonte: 'produzione', riferimento_id: batch?.id || null,
+              riferimento_label: `Produzione ${recipe.nome} · lotto ${lotto}`,
+              production_batch_id: batch?.id || null,
+            }];
+            await sbQuery('article_movement', 'POST', movRows);
+          }
+          // Carico prodotto finito
+          const localeFinale = recipe.locale_destinazione || locale;
+          await sbQuery('article_movement', 'POST', [{
+            user_id: v.emp.user_id, locale: localeFinale, sub_location: 'principale',
+            nome_articolo: recipe.nome, tipo: 'carico',
+            quantita: Number(quantita_prodotta), unita: recipe.resa_unita || null,
+            fonte: 'produzione', riferimento_id: batch?.id || null,
+            riferimento_label: `Lotto ${lotto}`,
+            production_batch_id: batch?.id || null,
+          }]);
+        } catch (e) { console.error('[prod-finish movements]', e?.message || e); }
+
+        return res.status(201).json({ ok: true, lotto, batch_id: batch?.id, durata_minuti: durataMin });
+      }
+
       // ─── INFO PERSONALI (sola lettura, richiede solo PIN valido) ──
 
       // Turni settimanali del dipendente (employee_shifts)
@@ -955,7 +1094,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, checklist-skip, my-shifts, my-hours, my-timeoff' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, checklist-skip, prod-recipes, prod-start, prod-finish, my-shifts, my-hours, my-timeoff' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);

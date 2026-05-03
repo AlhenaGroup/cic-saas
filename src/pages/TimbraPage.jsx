@@ -222,6 +222,9 @@ export default function TimbraPage() {
     {step === 'inventario' && <InventarioPanel pin={pin} locale={locale} employee={employee}
       onDone={(msg) => { setMessage(msg); setStep('done') }} onBack={() => goTo('menu')} />}
 
+    {step === 'produzione' && <ProduzionePanel pin={pin} locale={locale} employee={employee}
+      onDone={(msg) => { setMessage(msg); setStep('done') }} onBack={() => goTo('menu')} />}
+
     {step === 'miei-turni' && <MieiTurniPanel pin={pin} onBack={() => goTo('menu')} />}
     {step === 'mie-ore' && <MieOrePanel pin={pin} onBack={() => goTo('menu')} />}
     {step === 'mie-ferie' && <MieFeriePanel pin={pin} onBack={() => goTo('menu')} />}
@@ -235,6 +238,7 @@ function stepLabel(s) {
   return {
     presenza: 'Timbratura presenza', consumo: 'Consumo personale',
     trasferimento: 'Spostamento merce', inventario: 'Inventario',
+    produzione: 'Produzione',
     checklist: 'Checklist obbligatoria',
     'miei-turni': 'I miei turni', 'mie-ore': 'Le mie ore', 'mie-ferie': 'Le mie ferie',
     done: 'Fatto', error: 'Errore',
@@ -275,6 +279,7 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
     { k: 'consumo', icon: '🍪', label: 'Consumo personale', color: '#F59E0B' },
     { k: 'trasferimento', icon: '🔀', label: 'Spostamento merce', color: '#3B82F6' },
     { k: 'inventario', icon: '📋', label: 'Inventario', color: '#8B5CF6' },
+    { k: 'produzione', icon: '🥘', label: 'Produzione', color: '#EF4444' },
   ].filter(i => permissions[i.k === 'trasferimento' ? 'spostamenti' : i.k])
   // Viste info personali: sempre visibili (sola lettura dei propri dati)
   const info = [
@@ -1019,5 +1024,263 @@ function InstallBanner() {
       3. Dai un nome (es. "Timbra") e tocca <strong>Aggiungi</strong>.<br />
       <span style={{ color: '#F59E0B' }}>Importante:</span> deve essere Safari, non Chrome.
     </div>}
+  </div>
+}
+
+// ─── PRODUZIONE ──────────────────────────────────────────────────────
+// Flow: lista schede → seleziona scheda → "Inizia produzione" (timestamp)
+// → schermata produzione con cronometro live + ingredienti modificabili
+// + checklist HACCP (se template) + foto (se richiede_foto) → "Termina"
+function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
+  const [recipes, setRecipes] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [phase, setPhase] = useState('list') // list | producing
+  const [startedAt, setStartedAt] = useState(null)
+  const [now, setNow] = useState(Date.now())
+  const [qty, setQty] = useState('')
+  const [ingredientiEffettivi, setIngredientiEffettivi] = useState([])
+  const [checklistAns, setChecklistAns] = useState({})
+  const [foto, setFoto] = useState(null) // dataURL
+  const [note, setNote] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const d = await apiCall({ action: 'prod-recipes', pin, locale })
+        setRecipes(d.recipes || [])
+      } catch (e) { setErr(e.message) }
+    })()
+  }, [pin, locale])
+
+  // Tick cronometro
+  useEffect(() => {
+    if (phase !== 'producing') return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [phase])
+
+  const filteredRecipes = search
+    ? recipes.filter(r => r.nome.toLowerCase().includes(search.toLowerCase()))
+    : recipes
+
+  const startProduction = async () => {
+    if (!selected) return
+    setLoading(true); setErr('')
+    try {
+      const d = await apiCall({ action: 'prod-start', pin, locale, recipe_id: selected.id })
+      setStartedAt(d.data_inizio)
+      // Pre-compila ingredienti scalati alla resa
+      const ratio = 1 // resa attesa = 1x
+      const ings = (selected.ingredienti || []).map(i => ({
+        nome_articolo: i.nome_articolo,
+        quantita: Math.round((Number(i.quantita) || 0) * ratio * 1000) / 1000,
+        unita: i.unita || '',
+      }))
+      setIngredientiEffettivi(ings)
+      setQty(String(selected.resa_quantita || ''))
+      setPhase('producing')
+    } catch (e) { setErr(e.message) }
+    setLoading(false)
+  }
+
+  const updIng = (i, patch) => setIngredientiEffettivi(prev =>
+    prev.map((x, idx) => idx === i ? { ...x, ...patch } : x))
+
+  const elapsed = startedAt ? Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000)) : 0
+  const elapsedMin = Math.floor(elapsed / 60)
+  const elapsedSec = elapsed % 60
+  const elapsedStr = `${String(elapsedMin).padStart(2, '0')}:${String(elapsedSec).padStart(2, '0')}`
+
+  const checklistTpl = Array.isArray(selected?.checklist_haccp_template) ? selected.checklist_haccp_template : []
+  const requiresPhoto = !!selected?.richiede_foto
+  const allRequiredOk = checklistTpl.every(it => {
+    if (!it.required) return true
+    const v = checklistAns[it.id]
+    return v != null && v !== ''
+  }) && (!requiresPhoto || !!foto) && qty && Number(qty) > 0
+
+  const onPhotoChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setFoto(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  const finishProduction = async () => {
+    setLoading(true); setErr('')
+    try {
+      // Per la foto: per ora la inviamo come dataURL nel campo foto_url. Ottimizzazione
+      // futura = upload su Supabase Storage. Truncate se >500KB per safety.
+      let fotoToSend = foto
+      if (foto && foto.length > 500000) {
+        // semplice resize via canvas
+        await new Promise((resolve) => {
+          const img = new Image()
+          img.onload = () => {
+            const c = document.createElement('canvas')
+            const max = 800
+            const ratio = Math.min(max / img.width, max / img.height, 1)
+            c.width = img.width * ratio; c.height = img.height * ratio
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+            fotoToSend = c.toDataURL('image/jpeg', 0.7)
+            resolve()
+          }
+          img.src = foto
+        })
+      }
+      const d = await apiCall({
+        action: 'prod-finish', pin, locale,
+        recipe_id: selected.id,
+        data_inizio: startedAt,
+        quantita_prodotta: Number(qty),
+        ingredienti_effettivi: ingredientiEffettivi,
+        checklist_haccp: checklistAns,
+        foto_url: fotoToSend || null,
+        note: note || null,
+      })
+      onDone(`Lotto ${d.lotto} creato (${d.durata_minuti} min)`)
+    } catch (e) { setErr(e.message); setLoading(false) }
+  }
+
+  // ── UI: lista schede ──
+  if (phase === 'list') {
+    return <div style={{ maxWidth: 420, width: '100%' }}>
+      {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Cerca scheda…"
+        style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 10, outline: 'none', boxSizing: 'border-box' }} />
+      {filteredRecipes.length === 0 ? (
+        <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
+          Nessuna scheda produzione attiva per {locale}.<br/>
+          <span style={{ fontSize: 11 }}>Le schede si gestiscono dalla dashboard admin.</span>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {filteredRecipes.map(r => (
+            <button key={r.id} onClick={() => setSelected(r)}
+              style={{ padding: 14, background: selected?.id === r.id ? 'rgba(239,68,68,.12)' : '#1a1f2e',
+                border: `1px solid ${selected?.id === r.id ? '#EF4444' : '#2a3042'}`,
+                borderRadius: 10, color: '#e2e8f0', textAlign: 'left', cursor: 'pointer' }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{r.nome}</div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                Resa: {r.resa_quantita} {r.resa_unita || ''}
+                {r.durata_attesa_minuti ? ` · ~${r.durata_attesa_minuti} min` : ''}
+                {r.locale_destinazione && r.locale_destinazione !== r.locale_produzione ? ` · → ${r.locale_destinazione}` : ''}
+              </div>
+              {(r.ingredienti || []).length > 0 && (
+                <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>{r.ingredienti.length} ingredienti</div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      {selected && (
+        <button onClick={startProduction} disabled={loading}
+          style={{ marginTop: 12, width: '100%', padding: 16, background: '#EF4444', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'wait' : 'pointer' }}>
+          {loading ? 'Avvio…' : `▶ Inizia produzione: ${selected.nome}`}
+        </button>
+      )}
+      <button onClick={onBack} style={{ marginTop: 8, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+    </div>
+  }
+
+  // ── UI: produzione in corso ──
+  return <div style={{ maxWidth: 420, width: '100%' }}>
+    {/* Header: cronometro */}
+    <div style={{ background: 'linear-gradient(135deg, #EF4444, #F59E0B)', borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'center', color: '#fff' }}>
+      <div style={{ fontSize: 11, opacity: 0.9, textTransform: 'uppercase', letterSpacing: 1 }}>In produzione</div>
+      <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>{selected.nome}</div>
+      <div style={{ fontSize: 32, fontWeight: 700, fontFamily: 'monospace', marginTop: 6 }}>⏱ {elapsedStr}</div>
+      {selected.durata_attesa_minuti && (
+        <div style={{ fontSize: 10, opacity: 0.85, marginTop: 4 }}>Tempo atteso: ~{selected.durata_attesa_minuti} min</div>
+      )}
+    </div>
+
+    {/* Quantità prodotta */}
+    <div style={{ background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>Quantità prodotta</div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input type="number" step="0.001" value={qty} onChange={e => setQty(e.target.value)}
+          style={{ flex: 1, padding: 12, fontSize: 18, borderRadius: 8, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
+        <span style={{ padding: '12px 14px', fontSize: 14, color: '#94a3b8', alignSelf: 'center' }}>{selected.resa_unita || ''}</span>
+      </div>
+      {selected.resa_quantita && (
+        <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>Resa attesa: {selected.resa_quantita} {selected.resa_unita}</div>
+      )}
+    </div>
+
+    {/* Ingredienti effettivi (modificabili) */}
+    {ingredientiEffettivi.length > 0 && (
+      <div style={{ background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
+          Ingredienti effettivamente usati <span style={{ color: '#64748b' }}>(modifica se diverso da scheda)</span>
+        </div>
+        {ingredientiEffettivi.map((ing, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 60px', gap: 6, marginBottom: 4 }}>
+            <input value={ing.nome_articolo} onChange={e => updIng(i, { nome_articolo: e.target.value })}
+              style={{ padding: '8px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }} />
+            <input type="number" step="0.001" value={ing.quantita} onChange={e => updIng(i, { quantita: e.target.value })}
+              style={{ padding: '8px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
+            <span style={{ fontSize: 11, color: '#94a3b8', alignSelf: 'center', textAlign: 'center' }}>{ing.unita}</span>
+          </div>
+        ))}
+      </div>
+    )}
+
+    {/* Checklist HACCP */}
+    {checklistTpl.length > 0 && (
+      <div style={{ background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>Checklist HACCP</div>
+        {checklistTpl.map(it => {
+          const ok = checklistAns[it.id] === true
+          const ko = checklistAns[it.id] === false
+          return <div key={it.id} style={{ marginBottom: 6 }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>{it.label}{it.required && <span style={{ color: '#F59E0B' }}> *</span>}</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => setChecklistAns(prev => ({ ...prev, [it.id]: true }))}
+                style={{ flex: 1, padding: 8, borderRadius: 6, border: `1px solid ${ok ? '#10B981' : '#2a3042'}`, background: ok ? 'rgba(16,185,129,.15)' : '#0f1420', color: ok ? '#10B981' : '#e2e8f0', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>OK</button>
+              <button onClick={() => setChecklistAns(prev => ({ ...prev, [it.id]: false }))}
+                style={{ flex: 1, padding: 8, borderRadius: 6, border: `1px solid ${ko ? '#EF4444' : '#2a3042'}`, background: ko ? 'rgba(239,68,68,.15)' : '#0f1420', color: ko ? '#EF4444' : '#e2e8f0', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>KO</button>
+            </div>
+          </div>
+        })}
+      </div>
+    )}
+
+    {/* Foto */}
+    {requiresPhoto && (
+      <div style={{ background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>Foto del prodotto finito <span style={{ color: '#F59E0B' }}>*</span></div>
+        {foto ? (
+          <div>
+            <img src={foto} alt="Prodotto" style={{ width: '100%', borderRadius: 8, marginBottom: 8 }} />
+            <button onClick={() => setFoto(null)} style={{ width: '100%', padding: 8, background: 'transparent', border: '1px solid #EF4444', color: '#EF4444', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Rimuovi foto</button>
+          </div>
+        ) : (
+          <label style={{ display: 'block', padding: 24, background: '#0f1420', border: '1px dashed #475569', borderRadius: 8, textAlign: 'center', cursor: 'pointer', color: '#94a3b8', fontSize: 13 }}>
+            📸 Tocca per scattare/scegliere foto
+            <input type="file" accept="image/*" capture="environment" onChange={onPhotoChange} style={{ display: 'none' }} />
+          </label>
+        )}
+      </div>
+    )}
+
+    {/* Note */}
+    <input value={note} onChange={e => setNote(e.target.value)} placeholder="Note (opz.)"
+      style={{ width: '100%', padding: '10px 12px', fontSize: 13, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 12, outline: 'none', boxSizing: 'border-box' }} />
+
+    {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
+
+    <button onClick={finishProduction} disabled={loading || !allRequiredOk}
+      style={{ width: '100%', padding: 16, background: allRequiredOk ? '#10B981' : '#2a3042', color: allRequiredOk ? '#fff' : '#64748b', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'wait' : (allRequiredOk ? 'pointer' : 'not-allowed') }}>
+      {loading ? 'Salvo lotto…' : '✓ Termina produzione'}
+    </button>
+
+    <div style={{ marginTop: 8, fontSize: 11, color: '#64748b', textAlign: 'center' }}>
+      Verrà generato un codice lotto univoco e scaricati gli ingredienti dal magazzino.
+    </div>
   </div>
 }
