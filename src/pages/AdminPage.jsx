@@ -5,21 +5,28 @@ import { S, Card } from '../components/shared/styles.jsx'
 
 const iS = S.input
 
-// Catalogo tab e widget conosciuti (per popolare le checkbox nei piani)
+// Catalogo tab e widget conosciuti (per popolare le checkbox nei piani).
+// Allineato con la nuova gerarchia top-level (vendite/conta/imp wrapper).
+// Le keys legacy (scontrini/cat/rep/iva/fat/susp) sono mantenute per
+// backward compat con piani esistenti.
 const TAB_CATALOG = [
-  { key: 'ov', label: '📊 Panoramica' },
-  { key: 'scontrini', label: '🧾 Scontrini' },
-  { key: 'cat', label: '🏷️ Categorie' },
-  { key: 'iva', label: '📋 IVA' },
-  { key: 'rep', label: '🏪 Reparti' },
-  { key: 'susp', label: '⚠️ Movimenti' },
-  { key: 'fat', label: '📄 Fatture' },
-  { key: 'mag', label: '🏠 Magazzino' },
-  { key: 'prod', label: '⏱️ Produttività' },
-  { key: 'ce', label: '📊 Conto Econ.' },
-  { key: 'hr', label: '👥 Personale' },
-  { key: 'mkt', label: '🎯 Marketing' },
-  { key: 'bud', label: '💰 Budget' },
+  { key: 'ov', label: 'Panoramica' },
+  { key: 'vendite', label: 'Vendite' },
+  { key: 'mag', label: 'Magazzino' },
+  { key: 'hr', label: 'HR' },
+  { key: 'prod', label: 'Produttività' },
+  { key: 'conta', label: 'Contabilità' },
+  { key: 'mkt', label: 'Marketing' },
+  { key: 'ce', label: 'Conto Economico' },
+  { key: 'bud', label: 'Budget' },
+  { key: 'imp', label: 'Impostazioni' },
+  // ── Legacy (backward compat) ──
+  { key: 'scontrini', label: '[legacy] Scontrini' },
+  { key: 'cat', label: '[legacy] Categorie' },
+  { key: 'rep', label: '[legacy] Reparti' },
+  { key: 'iva', label: '[legacy] IVA' },
+  { key: 'fat', label: '[legacy] Fatture' },
+  { key: 'susp', label: '[legacy] Movimenti' },
 ]
 
 // Widget noti per tab (preliminare; verranno espansi con il refactor Step 4)
@@ -46,12 +53,39 @@ const WIDGET_CATALOG = {
     { key: 'mag.fatture', label: 'Fatture' },
     { key: 'mag.prodotti', label: 'Prodotti CiC' },
     { key: 'mag.articoli', label: 'Articoli' },
+    { key: 'mag.semilavorati', label: 'Semilavorati' },
     { key: 'mag.ricette', label: 'Ricette' },
+    { key: 'mag.produzione', label: 'Produzione (HACCP)' },
     { key: 'mag.giacenze', label: 'Giacenze' },
+    { key: 'mag.movimenti', label: 'Movimenti' },
     { key: 'mag.inventario', label: 'Inventario' },
     { key: 'mag.ordini', label: 'Ordini' },
     { key: 'mag.prezzi', label: 'Prezzi' },
     { key: 'mag.matrice_eisenhower', label: 'Matrice Eisenhower (advanced)' },
+  ],
+  hr: [
+    { key: 'hr.dipendenti', label: 'Dipendenti' },
+    { key: 'hr.documenti', label: 'Documenti' },
+    { key: 'hr.calendario', label: 'Calendario' },
+    { key: 'hr.presenze', label: 'Presenze reali' },
+    { key: 'hr.turni', label: 'Turni' },
+    { key: 'hr.checklist', label: 'Checklist timbratura' },
+  ],
+  conta: [
+    { key: 'conta.fatture', label: 'Fatture passive' },
+    { key: 'conta.iva', label: 'IVA' },
+    { key: 'conta.chiusure', label: 'Chiusure & Versamenti' },
+  ],
+  vendite: [
+    { key: 'vendite.scontrini', label: 'Scontrini cliccabili' },
+    { key: 'vendite.categorie', label: 'Categorie' },
+    { key: 'vendite.reparti', label: 'Reparti' },
+  ],
+  imp: [
+    { key: 'imp.generale', label: 'Anagrafica azienda + locali' },
+    { key: 'imp.integrazioni', label: 'Status integrazioni' },
+    { key: 'imp.notifiche', label: 'Resoconto giornaliero & alert' },
+    { key: 'imp.account', label: 'Profilo + cambio password' },
   ],
 }
 
@@ -131,7 +165,7 @@ function UsersList({ onEditUser, refreshKey }) {
                     catch (e) { alert('Errore: ' + e.message) }
                   }}
                     title="Elimina utente"
-                    style={{ ...iS, fontSize: 11, padding: '4px 8px', cursor: 'pointer', color: '#EF4444' }}>🗑</button>
+                    style={{ ...iS, fontSize: 11, padding: '4px 8px', cursor: 'pointer', color: '#EF4444' }}>Elimina</button>
                 </div>
               </td>
             </tr>
@@ -160,6 +194,15 @@ function NewUser({ onClose, onCreated }) {
   const [planId, setPlanId] = useState('')
   const [trialUntil, setTrialUntil] = useState('')
   const [validUntil, setValidUntil] = useState('')
+  // Anagrafica azienda
+  const [companyName, setCompanyName] = useState('')
+  const [vatNumber, setVatNumber] = useState('')
+  const [taxCode, setTaxCode] = useState('')
+  const [address, setAddress] = useState('')
+  const [phone, setPhone] = useState('')
+  const [companyEmail, setCompanyEmail] = useState('')
+  const [website, setWebsite] = useState('')
+  // Integrazioni
   const [cicApiKey, setCicApiKey] = useState('')
   const [tsId, setTsId] = useState('')
   const [tsSecret, setTsSecret] = useState('')
@@ -196,7 +239,7 @@ function NewUser({ onClose, onCreated }) {
     if (!email || !email.includes('@')) { alert('Email non valida'); return }
     setCreating(true)
     try {
-      await adminCall('invite-user', {
+      const data = await adminCall('invite-user', {
         email: email.trim().toLowerCase(),
         plan_id: planId || undefined,
         valid_until: validUntil || null,
@@ -208,6 +251,21 @@ function NewUser({ onClose, onCreated }) {
         ts_digital_owner: tsOwner || null,
         plateform_api_key: plateformKey || null,
       })
+      // Salva anagrafica subito dopo l'invito (richiede user_id)
+      if (data?.user_id && (companyName || vatNumber || taxCode || address || phone || companyEmail || website)) {
+        try {
+          await adminCall('set-user-settings', {
+            user_id: data.user_id,
+            company_name: companyName || null,
+            vat_number: vatNumber || null,
+            tax_code: taxCode || null,
+            address: address || null,
+            phone: phone || null,
+            company_email: companyEmail || null,
+            website: website || null,
+          })
+        } catch (e) { console.warn('anagrafica non salvata:', e.message) }
+      }
       alert(`✓ Cliente creato.\n\nUna email di benvenuto è stata inviata a ${email}\ncon il link per impostare la password.`)
       onCreated()
     } catch (e) { alert('Errore: ' + e.message) }
@@ -229,7 +287,7 @@ function NewUser({ onClose, onCreated }) {
       <div style={{ padding: 20 }}>
         {/* DATI BASE */}
         <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 12 }}>📧 Account</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 12 }}>Account</div>
           <Field label="Email del cliente *" hint="obbligatoria">
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@esempio.it" style={{ ...iS, width: '100%' }} />
           </Field>
@@ -248,9 +306,44 @@ function NewUser({ onClose, onCreated }) {
           </div>
         </div>
 
+        {/* ANAGRAFICA AZIENDA */}
+        <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981', marginBottom: 4 }}>Anagrafica azienda</div>
+          <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>
+            Tutti i campi sono opzionali e modificabili in qualsiasi momento da "Modifica utente"
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
+            <Field label="Ragione sociale">
+              <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="es. Alhena Group SRL" style={{ ...iS, width: '100%' }} />
+            </Field>
+            <Field label="Telefono">
+              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="es. 0121 1234567" style={{ ...iS, width: '100%' }} />
+            </Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="Partita IVA">
+              <input value={vatNumber} onChange={e => setVatNumber(e.target.value)} placeholder="11 cifre" style={{ ...iS, width: '100%', fontFamily: 'monospace' }} />
+            </Field>
+            <Field label="Codice Fiscale">
+              <input value={taxCode} onChange={e => setTaxCode(e.target.value.toUpperCase())} placeholder="" style={{ ...iS, width: '100%', fontFamily: 'monospace', textTransform: 'uppercase' }} />
+            </Field>
+          </div>
+          <Field label="Indirizzo sede">
+            <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Via Roma 1, 10064 Pinerolo TO" style={{ ...iS, width: '100%' }} />
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Field label="Email aziendale (PEC/contatto)">
+              <input type="email" value={companyEmail} onChange={e => setCompanyEmail(e.target.value)} placeholder="info@azienda.it" style={{ ...iS, width: '100%' }} />
+            </Field>
+            <Field label="Sito web">
+              <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://" style={{ ...iS, width: '100%' }} />
+            </Field>
+          </div>
+        </div>
+
         {/* INTEGRAZIONI */}
         <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', marginBottom: 4 }}>🔌 Integrazioni esterne</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', marginBottom: 4 }}>Integrazioni esterne</div>
           <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>
             Tutte opzionali — puoi compilarle ora o aggiungerle dopo da "Modifica utente"
           </div>
@@ -260,14 +353,14 @@ function NewUser({ onClose, onCreated }) {
             <div style={{ display: 'flex', gap: 6 }}>
               <input type={showCic ? 'text' : 'password'} value={cicApiKey} onChange={e => setCicApiKey(e.target.value)}
                 placeholder="es. 577e0bcc-f44e-4f5a-..." style={{ ...iS, flex: 1, fontFamily: 'monospace' }} />
-              <button onClick={() => setShowCic(!showCic)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }}>{showCic ? '🙈' : '👁'}</button>
+              <button onClick={() => setShowCic(!showCic)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }}>{showCic ? 'Nascondi' : 'Mostra'}</button>
               <button onClick={trySyncCic} disabled={syncing || !cicApiKey} style={{ ...iS, background: '#3B82F6', color: '#fff', fontWeight: 600, border: 'none', padding: '6px 12px', cursor: syncing ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
-                {syncing ? '⏳' : '🔄 Sincronizza locali'}
+                {syncing ? 'Attendi…' : 'Sincronizza locali'}
               </button>
             </div>
             {salesPoints.length > 0 && (
               <div style={{ marginTop: 8, padding: 8, background: '#0a0e16', borderRadius: 4, fontSize: 11, color: '#94a3b8' }}>
-                ✓ {salesPoints.length} locali sincronizzati: {salesPoints.map(s => s.description || s.name).join(', ')}
+                {salesPoints.length} locali sincronizzati: {salesPoints.map(s => s.description || s.name).join(', ')}
               </div>
             )}
           </Field>
@@ -280,7 +373,7 @@ function NewUser({ onClose, onCreated }) {
             <Field label="TS Digital Secret">
               <div style={{ display: 'flex', gap: 4 }}>
                 <input type={showTsSecret ? 'text' : 'password'} value={tsSecret} onChange={e => setTsSecret(e.target.value)} placeholder="es. e4de10bd-04d5-..." style={{ ...iS, flex: 1, fontFamily: 'monospace' }} />
-                <button onClick={() => setShowTsSecret(!showTsSecret)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }}>{showTsSecret ? '🙈' : '👁'}</button>
+                <button onClick={() => setShowTsSecret(!showTsSecret)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }}>{showTsSecret ? 'Nascondi' : 'Mostra'}</button>
               </div>
             </Field>
           </div>
@@ -292,7 +385,7 @@ function NewUser({ onClose, onCreated }) {
           <Field label="Chiave API Plateform" hint="opzionale, per CRM/RFM">
             <div style={{ display: 'flex', gap: 6 }}>
               <input type={showPlateform ? 'text' : 'password'} value={plateformKey} onChange={e => setPlateformKey(e.target.value)} placeholder="" style={{ ...iS, flex: 1, fontFamily: 'monospace' }} />
-              <button onClick={() => setShowPlateform(!showPlateform)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }}>{showPlateform ? '🙈' : '👁'}</button>
+              <button onClick={() => setShowPlateform(!showPlateform)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }}>{showPlateform ? 'Nascondi' : 'Mostra'}</button>
             </div>
           </Field>
         </div>
@@ -300,7 +393,7 @@ function NewUser({ onClose, onCreated }) {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
           <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
           <button onClick={submit} disabled={creating || !email} style={{ ...iS, background: creating ? '#1a1f2e' : '#10B981', color: creating ? '#94a3b8' : '#0f1420', fontWeight: 600, border: 'none', padding: '8px 22px', cursor: creating ? 'wait' : 'pointer' }}>
-            {creating ? '⏳ Creo…' : '✉️ Crea & invita per email'}
+            {creating ? 'Creo…' : 'Crea & invita per email'}
           </button>
         </div>
       </div>
@@ -309,7 +402,7 @@ function NewUser({ onClose, onCreated }) {
 }
 
 function EditUser({ user, plans, onClose, onSaved }) {
-  const [section, setSection] = useState('plan') // plan | features | cic
+  const [section, setSection] = useState('plan') // plan | anagrafica | features | cic
   const [planId, setPlanId] = useState(user.plan?.plan_id || (plans.find(p => p.is_default)?.id || plans[0]?.id))
   const [validUntil, setValidUntil] = useState(user.plan?.valid_until || '')
   const [trialUntil, setTrialUntil] = useState(user.plan?.trial_until || '')
@@ -321,23 +414,41 @@ function EditUser({ user, plans, onClose, onSaved }) {
   const [excludeWidgets, setExcludeWidgets] = useState(user.overrides?.exclude?.widgets || [])
   const [saving, setSaving] = useState(false)
 
-  // Settings CiC
+  // Settings condivise (CiC + anagrafica + altre integrazioni)
   const [cicApiKey, setCicApiKey] = useState('')
   const [salesPoints, setSalesPoints] = useState([])
   const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [syncingSp, setSyncingSp] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
 
-  // Carica le settings CiC quando l'utente apre la sezione
-  const loadCicSettings = useCallback(async () => {
+  // Anagrafica azienda
+  const [companyName, setCompanyName] = useState('')
+  const [vatNumber, setVatNumber] = useState('')
+  const [taxCode, setTaxCode] = useState('')
+  const [address, setAddress] = useState('')
+  const [phone, setPhone] = useState('')
+  const [companyEmail, setCompanyEmail] = useState('')
+  const [website, setWebsite] = useState('')
+
+  // Carica le settings (CiC + anagrafica) la prima volta che si apre una sezione che ne ha bisogno
+  const loadSettings = useCallback(async () => {
     try {
       const { settings } = await adminCall('get-user-settings', { user_id: user.id })
       setCicApiKey(settings?.cic_api_key || '')
       setSalesPoints(Array.isArray(settings?.sales_points) ? settings.sales_points : [])
+      setCompanyName(settings?.company_name || '')
+      setVatNumber(settings?.vat_number || '')
+      setTaxCode(settings?.tax_code || '')
+      setAddress(settings?.address || '')
+      setPhone(settings?.phone || '')
+      setCompanyEmail(settings?.company_email || '')
+      setWebsite(settings?.website || '')
       setSettingsLoaded(true)
     } catch (e) { alert(e.message) }
   }, [user.id])
-  useEffect(() => { if (section === 'cic' && !settingsLoaded) loadCicSettings() }, [section, settingsLoaded, loadCicSettings])
+  useEffect(() => {
+    if ((section === 'cic' || section === 'anagrafica') && !settingsLoaded) loadSettings()
+  }, [section, settingsLoaded, loadSettings])
 
   const syncSalespoints = async () => {
     if (!cicApiKey) { alert('Inserisci prima la chiave API CiC'); return }
@@ -366,12 +477,19 @@ function EditUser({ user, plans, onClose, onSaved }) {
         extra: { tabs: extraTabs, widgets: extraWidgets },
         exclude: { tabs: excludeTabs, widgets: excludeWidgets },
       })
-      // Salva settings CiC se sono state caricate (= utente ha aperto il tab CiC)
+      // Salva settings CiC + anagrafica se sono state caricate (= utente ha aperto il tab cic o anagrafica)
       if (settingsLoaded) {
         await adminCall('set-user-settings', {
           user_id: user.id,
           cic_api_key: cicApiKey || null,
           sales_points: salesPoints,
+          company_name: companyName || null,
+          vat_number: vatNumber || null,
+          tax_code: taxCode || null,
+          address: address || null,
+          phone: phone || null,
+          company_email: companyEmail || null,
+          website: website || null,
         })
       }
       onSaved()
@@ -395,10 +513,11 @@ function EditUser({ user, plans, onClose, onSaved }) {
       </div>
 
       {/* Tab di sezione */}
-      <div style={{ display: 'flex', gap: 4, padding: '0 20px', borderBottom: '1px solid #2a3042' }}>
-        <button onClick={() => setSection('plan')} style={sBtn('plan')}>📦 Piano & stato</button>
-        <button onClick={() => setSection('features')} style={sBtn('features')}>🎛 Override tab</button>
-        <button onClick={() => setSection('cic')} style={sBtn('cic')}>🔑 Configurazione CiC</button>
+      <div style={{ display: 'flex', gap: 4, padding: '0 20px', borderBottom: '1px solid #2a3042', overflowX: 'auto' }}>
+        <button onClick={() => setSection('plan')} style={sBtn('plan')}>Piano &amp; stato</button>
+        <button onClick={() => setSection('anagrafica')} style={sBtn('anagrafica')}>Anagrafica</button>
+        <button onClick={() => setSection('features')} style={sBtn('features')}>Override tab</button>
+        <button onClick={() => setSection('cic')} style={sBtn('cic')}>Configurazione CiC</button>
       </div>
 
       <div style={{ padding: 20 }}>
@@ -430,7 +549,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
 
         {section === 'features' && <>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>🟢 Extra: tab inclusi oltre al piano</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#10B981', marginBottom: 8 }}>Extra: tab inclusi oltre al piano</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {TAB_CATALOG.map(t => (
                 <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8', background: extraTabs.includes(t.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
@@ -441,7 +560,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>🔴 Esclusi: tab tolti dal piano</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#EF4444', marginBottom: 8 }}>Esclusi: tab tolti dal piano</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {TAB_CATALOG.map(t => (
                 <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8', background: excludeTabs.includes(t.key) ? 'rgba(239,68,68,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
@@ -453,17 +572,54 @@ function EditUser({ user, plans, onClose, onSaved }) {
           </div>
         </>}
 
+        {section === 'anagrafica' && <>
+          {!settingsLoaded && <div style={{ padding: 12, color: '#64748b' }}>Carico…</div>}
+          {settingsLoaded && <>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 14 }}>
+              Dati anagrafici dell'azienda cliente. Verranno mostrati nel modulo Impostazioni → Generale.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
+              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Ragione sociale</div>
+                <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="es. Alhena Group SRL" style={{ ...iS, width: '100%' }} />
+              </label>
+              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Telefono</div>
+                <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="" style={{ ...iS, width: '100%' }} />
+              </label>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Partita IVA</div>
+                <input value={vatNumber} onChange={e => setVatNumber(e.target.value)} placeholder="11 cifre" style={{ ...iS, width: '100%', fontFamily: 'monospace' }} />
+              </label>
+              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Codice Fiscale</div>
+                <input value={taxCode} onChange={e => setTaxCode(e.target.value.toUpperCase())} placeholder="" style={{ ...iS, width: '100%', fontFamily: 'monospace', textTransform: 'uppercase' }} />
+              </label>
+            </div>
+            <label style={{ display: 'block', marginTop: 10 }}>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Indirizzo sede</div>
+              <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Via, città, CAP" style={{ ...iS, width: '100%' }} />
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Email aziendale (PEC/contatto)</div>
+                <input type="email" value={companyEmail} onChange={e => setCompanyEmail(e.target.value)} style={{ ...iS, width: '100%' }} />
+              </label>
+              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Sito web</div>
+                <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://" style={{ ...iS, width: '100%' }} />
+              </label>
+            </div>
+          </>}
+        </>}
+
         {section === 'cic' && <>
           {!settingsLoaded && <div style={{ padding: 12, color: '#64748b' }}>Carico…</div>}
           {settingsLoaded && <>
             <label style={{ display: 'block', marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>🔑 Chiave API CiC <span style={{ color: '#64748b' }}>(la trovi nel back-office Cassa in Cloud)</span></div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Chiave API CiC <span style={{ color: '#64748b' }}>(la trovi nel back-office Cassa in Cloud)</span></div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input type={showApiKey ? 'text' : 'password'} value={cicApiKey} onChange={e => setCicApiKey(e.target.value)}
                   placeholder="es. 577e0bcc-f44e-4f5a-b7b6-..."
                   style={{ ...iS, flex: 1, fontFamily: 'monospace' }} />
                 <button onClick={() => setShowApiKey(!showApiKey)} style={{ ...iS, padding: '6px 10px', cursor: 'pointer' }} title={showApiKey ? 'Nascondi' : 'Mostra'}>
-                  {showApiKey ? '🙈' : '👁'}
+                  {showApiKey ? 'Nascondi' : 'Mostra'}
                 </button>
               </div>
             </label>
@@ -471,7 +627,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
             <div style={{ marginBottom: 12 }}>
               <button onClick={syncSalespoints} disabled={syncingSp || !cicApiKey}
                 style={{ ...iS, background: syncingSp ? '#1a1f2e' : '#3B82F6', color: syncingSp ? '#94a3b8' : '#fff', fontWeight: 600, border: 'none', padding: '8px 14px', cursor: syncingSp ? 'wait' : 'pointer' }}>
-                {syncingSp ? '⏳ Sincronizzo…' : '🔄 Sincronizza locali da CiC'}
+                {syncingSp ? 'Sincronizzo…' : 'Sincronizza locali da CiC'}
               </button>
               <span style={{ fontSize: 11, color: '#64748b', marginLeft: 10 }}>
                 Verifica la chiave + scarica la lista locali del cliente
@@ -479,7 +635,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
             </div>
 
             <div style={{ borderTop: '1px solid #2a3042', paddingTop: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>📍 Locali (sales_points) sincronizzati</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>Locali (sales_points) sincronizzati</div>
               {salesPoints.length === 0 ? (
                 <div style={{ fontSize: 11, color: '#64748b', padding: 12, background: '#0a0e16', borderRadius: 6 }}>
                   Nessun locale. Inserisci la chiave API e clicca "Sincronizza".
@@ -517,12 +673,12 @@ function EditUser({ user, plans, onClose, onSaved }) {
             disabled={saving || !!user.admin_role}
             style={{ ...iS, color: '#EF4444', cursor: saving ? 'wait' : 'pointer', padding: '8px 14px' }}
             title={user.admin_role ? 'Non eliminabile (admin)' : 'Elimina utente'}>
-            🗑 Elimina utente
+            Elimina utente
           </button>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
             <button onClick={save} disabled={saving} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
-              {saving ? 'Salvo…' : '💾 Salva'}
+              {saving ? 'Salvo…' : 'Salva'}
             </button>
           </div>
         </div>
@@ -574,7 +730,7 @@ function PlansList() {
                 <td style={S.td}>{p.price_yearly != null ? '€ ' + p.price_yearly : '—'}</td>
                 <td style={S.td}>{tabs}</td>
                 <td style={S.td}>{wAll ? 'tutti (*)' : (p.features?.widgets?.length || 0)}</td>
-                <td style={S.td}>{p.is_default ? '⭐' : ''}</td>
+                <td style={S.td}>{p.is_default ? <span style={{ color: '#F59E0B', fontWeight: 700 }}>★</span> : ''}</td>
                 <td style={S.td}>
                   <button onClick={() => setEditing(p)} style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}>Modifica</button>
                 </td>
@@ -661,7 +817,7 @@ function EditPlan({ plan, onClose, onSaved }) {
         </div>
 
         <div style={{ borderTop: '1px solid #2a3042', paddingTop: 16, marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>📑 Tab inclusi</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>Tab inclusi</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {TAB_CATALOG.map(t => (
               <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#cbd5e1', background: tabs.includes(t.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
@@ -674,7 +830,7 @@ function EditPlan({ plan, onClose, onSaved }) {
 
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1' }}>🧩 Widget inclusi</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1' }}>Widget inclusi</span>
             <label style={{ fontSize: 11, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <input type="checkbox" checked={allWidgets} onChange={e => setAllWidgets(e.target.checked)} />
               Tutti i widget (*)
@@ -702,11 +858,11 @@ function EditPlan({ plan, onClose, onSaved }) {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, paddingTop: 16, borderTop: '1px solid #2a3042' }}>
-          {plan.id ? <button onClick={del} disabled={saving} style={{ ...iS, color: '#EF4444', cursor: 'pointer', padding: '8px 14px' }}>🗑 Elimina</button> : <span/>}
+          {plan.id ? <button onClick={del} disabled={saving} style={{ ...iS, color: '#EF4444', cursor: 'pointer', padding: '8px 14px' }}>Elimina</button> : <span/>}
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
             <button onClick={save} disabled={saving} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
-              {saving ? 'Salvo…' : '💾 Salva piano'}
+              {saving ? 'Salvo…' : 'Salva piano'}
             </button>
           </div>
         </div>
@@ -734,8 +890,8 @@ export default function AdminPage() {
 
   if (loading) return <div style={{ minHeight: '100vh', background: '#0f1420', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>Verifico permessi…</div>
   if (!isAdmin) return <div style={{ minHeight: '100vh', background: '#0f1420', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#EF4444' }}>
-    <div style={{ fontSize: 48 }}>🔒</div>
-    <div>Accesso negato. Solo gli admin possono entrare qui.</div>
+    <div style={{ fontSize: 24, fontWeight: 700 }}>Accesso negato</div>
+    <div>Solo gli admin possono entrare qui.</div>
     <a href="/" style={{ color: '#F59E0B' }}>Torna alla dashboard</a>
   </div>
 
@@ -746,13 +902,13 @@ export default function AdminPage() {
 
   return <div style={{ minHeight: '100vh', background: '#0f1420', color: '#e2e8f0', fontFamily: "'DM Sans',system-ui,sans-serif" }}>
     <div style={{ background: '#131825', borderBottom: '1px solid #1e2636', padding: '0 1.5rem', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
-      <span style={{ fontSize: 15, fontWeight: 700 }}>⚙️ Admin · CIC SaaS</span>
+      <span style={{ fontSize: 15, fontWeight: 700 }}>Admin · CIC SaaS</span>
       <a href="/" style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>← Torna alla dashboard</a>
       <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/')} style={{ ...iS, color: '#475569', border: '1px solid #2a3042', padding: '6px 12px', cursor: 'pointer' }}>Esci</button>
     </div>
     <div style={{ background: '#131825', borderBottom: '1px solid #1e2636', padding: '0 1.5rem', display: 'flex', gap: 4 }}>
-      <button onClick={() => setTab('users')} style={tS('users')}>👥 Utenti</button>
-      <button onClick={() => setTab('plans')} style={tS('plans')}>🎁 Piani</button>
+      <button onClick={() => setTab('users')} style={tS('users')}>Utenti</button>
+      <button onClick={() => setTab('plans')} style={tS('plans')}>Piani</button>
     </div>
     <div style={{ padding: '1.5rem', maxWidth: 1400, margin: '0 auto' }}>
       {tab === 'users' && <UsersList onEditUser={u => setEditingUser(u)} refreshKey={reloadKey} />}

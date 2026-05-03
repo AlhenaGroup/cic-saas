@@ -132,7 +132,8 @@ export default async function handler(req, res) {
 
       case 'set-user-settings': {
         const { user_id, cic_api_key, sales_points, plateform_api_key, plateform_location_map,
-                ts_digital_id, ts_digital_secret, ts_digital_owner } = req.body
+                ts_digital_id, ts_digital_secret, ts_digital_owner,
+                company_name, vat_number, tax_code, address, phone, company_email, website, logo_url } = req.body
         if (!user_id) return res.status(400).json({ error: 'user_id richiesto' })
         const payload = { user_id, updated_at: new Date().toISOString() }
         if (cic_api_key !== undefined) payload.cic_api_key = cic_api_key
@@ -142,6 +143,15 @@ export default async function handler(req, res) {
         if (ts_digital_id !== undefined) payload.ts_digital_id = ts_digital_id
         if (ts_digital_secret !== undefined) payload.ts_digital_secret = ts_digital_secret
         if (ts_digital_owner !== undefined) payload.ts_digital_owner = ts_digital_owner
+        // Anagrafica azienda
+        if (company_name !== undefined) payload.company_name = company_name
+        if (vat_number !== undefined) payload.vat_number = vat_number
+        if (tax_code !== undefined) payload.tax_code = tax_code
+        if (address !== undefined) payload.address = address
+        if (phone !== undefined) payload.phone = phone
+        if (company_email !== undefined) payload.company_email = company_email
+        if (website !== undefined) payload.website = website
+        if (logo_url !== undefined) payload.logo_url = logo_url
         const { error } = await sb.from('user_settings').upsert(payload, { onConflict: 'user_id' })
         if (error) throw error
         return res.status(200).json({ ok: true })

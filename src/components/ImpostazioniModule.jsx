@@ -33,13 +33,34 @@ export default function ImpostazioniModule({ settings, sps }) {
 
 // ─── Generale ───────────────────────────────────────────────────
 function GeneraleTab({ settings, sps }) {
+  // Rilegge da DB perché `settings` da DashboardPage potrebbe essere obsoleto
+  // dopo che l'admin modifica l'anagrafica
+  const [s, setS] = useState(settings)
+  const [loading, setLoading] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data } = await supabase.from('user_settings').select('*').eq('user_id', user.id).maybeSingle()
+        if (!cancelled && data) setS(data)
+      }
+      if (!cancelled) setLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [])
+
   return <>
-    <Card title="Anagrafica azienda">
+    <Card title="Anagrafica azienda" badge={loading ? 'Caricamento…' : null}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: 4 }}>
-        <Field label="Ragione sociale" value={settings?.company_name || '—'} />
-        <Field label="Partita IVA" value={settings?.vat_number || '—'} />
-        <Field label="Codice fiscale" value={settings?.tax_code || '—'} />
-        <Field label="Indirizzo sede" value={settings?.address || '—'} />
+        <Field label="Ragione sociale" value={s?.company_name || '—'} />
+        <Field label="Partita IVA" value={s?.vat_number || '—'} />
+        <Field label="Codice fiscale" value={s?.tax_code || '—'} />
+        <Field label="Indirizzo sede" value={s?.address || '—'} />
+        <Field label="Telefono" value={s?.phone || '—'} />
+        <Field label="Email" value={s?.company_email || '—'} />
+        <Field label="Sito web" value={s?.website || '—'} />
       </div>
       <div style={{ fontSize: 11, color: '#64748b', marginTop: 12, padding: '0 4px' }}>
         I dati anagrafici possono essere modificati solo dall'admin del piano. Contatta supporto.

@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
   plateform_api_key text,
   plateform_location_map jsonb DEFAULT '{}'::jsonb,
   plateform_last_sync timestamp with time zone,
+  -- Anagrafica azienda (gestita da /admin → Modifica utente → Anagrafica)
+  company_name text,
+  vat_number text,
+  tax_code text,
+  address text,
+  phone text,
+  company_email text,
+  website text,
+  logo_url text,
   UNIQUE(user_id)
 );
 
