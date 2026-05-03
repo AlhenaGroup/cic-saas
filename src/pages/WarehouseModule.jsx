@@ -12,6 +12,7 @@ import InventoryManager from '../components/warehouse/InventoryManager'
 import OrderManager from '../components/warehouse/OrderManager'
 import PriceAnalysis from '../components/warehouse/PriceAnalysis'
 import ManualArticlesManager from '../components/warehouse/ManualArticlesManager'
+import ProductionManager from '../components/warehouse/ProductionManager'
 
 const TABS = [
   { key: 'cruscotto',     label: 'Cruscotto',     icon: '📊' },
@@ -20,6 +21,7 @@ const TABS = [
   { key: 'articoli',      label: 'Articoli',      icon: '📦' },
   { key: 'semilavorati',  label: 'Semilavorati',  icon: '🥣' },
   { key: 'ricette',       label: 'Ricette',       icon: '🍳' },
+  { key: 'produzione',    label: 'Produzione',    icon: '🥘' },
   { key: 'giacenze',      label: 'Giacenze',      icon: '🏠' },
   { key: 'movimenti',     label: 'Movimenti',     icon: '↔️' },
   { key: 'inventario',    label: 'Inventario',    icon: '📋' },
@@ -53,6 +55,7 @@ export default function WarehouseModule({ sp, sps, from, to }) {
     {tab === 'articoli'   && <ArticoliTab sp={sp} sps={sps} />}
     {tab === 'semilavorati' && <ManualArticlesManager sp={sp} sps={sps} />}
     {tab === 'ricette'    && <RecipeManager sp={sp} sps={sps} />}
+    {tab === 'produzione' && <ProductionManager sp={sp} sps={sps} />}
     {tab === 'giacenze'   && <StockView sp={sp} sps={sps} />}
     {tab === 'movimenti'  && <MovementsView sp={sp} sps={sps} from={from} to={to} />}
     {tab === 'inventario' && <InventoryManager sp={sp} sps={sps} />}

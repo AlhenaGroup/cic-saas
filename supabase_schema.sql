@@ -412,6 +412,66 @@ CREATE TABLE IF NOT EXISTS public.employee_time_off (
   created_at timestamp with time zone DEFAULT now()
 );
 
+-- ─── Produzione interna / HACCP ─────────────────────────────────
+-- Allergeni 14 categorie UE 1169/2011: glutine, crostacei, uova, pesce,
+-- arachidi, soia, latte, frutta_a_guscio, sedano, senape, sesamo,
+-- solfiti, lupini, molluschi.
+CREATE TABLE IF NOT EXISTS public.article_allergens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  nome_articolo text NOT NULL,
+  allergeni text[] NOT NULL DEFAULT '{}',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, nome_articolo)
+);
+
+-- Schede produzione (template ricette di produzione interna).
+CREATE TABLE IF NOT EXISTS public.production_recipes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  nome text NOT NULL,
+  locale_produzione text NOT NULL,
+  locale_destinazione text,
+  ingredienti jsonb NOT NULL DEFAULT '[]'::jsonb,
+  procedimento text,
+  allergeni text[] NOT NULL DEFAULT '{}',
+  conservazione text,
+  shelf_life_days integer DEFAULT 3,
+  resa_quantita numeric(12,3),
+  resa_unita text,
+  immagine_url text,
+  attivo boolean DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Lotti produzione: ogni esecuzione di una scheda. Codice univoco
+-- per (user_id, lotto). Articolo movimentato via article_movement
+-- con production_batch_id che punta qui.
+CREATE TABLE IF NOT EXISTS public.production_batches (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  recipe_id uuid REFERENCES public.production_recipes(id) ON DELETE SET NULL,
+  lotto text NOT NULL,
+  data_produzione date NOT NULL DEFAULT CURRENT_DATE,
+  ora_produzione time DEFAULT CURRENT_TIME,
+  data_scadenza date,
+  locale_produzione text NOT NULL,
+  locale_destinazione text,
+  operatore_id uuid,
+  operatore_nome text,
+  quantita_prodotta numeric(12,3) NOT NULL,
+  unita text,
+  ingredienti_usati jsonb NOT NULL DEFAULT '[]'::jsonb,
+  allergeni text[] NOT NULL DEFAULT '{}',
+  conservazione text,
+  note text,
+  stato text DEFAULT 'attivo' CHECK (stato IN ('attivo','consumato','scaduto','annullato')),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, lotto)
+);
+
 -- ─── Daily report settings (email mattutina automatica) ─────────
 -- 1 riga per user_id. recipients: array di {email, ruolo, sections[]}
 -- Il cron /api/daily-report-cron alle 06:00 legge questa tabella
@@ -767,6 +827,9 @@ ALTER TABLE public.employee_shifts            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employee_time_off          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.daily_report_settings      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.article_allergens          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.production_recipes         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.production_batches         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance_checklists      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance_checklist_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_events            ENABLE ROW LEVEL SECURITY;
@@ -808,6 +871,11 @@ CREATE POLICY "own_warehouse_orders"          ON public.warehouse_orders        
 CREATE POLICY "own_warehouse_recipes"         ON public.warehouse_recipes         FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_recipes"                   ON public.recipes                   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_daily_report"              ON public.daily_report_settings     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_article_allergens"         ON public.article_allergens         FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_production_recipes"        ON public.production_recipes        FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_production_batches"        ON public.production_batches        FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+-- Lettura pubblica dei lotti (per la pagina /lotto/CODICE accessibile a chiunque, es. ispettori ASL)
+CREATE POLICY "public_read_batch_by_lotto"    ON public.production_batches        FOR SELECT USING (true);
 CREATE POLICY "checklists_owner"              ON public.attendance_checklists     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "responses_owner"               ON public.attendance_checklist_responses FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
