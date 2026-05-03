@@ -424,6 +424,28 @@ CREATE TABLE IF NOT EXISTS public.employee_time_off (
   created_at timestamp with time zone DEFAULT now()
 );
 
+-- ─── Semilavorati (manual_articles) ────────────────────────────
+-- Articoli "interni" che non vengono fatturati ma derivano da una
+-- sub-ricetta di altri articoli. Es. salse, basi pizza, brodi.
+CREATE TABLE IF NOT EXISTS public.manual_articles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  nome text NOT NULL,
+  unita text,
+  resa numeric(12,3) DEFAULT 1,
+  ingredienti jsonb DEFAULT '[]'::jsonb,
+  locale text,
+  note text,
+  created_by_employee_id uuid,
+  created_by_employee_name text,
+  approved boolean DEFAULT true,
+  approved_by uuid,
+  approved_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, nome)
+);
+
 -- ─── Produzione interna / HACCP ─────────────────────────────────
 -- Allergeni 14 categorie UE 1169/2011: glutine, crostacei, uova, pesce,
 -- arachidi, soia, latte, frutta_a_guscio, sedano, senape, sesamo,
@@ -458,6 +480,14 @@ CREATE TABLE IF NOT EXISTS public.production_recipes (
   checklist_haccp_template jsonb DEFAULT '[]'::jsonb, -- [{id, label, required}]
   richiede_foto boolean DEFAULT false,
   durata_attesa_minuti integer,
+  -- Tracking creazione (chi ha creato la scheda + flag di approvazione)
+  -- approved=true di default per le schede create da admin; le schede create
+  -- da mobile sono salvate con approved=false e attendono conferma admin.
+  created_by_employee_id uuid,
+  created_by_employee_name text,
+  approved boolean DEFAULT true,
+  approved_by uuid,
+  approved_at timestamptz,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

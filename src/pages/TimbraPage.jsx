@@ -1033,8 +1033,9 @@ function InstallBanner() {
 // + checklist HACCP (se template) + foto (se richiede_foto) → "Termina"
 function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
   const [recipes, setRecipes] = useState([])
+  const [allArticles, setAllArticles] = useState([]) // articoli + semilavorati per autocomplete
   const [selected, setSelected] = useState(null)
-  const [phase, setPhase] = useState('list') // list | producing
+  const [phase, setPhase] = useState('list') // list | creating-recipe | producing
   const [startedAt, setStartedAt] = useState(null)
   const [now, setNow] = useState(Date.now())
   const [qty, setQty] = useState('')
@@ -1046,14 +1047,17 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
   const [err, setErr] = useState('')
   const [search, setSearch] = useState('')
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const d = await apiCall({ action: 'prod-recipes', pin, locale })
-        setRecipes(d.recipes || [])
-      } catch (e) { setErr(e.message) }
-    })()
-  }, [pin, locale])
+  const reloadRecipes = async () => {
+    try {
+      const [d, a] = await Promise.all([
+        apiCall({ action: 'prod-recipes', pin, locale }),
+        apiCall({ action: 'prod-articles', pin, locale }),
+      ])
+      setRecipes(d.recipes || [])
+      setAllArticles(a.items || [])
+    } catch (e) { setErr(e.message) }
+  }
+  useEffect(() => { reloadRecipes() }, [pin, locale])
 
   // Tick cronometro
   useEffect(() => {
@@ -1150,12 +1154,16 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
   if (phase === 'list') {
     return <div style={{ maxWidth: 420, width: '100%' }}>
       {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
+      <button onClick={() => setPhase('creating-recipe')}
+        style={{ width: '100%', padding: 12, marginBottom: 10, background: 'transparent', border: '1px dashed #10B981', color: '#10B981', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+        + Crea nuova scheda di produzione
+      </button>
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Cerca scheda…"
         style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 10, outline: 'none', boxSizing: 'border-box' }} />
       {filteredRecipes.length === 0 ? (
         <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
           Nessuna scheda produzione attiva per {locale}.<br/>
-          <span style={{ fontSize: 11 }}>Le schede si gestiscono dalla dashboard admin.</span>
+          <span style={{ fontSize: 11 }}>Crea la prima con il bottone in alto.</span>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1164,7 +1172,14 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
               style={{ padding: 14, background: selected?.id === r.id ? 'rgba(239,68,68,.12)' : '#1a1f2e',
                 border: `1px solid ${selected?.id === r.id ? '#EF4444' : '#2a3042'}`,
                 borderRadius: 10, color: '#e2e8f0', textAlign: 'left', cursor: 'pointer' }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>{r.nome}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{r.nome}</div>
+                {r.approved === false && (
+                  <span style={{ fontSize: 9, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.15)', padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>
+                    Da confermare
+                  </span>
+                )}
+              </div>
               <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
                 Resa: {r.resa_quantita} {r.resa_unita || ''}
                 {r.durata_attesa_minuti ? ` · ~${r.durata_attesa_minuti} min` : ''}
@@ -1185,6 +1200,25 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
       )}
       <button onClick={onBack} style={{ marginTop: 8, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
     </div>
+  }
+
+  // ── UI: crea nuova scheda ──
+  if (phase === 'creating-recipe') {
+    return <CreaSchedaForm pin={pin} locale={locale} allArticles={allArticles}
+      onCreated={async (newRecipe) => {
+        await reloadRecipes()
+        setSelected(newRecipe)
+        setPhase('list')
+      }}
+      onCreatedSemilavorato={async (newSemi) => {
+        // Ricarica articoli per autocomplete
+        try {
+          const a = await apiCall({ action: 'prod-articles', pin, locale })
+          setAllArticles(a.items || [])
+        } catch {}
+        return newSemi
+      }}
+      onCancel={() => setPhase('list')} />
   }
 
   // ── UI: produzione in corso ──
@@ -1281,6 +1315,335 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
 
     <div style={{ marginTop: 8, fontSize: 11, color: '#64748b', textAlign: 'center' }}>
       Verrà generato un codice lotto univoco e scaricati gli ingredienti dal magazzino.
+    </div>
+  </div>
+}
+
+// ─── PRODUZIONE: form creazione scheda da mobile ─────────────────────
+// Permette al collaboratore di creare una nuova scheda produzione.
+// Auto-detect allergeni dai nomi ingredienti (semplificato).
+// Inline: opzione "Crea semilavorato" se l'ingrediente non esiste.
+const ALLERGENI_LIST = [
+  { v: 'glutine', l: 'Glutine', kw: ['farina','pane','pasta','pizza','focaccia','frumento','orzo','segale','avena'] },
+  { v: 'crostacei', l: 'Crostacei', kw: ['gambero','aragosta','astice','granchio','scampo','mazzancolla'] },
+  { v: 'uova', l: 'Uova', kw: ['uova','uovo','albume','tuorlo','maionese','frittata','meringa'] },
+  { v: 'pesce', l: 'Pesce', kw: ['pesce','tonno','salmone','merluzzo','spigola','orata','branzino','acciuga','sardina','sgombro','baccalà'] },
+  { v: 'arachidi', l: 'Arachidi', kw: ['arachidi','peanut','noccioline'] },
+  { v: 'soia', l: 'Soia', kw: ['soia','tofu','edamame','tempeh','tamari'] },
+  { v: 'latte', l: 'Latte', kw: ['latte','burro','panna','formaggio','mozzarella','parmigiano','pecorino','ricotta','yogurt','mascarpone','gorgonzola','crescenza','stracchino','taleggio','provolone','scamorza','caprino','bufala','gelato'] },
+  { v: 'frutta_a_guscio', l: 'Frutta a guscio', kw: ['noce','noci','nocciola','mandorla','pistacchio','anacardio','pinolo','castagna','pecan'] },
+  { v: 'sedano', l: 'Sedano', kw: ['sedano'] },
+  { v: 'senape', l: 'Senape', kw: ['senape','mostarda'] },
+  { v: 'sesamo', l: 'Sesamo', kw: ['sesamo','tahini'] },
+  { v: 'solfiti', l: 'Solfiti', kw: ['vino','aceto','uvetta','sciroppo','birra','liquore','spumante','prosecco'] },
+  { v: 'lupini', l: 'Lupini', kw: ['lupini','lupino'] },
+  { v: 'molluschi', l: 'Molluschi', kw: ['cozza','vongola','ostrica','calamaro','seppia','polpo','polipo','lumache'] },
+]
+
+function detectAllergens(ingredienti) {
+  const found = new Set()
+  for (const ing of ingredienti) {
+    const n = (ing.nome_articolo || '').toLowerCase()
+    for (const a of ALLERGENI_LIST) {
+      if (a.kw.some(k => n.includes(k))) found.add(a.v)
+    }
+  }
+  return [...found]
+}
+
+function CreaSchedaForm({ pin, locale, allArticles, onCreated, onCreatedSemilavorato, onCancel }) {
+  const [nome, setNome] = useState('')
+  const [resa, setResa] = useState('')
+  const [resaUnita, setResaUnita] = useState('PZ')
+  const [ingredienti, setIngredienti] = useState([{ nome_articolo: '', quantita: '', unita: '' }])
+  const [allergeni, setAllergeni] = useState([])
+  const [autoAllergeni, setAutoAllergeni] = useState(true)
+  const [procedimento, setProcedimento] = useState('')
+  const [foto, setFoto] = useState(null)
+  const [creating, setCreating] = useState(false)
+  const [err, setErr] = useState('')
+  const [showSemi, setShowSemi] = useState(null) // { rowIdx, name } per inline crea semilavorato
+
+  // Auto-detect allergeni quando cambiano gli ingredienti
+  useEffect(() => {
+    if (!autoAllergeni) return
+    const detected = detectAllergens(ingredienti)
+    setAllergeni(detected)
+  }, [ingredienti, autoAllergeni])
+
+  const updIng = (i, patch) => setIngredienti(prev => prev.map((x, idx) => idx === i ? { ...x, ...patch } : x))
+  const addIng = () => setIngredienti(prev => [...prev, { nome_articolo: '', quantita: '', unita: '' }])
+  const rmIng = (i) => setIngredienti(prev => prev.filter((_, idx) => idx !== i))
+
+  const toggleAllergen = (v) => {
+    setAutoAllergeni(false)
+    setAllergeni(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])
+  }
+
+  const onPhotoChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      // Resize a 800px max
+      const img = new Image()
+      img.onload = () => {
+        const c = document.createElement('canvas')
+        const max = 800
+        const r = Math.min(max / img.width, max / img.height, 1)
+        c.width = img.width * r; c.height = img.height * r
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+        setFoto(c.toDataURL('image/jpeg', 0.7))
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const submit = async () => {
+    setErr('')
+    if (!nome.trim()) { setErr('Nome obbligatorio'); return }
+    if (!resa || Number(resa) <= 0) { setErr('Resa obbligatoria'); return }
+    const ingsValide = ingredienti.filter(i => i.nome_articolo?.trim() && i.quantita)
+    if (ingsValide.length === 0) { setErr('Almeno un ingrediente con quantità'); return }
+    setCreating(true)
+    try {
+      const d = await apiCall({
+        action: 'prod-recipe-create', pin, locale,
+        nome: nome.trim(),
+        resa_quantita: Number(resa), resa_unita: resaUnita,
+        ingredienti: ingsValide,
+        allergeni,
+        procedimento: procedimento.trim() || null,
+        immagine_url: foto || null,
+      })
+      onCreated(d.recipe)
+    } catch (e) { setErr(e.message); setCreating(false) }
+  }
+
+  return <div style={{ maxWidth: 460, width: '100%' }}>
+    <div style={{ background: 'rgba(16,185,129,.06)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 10, padding: 12, marginBottom: 12, fontSize: 12, color: '#10B981' }}>
+      ➕ Stai creando una nuova scheda. Verrà inviata in dashboard come "da confermare" — l'admin potrà modificarla o approvarla.
+    </div>
+
+    <label style={{ display: 'block', marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Nome prodotto *</div>
+      <input value={nome} onChange={e => setNome(e.target.value)} placeholder="es. Tiramisù grande"
+        style={{ width: '100%', padding: '12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }} />
+    </label>
+
+    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginBottom: 10 }}>
+      <label>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Resa attesa *</div>
+        <input type="number" step="0.001" value={resa} onChange={e => setResa(e.target.value)} placeholder="es. 2"
+          style={{ width: '100%', padding: '10px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
+      </label>
+      <label>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>UM</div>
+        <select value={resaUnita} onChange={e => setResaUnita(e.target.value)}
+          style={{ width: '100%', padding: '10px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }}>
+          {['PZ','KG','GR','LT','ML','PORZIONI'].map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+      </label>
+    </div>
+
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>Ingredienti *</div>
+      {ingredienti.map((ing, i) => (
+        <div key={i} style={{ marginBottom: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 70px 60px 30px', gap: 4 }}>
+            <input list={`art-list-${i}`} value={ing.nome_articolo} onChange={e => {
+              const v = e.target.value
+              const match = allArticles.find(a => a.nome === v)
+              updIng(i, { nome_articolo: v, ...(match && !ing.unita ? { unita: match.unita } : {}) })
+            }} placeholder="Articolo o semilavorato"
+              style={{ padding: '8px 10px', fontSize: 12, borderRadius: 6, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }} />
+            <datalist id={`art-list-${i}`}>
+              {allArticles.slice(0, 200).map(a => <option key={a.nome} value={a.nome}>{a.tipo === 'semilavorato' ? '(sub-ricetta)' : ''}</option>)}
+            </datalist>
+            <input type="number" step="0.001" value={ing.quantita} onChange={e => updIng(i, { quantita: e.target.value })} placeholder="Qty"
+              style={{ padding: '8px 6px', fontSize: 12, borderRadius: 6, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
+            <select value={ing.unita} onChange={e => updIng(i, { unita: e.target.value })}
+              style={{ padding: '8px 4px', fontSize: 11, borderRadius: 6, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }}>
+              {['','KG','GR','LT','ML','CL','PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
+            </select>
+            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}>✕</button>
+          </div>
+          {ing.nome_articolo?.trim() && !allArticles.find(a => a.nome.toLowerCase().trim() === ing.nome_articolo.toLowerCase().trim()) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, color: '#F59E0B' }}>
+              <span>⚠ Non trovato in magazzino.</span>
+              <button onClick={() => setShowSemi({ rowIdx: i, name: ing.nome_articolo, unita: ing.unita })}
+                style={{ background: 'none', border: 'none', color: '#10B981', textDecoration: 'underline', cursor: 'pointer', fontSize: 10 }}>
+                Crea come semilavorato
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+      <button onClick={addIng} style={{ width: '100%', padding: 8, background: 'transparent', border: '1px dashed #2a3042', color: '#3B82F6', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>+ Aggiungi ingrediente</button>
+    </div>
+
+    {showSemi && <CreaSemilavoratoInline pin={pin} locale={locale} preset={showSemi}
+      allArticles={allArticles}
+      onCreated={async (newSemi) => {
+        await onCreatedSemilavorato(newSemi)
+        // Aggiorno l'ingrediente corrente con il nome del semilavorato
+        updIng(showSemi.rowIdx, { nome_articolo: newSemi.nome, unita: newSemi.unita || '' })
+        setShowSemi(null)
+      }}
+      onCancel={() => setShowSemi(null)} />}
+
+    {/* Allergeni */}
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>Allergeni {autoAllergeni && <span style={{ color: '#10B981', fontSize: 10 }}>(auto-rilevati)</span>}</span>
+        <button onClick={() => setAutoAllergeni(true)} disabled={autoAllergeni}
+          style={{ background: 'none', border: 'none', color: '#3B82F6', textDecoration: 'underline', cursor: autoAllergeni ? 'default' : 'pointer', fontSize: 10 }}>
+          {autoAllergeni ? '✓ Auto' : 'Ripristina auto'}
+        </button>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {ALLERGENI_LIST.map(a => {
+          const sel = allergeni.includes(a.v)
+          return <button key={a.v} onClick={() => toggleAllergen(a.v)}
+            style={{ padding: '4px 8px', fontSize: 11, fontWeight: 600, borderRadius: 4,
+              border: `1px solid ${sel ? '#EF4444' : '#2a3042'}`,
+              background: sel ? 'rgba(239,68,68,.1)' : '#1a1f2e',
+              color: sel ? '#EF4444' : '#94a3b8', cursor: 'pointer' }}>
+            {a.l}
+          </button>
+        })}
+      </div>
+    </div>
+
+    {/* Procedimento */}
+    <label style={{ display: 'block', marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Procedimento (opz.)</div>
+      <textarea value={procedimento} onChange={e => setProcedimento(e.target.value)} rows={3}
+        placeholder="Es. Montare i tuorli con lo zucchero..."
+        style={{ width: '100%', padding: 10, fontSize: 13, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+    </label>
+
+    {/* Foto */}
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>Foto del prodotto (opz.)</div>
+      {foto ? (
+        <div>
+          <img src={foto} alt="" style={{ width: '100%', borderRadius: 8, marginBottom: 6 }} />
+          <button onClick={() => setFoto(null)} style={{ width: '100%', padding: 8, background: 'transparent', border: '1px solid #EF4444', color: '#EF4444', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Rimuovi foto</button>
+        </div>
+      ) : (
+        <label style={{ display: 'block', padding: 16, background: '#0f1420', border: '1px dashed #475569', borderRadius: 8, textAlign: 'center', cursor: 'pointer', color: '#94a3b8', fontSize: 12 }}>
+          📸 Aggiungi foto
+          <input type="file" accept="image/*" capture="environment" onChange={onPhotoChange} style={{ display: 'none' }} />
+        </label>
+      )}
+    </div>
+
+    {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
+
+    <div style={{ display: 'flex', gap: 8 }}>
+      <button onClick={onCancel} disabled={creating}
+        style={{ flex: 1, padding: 12, background: 'none', border: '1px solid #2a3042', color: '#94a3b8', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
+        Annulla
+      </button>
+      <button onClick={submit} disabled={creating}
+        style={{ flex: 2, padding: 12, background: '#10B981', color: '#0f1420', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
+        {creating ? 'Creo scheda…' : '✓ Crea scheda'}
+      </button>
+    </div>
+  </div>
+}
+
+// Form inline per creare un semilavorato durante la creazione di una scheda.
+function CreaSemilavoratoInline({ pin, locale, preset, allArticles, onCreated, onCancel }) {
+  const [nome, setNome] = useState(preset?.name || '')
+  const [unita, setUnita] = useState(preset?.unita || 'KG')
+  const [resa, setResa] = useState('1')
+  const [ingredienti, setIngredienti] = useState([{ nome_articolo: '', quantita: '', unita: '' }])
+  const [creating, setCreating] = useState(false)
+  const [err, setErr] = useState('')
+
+  const updIng = (i, patch) => setIngredienti(prev => prev.map((x, idx) => idx === i ? { ...x, ...patch } : x))
+  const addIng = () => setIngredienti(prev => [...prev, { nome_articolo: '', quantita: '', unita: '' }])
+  const rmIng = (i) => setIngredienti(prev => prev.filter((_, idx) => idx !== i))
+
+  const submit = async () => {
+    setErr('')
+    if (!nome.trim()) { setErr('Nome richiesto'); return }
+    setCreating(true)
+    try {
+      const d = await apiCall({
+        action: 'manual-article-create', pin, locale,
+        nome: nome.trim(), unita, resa: Number(resa) || 1,
+        ingredienti: ingredienti.filter(i => i.nome_articolo?.trim() && i.quantita),
+      })
+      onCreated(d.article)
+    } catch (e) { setErr(e.message); setCreating(false) }
+  }
+
+  return <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 300, padding: 16, overflow: 'auto' }}>
+    <div style={{ background: '#0f1420', border: '1px solid #10B981', borderRadius: 12, width: '100%', maxWidth: 420, padding: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 14, color: '#10B981' }}>+ Crea semilavorato</h3>
+        <button onClick={onCancel} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 16 }}>✕</button>
+      </div>
+      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+        Es. salse, basi pizza, brodi. Verrà aggiunto come articolo "interno" da confermare in dashboard.
+      </div>
+
+      <label style={{ display: 'block', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Nome *</div>
+        <input value={nome} onChange={e => setNome(e.target.value)}
+          style={{ width: '100%', padding: 10, fontSize: 13, borderRadius: 6, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }} />
+      </label>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+        <label>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>UM</div>
+          <select value={unita} onChange={e => setUnita(e.target.value)}
+            style={{ width: '100%', padding: 10, fontSize: 13, borderRadius: 6, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }}>
+            {['KG','GR','LT','ML','PZ'].map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </label>
+        <label>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Resa</div>
+          <input type="number" step="0.001" value={resa} onChange={e => setResa(e.target.value)}
+            style={{ width: '100%', padding: 10, fontSize: 13, borderRadius: 6, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>Ingredienti (opz.)</div>
+        {ingredienti.map((ing, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 60px 30px', gap: 4, marginBottom: 4 }}>
+            <input list={`semi-art-${i}`} value={ing.nome_articolo} onChange={e => updIng(i, { nome_articolo: e.target.value })}
+              placeholder="Articolo"
+              style={{ padding: 8, fontSize: 11, borderRadius: 4, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }} />
+            <datalist id={`semi-art-${i}`}>
+              {allArticles.slice(0, 200).map(a => <option key={a.nome} value={a.nome} />)}
+            </datalist>
+            <input type="number" step="0.001" value={ing.quantita} onChange={e => updIng(i, { quantita: e.target.value })} placeholder="Qty"
+              style={{ padding: 8, fontSize: 11, borderRadius: 4, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
+            <select value={ing.unita} onChange={e => updIng(i, { unita: e.target.value })}
+              style={{ padding: 8, fontSize: 10, borderRadius: 4, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }}>
+              {['','KG','GR','LT','ML','PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
+            </select>
+            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}>✕</button>
+          </div>
+        ))}
+        <button onClick={addIng} style={{ width: '100%', padding: 6, background: 'transparent', border: '1px dashed #2a3042', color: '#3B82F6', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>+ Aggiungi</button>
+      </div>
+
+      {err && <div style={{ color: '#EF4444', fontSize: 11, marginBottom: 8 }}>{err}</div>}
+
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={onCancel} disabled={creating} style={{ flex: 1, padding: 10, background: 'none', border: '1px solid #2a3042', color: '#94a3b8', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Annulla</button>
+        <button onClick={submit} disabled={creating || !nome.trim()}
+          style={{ flex: 2, padding: 10, background: '#10B981', color: '#0f1420', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
+          {creating ? 'Creo…' : '✓ Crea semilavorato'}
+        </button>
+      </div>
     </div>
   </div>
 }

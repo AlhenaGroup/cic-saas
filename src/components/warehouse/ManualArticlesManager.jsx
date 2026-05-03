@@ -74,6 +74,14 @@ export default function ManualArticlesManager({ sp, sps }) {
     await load()
   }
 
+  const approva = async (id) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('manual_articles').update({
+      approved: true, approved_by: user.id, approved_at: new Date().toISOString(),
+    }).eq('id', id)
+    await load()
+  }
+
   return <Card title="Semilavorati" badge={loading ? '...' : filtered.length + ' voci'} extra={
     <button onClick={() => setEditing('new')}
       style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '5px 14px', fontSize: 11, cursor: 'pointer' }}>
@@ -97,7 +105,14 @@ export default function ManualArticlesManager({ sp, sps }) {
             {filtered.map(a => {
               const c = costOfManualArticle(a, articlesPrice, manualByName)
               return <tr key={a.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                <td style={{ ...S.td, fontWeight: 600 }}>{a.nome}</td>
+                <td style={{ ...S.td, fontWeight: 600 }}>
+                  {a.nome}
+                  {a.approved === false && (
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#F59E0B', marginTop: 2 }}>
+                      Da confermare {a.created_by_employee_name ? `· da ${a.created_by_employee_name}` : ''}
+                    </div>
+                  )}
+                </td>
                 <td style={{ ...S.td, color: '#94a3b8' }}>{Number(a.resa).toFixed(3)} {a.unita}</td>
                 <td style={{ ...S.td, color: '#94a3b8', textAlign: 'center' }}>{(a.ingredienti || []).length}</td>
                 <td style={{ ...S.td, color: '#F59E0B' }}>{fmtD(c.totalCost)}</td>
@@ -107,8 +122,14 @@ export default function ManualArticlesManager({ sp, sps }) {
                 </td>
                 <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{a.locale || '—'}</td>
                 <td style={S.td}>
-                  <button onClick={() => setEditing(a.id)} style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11, marginRight: 6 }}>✏️</button>
-                  <button onClick={() => remove(a.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                  {a.approved === false && (
+                    <button onClick={() => approva(a.id)} title="Conferma semilavorato creato da staff"
+                      style={{ background: '#10B981', color: '#0f1420', border: 'none', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginRight: 4 }}>
+                      Approva
+                    </button>
+                  )}
+                  <button onClick={() => setEditing(a.id)} style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11, marginRight: 6 }}>Modifica</button>
+                  <button onClick={() => remove(a.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>Elimina</button>
                 </td>
               </tr>
             })}

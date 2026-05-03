@@ -859,6 +859,89 @@ export default async function handler(req, res) {
         return res.status(200).json({ recipes: Array.isArray(rec) ? rec : [] });
       }
 
+      // ─── PRODUZIONE MOBILE: lista articoli + semilavorati per autocomplete ─
+      case 'prod-articles': {
+        const { pin, locale } = req.body;
+        const v = await verifyPin(pin, 'produzione');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!locale) return res.status(400).json({ error: 'locale richiesto' });
+        // Articoli da fatture (visibili per il locale)
+        const stockArr = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&select=nome_articolo,unita`);
+        const stocks = Array.isArray(stockArr) ? stockArr : [];
+        // Articoli da semilavorati (manual_articles, anche di altri locali user)
+        const semiArr = await sbQuery(`manual_articles?user_id=eq.${v.emp.user_id}&select=nome,unita,locale`);
+        const semis = Array.isArray(semiArr) ? semiArr : [];
+        const items = [
+          ...stocks.map(s => ({ nome: s.nome_articolo, unita: s.unita || '', tipo: 'articolo' })),
+          ...semis.filter(s => !s.locale || s.locale === locale).map(s => ({ nome: s.nome, unita: s.unita || '', tipo: 'semilavorato' })),
+        ];
+        // Dedup by nome
+        const seen = new Set();
+        const dedup = items.filter(i => {
+          const k = i.nome?.toLowerCase().trim();
+          if (!k || seen.has(k)) return false;
+          seen.add(k); return true;
+        }).sort((a, b) => a.nome.localeCompare(b.nome));
+        return res.status(200).json({ items: dedup });
+      }
+
+      // ─── PRODUZIONE MOBILE: crea nuova scheda produzione ─────────────
+      case 'prod-recipe-create': {
+        const { pin, locale, nome, ingredienti, resa_quantita, resa_unita, allergeni, procedimento, immagine_url } = req.body;
+        const v = await verifyPin(pin, 'produzione');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!locale || !nome?.trim()) return res.status(400).json({ error: 'locale e nome richiesti' });
+        if (!Array.isArray(ingredienti) || ingredienti.length === 0) return res.status(400).json({ error: 'almeno un ingrediente richiesto' });
+        // Anti-duplicato (same nome + locale + user)
+        const exist = await sbQuery(`production_recipes?user_id=eq.${v.emp.user_id}&nome=eq.${encodeURIComponent(nome.trim())}&locale_produzione=eq.${encodeURIComponent(locale)}&select=id&limit=1`);
+        if (exist?.[0]) return res.status(409).json({ error: 'Una scheda con questo nome esiste già per questo locale' });
+        const row = {
+          user_id: v.emp.user_id,
+          nome: nome.trim(),
+          locale_produzione: locale,
+          locale_destinazione: locale,
+          ingredienti: ingredienti.filter(i => i.nome_articolo?.trim() && i.quantita),
+          procedimento: procedimento || null,
+          allergeni: Array.isArray(allergeni) ? allergeni : [],
+          conservazione: null,
+          shelf_life_days: null,
+          resa_quantita: resa_quantita ? Number(resa_quantita) : null,
+          resa_unita: resa_unita || null,
+          immagine_url: immagine_url || null,
+          attivo: true,
+          created_by_employee_id: v.emp.id,
+          created_by_employee_name: v.emp.nome,
+          approved: false, // Mobile crea sempre con approved=false
+        };
+        const ins = await sbQuery('production_recipes', 'POST', [row]);
+        const created = Array.isArray(ins) && ins[0] ? ins[0] : null;
+        return res.status(201).json({ recipe: created });
+      }
+
+      // ─── PRODUZIONE MOBILE: crea nuovo semilavorato ──────────────────
+      case 'manual-article-create': {
+        const { pin, locale, nome, unita, resa, ingredienti } = req.body;
+        const v = await verifyPin(pin, 'produzione');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!nome?.trim()) return res.status(400).json({ error: 'nome richiesto' });
+        const exist = await sbQuery(`manual_articles?user_id=eq.${v.emp.user_id}&nome=eq.${encodeURIComponent(nome.trim())}&select=id&limit=1`);
+        if (exist?.[0]) return res.status(409).json({ error: 'Un semilavorato con questo nome esiste già' });
+        const row = {
+          user_id: v.emp.user_id,
+          nome: nome.trim(),
+          unita: unita || null,
+          resa: resa ? Number(resa) : 1,
+          ingredienti: Array.isArray(ingredienti) ? ingredienti : [],
+          locale: locale || null,
+          created_by_employee_id: v.emp.id,
+          created_by_employee_name: v.emp.nome,
+          approved: false,
+        };
+        const ins = await sbQuery('manual_articles', 'POST', [row]);
+        const created = Array.isArray(ins) && ins[0] ? ins[0] : null;
+        return res.status(201).json({ article: created });
+      }
+
       // ─── PRODUZIONE MOBILE: avvia un lotto (timestamp inizio) ────────
       // Restituisce un draft_id per il client. Il vero lotto viene creato
       // alla chiusura (action prod-finish) per evitare orfani in caso di abbandono.
@@ -1101,7 +1184,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, checklist-skip, prod-recipes, prod-start, prod-finish, my-shifts, my-hours, my-timeoff' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, checklist-skip, prod-recipes, prod-articles, prod-recipe-create, manual-article-create, prod-start, prod-finish, my-shifts, my-hours, my-timeoff' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);

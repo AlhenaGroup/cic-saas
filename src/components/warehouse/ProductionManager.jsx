@@ -138,6 +138,14 @@ function SchedeTab({ sp, sps }) {
     load()
   }
 
+  const approva = async (r) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('production_recipes').update({
+      approved: true, approved_by: user.id, approved_at: new Date().toISOString(),
+    }).eq('id', r.id)
+    load()
+  }
+
   return <Card title="📋 Schede produzione" badge={`${filtered.length}/${recipes.length}`} extra={
     <button onClick={() => setEditing({
       nome: '', locale_produzione: allLocali[0] || '', locale_destinazione: '',
@@ -179,7 +187,14 @@ function SchedeTab({ sp, sps }) {
             {filtered.map(r => (
               <tr key={r.id} onClick={() => setEditing(r)}
                 style={{ borderBottom: '1px solid #1a1f2e', cursor: 'pointer' }}>
-                <td style={{ ...S.td, fontWeight: 600, color: '#3B82F6' }}>{r.nome}</td>
+                <td style={{ ...S.td, fontWeight: 600, color: '#3B82F6' }}>
+                  {r.nome}
+                  {r.approved === false && (
+                    <div style={{ fontSize: 9, fontWeight: 700, color: '#F59E0B', marginTop: 2 }}>
+                      Da confermare {r.created_by_employee_name ? `· da ${r.created_by_employee_name}` : ''}
+                    </div>
+                  )}
+                </td>
                 <td style={S.td}>{r.locale_produzione}</td>
                 <td style={{ ...S.td, color: '#94a3b8' }}>{r.locale_destinazione || '—'}</td>
                 <td style={S.td}>{r.resa_quantita ? `${r.resa_quantita} ${r.resa_unita || ''}` : '—'}</td>
@@ -201,6 +216,10 @@ function SchedeTab({ sp, sps }) {
                     : <span style={S.badge('#64748b', 'rgba(100,116,139,.12)')}>Off</span>}
                 </td>
                 <td style={S.td} onClick={e => e.stopPropagation()}>
+                  {r.approved === false && (
+                    <button onClick={() => approva(r)} title="Conferma scheda creata da staff"
+                      style={{ background: '#10B981', color: '#0f1420', border: 'none', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginRight: 4 }}>Approva</button>
+                  )}
                   <button onClick={() => duplicate(r)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}>Dup</button>
                   <button onClick={() => remove(r)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>✕</button>
                 </td>
