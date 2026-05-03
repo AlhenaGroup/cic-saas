@@ -1072,19 +1072,28 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
 
   const startProduction = async () => {
     if (!selected) return
+    if (!qty || Number(qty) <= 0) { setErr('Inserisci la quantità da produrre'); return }
     setLoading(true); setErr('')
     try {
-      const d = await apiCall({ action: 'prod-start', pin, locale, recipe_id: selected.id })
-      setStartedAt(d.data_inizio)
-      // Pre-compila ingredienti scalati alla resa
-      const ratio = 1 // resa attesa = 1x
+      // Per le schede production_recipes chiamiamo prod-start (validazione + timestamp)
+      // Per i semilavorati partiamo direttamente (timestamp client-side)
+      let dataInizio
+      if (selected.__source === 'recipe') {
+        const d = await apiCall({ action: 'prod-start', pin, locale, recipe_id: selected.id })
+        dataInizio = d.data_inizio
+      } else {
+        dataInizio = new Date().toISOString()
+      }
+      setStartedAt(dataInizio)
+      // Pre-compila ingredienti scalati alla quantità che ho richiesto
+      const ratio = selected.resa_quantita ? Number(qty) / Number(selected.resa_quantita) : 1
       const ings = (selected.ingredienti || []).map(i => ({
         nome_articolo: i.nome_articolo,
         quantita: Math.round((Number(i.quantita) || 0) * ratio * 1000) / 1000,
         unita: i.unita || '',
       }))
       setIngredientiEffettivi(ings)
-      setQty(String(selected.resa_quantita || ''))
+      // qty è già l'output target
       setPhase('producing')
     } catch (e) { setErr(e.message) }
     setLoading(false)
@@ -1136,69 +1145,185 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
           img.src = foto
         })
       }
-      const d = await apiCall({
+      const payload = {
         action: 'prod-finish', pin, locale,
-        recipe_id: selected.id,
         data_inizio: startedAt,
         quantita_prodotta: Number(qty),
         ingredienti_effettivi: ingredientiEffettivi,
         checklist_haccp: checklistAns,
         foto_url: fotoToSend || null,
         note: note || null,
-      })
+      }
+      if (selected.__source === 'semi') {
+        payload.manual_article_id = selected.semi_id
+      } else {
+        payload.recipe_id = selected.id
+      }
+      const d = await apiCall(payload)
       onDone(`Lotto ${d.lotto} creato (${d.durata_minuti} min)`)
     } catch (e) { setErr(e.message); setLoading(false) }
   }
 
-  // ── UI: lista schede ──
+  // ── UI: lista schede + selettore semilavorati con scaling ──
   if (phase === 'list') {
+    // Unifico: schede produzione + semilavorati codificati come opzioni nella tendina.
+    // Ogni opzione ha: id (sintetico), nome, unita, source: 'recipe'|'semi', refData
+    const semilavorati = (allArticles || []).filter(a => a.tipo === 'semilavorato')
+    const optionsRecipes = (recipes || []).map(r => ({
+      key: 'recipe:' + r.id,
+      nome: r.nome,
+      unita: r.resa_unita || '',
+      source: 'recipe',
+      data: r,
+      hint: r.resa_quantita ? `${r.resa_quantita} ${r.resa_unita || ''}` : '—',
+      approved: r.approved !== false,
+    }))
+    const optionsSemi = semilavorati.map(s => ({
+      key: 'semi:' + (s.id || s.nome),
+      nome: s.nome,
+      unita: s.unita || '',
+      source: 'semi',
+      data: s,
+      hint: `Resa: ${s.resa || 1} ${s.unita || ''}`,
+      approved: s.approved !== false,
+    }))
+    const allOptions = [...optionsRecipes, ...optionsSemi]
+      .filter(o => !search || o.nome.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => a.nome.localeCompare(b.nome))
+
     return <div style={{ maxWidth: 420, width: '100%' }}>
       {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
+
+      <div style={{ background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 12, padding: 14, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+          Cosa vuoi produrre?
+        </div>
+        <select value={selected?.__key || ''}
+          onChange={e => {
+            const opt = allOptions.find(o => o.key === e.target.value)
+            if (!opt) { setSelected(null); setQty(''); return }
+            // Adatto i campi a quelli usati in produzione (anche per semi)
+            const norm = opt.source === 'recipe'
+              ? { __key: opt.key, __source: 'recipe', ...opt.data }
+              : {
+                  __key: opt.key, __source: 'semi',
+                  id: null, // production_recipes.id non c'è per semi
+                  semi_id: opt.data.id,
+                  nome: opt.data.nome,
+                  resa_quantita: Number(opt.data.resa) || 1,
+                  resa_unita: opt.data.unita || '',
+                  ingredienti: opt.data.ingredienti || [],
+                  locale_produzione: locale,
+                  locale_destinazione: locale,
+                  allergeni: [],
+                  shelf_life_days: null,
+                  durata_attesa_minuti: null,
+                  checklist_haccp_template: [],
+                  richiede_foto: false,
+                  approved: opt.data.approved,
+                }
+            setSelected(norm)
+            setQty('') // qty unica = numero unità da produrre
+          }}
+          style={{ width: '100%', padding: '12px', fontSize: 14, fontWeight: 600, borderRadius: 8, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }}>
+          <option value="">— scegli un prodotto —</option>
+          {optionsRecipes.length > 0 && <optgroup label="🥘 Schede produzione">
+            {optionsRecipes.map(o => <option key={o.key} value={o.key}>
+              {o.nome}{o.approved === false ? ' [da confermare]' : ''}
+            </option>)}
+          </optgroup>}
+          {optionsSemi.length > 0 && <optgroup label="🧪 Semilavorati">
+            {optionsSemi.map(o => <option key={o.key} value={o.key}>
+              {o.nome}{o.approved === false ? ' [da confermare]' : ''}
+            </option>)}
+          </optgroup>}
+        </select>
+        {selected && (
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+            UM standard: <strong style={{ color: '#94a3b8' }}>{selected.resa_unita || '—'}</strong>
+            {' · Resa scheda: '}<strong style={{ color: '#94a3b8' }}>{selected.resa_quantita || 1} {selected.resa_unita}</strong>
+          </div>
+        )}
+      </div>
+
+      {selected && <>
+        {/* Quantità da produrre */}
+        <div style={{ background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 12, padding: 14, marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+            Quante {selected.resa_unita || 'unità'} vuoi fare?
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input type="number" step="0.001" value={qty} onChange={e => setQty(e.target.value)}
+              placeholder={`es. ${selected.resa_quantita || 1}`}
+              style={{ flex: 1, padding: '14px', fontSize: 24, fontWeight: 700, borderRadius: 8, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }} />
+            <span style={{ padding: '14px 16px', fontSize: 16, color: '#94a3b8', alignSelf: 'center', fontWeight: 600 }}>{selected.resa_unita}</span>
+          </div>
+          {/* Quick buttons multipli della resa standard */}
+          {selected.resa_quantita && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginTop: 8 }} className="keep-grid">
+              {[1, 2, 5, 10].map(m => {
+                const q = Number(selected.resa_quantita) * m
+                return <button key={m} onClick={() => setQty(String(q))}
+                  style={{ padding: '8px', borderRadius: 6, border: '1px solid #2a3042', background: Number(qty) === q ? '#10B981' : '#0f1420', color: Number(qty) === q ? '#fff' : '#94a3b8', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                  {m}× ({q} {selected.resa_unita})
+                </button>
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Ricetta proporzionata */}
+        {qty && Number(qty) > 0 && (selected.ingredienti || []).length > 0 && (() => {
+          const ratio = selected.resa_quantita ? Number(qty) / Number(selected.resa_quantita) : 1
+          const scaled = (selected.ingredienti || []).map(i => ({
+            ...i,
+            quantita_scalata: Math.round((Number(i.quantita) || 0) * ratio * 1000) / 1000,
+          }))
+          return <div style={{ background: 'rgba(16,185,129,.06)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 12, padding: 14, marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: '#10B981', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+              📋 Ricetta per {qty} {selected.resa_unita}
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10 }}>
+              Proporzionata da {selected.resa_quantita} {selected.resa_unita} a {qty} {selected.resa_unita}
+              {' '}(×{ratio.toFixed(2)}). Verifica con la situazione reale e modifica al click su "Inizia".
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead><tr style={{ borderBottom: '1px solid rgba(16,185,129,.3)' }}>
+                <th style={{ textAlign: 'left', padding: '4px 0', color: '#94a3b8', fontSize: 11, fontWeight: 600 }}>Ingrediente</th>
+                <th style={{ textAlign: 'right', padding: '4px 0', color: '#94a3b8', fontSize: 11, fontWeight: 600 }}>Quantità</th>
+              </tr></thead>
+              <tbody>
+                {scaled.map((i, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid rgba(16,185,129,.1)' }}>
+                    <td style={{ padding: '6px 0', fontWeight: 500 }}>{i.nome_articolo}</td>
+                    <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 700, color: '#10B981' }}>
+                      {i.quantita_scalata} {i.unita || ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        })()}
+
+        <button onClick={startProduction} disabled={loading || !qty || Number(qty) <= 0}
+          style={{ width: '100%', padding: 16, background: (qty && Number(qty) > 0) ? '#EF4444' : '#2a3042', color: (qty && Number(qty) > 0) ? '#fff' : '#64748b', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'wait' : ((qty && Number(qty) > 0) ? 'pointer' : 'not-allowed'), marginBottom: 8 }}>
+          {loading ? 'Avvio…' : `▶ Inizia produzione: ${qty || '?'} ${selected.resa_unita || ''}`}
+        </button>
+      </>}
+
+      {/* Search opzionale (utile se ci sono molti prodotti) */}
+      {allOptions.length > 8 && (
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Cerca prodotto…"
+          style={{ width: '100%', padding: '10px 12px', fontSize: 13, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
+      )}
+
       <button onClick={() => setPhase('creating-recipe')}
-        style={{ width: '100%', padding: 12, marginBottom: 10, background: 'transparent', border: '1px dashed #10B981', color: '#10B981', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+        style={{ width: '100%', padding: 10, marginBottom: 8, background: 'transparent', border: '1px dashed #10B981', color: '#10B981', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
         + Crea nuova scheda di produzione
       </button>
-      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Cerca scheda…"
-        style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 10, outline: 'none', boxSizing: 'border-box' }} />
-      {filteredRecipes.length === 0 ? (
-        <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
-          Nessuna scheda produzione attiva per {locale}.<br/>
-          <span style={{ fontSize: 11 }}>Crea la prima con il bottone in alto.</span>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {filteredRecipes.map(r => (
-            <button key={r.id} onClick={() => setSelected(r)}
-              style={{ padding: 14, background: selected?.id === r.id ? 'rgba(239,68,68,.12)' : '#1a1f2e',
-                border: `1px solid ${selected?.id === r.id ? '#EF4444' : '#2a3042'}`,
-                borderRadius: 10, color: '#e2e8f0', textAlign: 'left', cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{r.nome}</div>
-                {r.approved === false && (
-                  <span style={{ fontSize: 9, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.15)', padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>
-                    Da confermare
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                Resa: {r.resa_quantita} {r.resa_unita || ''}
-                {r.durata_attesa_minuti ? ` · ~${r.durata_attesa_minuti} min` : ''}
-                {r.locale_destinazione && r.locale_destinazione !== r.locale_produzione ? ` · → ${r.locale_destinazione}` : ''}
-              </div>
-              {(r.ingredienti || []).length > 0 && (
-                <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>{r.ingredienti.length} ingredienti</div>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-      {selected && (
-        <button onClick={startProduction} disabled={loading}
-          style={{ marginTop: 12, width: '100%', padding: 16, background: '#EF4444', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'wait' : 'pointer' }}>
-          {loading ? 'Avvio…' : `▶ Inizia produzione: ${selected.nome}`}
-        </button>
-      )}
-      <button onClick={onBack} style={{ marginTop: 8, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+
+      <button onClick={onBack} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
     </div>
   }
 

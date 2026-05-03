@@ -859,7 +859,10 @@ export default async function handler(req, res) {
         return res.status(200).json({ recipes: Array.isArray(rec) ? rec : [] });
       }
 
-      // ─── PRODUZIONE MOBILE: lista articoli + semilavorati per autocomplete ─
+      // ─── PRODUZIONE MOBILE: catalogo "cosa posso produrre" ─
+      // Ritorna semilavorati (manual_articles) + articoli stock per autocomplete.
+      // I semilavorati includono ingredienti + resa per consentire al client
+      // lo scaling proporzionale ("voglio farne N → ti calcolo la ricetta").
       case 'prod-articles': {
         const { pin, locale } = req.body;
         const v = await verifyPin(pin, 'produzione');
@@ -868,12 +871,20 @@ export default async function handler(req, res) {
         // Articoli da fatture (visibili per il locale)
         const stockArr = await sbQuery(`article_stock?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(locale)}&select=nome_articolo,unita`);
         const stocks = Array.isArray(stockArr) ? stockArr : [];
-        // Articoli da semilavorati (manual_articles, anche di altri locali user)
-        const semiArr = await sbQuery(`manual_articles?user_id=eq.${v.emp.user_id}&select=nome,unita,locale`);
+        // Semilavorati: ritorno anche ingredienti + resa per scaling client-side
+        const semiArr = await sbQuery(`manual_articles?user_id=eq.${v.emp.user_id}&select=id,nome,unita,resa,ingredienti,locale,approved`);
         const semis = Array.isArray(semiArr) ? semiArr : [];
         const items = [
           ...stocks.map(s => ({ nome: s.nome_articolo, unita: s.unita || '', tipo: 'articolo' })),
-          ...semis.filter(s => !s.locale || s.locale === locale).map(s => ({ nome: s.nome, unita: s.unita || '', tipo: 'semilavorato' })),
+          ...semis.filter(s => !s.locale || s.locale === locale).map(s => ({
+            id: s.id,
+            nome: s.nome,
+            unita: s.unita || '',
+            resa: Number(s.resa) || 1,
+            ingredienti: Array.isArray(s.ingredienti) ? s.ingredienti : [],
+            approved: s.approved !== false,
+            tipo: 'semilavorato',
+          })),
         ];
         // Dedup by nome
         const seen = new Set();
@@ -961,15 +972,37 @@ export default async function handler(req, res) {
 
       // ─── PRODUZIONE MOBILE: chiudi lotto (crea batch + movimenti) ────
       case 'prod-finish': {
-        const { pin, locale, recipe_id, data_inizio, quantita_prodotta, ingredienti_effettivi,
+        const { pin, locale, recipe_id, manual_article_id, data_inizio, quantita_prodotta, ingredienti_effettivi,
                 checklist_haccp, foto_url, note } = req.body;
         const v = await verifyPin(pin, 'produzione');
         if (v.error) return res.status(v.code).json({ error: v.error });
-        if (!recipe_id || !quantita_prodotta) return res.status(400).json({ error: 'recipe_id e quantita_prodotta richiesti' });
+        if ((!recipe_id && !manual_article_id) || !quantita_prodotta) {
+          return res.status(400).json({ error: 'recipe_id (o manual_article_id) + quantita_prodotta richiesti' });
+        }
 
-        const recs = await sbQuery(`production_recipes?id=eq.${recipe_id}&user_id=eq.${v.emp.user_id}&select=*&limit=1`);
-        if (!recs?.[0]) return res.status(404).json({ error: 'Scheda non trovata' });
-        const recipe = recs[0];
+        let recipe;
+        if (recipe_id) {
+          const recs = await sbQuery(`production_recipes?id=eq.${recipe_id}&user_id=eq.${v.emp.user_id}&select=*&limit=1`);
+          if (!recs?.[0]) return res.status(404).json({ error: 'Scheda non trovata' });
+          recipe = recs[0];
+        } else {
+          // Adatto un manual_article come "scheda virtuale"
+          const sas = await sbQuery(`manual_articles?id=eq.${manual_article_id}&user_id=eq.${v.emp.user_id}&select=*&limit=1`);
+          if (!sas?.[0]) return res.status(404).json({ error: 'Semilavorato non trovato' });
+          const s = sas[0];
+          recipe = {
+            id: null,
+            nome: s.nome,
+            ingredienti: Array.isArray(s.ingredienti) ? s.ingredienti : [],
+            resa_quantita: Number(s.resa) || 1,
+            resa_unita: s.unita || null,
+            allergeni: [],
+            conservazione: null,
+            shelf_life_days: null,
+            locale_destinazione: locale,
+            checklist_haccp_template: [],
+          };
+        }
 
         // Verifica checklist required
         const checklistTpl = Array.isArray(recipe.checklist_haccp_template) ? recipe.checklist_haccp_template : [];
@@ -1011,10 +1044,10 @@ export default async function handler(req, res) {
               unita: i.unita || '',
             }));
 
-        // Insert batch
+        // Insert batch (recipe_id può essere null se la produzione viene da un semilavorato)
         const batchRow = {
           user_id: v.emp.user_id,
-          recipe_id,
+          recipe_id: recipe_id || null,
           lotto,
           data_produzione: today.toISOString().slice(0, 10),
           ora_produzione: today.toTimeString().slice(0, 8),
