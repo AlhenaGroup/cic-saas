@@ -152,16 +152,40 @@ button {
    inline-style. Vincoliamo solo a hex dark del vecchio palette. */
 
 /* Modal contenuto: TUTTO ciò che è dentro un overlay con backdrop nero
-   e ha sfondo dark → diventa surface bianca */
+   e ha sfondo dark → diventa surface bianca con priorità alta. */
 [style*="background:rgba(0,0,0,.6)"] > div,
 [style*="background: rgba(0,0,0,.6)"] > div,
 [style*="background:rgba(0,0,0,.7)"] > div,
 [style*="background: rgba(0,0,0,.7)"] > div,
 [style*="background:rgba(0,0,0,0.6)"] > div,
-[style*="background:rgba(0,0,0,0.7)"] > div {
-  /* Solo se il figlio era dark, ma per sicurezza forzo surface bianca */
-  background: var(--surface);
+[style*="background:rgba(0,0,0,0.7)"] > div,
+.m-modal-fullscreen > div {
+  background: var(--surface) !important;
   color: var(--text);
+  border-color: var(--border) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+/* Modal "fullscreen" wrapper: il backdrop deve restare semi-trasparente
+   ma più morbido (rgba ridotto) per il light theme */
+.m-modal-fullscreen[style*="background:rgba(0,0,0,.7)"],
+.m-modal-fullscreen[style*="background: rgba(0,0,0,.7)"] {
+  background: rgba(15, 23, 42, 0.4) !important;
+  backdrop-filter: blur(2px);
+}
+
+/* Header sticky dentro modal con background dark → surface bianca con bordo */
+[style*="position:sticky"][style*="background:#131825"],
+[style*="position: sticky"][style*="background: #131825"],
+thead[style*="background:#131825"], thead[style*="background: #131825"],
+thead[style*="background:#1a1f2e"], thead[style*="background: #1a1f2e"] {
+  background: var(--surface2) !important;
+}
+
+/* Container "Totali" dentro modal scontrino */
+div[style*="background:#131825"][style*="border-radius"],
+div[style*="background: #131825"][style*="border-radius"] {
+  background: var(--surface2) !important;
 }
 
 /* Sotto-tab pills inattive (Budget, Vendite, Contabilità):
