@@ -40,7 +40,9 @@
 [style*="background:#1a1f2e"], [style*="background: #1a1f2e"],
 [style*="background:'#1a1f2e'"], [style*="background: '#1a1f2e'"],
 [style*="background:#131825"], [style*="background: #131825"],
-[style*="background:'#131825'"], [style*="background: '#131825'"] {
+[style*="background:'#131825'"], [style*="background: '#131825'"],
+[style*="background:#1e2636"], [style*="background: #1e2636"],
+[style*="background:'#1e2636'"], [style*="background: '#1e2636'"] {
   background: var(--surface) !important;
 }
 
@@ -53,13 +55,19 @@
 /* Bordi dark → bordi light */
 [style*="border:1px solid #2a3042"], [style*="border: 1px solid #2a3042"],
 [style*="border:'1px solid #2a3042'"], [style*="border: '1px solid #2a3042'"],
-[style*="borderColor:'#2a3042'"], [style*="borderColor: '#2a3042'"] {
+[style*="border:1px solid #1e2636"], [style*="border: 1px solid #1e2636"],
+[style*="border:1px solid #1a1f2e"], [style*="border: 1px solid #1a1f2e"],
+[style*="borderColor:'#2a3042'"], [style*="borderColor: '#2a3042'"],
+[style*="borderColor:'#1e2636'"], [style*="borderColor: '#1e2636'"] {
   border-color: var(--border) !important;
 }
 
 [style*="borderBottom:'1px solid #1a1f2e'"], [style*="borderBottom: '1px solid #1a1f2e'"],
-[style*="borderBottom:'1px solid #2a3042'"], [style*="borderBottom: '1px solid #2a3042'"] {
+[style*="borderBottom:'1px solid #2a3042'"], [style*="borderBottom: '1px solid #2a3042'"],
+[style*="borderBottom:'1px solid #1e2636'"], [style*="borderBottom: '1px solid #1e2636'"],
+[style*="borderTop:'1px solid #2a3042'"], [style*="borderTop: '1px solid #2a3042'"] {
   border-bottom-color: var(--border) !important;
+  border-top-color: var(--border) !important;
 }
 
 /* Testi chiari ereditati dal dark theme → testi scuri */
@@ -137,6 +145,105 @@ button {
 [style*="font-size:24"], [style*="fontSize:24"],
 [style*="font-size:22"], [style*="fontSize:22"] {
   font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* ─── Override aggressivi per tutti gli sfondi inline rimasti dark ──
+   Cattura background con qualsiasi sintassi (color hex 6-cifre dark scuri)
+   inline-style. Vincoliamo solo a hex dark del vecchio palette. */
+
+/* Modal contenuto: TUTTO ciò che è dentro un overlay con backdrop nero
+   e ha sfondo dark → diventa surface bianca */
+[style*="background:rgba(0,0,0,.6)"] > div,
+[style*="background: rgba(0,0,0,.6)"] > div,
+[style*="background:rgba(0,0,0,.7)"] > div,
+[style*="background: rgba(0,0,0,.7)"] > div,
+[style*="background:rgba(0,0,0,0.6)"] > div,
+[style*="background:rgba(0,0,0,0.7)"] > div {
+  /* Solo se il figlio era dark, ma per sicurezza forzo surface bianca */
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Sotto-tab pills inattive (Budget, Vendite, Contabilità):
+   spesso definite con background dark + color text-light.
+   Mantiene il button attivo amber/dark, normalizza solo gli inattivi.
+   I sotto-tab nei manager Marketing usano già S.input pattern che è ok. */
+
+/* Riga tabella SELEZIONATA in Conto Economico (background scuro inline) */
+tr[style*="background:#0f1420"], tr[style*="background: #0f1420"],
+tr[style*="background:#131825"], tr[style*="background: #131825"],
+tr[style*="background:#1a1f2e"], tr[style*="background: #1a1f2e"] {
+  background: var(--surface2) !important;
+}
+
+/* Pannelli annidati in HR/Magazzino/Budget con background dark inline:
+   container con background:'rgba(...)' o gradiente dark — assicuriamo bianco */
+[style*="background:#131825"][style*="border-radius"],
+[style*="background: #131825"][style*="border-radius"],
+[style*="background:#1a1f2e"][style*="border-radius"],
+[style*="background: #1a1f2e"][style*="border-radius"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border);
+}
+
+/* Bottoni "fantasma" (background:transparent, color:#94a3b8) restano ok */
+
+/* Color chips/swatches con sfondo amber chiaro: rendiamo la badge più morbida */
+[style*="background:rgba(245,158,11,.12)"],
+[style*="background: rgba(245,158,11,.12)"] {
+  background: var(--amber-bg) !important;
+  color: var(--amber) !important;
+}
+[style*="background:rgba(59,130,246,.08)"],
+[style*="background: rgba(59,130,246,.08)"],
+[style*="background:rgba(59,130,246,.12)"],
+[style*="background: rgba(59,130,246,.12)"] {
+  background: var(--blue-bg) !important;
+  color: var(--blue-text) !important;
+}
+[style*="background:rgba(16,185,129,.08)"],
+[style*="background: rgba(16,185,129,.08)"],
+[style*="background:rgba(16,185,129,.12)"],
+[style*="background: rgba(16,185,129,.12)"] {
+  background: var(--green-bg) !important;
+  color: var(--green-text) !important;
+}
+[style*="background:rgba(239,68,68,.1)"],
+[style*="background: rgba(239,68,68,.1)"],
+[style*="background:rgba(239,68,68,.12)"] {
+  background: var(--red-bg) !important;
+  color: var(--red) !important;
+}
+
+/* Input focus: ring blue invece di amber */
+input:focus, select:focus, textarea:focus {
+  border-color: var(--blue) !important;
+  box-shadow: 0 0 0 3px rgba(41, 82, 204, 0.1);
+}
+
+/* Removeo il filter:invert dei date pickers (era per dark) */
+input[type=date]::-webkit-calendar-picker-indicator,
+input[type=time]::-webkit-calendar-picker-indicator,
+input[type=datetime-local]::-webkit-calendar-picker-indicator {
+  filter: none !important;
+  cursor: pointer;
+}
+
+/* Select option non più dark */
+select option {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* Scrollbar light */
+::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-md) !important;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text3) !important;
 }
 
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
