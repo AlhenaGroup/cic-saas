@@ -31,70 +31,78 @@
 }
 
 /* ─── Theme override layer ─────────────────────────────────────────
-   L'app usa molti background hard-coded (#0f1420, #1a1f2e, #2a3042)
-   ereditati dal vecchio dark theme. Invece di refactorare migliaia
-   di righe inline-style, intercettiamo i pattern più comuni con
-   attribute selectors e li riportiamo al nuovo light system. */
+   IMPORTANTE: il browser serializza gli hex inline a rgb(), quindi
+   il pattern matching in CSS deve usare rgb(), NON gli hex.
+   Es. #0f1420 nel JSX diventa "background: rgb(15, 20, 32);" nel DOM.
+   Selettori [style*="#0f1420"] non matcheranno mai.
 
-/* Card / pannelli (vecchio sfondo card dark) → surface bianca con bordo */
-[style*="background:#1a1f2e"], [style*="background: #1a1f2e"],
-[style*="background:'#1a1f2e'"], [style*="background: '#1a1f2e'"],
-[style*="background:#131825"], [style*="background: #131825"],
-[style*="background:'#131825'"], [style*="background: '#131825'"],
-[style*="background:#1e2636"], [style*="background: #1e2636"],
-[style*="background:'#1e2636'"], [style*="background: '#1e2636'"] {
+   Le regole sotto coprono il palette dark del vecchio theme:
+   #0f1420 → rgb(15, 20, 32)   (page background)
+   #1a1f2e → rgb(26, 31, 46)   (card)
+   #131825 → rgb(19, 24, 37)   (sub-card)
+   #1e2636 → rgb(30, 38, 54)   (border subtle)
+   #2a3042 → rgb(42, 48, 66)   (border standard)
+   #94a3b8 → rgb(148, 163, 184) (text muted)
+   #cbd5e1 → rgb(203, 213, 225) (text secondary)
+   #e2e8f0 → rgb(226, 232, 240) (text primary)
+   #f1f5f9 → rgb(241, 245, 249) (text emphasis)
+   #64748b → rgb(100, 116, 139) (text tertiary)
+   #475569 → rgb(71, 85, 105)   (text label)
+*/
+
+/* ─── Backgrounds dark → surface/page light ───────────────────────── */
+/* Card / pannelli */
+[style*="rgb(26, 31, 46)"][style*="background"],
+[style*="rgb(19, 24, 37)"][style*="background"],
+[style*="rgb(30, 38, 54)"][style*="background"] {
+  background-color: var(--surface) !important;
+}
+/* Page background */
+[style*="rgb(15, 20, 32)"][style*="background"]:not(button) {
+  background-color: var(--surface2) !important;
+}
+/* Catch anche il pattern direttamente nel value (background: rgb...) */
+*[style*="background: rgb(15, 20, 32)"]:not(button),
+*[style*="background:rgb(15, 20, 32)"]:not(button) {
+  background: var(--surface2) !important;
+}
+*[style*="background: rgb(26, 31, 46)"],
+*[style*="background:rgb(26, 31, 46)"],
+*[style*="background: rgb(19, 24, 37)"],
+*[style*="background:rgb(19, 24, 37)"],
+*[style*="background: rgb(30, 38, 54)"],
+*[style*="background:rgb(30, 38, 54)"] {
   background: var(--surface) !important;
 }
 
-/* Page background dark → page background light */
-[style*="background:#0f1420"]:not(button), [style*="background: #0f1420"]:not(button),
-[style*="background:'#0f1420'"]:not(button), [style*="background: '#0f1420'"]:not(button) {
-  background: var(--surface2) !important;
+/* ─── Borders dark → light ────────────────────────────────────────── */
+[style*="rgb(42, 48, 66)"], [style*="rgb(30, 38, 54)"],
+[style*="rgb(26, 31, 46)"] {
+  border-color: var(--border) !important;
 }
-
-/* Bordi dark → bordi light */
-[style*="border:1px solid #2a3042"], [style*="border: 1px solid #2a3042"],
-[style*="border:'1px solid #2a3042'"], [style*="border: '1px solid #2a3042'"],
-[style*="border:1px solid #1e2636"], [style*="border: 1px solid #1e2636"],
-[style*="border:1px solid #1a1f2e"], [style*="border: 1px solid #1a1f2e"],
-[style*="borderColor:'#2a3042'"], [style*="borderColor: '#2a3042'"],
-[style*="borderColor:'#1e2636'"], [style*="borderColor: '#1e2636'"] {
+*[style*="border-color: rgb(42, 48, 66)"],
+*[style*="border-color:rgb(42, 48, 66)"] {
   border-color: var(--border) !important;
 }
 
-[style*="borderBottom:'1px solid #1a1f2e'"], [style*="borderBottom: '1px solid #1a1f2e'"],
-[style*="borderBottom:'1px solid #2a3042'"], [style*="borderBottom: '1px solid #2a3042'"],
-[style*="borderBottom:'1px solid #1e2636'"], [style*="borderBottom: '1px solid #1e2636'"],
-[style*="borderTop:'1px solid #2a3042'"], [style*="borderTop: '1px solid #2a3042'"] {
-  border-bottom-color: var(--border) !important;
-  border-top-color: var(--border) !important;
-}
-
-/* Testi chiari ereditati dal dark theme → testi scuri */
-[style*="color:#e2e8f0"], [style*="color: #e2e8f0"],
-[style*="color:'#e2e8f0'"], [style*="color: '#e2e8f0'"],
-[style*="color:#f1f5f9"], [style*="color: #f1f5f9"],
-[style*="color:'#f1f5f9'"], [style*="color: '#f1f5f9'"] {
+/* ─── Texts dark theme greys → light theme greys ──────────────────── */
+*[style*="color: rgb(226, 232, 240)"],
+*[style*="color:rgb(226, 232, 240)"],
+*[style*="color: rgb(241, 245, 249)"],
+*[style*="color:rgb(241, 245, 249)"],
+*[style*="color: rgb(203, 213, 225)"],
+*[style*="color:rgb(203, 213, 225)"] {
   color: var(--text) !important;
 }
-
-[style*="color:#cbd5e1"], [style*="color: #cbd5e1"],
-[style*="color:'#cbd5e1'"], [style*="color: '#cbd5e1'"] {
-  color: var(--text) !important;
-}
-
-[style*="color:#94a3b8"], [style*="color: #94a3b8"],
-[style*="color:'#94a3b8'"], [style*="color: '#94a3b8'"] {
+*[style*="color: rgb(148, 163, 184)"],
+*[style*="color:rgb(148, 163, 184)"],
+*[style*="color: rgb(71, 85, 105)"],
+*[style*="color:rgb(71, 85, 105)"] {
   color: var(--text2) !important;
 }
-
-[style*="color:#64748b"], [style*="color: #64748b"],
-[style*="color:'#64748b'"], [style*="color: '#64748b'"] {
+*[style*="color: rgb(100, 116, 139)"],
+*[style*="color:rgb(100, 116, 139)"] {
   color: var(--text3) !important;
-}
-
-[style*="color:#475569"], [style*="color: #475569"] {
-  color: var(--text2) !important;
 }
 
 /* Radius più generosi per card-like elements (radius 12 → 24, radius 8 → 16) */
@@ -120,9 +128,8 @@
   box-shadow: var(--shadow);
 }
 
-/* Primary buttons (amber) → diventano dark/contrast (light theme primary) */
-button[style*="background:'#F59E0B'"], button[style*="background: '#F59E0B'"],
-button[style*="background:#F59E0B"], button[style*="background: #F59E0B"] {
+/* Primary buttons (amber #F59E0B → rgb(245, 158, 11)) → dark contrast pill */
+button[style*="rgb(245, 158, 11)"][style*="background"] {
   background: var(--text) !important;
   color: var(--surface) !important;
 }
@@ -152,13 +159,10 @@ button {
    inline-style. Vincoliamo solo a hex dark del vecchio palette. */
 
 /* Modal contenuto: TUTTO ciò che è dentro un overlay con backdrop nero
-   e ha sfondo dark → diventa surface bianca con priorità alta. */
-[style*="background:rgba(0,0,0,.6)"] > div,
-[style*="background: rgba(0,0,0,.6)"] > div,
-[style*="background:rgba(0,0,0,.7)"] > div,
-[style*="background: rgba(0,0,0,.7)"] > div,
-[style*="background:rgba(0,0,0,0.6)"] > div,
-[style*="background:rgba(0,0,0,0.7)"] > div,
+   e ha sfondo dark → diventa surface bianca con priorità alta.
+   Il browser serializza rgba(0,0,0,.7) come rgba(0, 0, 0, 0.7). */
+[style*="rgba(0, 0, 0, 0.7)"] > div,
+[style*="rgba(0, 0, 0, 0.6)"] > div,
 .m-modal-fullscreen > div {
   background: var(--surface) !important;
   color: var(--text);
@@ -166,26 +170,12 @@ button {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
-/* Modal "fullscreen" wrapper: il backdrop deve restare semi-trasparente
-   ma più morbido (rgba ridotto) per il light theme */
-.m-modal-fullscreen[style*="background:rgba(0,0,0,.7)"],
-.m-modal-fullscreen[style*="background: rgba(0,0,0,.7)"] {
-  background: rgba(15, 23, 42, 0.4) !important;
+/* Modal "fullscreen" wrapper: backdrop più morbido per light theme */
+.m-modal-fullscreen,
+[style*="rgba(0, 0, 0, 0.7)"],
+[style*="rgba(0, 0, 0, 0.6)"] {
+  background-color: rgba(15, 23, 42, 0.4) !important;
   backdrop-filter: blur(2px);
-}
-
-/* Header sticky dentro modal con background dark → surface bianca con bordo */
-[style*="position:sticky"][style*="background:#131825"],
-[style*="position: sticky"][style*="background: #131825"],
-thead[style*="background:#131825"], thead[style*="background: #131825"],
-thead[style*="background:#1a1f2e"], thead[style*="background: #1a1f2e"] {
-  background: var(--surface2) !important;
-}
-
-/* Container "Totali" dentro modal scontrino */
-div[style*="background:#131825"][style*="border-radius"],
-div[style*="background: #131825"][style*="border-radius"] {
-  background: var(--surface2) !important;
 }
 
 /* Sotto-tab pills inattive (Budget, Vendite, Contabilità):
@@ -194,49 +184,61 @@ div[style*="background: #131825"][style*="border-radius"] {
    I sotto-tab nei manager Marketing usano già S.input pattern che è ok. */
 
 /* Riga tabella SELEZIONATA in Conto Economico (background scuro inline) */
-tr[style*="background:#0f1420"], tr[style*="background: #0f1420"],
-tr[style*="background:#131825"], tr[style*="background: #131825"],
-tr[style*="background:#1a1f2e"], tr[style*="background: #1a1f2e"] {
+tr[style*="rgb(15, 20, 32)"],
+tr[style*="rgb(19, 24, 37)"],
+tr[style*="rgb(26, 31, 46)"],
+tr[style*="rgb(30, 38, 54)"] {
   background: var(--surface2) !important;
 }
 
-/* Pannelli annidati in HR/Magazzino/Budget con background dark inline:
-   container con background:'rgba(...)' o gradiente dark — assicuriamo bianco */
-[style*="background:#131825"][style*="border-radius"],
-[style*="background: #131825"][style*="border-radius"],
-[style*="background:#1a1f2e"][style*="border-radius"],
-[style*="background: #1a1f2e"][style*="border-radius"] {
+/* Pannelli annidati con padding/border-radius e bg dark
+   (HR Aggiungi turno, Importata nel magazzino, Budget preparazioni) */
+div[style*="rgb(15, 20, 32)"][style*="border-radius"],
+div[style*="rgb(19, 24, 37)"][style*="border-radius"],
+div[style*="rgb(26, 31, 46)"][style*="border-radius"],
+div[style*="rgb(30, 38, 54)"][style*="border-radius"] {
   background: var(--surface) !important;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow);
+}
+
+/* Headers sticky tabelle dentro modal */
+thead[style*="rgb(19, 24, 37)"],
+thead[style*="rgb(26, 31, 46)"] {
+  background: var(--surface2) !important;
 }
 
 /* Bottoni "fantasma" (background:transparent, color:#94a3b8) restano ok */
 
-/* Color chips/swatches con sfondo amber chiaro: rendiamo la badge più morbida */
-[style*="background:rgba(245,158,11,.12)"],
-[style*="background: rgba(245,158,11,.12)"] {
+/* Color chips/swatches: rgba serializzati con spazi e 0.12 invece di .12 */
+[style*="rgba(245, 158, 11, 0.12)"],
+[style*="rgba(245, 158, 11, 0.15)"],
+[style*="rgba(245, 158, 11, 0.08)"] {
   background: var(--amber-bg) !important;
-  color: var(--amber) !important;
 }
-[style*="background:rgba(59,130,246,.08)"],
-[style*="background: rgba(59,130,246,.08)"],
-[style*="background:rgba(59,130,246,.12)"],
-[style*="background: rgba(59,130,246,.12)"] {
+[style*="rgba(59, 130, 246, 0.08)"],
+[style*="rgba(59, 130, 246, 0.12)"],
+[style*="rgba(59, 130, 246, 0.15)"] {
   background: var(--blue-bg) !important;
-  color: var(--blue-text) !important;
 }
-[style*="background:rgba(16,185,129,.08)"],
-[style*="background: rgba(16,185,129,.08)"],
-[style*="background:rgba(16,185,129,.12)"],
-[style*="background: rgba(16,185,129,.12)"] {
+[style*="rgba(16, 185, 129, 0.08)"],
+[style*="rgba(16, 185, 129, 0.12)"],
+[style*="rgba(16, 185, 129, 0.15)"] {
   background: var(--green-bg) !important;
-  color: var(--green-text) !important;
 }
-[style*="background:rgba(239,68,68,.1)"],
-[style*="background: rgba(239,68,68,.1)"],
-[style*="background:rgba(239,68,68,.12)"] {
+[style*="rgba(239, 68, 68, 0.1)"],
+[style*="rgba(239, 68, 68, 0.12)"],
+[style*="rgba(239, 68, 68, 0.15)"] {
   background: var(--red-bg) !important;
-  color: var(--red) !important;
+}
+[style*="rgba(139, 92, 246, 0.12)"],
+[style*="rgba(139, 92, 246, 0.15)"] {
+  background: rgba(139, 92, 246, 0.1) !important;
+}
+[style*="rgba(148, 163, 184, 0.12)"],
+[style*="rgba(148, 163, 184, 0.15)"],
+[style*="rgba(148, 163, 184, 0.06)"] {
+  background: var(--surface2) !important;
 }
 
 /* Input focus: ring blue invece di amber */
