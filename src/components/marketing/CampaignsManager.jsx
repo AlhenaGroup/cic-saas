@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { S } from '../shared/styles'
 import { supabase } from '../../lib/supabase'
+import EmailBuilder from './EmailBuilder'
 
 async function api(path, body) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -70,6 +71,7 @@ export default function CampaignsManager({ sp, sps }) {
     canale: 'email',
     oggetto: '',
     contenuto: 'Ciao {nome}!\n\nUn saluto da {locale}.\n\nA presto.',
+    blocks: [],
     segment_tag_ids: [],
     segment_tag_mode: 'any',
     segment_min_visite: 0,
@@ -79,6 +81,8 @@ export default function CampaignsManager({ sp, sps }) {
     rispetta_gdpr: true,
     stato: 'draft',
   })
+
+  const [emailMode, setEmailMode] = useState('builder')  // builder | text
 
   const onSave = async () => {
     if (!editing.nome?.trim()) return alert('Nome obbligatorio')
@@ -205,11 +209,33 @@ export default function CampaignsManager({ sp, sps }) {
         <Field label="Oggetto email"><input value={editing.oggetto || ''} onChange={e => setEditing({ ...editing, oggetto: e.target.value })} style={S.input} /></Field>
       </div>}
 
-      <div style={{ marginTop: 12 }}>
-        <Field label="Messaggio · placeholder: {nome} {cognome} {locale} {punti}">
-          <textarea value={editing.contenuto} onChange={e => setEditing({ ...editing, contenuto: e.target.value })} style={{ ...S.input, width: '100%', minHeight: 110, fontFamily: 'inherit' }} />
-        </Field>
-      </div>
+      {editing.canale === 'email' && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <button onClick={() => setEmailMode('builder')} style={tabBtnSm(emailMode === 'builder')}>🎨 Builder visuale</button>
+            <button onClick={() => setEmailMode('text')} style={tabBtnSm(emailMode === 'text')}>📝 Testo semplice</button>
+          </div>
+          {emailMode === 'builder' ? (
+            <EmailBuilder
+              blocks={editing.blocks || []}
+              meta={editing.meta || {}}
+              onChange={({ blocks, meta }) => setEditing({ ...editing, blocks, meta })}
+            />
+          ) : (
+            <Field label="Messaggio · placeholder: {nome} {cognome} {locale} {punti}">
+              <textarea value={editing.contenuto} onChange={e => setEditing({ ...editing, contenuto: e.target.value })} style={{ ...S.input, width: '100%', minHeight: 110, fontFamily: 'inherit' }} />
+            </Field>
+          )}
+        </div>
+      )}
+
+      {editing.canale !== 'email' && (
+        <div style={{ marginTop: 12 }}>
+          <Field label="Messaggio · placeholder: {nome} {cognome} {locale} {punti}">
+            <textarea value={editing.contenuto} onChange={e => setEditing({ ...editing, contenuto: e.target.value })} style={{ ...S.input, width: '100%', minHeight: 110, fontFamily: 'inherit' }} />
+          </Field>
+        </div>
+      )}
 
       <Section title="Segmento target">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
@@ -305,7 +331,7 @@ function Section({ title, children }) {
 }
 function Drawer({ children, onClose }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(620px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(1100px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
       {children}
     </div>
   </div>

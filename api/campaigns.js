@@ -147,24 +147,81 @@ async function sendGmail(accessToken, fromEmail, toEmail, subject, htmlReady) {
   return { sid: j.id }
 }
 
+// Render dei blocchi del builder in HTML email-safe (table-based).
+// Replica logica frontend (src/lib/emailBlocks.js) per evitare import cross-bundle.
+function escHtml(s) {
+  if (s == null) return ''
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+function renderBlock(b) {
+  const p = b.props || {}
+  switch (b.type) {
+    case 'header': return `<tr><td style="padding:16px 24px;text-align:${p.align || 'center'};"><h1 style="margin:0;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:${p.size || 28}px;color:${p.color || '#111'};font-weight:${p.bold ? 700 : 600};line-height:1.2;">${escHtml(p.text || '')}</h1></td></tr>`
+    case 'text': return `<tr><td style="padding:8px 24px;text-align:${p.align || 'left'};font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:${p.size || 14}px;color:${p.color || '#374151'};line-height:1.6;">${String(p.html || '').replace(/\n/g, '<br>')}</td></tr>`
+    case 'image': {
+      if (!p.src) return ''
+      const img = `<img src="${escHtml(p.src)}" alt="${escHtml(p.alt || '')}" width="${p.width || 600}" style="display:block;max-width:100%;height:auto;border:0;" />`
+      const inner = p.link ? `<a href="${escHtml(p.link)}">${img}</a>` : img
+      return `<tr><td style="padding:8px 24px;text-align:center;">${inner}</td></tr>`
+    }
+    case 'button': return `<tr><td style="padding:14px 24px;text-align:center;"><a href="${escHtml(p.url || '#')}" style="display:inline-block;background:${p.bg || '#F59E0B'};color:${p.color || '#0f1420'};font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;text-decoration:none;padding:${p.padding || 12}px 22px;border-radius:${p.radius != null ? p.radius : 6}px;">${escHtml(p.text || 'Click')}</a></td></tr>`
+    case 'divider': return `<tr><td style="padding:${p.margin || 12}px 24px;"><div style="border-top:${p.height || 1}px solid ${p.color || '#e5e7eb'};"></div></td></tr>`
+    case 'spacer': return `<tr><td style="height:${p.height || 24}px;line-height:${p.height || 24}px;font-size:1px;">&nbsp;</td></tr>`
+    case 'social': {
+      const links = []
+      if (p.facebook)    links.push(`<a href="${escHtml(p.facebook)}" style="margin:0 6px;color:#1877F2;text-decoration:none;font-weight:600;">Facebook</a>`)
+      if (p.instagram)   links.push(`<a href="${escHtml(p.instagram)}" style="margin:0 6px;color:#E4405F;text-decoration:none;font-weight:600;">Instagram</a>`)
+      if (p.twitter)     links.push(`<a href="${escHtml(p.twitter)}" style="margin:0 6px;color:#000;text-decoration:none;font-weight:600;">X</a>`)
+      if (p.tripadvisor) links.push(`<a href="${escHtml(p.tripadvisor)}" style="margin:0 6px;color:#00AA6C;text-decoration:none;font-weight:600;">TripAdvisor</a>`)
+      if (p.google)      links.push(`<a href="${escHtml(p.google)}" style="margin:0 6px;color:#4285F4;text-decoration:none;font-weight:600;">Google</a>`)
+      if (links.length === 0) return ''
+      return `<tr><td style="padding:14px 24px;text-align:center;font-size:13px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;">${links.join(' · ')}</td></tr>`
+    }
+    case 'footer': return `<tr><td style="padding:18px 24px 24px;text-align:center;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:${p.size || 11}px;color:${p.color || '#94a3b8'};line-height:1.6;">${String(p.html || '').replace(/\n/g, '<br>')}</td></tr>`
+    default: return ''
+  }
+}
+function renderBlocksToHtml(blocks, meta = {}) {
+  const bg = meta.bg_color || '#f5f5f5'
+  const cardBg = meta.card_bg || '#ffffff'
+  const width = meta.content_width || 600
+  const inner = (blocks || []).map(renderBlock).join('')
+  return `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:${bg};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};padding:24px 12px;">
+<tr><td align="center"><table role="presentation" width="${width}" cellpadding="0" cellspacing="0" style="max-width:${width}px;width:100%;background:${cardBg};border-radius:8px;overflow:hidden;">${inner}</table></td></tr>
+</table></body></html>`
+}
+
 // Genera HTML email con pixel di tracking + link riscritti.
+// Se html già è HTML completo (da builder), inietta solo pixel + riscrive gli href.
 // Restituisce { html, pixel_token, link_tokens } per persistere nel DB.
-function buildTrackedHtml(plainBody, baseUrl) {
+function buildTrackedHtml(input, baseUrl, isHtml = false) {
   const pixel_token = crypto.randomUUID()
-  // converti newline in <br> e wrappa in HTML
-  let html = String(plainBody || '').replace(/\n/g, '<br>')
+  let html = isHtml ? String(input || '') : String(input || '').replace(/\n/g, '<br>')
 
-  // Riscrivi link http(s) — pattern: protocol://... fino a spazio, &lt; o fine
   const link_tokens = {}
-  html = html.replace(/(https?:\/\/[^\s<>"]+)/g, (url) => {
-    const t = crypto.randomUUID()
-    link_tokens[t] = { url, click_count: 0 }
-    return `${baseUrl}/api/email-track?l=${t}`
-  })
+  if (isHtml) {
+    // riscrivi href="..." per i link esterni
+    html = html.replace(/href="(https?:\/\/[^"]+)"/g, (m, url) => {
+      const t = crypto.randomUUID()
+      link_tokens[t] = { url, click_count: 0 }
+      return `href="${baseUrl}/api/email-track?l=${t}"`
+    })
+  } else {
+    html = html.replace(/(https?:\/\/[^\s<>"]+)/g, (url) => {
+      const t = crypto.randomUUID()
+      link_tokens[t] = { url, click_count: 0 }
+      return `${baseUrl}/api/email-track?l=${t}`
+    })
+  }
 
-  // Pixel di apertura
   const pixelUrl = `${baseUrl}/api/email-track?p=${pixel_token}`
-  html += `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:block;border:0;outline:none;text-decoration:none" />`
+  const pixelImg = `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:block;border:0;outline:none;text-decoration:none" />`
+  if (isHtml && /<\/body>/i.test(html)) {
+    html = html.replace(/<\/body>/i, pixelImg + '</body>')
+  } else {
+    html += pixelImg
+  }
 
   return { html, pixel_token, link_tokens }
 }
@@ -212,7 +269,23 @@ async function sendCampaign(user_id, campaign) {
       if (campaign.canale === 'email') {
         if (!gmail) { r = { error: 'Gmail non connesso' } }
         else {
-          const tracked = buildTrackedHtml(body, baseUrl)
+          // Se la campaign ha blocks, render → HTML completo, poi inietta tracking
+          let html, isHtml = false
+          if (Array.isArray(campaign.blocks) && campaign.blocks.length > 0) {
+            // Sostituisci placeholder NEL render dei blocks (mutando deep)
+            const customBlocks = campaign.blocks.map(b => {
+              const np = { ...(b.props || {}) }
+              for (const k of ['text', 'html', 'alt']) {
+                if (np[k]) np[k] = applyPlaceholders(np[k], cust, { locale: campaign.locale })
+              }
+              return { ...b, props: np }
+            })
+            html = renderBlocksToHtml(customBlocks, campaign.meta || {})
+            isHtml = true
+          } else {
+            html = body
+          }
+          const tracked = buildTrackedHtml(html, baseUrl, isHtml)
           pixel_token = tracked.pixel_token
           link_tokens = tracked.link_tokens
           r = await sendGmail(gmail.token, gmail.email, dest, subj, tracked.html)
@@ -308,15 +381,18 @@ export default async function handler(req, res) {
 
       case 'upsert': {
         const c = body.campaign || {}
-        if (!c.locale || !c.nome || !c.canale || !c.contenuto) return res.status(400).json({ error: 'locale, nome, canale, contenuto required' })
+        if (!c.locale || !c.nome || !c.canale) return res.status(400).json({ error: 'locale, nome, canale required' })
         if (!['email', 'sms', 'whatsapp'].includes(c.canale)) return res.status(400).json({ error: 'canale invalido' })
+        const hasBlocks = Array.isArray(c.blocks) && c.blocks.length > 0
+        if (!c.contenuto && !hasBlocks) return res.status(400).json({ error: 'contenuto or blocks required' })
         const payload = {
           user_id,
           locale: c.locale,
           nome: c.nome.trim(),
           canale: c.canale,
           oggetto: c.oggetto ?? null,
-          contenuto: c.contenuto,
+          contenuto: c.contenuto || '',
+          blocks: hasBlocks ? c.blocks : [],
           segment_tag_ids: Array.isArray(c.segment_tag_ids) ? c.segment_tag_ids : [],
           segment_tag_mode: c.segment_tag_mode || 'any',
           segment_min_visite: Number(c.segment_min_visite || 0),

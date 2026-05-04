@@ -971,6 +971,19 @@ CREATE TABLE IF NOT EXISTS public.centralino_calls (
   created_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.campaign_templates (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text,
+  nome text NOT NULL,
+  thumbnail_url text,
+  blocks jsonb NOT NULL DEFAULT '[]'::jsonb,
+  meta jsonb NOT NULL DEFAULT '{}'::jsonb,
+  is_system boolean NOT NULL DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.campaigns (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid NOT NULL,
@@ -979,6 +992,9 @@ CREATE TABLE IF NOT EXISTS public.campaigns (
   canale text NOT NULL,
   oggetto text,
   contenuto text NOT NULL,
+  blocks jsonb DEFAULT '[]'::jsonb,
+  html_content text,
+  template_id uuid REFERENCES public.campaign_templates(id) ON DELETE SET NULL,
   segment_tag_ids uuid[] DEFAULT '{}',
   segment_tag_mode text NOT NULL DEFAULT 'any',
   segment_min_visite int DEFAULT 0,
@@ -1244,6 +1260,7 @@ CREATE INDEX IF NOT EXISTS idx_camp_msg_campaign        ON public.campaign_messa
 CREATE INDEX IF NOT EXISTS idx_camp_msg_customer        ON public.campaign_messages(customer_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_camp_msg_provider        ON public.campaign_messages(provider_sid) WHERE provider_sid IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_camp_msg_pixel_token     ON public.campaign_messages(pixel_token) WHERE pixel_token IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_camp_templ_user          ON public.campaign_templates(user_id, locale);
 CREATE INDEX IF NOT EXISTS idx_rev_user_locale_dt       ON public.reviews(user_id, locale, data_pubblicazione DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_rev_voto                 ON public.reviews(user_id, locale, voto);
 CREATE INDEX IF NOT EXISTS idx_rev_no_reply             ON public.reviews(user_id, locale) WHERE risposta IS NULL AND archiviata = false;
@@ -1343,6 +1360,7 @@ ALTER TABLE public.centralino_config          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.centralino_calls           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campaigns                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campaign_messages          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.campaign_templates         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.review_settings            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reviews                    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automations                ENABLE ROW LEVEL SECURITY;
@@ -1447,6 +1465,7 @@ CREATE POLICY "own_cent_config"           ON public.centralino_config      FOR A
 CREATE POLICY "own_cent_calls"            ON public.centralino_calls       FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_campaigns"             ON public.campaigns              FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_campaign_messages"     ON public.campaign_messages      FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_campaign_templates"    ON public.campaign_templates     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_review_settings"       ON public.review_settings        FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_reviews"               ON public.reviews                FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_automations"           ON public.automations            FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
