@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { S } from '../shared/styles'
 import { supabase } from '../../lib/supabase'
+import ReservationsStats from './ReservationsStats'
 
 async function api(path, body) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -59,6 +60,8 @@ export default function ReservationsManager({ sp, sps }) {
   const [editing, setEditing] = useState(null)
   const [custSearch, setCustSearch] = useState('')
   const [custResults, setCustResults] = useState([])
+  const [showStats, setShowStats] = useState(() => localStorage.getItem('mkt_reserv_stats') === '1')
+  useEffect(() => { localStorage.setItem('mkt_reserv_stats', showStats ? '1' : '0') }, [showStats])
 
   const reload = useCallback(async () => {
     setLoading(true); setError('')
@@ -182,7 +185,13 @@ export default function ReservationsManager({ sp, sps }) {
         <option value="">Tutti gli stati</option>
         {Object.entries(STATI).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
       </select>
+      <div style={{ flex: 1 }} />
+      <button onClick={() => setShowStats(!showStats)} style={btnSm(showStats ? '#F59E0B' : '#0f1420')}>
+        {showStats ? '📊 Nascondi statistiche' : '📊 Mostra statistiche'}
+      </button>
     </div>
+
+    {showStats && <ReservationsStats locale={locale} from={from} to={to} />}
 
     {/* KPI */}
     {kpi && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 14 }}>

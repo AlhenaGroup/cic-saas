@@ -75,6 +75,59 @@ export default async function handler(req, res) {
         return res.status(200).json({ kpi: out })
       }
 
+      // ─── STATS: serie giornaliere per stack chart ────────────────────
+      case 'stats': {
+        const { locale, from, to } = body
+        if (!locale || !from || !to) return res.status(400).json({ error: 'locale, from, to required' })
+        const { data, error } = await sb.from('reservations')
+          .select('data_ora, stato, source, occasione, pax')
+          .eq('user_id', user_id).eq('locale', locale)
+          .gte('data_ora', from).lte('data_ora', to)
+        if (error) throw error
+
+        // Aggregazione per giorno (YYYY-MM-DD)
+        const byDay = {}  // { date: { totale_stato:{}, totale_source:{}, totale_occasione:{}, coperti } }
+        const allStati = new Set(), allSources = new Set(), allOccasioni = new Set()
+        for (const r of (data || [])) {
+          const d = new Date(r.data_ora).toISOString().slice(0, 10)
+          if (!byDay[d]) byDay[d] = { date: d, by_stato: {}, by_source: {}, by_occasione: {}, coperti_by_occasione: {} }
+          const stato = r.stato || 'pending'
+          const source = r.source || 'manual'
+          const occ = r.occasione || 'non_definito'
+          byDay[d].by_stato[stato] = (byDay[d].by_stato[stato] || 0) + 1
+          byDay[d].by_source[source] = (byDay[d].by_source[source] || 0) + 1
+          byDay[d].by_occasione[occ] = (byDay[d].by_occasione[occ] || 0) + 1
+          byDay[d].coperti_by_occasione[occ] = (byDay[d].coperti_by_occasione[occ] || 0) + (r.pax || 0)
+          allStati.add(stato); allSources.add(source); allOccasioni.add(occ)
+        }
+
+        // Lista ordinata per data
+        const days = Object.values(byDay).sort((a, b) => a.date < b.date ? -1 : 1)
+
+        // Trasforma in formato Recharts: per ogni giorno, una riga con le keys (stato/source/occasione)
+        const series_stato = days.map(d => ({ date: d.date, ...d.by_stato }))
+        const series_source = days.map(d => ({ date: d.date, ...d.by_source }))
+        const series_occasione = days.map(d => ({ date: d.date, ...d.coperti_by_occasione }))
+
+        // Totali aggregati per ogni dimensione (per legenda con counts)
+        const tot_stato = {}, tot_source = {}, tot_occasione = {}, tot_coperti_occ = {}
+        for (const r of (data || [])) {
+          const stato = r.stato || 'pending', source = r.source || 'manual', occ = r.occasione || 'non_definito'
+          tot_stato[stato] = (tot_stato[stato] || 0) + 1
+          tot_source[source] = (tot_source[source] || 0) + 1
+          tot_occasione[occ] = (tot_occasione[occ] || 0) + 1
+          tot_coperti_occ[occ] = (tot_coperti_occ[occ] || 0) + (r.pax || 0)
+        }
+
+        return res.status(200).json({
+          stats: {
+            series_stato, series_source, series_occasione,
+            keys: { stati: [...allStati], sources: [...allSources], occasioni: [...allOccasioni] },
+            totals: { stato: tot_stato, source: tot_source, occasione: tot_occasione, coperti_occasione: tot_coperti_occ },
+          }
+        })
+      }
+
       // ─── GET singola ─────────────────────────────────────────────────
       case 'get': {
         const { id } = body
