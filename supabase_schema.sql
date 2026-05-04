@@ -1013,6 +1013,43 @@ CREATE TABLE IF NOT EXISTS public.campaign_messages (
   created_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.review_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  tone_of_voice text,
+  firma text,
+  auto_draft boolean NOT NULL DEFAULT true,
+  google_place_id text,
+  tripadvisor_url text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, locale)
+);
+
+CREATE TABLE IF NOT EXISTS public.reviews (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  sorgente text NOT NULL,
+  external_id text,
+  url text,
+  autore text,
+  voto smallint,
+  testo text,
+  data_pubblicazione timestamptz,
+  sentiment text,
+  reply_draft text,
+  risposta text,
+  risposta_at timestamptz,
+  risposta_by uuid,
+  customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
+  archiviata boolean NOT NULL DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, sorgente, external_id)
+);
+
 
 -- ============================================================
 -- 6. FOREIGN KEYS (nome semplificato)
@@ -1086,6 +1123,10 @@ CREATE INDEX IF NOT EXISTS idx_camp_schedule            ON public.campaigns(sche
 CREATE INDEX IF NOT EXISTS idx_camp_msg_campaign        ON public.campaign_messages(campaign_id, stato);
 CREATE INDEX IF NOT EXISTS idx_camp_msg_customer        ON public.campaign_messages(customer_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_camp_msg_provider        ON public.campaign_messages(provider_sid) WHERE provider_sid IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_rev_user_locale_dt       ON public.reviews(user_id, locale, data_pubblicazione DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS idx_rev_voto                 ON public.reviews(user_id, locale, voto);
+CREATE INDEX IF NOT EXISTS idx_rev_no_reply             ON public.reviews(user_id, locale) WHERE risposta IS NULL AND archiviata = false;
+CREATE INDEX IF NOT EXISTS idx_rev_settings_user        ON public.review_settings(user_id, locale);
 
 
 -- ============================================================
@@ -1165,6 +1206,8 @@ ALTER TABLE public.centralino_config          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.centralino_calls           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campaigns                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campaign_messages          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_settings            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews                    ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -1259,6 +1302,8 @@ CREATE POLICY "own_cent_config"           ON public.centralino_config      FOR A
 CREATE POLICY "own_cent_calls"            ON public.centralino_calls       FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_campaigns"             ON public.campaigns              FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_campaign_messages"     ON public.campaign_messages      FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_review_settings"       ON public.review_settings        FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_reviews"               ON public.reviews                FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 
 

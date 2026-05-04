@@ -9,6 +9,7 @@ import FidelityManager from '../components/marketing/FidelityManager'
 import ReservationsManager from '../components/marketing/ReservationsManager'
 import CentralinoManager from '../components/marketing/CentralinoManager'
 import CampaignsManager from '../components/marketing/CampaignsManager'
+import ReviewsManager from '../components/marketing/ReviewsManager'
 
 const SUBTABS = [
   { key: 'prenotaz',   label: 'Prenotazioni' },
@@ -16,9 +17,8 @@ const SUBTABS = [
   { key: 'campagne',   label: 'Campagne' },
   { key: 'promo',      label: 'Promozioni' },
   { key: 'fidelity',   label: 'Fidelity' },
+  { key: 'reviews',    label: 'Recensioni' },
   { key: 'centralino', label: 'Centralino' },
-  // prossimi step:
-  // { key: 'reviews',  label: 'Recensioni' },
 ]
 
 export default function MarketingModule({ sp, sps }) {
@@ -41,6 +41,7 @@ export default function MarketingModule({ sp, sps }) {
     {tab === 'campagne'   && <CampaignsManager sp={sp} sps={sps} />}
     {tab === 'promo'      && <PromotionsManager sp={sp} sps={sps} />}
     {tab === 'fidelity'   && <FidelityManager sp={sp} sps={sps} />}
+    {tab === 'reviews'    && <ReviewsManager sp={sp} sps={sps} />}
     {tab === 'centralino' && <CentralinoManager sp={sp} sps={sps} />}
   </div>
 }
