@@ -298,8 +298,8 @@ export default function DashboardPage({ settings }) {
 
 
   const iS = S.input
-  const tS = (t) => ({padding:'8px 16px',borderRadius:6,fontSize:13,fontWeight:500,cursor:'pointer',border:'none',
-    background:tab===t?'#F59E0B':'transparent',color:tab===t?'#0f1420':'#64748b',transition:'all .2s',position:'relative'})
+  const tS = (t) => ({padding:'10px 16px',borderRadius:'var(--radius-control)',fontSize:13,fontWeight:500,cursor:'pointer',border:'1px solid '+(tab===t?'transparent':'transparent'),
+    background:tab===t?'var(--text)':'transparent',color:tab===t?'var(--surface)':'var(--text2)',transition:'all .2s',position:'relative',letterSpacing:'-0.01em'})
 
   // Ordine top-level e label senza emoji.
   // Vendite include scontrini/categorie/reparti come sotto-tab (gestiti via subTab state).
@@ -324,21 +324,17 @@ export default function DashboardPage({ settings }) {
     if (TABS.length > 0 && !TABS.some(([k]) => k === tab)) setTab(TABS[0][0])
   }, [planFeatures, tab, TABS])
 
-  return <div style={{minHeight:'100vh',background:'#0f1420',fontFamily:"'DM Sans',system-ui,sans-serif",color:'#e2e8f0'}}>
+  return <div style={{minHeight:'100vh',background:'var(--bg)',fontFamily:"'DM Sans',system-ui,sans-serif",color:'var(--text)'}}>
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
       @keyframes spin{to{transform:rotate(360deg)}}
-      *{box-sizing:border-box} input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.4)}
-      select option{background:#1a1f2e;color:#e2e8f0} ::-webkit-scrollbar{width:5px;height:5px}
-      ::-webkit-scrollbar-track{background:#0f1420} ::-webkit-scrollbar-thumb{background:#2a3042;border-radius:3px}
-      tr:hover td{background:#1e2636!important}
+      tr:hover td{background:var(--surface2)}
     `}</style>
 
     {/* Header */}
-    <div className="m-compact-x m-wrap" style={{background:'#131825',borderBottom:'1px solid #1e2636',padding:'8px 1.5rem',minHeight:56,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',position:'sticky',top:0,zIndex:100}}>
-      <div className="m-wrap" style={{display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-        <div style={{width:28,height:28,background:'#F59E0B',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'#0f1420',fontSize:13}}>C</div>
-        <span style={{fontSize:15,fontWeight:700,letterSpacing:'-0.01em'}}>CIC Analytics</span>
+    <div className="m-compact-x m-wrap" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'12px 1.75rem',minHeight:60,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',position:'sticky',top:0,zIndex:100}}>
+      <div className="m-wrap" style={{display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
+        <div style={{width:32,height:32,background:'var(--text)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'var(--surface)',fontSize:14,letterSpacing:'-0.02em'}}>C</div>
+        <span style={{fontSize:15,fontWeight:600,letterSpacing:'-0.01em',color:'var(--text)'}}>CIC Analytics</span>
         {sps.length>0&&<select value={sp} onChange={e=>setSp(e.target.value)} style={{...iS,paddingLeft:10}}>
           <option value="all">📍 Tutti i locali</option>
           {sps.map(s=><option key={s.id} value={s.id}>{s.description||s.name}</option>)}
@@ -414,7 +410,7 @@ export default function DashboardPage({ settings }) {
     </div>
 
     {/* Tabs nav */}
-    <div className="m-compact-x" style={{background:'#131825',borderBottom:'1px solid #1e2636',padding:'0 1.5rem',display:'flex',gap:2,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+    <div className="m-compact-x" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'10px 1.75rem',display:'flex',gap:6,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
       {TABS.map(([t,l])=>(
         <button key={t} onClick={()=>setTab(t)} style={{...tS(t),whiteSpace:'nowrap',flexShrink:0}}>
           {l}

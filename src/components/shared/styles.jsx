@@ -35,35 +35,35 @@ export function deltaFmt(curr, prev) {
   return { diff, pct: pctVal, label: `${sign}${Math.round(diff).toLocaleString('it-IT')} (${sign}${pctVal.toFixed(1)}%)`, positive: diff >= 0 }
 }
 
-export const C = ['#F59E0B','#3B82F6','#10B981','#8B5CF6','#EC4899','#F97316','#06B6D4','#84CC16','#EF4444','#A78BFA']
+// Palette grafici: light-friendly. Mantiene compat con il vecchio array C.
+export const C = ['#2952CC','#16754A','#92400E','#7C3AED','#DB2777','#EA580C','#0891B2','#65A30D','#DC2626','#6366F1']
 
 export const S = {
-  card: {background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:12,padding:'1.25rem 1.5rem'},
-  th:   {padding:'8px 14px',textAlign:'left',fontWeight:500,fontSize:11,color:'#475569',textTransform:'uppercase',letterSpacing:'.06em'},
-  td:   {padding:'11px 14px',borderBottom:'1px solid #1a1f2e',fontSize:13},
-  badge:(c,bg)=>({background:bg,color:c,fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20}),
-  input:{fontSize:13,padding:'6px 10px',border:'1px solid #2a3042',borderRadius:6,background:'#0f1420',color:'#e2e8f0',outline:'none'},
+  card: {background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius-card)',padding:'1.5rem',boxShadow:'var(--shadow)'},
+  th:   {padding:'10px 16px',textAlign:'left',fontWeight:500,fontSize:11,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em'},
+  td:   {padding:'12px 16px',borderBottom:'1px solid var(--border)',fontSize:13,color:'var(--text)'},
+  badge:(c,bg)=>({background:bg,color:c,fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:999,letterSpacing:'.02em'}),
+  input:{fontSize:13,padding:'8px 12px',border:'1px solid var(--border-md)',borderRadius:'var(--radius-control)',background:'var(--surface)',color:'var(--text)',outline:'none',fontFamily:'inherit'},
 }
 
-export function KPI({label,value,sub,icon,accent='#F59E0B',trend}) {
-  return <div style={{...S.card,position:'relative',overflow:'hidden'}}>
-    <div style={{position:'absolute',top:0,left:0,width:3,height:'100%',background:accent,borderRadius:'12px 0 0 12px'}}/>
-    <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
-      <span style={{fontSize:11,fontWeight:600,color:'#64748b',textTransform:'uppercase',letterSpacing:'.08em'}}>{label}</span>
-      <span style={{fontSize:18}}>{icon}</span>
+export function KPI({label,value,sub,icon,accent='var(--blue)',trend}) {
+  return <div style={{...S.card,position:'relative',overflow:'hidden',padding:'1.5rem'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10,gap:8}}>
+      <span style={{fontSize:11,fontWeight:600,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.08em'}}>{label}</span>
+      {icon&&<span style={{fontSize:16,color:'var(--text3)'}}>{icon}</span>}
     </div>
-    <div style={{fontSize:26,fontWeight:700,color:'#f1f5f9',letterSpacing:'-0.03em',marginBottom:4}}>{value}</div>
-    {sub&&<div style={{fontSize:12,color:'#94a3b8'}}>{sub}</div>}
-    {trend!=null&&<div style={{marginTop:6,fontSize:11,color:trend>=0?'#10B981':'#EF4444',fontWeight:600}}>{trend>=0?'▲':'▼'} {Math.abs(trend).toFixed(1)}%</div>}
+    <div style={{fontSize:28,fontWeight:600,color:'var(--text)',letterSpacing:'-0.02em',marginBottom:4,fontFamily:'DM Sans, system-ui, sans-serif'}}>{value}</div>
+    {sub&&<div style={{fontSize:12,color:'var(--text2)'}}>{sub}</div>}
+    {trend!=null&&<div style={{marginTop:8,display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:999,background:trend>=0?'var(--green-bg)':'var(--red-bg)',color:trend>=0?'var(--green)':'var(--red)'}}>{trend>=0?'↑':'↓'} {Math.abs(trend).toFixed(1)}%</div>}
   </div>
 }
 
 export function Card({title,badge,children,extra}) {
   return <div style={S.card}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.1rem'}}>
-      <div style={{display:'flex',alignItems:'center',gap:8}}>
-        <h3 style={{margin:0,fontSize:14,fontWeight:600,color:'#e2e8f0'}}>{title}</h3>
-        {badge&&<span style={S.badge('#F59E0B','rgba(245,158,11,.15)')}>{badge}</span>}
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1.25rem'}}>
+      <div style={{display:'flex',alignItems:'center',gap:10}}>
+        <h3 style={{margin:0,fontSize:15,fontWeight:600,color:'var(--text)',letterSpacing:'-0.01em'}}>{title}</h3>
+        {badge&&<span style={S.badge('var(--blue-text)','var(--blue-bg)')}>{badge}</span>}
       </div>
       {extra}
     </div>
@@ -73,31 +73,31 @@ export function Card({title,badge,children,extra}) {
 
 export function Bar2({label,value,max,color,pct:p}) {
   const w = max>0?Math.max(value/max*100,0):0
-  return <div style={{marginBottom:12}}>
-    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-      <span style={{fontSize:13,color:'#cbd5e1'}}>{label}</span>
-      <div style={{display:'flex',gap:12}}>
-        {p!=null&&<span style={{fontSize:12,color:'#F59E0B',fontWeight:600}}>{p}%</span>}
-        <span style={{fontSize:13,fontWeight:600,color:'#f1f5f9'}}>{fmt(value)}</span>
+  return <div style={{marginBottom:14}}>
+    <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+      <span style={{fontSize:13,color:'var(--text2)'}}>{label}</span>
+      <div style={{display:'flex',gap:12,alignItems:'baseline'}}>
+        {p!=null&&<span style={{fontSize:11,color:'var(--text3)',fontWeight:500}}>{p}%</span>}
+        <span style={{fontSize:13,fontWeight:600,color:'var(--text)'}}>{fmt(value)}</span>
       </div>
     </div>
-    <div style={{height:4,background:'#0f1420',borderRadius:2}}>
-      <div style={{height:'100%',width:w+'%',background:color,borderRadius:2,transition:'width .6s ease'}}/>
+    <div style={{height:6,background:'var(--surface2)',borderRadius:3,overflow:'hidden'}}>
+      <div style={{height:'100%',width:w+'%',background:color||'var(--blue)',borderRadius:3,transition:'width .6s ease'}}/>
     </div>
   </div>
 }
 
 export const Tip = ({active,payload,label}) => {
   if(!active||!payload?.length) return null
-  return <div style={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,padding:'10px 14px',fontSize:12}}>
-    <div style={{color:'#64748b',marginBottom:4}}>{label}</div>
-    {payload.map((p,i)=><div key={i} style={{color:'#f1f5f9',fontWeight:600}}>{p.name==='ricavi'?fmt(p.value):fmtN(p.value)}{p.name==='scontrini'?' sc.':''}</div>)}
+  return <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'var(--radius-control)',padding:'10px 14px',fontSize:12,boxShadow:'var(--shadow-md)'}}>
+    <div style={{color:'var(--text3)',marginBottom:6,fontSize:11}}>{label}</div>
+    {payload.map((p,i)=><div key={i} style={{color:'var(--text)',fontWeight:600}}>{p.name==='ricavi'?fmt(p.value):fmtN(p.value)}{p.name==='scontrini'?' sc.':''}</div>)}
   </div>
 }
 
 export function Loader() {
   return <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'4rem',gap:12}}>
-    <div style={{width:28,height:28,borderRadius:'50%',border:'2px solid #2a3042',borderTopColor:'#F59E0B',animation:'spin .7s linear infinite'}}/>
-    <span style={{fontSize:13,color:'#64748b'}}>Caricamento...</span>
+    <div style={{width:24,height:24,borderRadius:'50%',border:'2px solid var(--border)',borderTopColor:'var(--blue)',animation:'spin .7s linear infinite'}}/>
+    <span style={{fontSize:13,color:'var(--text2)'}}>Caricamento...</span>
   </div>
 }
