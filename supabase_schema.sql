@@ -1050,6 +1050,71 @@ CREATE TABLE IF NOT EXISTS public.reviews (
   UNIQUE(user_id, sorgente, external_id)
 );
 
+CREATE TABLE IF NOT EXISTS public.automations (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  nome text NOT NULL,
+  descrizione text,
+  trigger_event text NOT NULL,
+  trigger_filters jsonb NOT NULL DEFAULT '{}'::jsonb,
+  attivo boolean NOT NULL DEFAULT false,
+  esecuzioni_totali int NOT NULL DEFAULT 0,
+  ultime_esecuzione_at timestamptz,
+  template_key text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.automation_nodes (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  automation_id uuid NOT NULL REFERENCES public.automations(id) ON DELETE CASCADE,
+  tipo text NOT NULL,
+  config jsonb NOT NULL DEFAULT '{}'::jsonb,
+  pos_x numeric DEFAULT 0,
+  pos_y numeric DEFAULT 0,
+  next_node_ids uuid[] DEFAULT '{}',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.automation_events_queue (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  evento text NOT NULL,
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
+  stato text NOT NULL DEFAULT 'pending',
+  errore text,
+  created_at timestamptz DEFAULT now(),
+  processed_at timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS public.automation_runs (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  automation_id uuid NOT NULL REFERENCES public.automations(id) ON DELETE CASCADE,
+  event_id uuid REFERENCES public.automation_events_queue(id) ON DELETE SET NULL,
+  user_id uuid NOT NULL,
+  customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
+  context jsonb NOT NULL DEFAULT '{}'::jsonb,
+  stato text NOT NULL DEFAULT 'running',
+  started_at timestamptz DEFAULT now(),
+  ended_at timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS public.automation_run_steps (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  run_id uuid NOT NULL REFERENCES public.automation_runs(id) ON DELETE CASCADE,
+  node_id uuid NOT NULL REFERENCES public.automation_nodes(id) ON DELETE CASCADE,
+  stato text NOT NULL DEFAULT 'pending',
+  schedule_at timestamptz DEFAULT now(),
+  errore text,
+  output jsonb DEFAULT '{}'::jsonb,
+  done_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
 
 -- ============================================================
 -- 6. FOREIGN KEYS (nome semplificato)
@@ -1127,6 +1192,15 @@ CREATE INDEX IF NOT EXISTS idx_rev_user_locale_dt       ON public.reviews(user_i
 CREATE INDEX IF NOT EXISTS idx_rev_voto                 ON public.reviews(user_id, locale, voto);
 CREATE INDEX IF NOT EXISTS idx_rev_no_reply             ON public.reviews(user_id, locale) WHERE risposta IS NULL AND archiviata = false;
 CREATE INDEX IF NOT EXISTS idx_rev_settings_user        ON public.review_settings(user_id, locale);
+CREATE INDEX IF NOT EXISTS idx_aut_nodes_aut            ON public.automation_nodes(automation_id);
+CREATE INDEX IF NOT EXISTS idx_aut_nodes_tipo           ON public.automation_nodes(automation_id, tipo);
+CREATE INDEX IF NOT EXISTS idx_aut_evq_pending          ON public.automation_events_queue(stato, created_at) WHERE stato = 'pending';
+CREATE INDEX IF NOT EXISTS idx_aut_evq_user             ON public.automation_events_queue(user_id, locale, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_aut_runs_aut             ON public.automation_runs(automation_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_aut_runs_customer        ON public.automation_runs(customer_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_aut_runs_user            ON public.automation_runs(user_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_aut_run_steps_run        ON public.automation_run_steps(run_id);
+CREATE INDEX IF NOT EXISTS idx_aut_run_steps_pending    ON public.automation_run_steps(stato, schedule_at) WHERE stato = 'pending';
 
 
 -- ============================================================
@@ -1208,6 +1282,11 @@ ALTER TABLE public.campaigns                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campaign_messages          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.review_settings            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reviews                    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.automations                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.automation_nodes           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.automation_events_queue    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.automation_runs            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.automation_run_steps       ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -1304,6 +1383,15 @@ CREATE POLICY "own_campaigns"             ON public.campaigns              FOR A
 CREATE POLICY "own_campaign_messages"     ON public.campaign_messages      FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_review_settings"       ON public.review_settings        FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_reviews"               ON public.reviews                FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_automations"           ON public.automations            FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_automation_nodes"      ON public.automation_nodes       FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.automations a WHERE a.id = automation_nodes.automation_id AND a.user_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.automations a WHERE a.id = automation_nodes.automation_id AND a.user_id = auth.uid()));
+CREATE POLICY "own_aut_events_queue"      ON public.automation_events_queue FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_automation_runs"       ON public.automation_runs        FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_automation_run_steps"  ON public.automation_run_steps   FOR ALL
+  USING (EXISTS (SELECT 1 FROM public.automation_runs r WHERE r.id = automation_run_steps.run_id AND r.user_id = auth.uid()))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.automation_runs r WHERE r.id = automation_run_steps.run_id AND r.user_id = auth.uid()));
 
 
 

@@ -127,6 +127,8 @@ export default async function handler(req, res) {
         const { id, stato, reason = null } = body
         if (!id || !stato) return res.status(400).json({ error: 'id and stato required' })
         if (!STATI_VALIDI.includes(stato)) return res.status(400).json({ error: 'stato invalido' })
+        // Carica stato_from per il payload evento
+        const { data: prev } = await sb.from('reservations').select('stato, locale, customer_id, pax').eq('user_id', user_id).eq('id', id).maybeSingle()
         const upd = { stato, updated_at: new Date().toISOString() }
         if (stato === 'confirmed') upd.confirmed_at = new Date().toISOString()
         if (stato === 'seated')    upd.seated_at = new Date().toISOString()
@@ -135,6 +137,16 @@ export default async function handler(req, res) {
         const { data, error } = await sb.from('reservations').update(upd)
           .eq('user_id', user_id).eq('id', id).select().maybeSingle()
         if (error) throw error
+        // Emetti evento per automations engine (cambio_stato_prenotazione)
+        if (prev && prev.stato !== stato) {
+          await sb.from('automation_events_queue').insert({
+            user_id,
+            locale: prev.locale,
+            evento: 'cambio_stato_prenotazione',
+            payload: { reservation_id: id, stato_from: prev.stato, stato_to: stato, pax: prev.pax },
+            customer_id: prev.customer_id || null,
+          }).select().maybeSingle()
+        }
         return res.status(200).json({ reservation: data })
       }
 

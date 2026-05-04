@@ -200,6 +200,20 @@ export default async function handler(req, res) {
         await sb.from('promotions').update({ utilizzi_totali: (promo.utilizzi_totali || 0) + 1, updated_at: new Date().toISOString() })
           .eq('id', promo.id)
 
+        // Emetti evento conto_ricevuto per automations engine
+        await sb.from('automation_events_queue').insert({
+          user_id,
+          locale,
+          evento: 'conto_ricevuto',
+          payload: {
+            scontrino_id: scontrino_id || null,
+            importo: Number(importo_scontrino || 0),
+            promo_codice: promo.codice,
+            sconto_applicato: sconto,
+          },
+          customer_id: customer_id || null,
+        })
+
         return res.status(200).json({ ok: true, redemption: red, sconto_applicato: sconto, promotion: promo })
       }
 

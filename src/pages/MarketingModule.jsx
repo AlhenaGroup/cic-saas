@@ -10,10 +10,12 @@ import ReservationsManager from '../components/marketing/ReservationsManager'
 import CentralinoManager from '../components/marketing/CentralinoManager'
 import CampaignsManager from '../components/marketing/CampaignsManager'
 import ReviewsManager from '../components/marketing/ReviewsManager'
+import AutomationsManager from '../components/marketing/AutomationsManager'
 
 const SUBTABS = [
   { key: 'prenotaz',   label: 'Prenotazioni' },
   { key: 'clienti',    label: 'Clienti' },
+  { key: 'automazioni', label: 'Automazioni' },
   { key: 'campagne',   label: 'Campagne' },
   { key: 'promo',      label: 'Promozioni' },
   { key: 'fidelity',   label: 'Fidelity' },
@@ -36,12 +38,13 @@ export default function MarketingModule({ sp, sps }) {
       }}>{t.label}</button>)}
     </div>
 
-    {tab === 'prenotaz'   && <ReservationsManager sp={sp} sps={sps} />}
-    {tab === 'clienti'    && <CustomersManager sp={sp} sps={sps} />}
-    {tab === 'campagne'   && <CampaignsManager sp={sp} sps={sps} />}
-    {tab === 'promo'      && <PromotionsManager sp={sp} sps={sps} />}
-    {tab === 'fidelity'   && <FidelityManager sp={sp} sps={sps} />}
-    {tab === 'reviews'    && <ReviewsManager sp={sp} sps={sps} />}
-    {tab === 'centralino' && <CentralinoManager sp={sp} sps={sps} />}
+    {tab === 'prenotaz'    && <ReservationsManager sp={sp} sps={sps} />}
+    {tab === 'clienti'     && <CustomersManager sp={sp} sps={sps} />}
+    {tab === 'automazioni' && <AutomationsManager sp={sp} sps={sps} />}
+    {tab === 'campagne'    && <CampaignsManager sp={sp} sps={sps} />}
+    {tab === 'promo'       && <PromotionsManager sp={sp} sps={sps} />}
+    {tab === 'fidelity'    && <FidelityManager sp={sp} sps={sps} />}
+    {tab === 'reviews'     && <ReviewsManager sp={sp} sps={sps} />}
+    {tab === 'centralino'  && <CentralinoManager sp={sp} sps={sps} />}
   </div>
 }
