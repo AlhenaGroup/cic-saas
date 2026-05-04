@@ -439,10 +439,20 @@ export default async function handler(req, res) {
           console.error('[inv-articles] magazzino lookup failed:', lookupErr?.message || lookupErr);
         }
         const expectedLocale = invMeta.locale || reqLocale || null;
+        // Carica config conteggio inventario per tutti gli articoli del locale
+        const cfgByName = {};
+        if (expectedLocale) {
+          try {
+            const cfgRes = await sbQuery(`article_inventory_config?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(expectedLocale)}&select=*`);
+            const cfgArr = Array.isArray(cfgRes) ? cfgRes : [];
+            for (const c of cfgArr) cfgByName[c.nome_articolo] = c;
+          } catch (e) { console.error('[inv-articles] cfg lookup failed:', e?.message || e); }
+        }
         const mapped = itemsArr.map(it => {
           let meta = {};
           try { meta = JSON.parse(it.note || '{}'); } catch {}
           const nome = meta.nome_articolo || '';
+          const cfg = cfgByName[nome] || null;
           return {
             id: it.id,
             nome_articolo: nome,
@@ -454,11 +464,18 @@ export default async function handler(req, res) {
             counted_by_name: meta.counted_by_name || null,
             counted_at: meta.counted_at || null,
             is_user_added: !!meta.is_user_added,
+            // modalità conteggio + valori già salvati
+            count_mode: meta.count_mode || (cfg?.modalita || 'unita'),
+            qty_pezzi: meta.qty_pezzi != null ? Number(meta.qty_pezzi) : null,
+            qty_aperto: meta.qty_aperto != null ? Number(meta.qty_aperto) : null,
+            volume_pezzo: cfg?.volume_pezzo ?? null,
+            unita_pezzo: cfg?.unita_pezzo ?? 'pz',
+            unita_apertura: cfg?.unita_apertura ?? 'ml',
+            modalita: cfg?.modalita || 'unita',
             _itemLocale: meta.locale || null,
           };
         })
         .filter(x => x.nome_articolo)
-        // Doppia safety: scarto eventuali items con locale diverso da quello dell'inventario
         .filter(x => !expectedLocale || !x._itemLocale || x._itemLocale === expectedLocale)
         .map(({ _itemLocale, ...x }) => x)
         .sort((a, b) => a.nome_articolo.localeCompare(b.nome_articolo));
@@ -466,27 +483,59 @@ export default async function handler(req, res) {
       }
 
       case 'inv-count': {
-        const { pin, inventory_id, nome_articolo, giacenza_reale } = req.body;
+        // Supporta due modalità:
+        //  - "unita":  { giacenza_reale } numero diretto (litri/kg)
+        //  - "pezzi":  { qty_pezzi, qty_aperto } → calcolo server-side da config articolo
+        const { pin, inventory_id, nome_articolo, giacenza_reale, qty_pezzi, qty_aperto } = req.body;
         const v = await verifyPin(pin, 'inventario');
         if (v.error) return res.status(v.code).json({ error: v.error });
-        if (!inventory_id || !nome_articolo || giacenza_reale == null) return res.status(400).json({ error: 'inventory_id, nome_articolo, giacenza_reale richiesti' });
-        // Trova la riga cercando nel JSON note
+        if (!inventory_id || !nome_articolo) return res.status(400).json({ error: 'inventory_id, nome_articolo richiesti' });
+        const isPezzi = qty_pezzi != null || qty_aperto != null;
+        if (!isPezzi && giacenza_reale == null) return res.status(400).json({ error: 'giacenza_reale richiesta o qty_pezzi/qty_aperto' });
+
         const items = await sbQuery(`warehouse_inventory_items?inventory_id=eq.${inventory_id}&select=id,giacenza_teorica,note`);
         const itemsArr = Array.isArray(items) ? items : [];
         const match = itemsArr.find(it => { try { return JSON.parse(it.note || '{}').nome_articolo === nome_articolo; } catch { return false; } });
         if (!match) return res.status(404).json({ error: 'Riga inventario non trovata per ' + nome_articolo });
-        const real = Number(giacenza_reale);
-        const diff = real - Number(match.giacenza_teorica || 0);
-        // Aggiorna il JSON note con tracking del collaboratore (chi/quando)
+
         let meta = {};
         try { meta = JSON.parse(match.note || '{}'); } catch {}
+
+        let real;
+        if (isPezzi) {
+          // Carica config per conversione
+          const invs = await sbQuery(`warehouse_inventories?id=eq.${inventory_id}&select=note&limit=1`);
+          let invMeta = {};
+          try { invMeta = JSON.parse(invs?.[0]?.note || '{}'); } catch {}
+          const cfgRes = await sbQuery(`article_inventory_config?user_id=eq.${v.emp.user_id}&locale=eq.${encodeURIComponent(invMeta.locale || '')}&nome_articolo=eq.${encodeURIComponent(nome_articolo)}&select=*&limit=1`);
+          const cfg = (Array.isArray(cfgRes) ? cfgRes : [])[0];
+          if (!cfg || cfg.modalita !== 'pezzi' || !cfg.volume_pezzo) return res.status(400).json({ error: 'articolo non configurato in modalità pezzi' });
+          const pz = Number(qty_pezzi || 0) * Number(cfg.volume_pezzo || 0);
+          const apRaw = Number(qty_aperto || 0);
+          let apConv = 0;
+          switch ((cfg.unita_apertura || 'ml').toLowerCase()) {
+            case 'ml': case 'g': apConv = apRaw / 1000; break;
+            case 'cl':           apConv = apRaw / 100;  break;
+            default:             apConv = apRaw;        break;
+          }
+          real = Math.round((pz + apConv) * 10000) / 10000;
+          meta.count_mode = 'pezzi';
+          meta.qty_pezzi = qty_pezzi != null ? Number(qty_pezzi) : null;
+          meta.qty_aperto = qty_aperto != null ? Number(qty_aperto) : null;
+          meta.volume_pezzo = cfg.volume_pezzo;
+          meta.unita_apertura = cfg.unita_apertura;
+        } else {
+          real = Number(giacenza_reale);
+          delete meta.count_mode; delete meta.qty_pezzi; delete meta.qty_aperto;
+        }
+        const diff = real - Number(match.giacenza_teorica || 0);
         meta.counted_by_employee_id = v.emp.id;
         meta.counted_by_name = v.emp.nome || '';
         meta.counted_at = new Date().toISOString();
         await sbQuery(`warehouse_inventory_items?id=eq.${match.id}`, 'PATCH', {
           giacenza_reale: real, differenza: diff, note: JSON.stringify(meta),
         });
-        return res.status(200).json({ ok: true });
+        return res.status(200).json({ ok: true, giacenza_reale: real });
       }
 
       case 'inv-add-article': {

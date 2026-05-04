@@ -273,6 +273,23 @@ CREATE TABLE IF NOT EXISTS public.warehouse_inventories (
   created_at timestamp with time zone DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.article_inventory_config (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  nome_articolo text NOT NULL,
+  modalita text NOT NULL DEFAULT 'unita',          -- 'unita' | 'pezzi'
+  volume_pezzo numeric(10,4),
+  unita_pezzo text DEFAULT 'pz',
+  unita_apertura text DEFAULT 'ml',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, locale, nome_articolo)
+);
+CREATE INDEX IF NOT EXISTS idx_art_inv_cfg_user ON public.article_inventory_config(user_id, locale);
+ALTER TABLE public.article_inventory_config ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "own_article_inventory_config" ON public.article_inventory_config FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 CREATE TABLE IF NOT EXISTS public.warehouse_inventory_items (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   inventory_id uuid NOT NULL,

@@ -8,6 +8,8 @@ import { S, Card, fmtD, fmtN } from '../shared/styles.jsx'
 import {
   getSubLocationsMap, subLocationsFor, applyInventoryClose, applyInventoryOpening,
 } from '../../lib/warehouse.js'
+import { loadAllConfigs, calcGiacenzaReale } from '../../lib/inventoryConfig'
+import InventoryConfigButton from './InventoryConfigButton'
 
 const iS = S.input
 
@@ -170,6 +172,7 @@ function NewInventoryModal({ locale, subLocations, onClose, onCreated }) {
 
 function InventoryDetail({ inventory, onClose, onChange }) {
   const [items, setItems] = useState([])
+  const [configs, setConfigs] = useState({})  // { nome_articolo: cfg }
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
@@ -188,18 +191,51 @@ function InventoryDetail({ inventory, onClose, onChange }) {
       return { ...it, ...m }
     })
     setItems(enriched)
+    // Carica config inventario per il locale
+    if (meta.locale) {
+      const map = await loadAllConfigs(meta.locale)
+      setConfigs(map)
+    }
     setLoading(false)
-  }, [inventory.id])
+  }, [inventory.id, meta.locale])
 
   useEffect(() => { load() }, [load])
 
+  // Aggiorna giacenza reale (modalità unità: un solo numero)
   const updateReale = async (itemId, val) => {
     const newReal = val === '' ? null : Number(val)
     const item = items.find(i => i.id === itemId)
     const diff = newReal != null ? newReal - Number(item.giacenza_teorica || 0) : null
     const valDiff = diff != null && item.prezzo_medio ? Math.round(diff * Number(item.prezzo_medio) * 100) / 100 : null
+    // Preserva note + aggiunge tracking pezzi se configurato
+    let noteObj = {}
+    try { noteObj = JSON.parse(item.note || '{}') } catch {}
+    delete noteObj.qty_pezzi; delete noteObj.qty_aperto; delete noteObj.count_mode
     await supabase.from('warehouse_inventory_items').update({
       giacenza_reale: newReal, differenza: diff, valore_differenza: valDiff,
+      note: JSON.stringify(noteObj),
+    }).eq('id', itemId)
+    load()
+  }
+
+  // Aggiorna in modalità pezzi: salva pezzi + aperto e calcola giacenza_reale
+  const updatePezzi = async (itemId, qty_pezzi, qty_aperto) => {
+    const item = items.find(i => i.id === itemId)
+    const cfg = configs[item.nome_articolo]
+    if (!cfg || cfg.modalita !== 'pezzi') return
+    const newReal = calcGiacenzaReale({ qty_pezzi, qty_aperto, volume_pezzo: cfg.volume_pezzo, unita_apertura: cfg.unita_apertura })
+    const diff = newReal != null ? newReal - Number(item.giacenza_teorica || 0) : null
+    const valDiff = diff != null && item.prezzo_medio ? Math.round(diff * Number(item.prezzo_medio) * 100) / 100 : null
+    let noteObj = {}
+    try { noteObj = JSON.parse(item.note || '{}') } catch {}
+    noteObj.count_mode = 'pezzi'
+    noteObj.qty_pezzi = qty_pezzi === '' || qty_pezzi == null ? null : Number(qty_pezzi)
+    noteObj.qty_aperto = qty_aperto === '' || qty_aperto == null ? null : Number(qty_aperto)
+    noteObj.volume_pezzo = cfg.volume_pezzo
+    noteObj.unita_apertura = cfg.unita_apertura
+    await supabase.from('warehouse_inventory_items').update({
+      giacenza_reale: newReal, differenza: diff, valore_differenza: valDiff,
+      note: JSON.stringify(noteObj),
     }).eq('id', itemId)
     load()
   }
@@ -336,18 +372,48 @@ function InventoryDetail({ inventory, onClose, onChange }) {
               const collabColor = byCollab ? '#3B82F6' : '#e2e8f0'
               const ts = it.counted_at ? new Date(it.counted_at) : null
               const tsStr = ts ? ts.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
+              const cfg = configs[it.nome_articolo]
+              const isPezzi = cfg?.modalita === 'pezzi'
               return <tr key={it.id} style={{ borderBottom: '1px solid #1a1f2e', background: collabBg }}>
-                <td style={{ ...S.td, fontWeight: 500 }}>{it.nome_articolo || '—'}</td>
+                <td style={{ ...S.td, fontWeight: 500 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>{it.nome_articolo || '—'}</span>
+                    {meta.locale && it.nome_articolo && <InventoryConfigButton
+                      locale={meta.locale} nomeArticolo={it.nome_articolo}
+                      currentConfig={cfg} onSaved={load} />}
+                  </div>
+                </td>
                 <td style={{ ...S.td, color: '#94a3b8' }}>{it.unita || '—'}</td>
                 {!isApertura && <td style={{ ...S.td, color: '#94a3b8' }}>{fmtN(teo)}</td>}
                 <td style={{ ...S.td, padding: 4 }}>
                   {isChiuso ? <span style={{ color: collabColor, fontWeight: byCollab ? 700 : 500 }}>{real}</span> : (
-                    <input type="number" step="0.01"
-                      defaultValue={real}
-                      key={it.id + '-' + real}
-                      onBlur={e => updateReale(it.id, e.target.value)}
-                      style={{ ...iS, width: 80, textAlign: 'center', color: collabColor, fontWeight: byCollab ? 700 : 500, borderColor: byCollab ? '#3B82F6' : '#2a3042' }}
-                      title={byCollab ? `Contato da ${it.counted_by_name} il ${tsStr}` : ''} />
+                    isPezzi ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <input type="number" min="0"
+                          defaultValue={it.qty_pezzi != null ? it.qty_pezzi : ''}
+                          key={it.id + '-pz-' + (it.qty_pezzi || '')}
+                          onBlur={e => updatePezzi(it.id, e.target.value, it.qty_aperto)}
+                          placeholder="pz"
+                          style={{ ...iS, width: 50, textAlign: 'center', borderColor: byCollab ? '#3B82F6' : '#F59E0B' }}
+                          title={`Pezzi chiusi (${cfg.volume_pezzo} ${it.unita || 'L'}/pz)`} />
+                        <span style={{ fontSize: 10, color: '#64748b' }}>+</span>
+                        <input type="number" min="0"
+                          defaultValue={it.qty_aperto != null ? it.qty_aperto : ''}
+                          key={it.id + '-ap-' + (it.qty_aperto || '')}
+                          onBlur={e => updatePezzi(it.id, it.qty_pezzi, e.target.value)}
+                          placeholder={cfg.unita_apertura || 'ml'}
+                          style={{ ...iS, width: 60, textAlign: 'center', borderColor: byCollab ? '#3B82F6' : '#F59E0B' }}
+                          title={`Residuo aperto (${cfg.unita_apertura || 'ml'})`} />
+                        <span style={{ fontSize: 10, color: '#F59E0B', fontWeight: 700, marginLeft: 4 }}>= {real === '' ? '—' : fmtN(real)} {it.unita || 'L'}</span>
+                      </div>
+                    ) : (
+                      <input type="number" step="0.01"
+                        defaultValue={real}
+                        key={it.id + '-' + real}
+                        onBlur={e => updateReale(it.id, e.target.value)}
+                        style={{ ...iS, width: 80, textAlign: 'center', color: collabColor, fontWeight: byCollab ? 700 : 500, borderColor: byCollab ? '#3B82F6' : '#2a3042' }}
+                        title={byCollab ? `Contato da ${it.counted_by_name} il ${tsStr}` : ''} />
+                    )
                   )}
                 </td>
                 {!isApertura && <td style={{ ...S.td, color: diff > 0 ? '#10B981' : diff < 0 ? '#EF4444' : '#94a3b8', fontWeight: 600 }}>

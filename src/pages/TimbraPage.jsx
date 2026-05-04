@@ -675,6 +675,19 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
     setSaving(s => ({ ...s, [nome_articolo]: false }))
   }
 
+  // Salva conteggio in modalità pezzi (server calcola giacenza_reale in unità ricetta)
+  const saveCountPezzi = async (nome_articolo, qty_pezzi, qty_aperto) => {
+    setSaving(s => ({ ...s, [nome_articolo]: true }))
+    try {
+      const r = await apiCall({ action: 'inv-count', pin, inventory_id: inventory.id, nome_articolo, qty_pezzi, qty_aperto })
+      const real = r.giacenza_reale != null ? Number(r.giacenza_reale) : null
+      setItems(prev => prev.map(x => x.nome_articolo === nome_articolo
+        ? { ...x, giacenza_reale: real, qty_pezzi: qty_pezzi != null && qty_pezzi !== '' ? Number(qty_pezzi) : null, qty_aperto: qty_aperto != null && qty_aperto !== '' ? Number(qty_aperto) : null }
+        : x))
+    } catch (e) { alert(e.message) }
+    setSaving(s => ({ ...s, [nome_articolo]: false }))
+  }
+
   const addArticle = async () => {
     const nome = newName.trim()
     if (!nome) { alert('Nome articolo obbligatorio'); return }
@@ -783,19 +796,46 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
       {filtered.length === 0 && <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center', padding: 20 }}>Nessun articolo in questo magazzino.</div>}
       {filtered.map(a => {
         const mag = MAG_BADGE[magKeyOf(a)] || MAG_BADGE.altro
+        const isPezzi = a.modalita === 'pezzi' && a.volume_pezzo
         return <div key={a.nome_articolo} style={{ background: '#1a1f2e', borderRadius: 10, padding: 10, marginBottom: 6, border: `1px solid ${a.giacenza_reale != null ? '#10B98144' : '#2a3042'}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, minWidth: 0 }}>
             <span style={{ fontSize: 9, fontWeight: 700, color: mag.color, background: mag.bg, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em', flexShrink: 0 }}>{mag.label}</span>
-            <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.nome_articolo}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{a.nome_articolo}</div>
+            {isPezzi && <span style={{ fontSize: 9, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.15)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>🍾 {a.volume_pezzo}{a.unita || 'L'}</span>}
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input type="number" step="0.01" placeholder="Conta reale"
-              defaultValue={a.giacenza_reale ?? ''}
-              onBlur={e => { if (e.target.value !== '') saveCount(a.nome_articolo, e.target.value, a.unita, a.prezzo_medio) }}
-              style={{ flex: 1, padding: '10px 12px', fontSize: 16, borderRadius: 8, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', textAlign: 'center' }} />
-            <span style={{ padding: '10px 12px', fontSize: 12, color: '#94a3b8' }}>{a.unita || ''}</span>
-            {saving[a.nome_articolo] && <span style={{ padding: '10px', color: '#F59E0B', fontSize: 12 }}>…</span>}
-          </div>
+          {isPezzi ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input type="number" min="0" placeholder="0" inputMode="numeric"
+                  defaultValue={a.qty_pezzi ?? ''}
+                  key={a.nome_articolo + '-pz-' + (a.qty_pezzi ?? '')}
+                  onBlur={e => saveCountPezzi(a.nome_articolo, e.target.value === '' ? null : e.target.value, a.qty_aperto)}
+                  style={{ flex: 1, padding: '10px 12px', fontSize: 16, borderRadius: 8, border: '1px solid #F59E0B', background: '#0f1420', color: '#e2e8f0', outline: 'none', textAlign: 'center' }} />
+                <span style={{ padding: '10px 12px', fontSize: 12, color: '#F59E0B', fontWeight: 700 }}>chiusi ({a.unita_pezzo || 'pz'})</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input type="number" min="0" placeholder="0" inputMode="numeric"
+                  defaultValue={a.qty_aperto ?? ''}
+                  key={a.nome_articolo + '-ap-' + (a.qty_aperto ?? '')}
+                  onBlur={e => saveCountPezzi(a.nome_articolo, a.qty_pezzi, e.target.value === '' ? null : e.target.value)}
+                  style={{ flex: 1, padding: '10px 12px', fontSize: 16, borderRadius: 8, border: '1px solid #F59E0B', background: '#0f1420', color: '#e2e8f0', outline: 'none', textAlign: 'center' }} />
+                <span style={{ padding: '10px 12px', fontSize: 12, color: '#F59E0B', fontWeight: 700 }}>aperto ({a.unita_apertura || 'ml'})</span>
+              </div>
+              <div style={{ textAlign: 'center', fontSize: 12, color: '#10B981', fontWeight: 700, padding: '4px 0' }}>
+                Totale: {a.giacenza_reale != null ? Number(a.giacenza_reale).toFixed(2) : '—'} {a.unita || 'L'}
+              </div>
+              {saving[a.nome_articolo] && <div style={{ textAlign: 'center', fontSize: 11, color: '#F59E0B' }}>Salvataggio…</div>}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input type="number" step="0.01" placeholder="Conta reale"
+                defaultValue={a.giacenza_reale ?? ''}
+                onBlur={e => { if (e.target.value !== '') saveCount(a.nome_articolo, e.target.value, a.unita, a.prezzo_medio) }}
+                style={{ flex: 1, padding: '10px 12px', fontSize: 16, borderRadius: 8, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', textAlign: 'center' }} />
+              <span style={{ padding: '10px 12px', fontSize: 12, color: '#94a3b8' }}>{a.unita || ''}</span>
+              {saving[a.nome_articolo] && <span style={{ padding: '10px', color: '#F59E0B', fontSize: 12 }}>…</span>}
+            </div>
+          )}
         </div>
       })}
     </div>
