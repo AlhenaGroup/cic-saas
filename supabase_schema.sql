@@ -971,6 +971,48 @@ CREATE TABLE IF NOT EXISTS public.centralino_calls (
   created_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.campaigns (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  nome text NOT NULL,
+  canale text NOT NULL,
+  oggetto text,
+  contenuto text NOT NULL,
+  segment_tag_ids uuid[] DEFAULT '{}',
+  segment_tag_mode text NOT NULL DEFAULT 'any',
+  segment_min_visite int DEFAULT 0,
+  segment_giorni_inattivita int,
+  segment_solo_compleanno_mese boolean NOT NULL DEFAULT false,
+  stato text NOT NULL DEFAULT 'draft',
+  schedule_at timestamptz,
+  destinatari_totali int NOT NULL DEFAULT 0,
+  inviati int NOT NULL DEFAULT 0,
+  consegnati int NOT NULL DEFAULT 0,
+  falliti int NOT NULL DEFAULT 0,
+  rispetta_gdpr boolean NOT NULL DEFAULT true,
+  sent_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.campaign_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  campaign_id uuid NOT NULL REFERENCES public.campaigns(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL,
+  customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
+  destinatario text NOT NULL,
+  contenuto_finale text,
+  oggetto_finale text,
+  stato text NOT NULL DEFAULT 'pending',
+  provider_sid text,
+  errore text,
+  inviato_at timestamptz,
+  consegnato_at timestamptz,
+  errore_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
 
 -- ============================================================
 -- 6. FOREIGN KEYS (nome semplificato)
@@ -1039,6 +1081,11 @@ CREATE INDEX IF NOT EXISTS idx_cent_config_number       ON public.centralino_con
 CREATE INDEX IF NOT EXISTS idx_cent_calls_user_dt       ON public.centralino_calls(user_id, locale, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cent_calls_from          ON public.centralino_calls(user_id, locale, from_number);
 CREATE INDEX IF NOT EXISTS idx_cent_calls_customer      ON public.centralino_calls(customer_id, started_at DESC) WHERE customer_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_camp_user_locale         ON public.campaigns(user_id, locale, stato);
+CREATE INDEX IF NOT EXISTS idx_camp_schedule            ON public.campaigns(schedule_at) WHERE stato = 'scheduled';
+CREATE INDEX IF NOT EXISTS idx_camp_msg_campaign        ON public.campaign_messages(campaign_id, stato);
+CREATE INDEX IF NOT EXISTS idx_camp_msg_customer        ON public.campaign_messages(customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_camp_msg_provider        ON public.campaign_messages(provider_sid) WHERE provider_sid IS NOT NULL;
 
 
 -- ============================================================
@@ -1116,6 +1163,8 @@ ALTER TABLE public.fidelity_movements         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reservations               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.centralino_config          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.centralino_calls           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.campaigns                  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.campaign_messages          ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -1208,6 +1257,8 @@ CREATE POLICY "own_fid_movements"         ON public.fidelity_movements     FOR A
 CREATE POLICY "own_reservations"          ON public.reservations           FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_cent_config"           ON public.centralino_config      FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_cent_calls"            ON public.centralino_calls       FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_campaigns"             ON public.campaigns              FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_campaign_messages"     ON public.campaign_messages      FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 
 
