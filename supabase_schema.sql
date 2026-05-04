@@ -990,6 +990,8 @@ CREATE TABLE IF NOT EXISTS public.campaigns (
   inviati int NOT NULL DEFAULT 0,
   consegnati int NOT NULL DEFAULT 0,
   falliti int NOT NULL DEFAULT 0,
+  aperti int NOT NULL DEFAULT 0,
+  click int NOT NULL DEFAULT 0,
   rispetta_gdpr boolean NOT NULL DEFAULT true,
   sent_at timestamptz,
   created_at timestamptz DEFAULT now(),
@@ -1010,6 +1012,12 @@ CREATE TABLE IF NOT EXISTS public.campaign_messages (
   inviato_at timestamptz,
   consegnato_at timestamptz,
   errore_at timestamptz,
+  pixel_token text,
+  aperto_at timestamptz,
+  aperture_count int NOT NULL DEFAULT 0,
+  link_tokens jsonb DEFAULT '{}'::jsonb,
+  click_at timestamptz,
+  click_count int NOT NULL DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
 
@@ -1188,6 +1196,7 @@ CREATE INDEX IF NOT EXISTS idx_camp_schedule            ON public.campaigns(sche
 CREATE INDEX IF NOT EXISTS idx_camp_msg_campaign        ON public.campaign_messages(campaign_id, stato);
 CREATE INDEX IF NOT EXISTS idx_camp_msg_customer        ON public.campaign_messages(customer_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_camp_msg_provider        ON public.campaign_messages(provider_sid) WHERE provider_sid IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_camp_msg_pixel_token     ON public.campaign_messages(pixel_token) WHERE pixel_token IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_rev_user_locale_dt       ON public.reviews(user_id, locale, data_pubblicazione DESC NULLS LAST);
 CREATE INDEX IF NOT EXISTS idx_rev_voto                 ON public.reviews(user_id, locale, voto);
 CREATE INDEX IF NOT EXISTS idx_rev_no_reply             ON public.reviews(user_id, locale) WHERE risposta IS NULL AND archiviata = false;

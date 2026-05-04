@@ -3,6 +3,7 @@
 // Auth: Bearer JWT del ristoratore. Multi-tenant via RLS.
 
 import { createClient } from '@supabase/supabase-js'
+import crypto from 'node:crypto'
 
 const SB_URL = process.env.SUPABASE_URL || 'https://afdochrjbmxnhviidzpb.supabase.co'
 const SB_SERVICE = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY ||
@@ -125,9 +126,7 @@ async function refreshGoogleToken(refreshToken) {
   return (await r.json()).access_token
 }
 
-async function sendGmail(accessToken, fromEmail, toEmail, subject, body) {
-  // Body è plain text; convertiamo in HTML semplice mantenendo i newline.
-  const html = String(body || '').replace(/\n/g, '<br>')
+async function sendGmail(accessToken, fromEmail, toEmail, subject, htmlReady) {
   const raw = [
     `From: ${fromEmail}`,
     `To: ${toEmail}`,
@@ -135,7 +134,7 @@ async function sendGmail(accessToken, fromEmail, toEmail, subject, body) {
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=UTF-8',
     '',
-    html,
+    htmlReady,
   ].join('\r\n')
   const encoded = Buffer.from(raw).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
   const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
@@ -146,6 +145,28 @@ async function sendGmail(accessToken, fromEmail, toEmail, subject, body) {
   const j = await r.json().catch(() => ({}))
   if (!r.ok) return { error: j.error?.message || 'gmail failed' }
   return { sid: j.id }
+}
+
+// Genera HTML email con pixel di tracking + link riscritti.
+// Restituisce { html, pixel_token, link_tokens } per persistere nel DB.
+function buildTrackedHtml(plainBody, baseUrl) {
+  const pixel_token = crypto.randomUUID()
+  // converti newline in <br> e wrappa in HTML
+  let html = String(plainBody || '').replace(/\n/g, '<br>')
+
+  // Riscrivi link http(s) — pattern: protocol://... fino a spazio, &lt; o fine
+  const link_tokens = {}
+  html = html.replace(/(https?:\/\/[^\s<>"]+)/g, (url) => {
+    const t = crypto.randomUUID()
+    link_tokens[t] = { url, click_count: 0 }
+    return `${baseUrl}/api/email-track?l=${t}`
+  })
+
+  // Pixel di apertura
+  const pixelUrl = `${baseUrl}/api/email-track?p=${pixel_token}`
+  html += `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:block;border:0;outline:none;text-decoration:none" />`
+
+  return { html, pixel_token, link_tokens }
 }
 
 async function getGmailAccessToken(user_id) {
@@ -178,16 +199,24 @@ async function sendCampaign(user_id, campaign) {
     try { gmail = await getGmailAccessToken(user_id) } catch (e) { /* gestito sotto */ }
   }
 
+  // baseUrl per i link tracking (fallback su env, poi su domain Vercel di default)
+  const baseUrl = process.env.PUBLIC_BASE_URL || 'https://cic-saas.vercel.app'
+
   for (const cust of audience) {
     const dest = campaign.canale === 'email' ? cust.email : cust.telefono
     const body = applyPlaceholders(campaign.contenuto, cust, { locale: campaign.locale })
     const subj = campaign.canale === 'email' ? applyPlaceholders(campaign.oggetto || '', cust, { locale: campaign.locale }) : null
 
-    let r
+    let r, pixel_token = null, link_tokens = null
     try {
       if (campaign.canale === 'email') {
         if (!gmail) { r = { error: 'Gmail non connesso' } }
-        else        { r = await sendGmail(gmail.token, gmail.email, dest, subj, body) }
+        else {
+          const tracked = buildTrackedHtml(body, baseUrl)
+          pixel_token = tracked.pixel_token
+          link_tokens = tracked.link_tokens
+          r = await sendGmail(gmail.token, gmail.email, dest, subj, tracked.html)
+        }
       } else if (campaign.canale === 'sms') {
         r = await sendTwilioSms(dest, body)
       } else if (campaign.canale === 'whatsapp') {
@@ -212,6 +241,8 @@ async function sendCampaign(user_id, campaign) {
       errore: r.error || null,
       inviato_at: ok ? new Date().toISOString() : null,
       errore_at: ok ? null : new Date().toISOString(),
+      pixel_token: ok ? pixel_token : null,
+      link_tokens: link_tokens || {},
     })
     if (ok) inviati++; else falliti++
   }

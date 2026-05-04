@@ -170,6 +170,16 @@ export default function CampaignsManager({ sp, sps }) {
                 : c.schedule_at ? `Programmata: ${fmtDateTime(c.schedule_at)}`
                 : 'Non ancora inviata'}
             </div>
+            {c.canale === 'email' && c.stato === 'sent' && c.inviati > 0 && (
+              <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 11 }}>
+                <span style={{ color: '#10B981' }}>
+                  Aperti: <b>{c.aperti || 0}</b> ({Math.round(((c.aperti || 0) / c.inviati) * 100)}%)
+                </span>
+                <span style={{ color: '#3B82F6' }}>
+                  Click: <b>{c.click || 0}</b> ({Math.round(((c.click || 0) / c.inviati) * 100)}%)
+                </span>
+              </div>
+            )}
           </div>
         })}
       </div>
