@@ -45,7 +45,7 @@ function fmtDateOnly(iso) {
 }
 
 export default function ReservationsManager({ sp, sps }) {
-  const localesAvail = useMemo(() => (sps && sps.length ? sps.map(s => s.name) : ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE', 'LABORATORIO']), [sps])
+  const localesAvail = useMemo(() => { const raw = sps && sps.length ? sps.map(s => s.name) : ["REMEMBEER", "CASA DE AMICIS", "BIANCOLATTE", "LABORATORIO"]; return [...new Set(raw)] }, [sps])
   const [locale, setLocale] = useState(() => localStorage.getItem('mkt_reserv_locale') || (sp?.name) || localesAvail[0])
   useEffect(() => { localStorage.setItem('mkt_reserv_locale', locale) }, [locale])
 

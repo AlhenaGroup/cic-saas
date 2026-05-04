@@ -55,7 +55,17 @@ export default async function handler(req, res) {
 
       // ─── LIST: lista clienti del locale con filtri ──────────────────
       case 'list': {
-        const { locale, search = '', tag_id = null, limit = 200, offset = 0 } = body
+        const {
+          locale, search = '', tag_id = null,
+          tag_ids = null, tag_mode = 'any',         // ricerca avanzata multi-tag
+          has_email = null, has_telefono = null,
+          gdpr_marketing = null,
+          giorni_inattivita_min = null,             // clienti inattivi da almeno N giorni
+          last_seen_from = null, last_seen_to = null,
+          compleanno_mese = null,                    // 1-12
+          source = null,
+          limit = 200, offset = 0,
+        } = body
         if (!locale) return res.status(400).json({ error: 'locale required' })
         let q = sb.from('customers')
           .select('*, customer_tags(tag_id, tag_definitions(id, nome, colore, icona))', { count: 'exact' })
@@ -67,13 +77,116 @@ export default async function handler(req, res) {
           const s = `%${search}%`
           q = q.or(`nome.ilike.${s},cognome.ilike.${s},telefono.ilike.${s},email.ilike.${s}`)
         }
+        if (has_email === true)    q = q.not('email', 'is', null)
+        if (has_email === false)   q = q.is('email', null)
+        if (has_telefono === true) q = q.not('telefono', 'is', null)
+        if (has_telefono === false) q = q.is('telefono', null)
+        if (gdpr_marketing === true)  q = q.eq('gdpr_marketing', true)
+        if (gdpr_marketing === false) q = q.eq('gdpr_marketing', false)
+        if (source)                q = q.eq('source', source)
+        if (giorni_inattivita_min) {
+          const cut = new Date(Date.now() - Number(giorni_inattivita_min) * 86400000).toISOString()
+          q = q.lt('last_seen_at', cut)
+        }
+        if (last_seen_from) q = q.gte('last_seen_at', last_seen_from)
+        if (last_seen_to)   q = q.lte('last_seen_at', last_seen_to)
         const { data, error, count } = await q
         if (error) throw error
         let out = data || []
+        // Filtri post-fetch
         if (tag_id) {
           out = out.filter(c => (c.customer_tags || []).some(ct => ct.tag_id === tag_id))
         }
+        if (Array.isArray(tag_ids) && tag_ids.length > 0) {
+          out = out.filter(c => {
+            const ids = (c.customer_tags || []).map(t => t.tag_id)
+            if (tag_mode === 'all') return tag_ids.every(t => ids.includes(t))
+            return tag_ids.some(t => ids.includes(t))
+          })
+        }
+        if (compleanno_mese) {
+          const m = Number(compleanno_mese)
+          out = out.filter(c => c.data_nascita && (new Date(c.data_nascita).getMonth() + 1) === m)
+        }
         return res.status(200).json({ customers: out, total: count })
+      }
+
+      // ─── EXPORT CSV: stessi filtri di list, ritorna stringa CSV ──────
+      case 'export-csv': {
+        // Riusa list ma senza paginazione (limit alto)
+        const filters = { ...body, limit: 5000, offset: 0 }
+        const fakeReq = { ...req, body: { ...filters, action: 'list' } }
+        // Esegui inline la stessa logica
+        const {
+          locale, search = '', tag_id = null,
+          tag_ids = null, tag_mode = 'any',
+          has_email = null, has_telefono = null,
+          gdpr_marketing = null,
+          giorni_inattivita_min = null,
+          last_seen_from = null, last_seen_to = null,
+          compleanno_mese = null,
+          source = null,
+        } = filters
+        if (!locale) return res.status(400).json({ error: 'locale required' })
+        let q = sb.from('customers')
+          .select('*, customer_tags(tag_id, tag_definitions(id, nome, colore))')
+          .eq('user_id', user_id).eq('locale', locale)
+          .order('last_seen_at', { ascending: false, nullsFirst: false })
+          .limit(5000)
+        if (search) {
+          const s = `%${search}%`
+          q = q.or(`nome.ilike.${s},cognome.ilike.${s},telefono.ilike.${s},email.ilike.${s}`)
+        }
+        if (has_email === true)     q = q.not('email', 'is', null)
+        if (has_email === false)    q = q.is('email', null)
+        if (has_telefono === true)  q = q.not('telefono', 'is', null)
+        if (has_telefono === false) q = q.is('telefono', null)
+        if (gdpr_marketing === true)  q = q.eq('gdpr_marketing', true)
+        if (gdpr_marketing === false) q = q.eq('gdpr_marketing', false)
+        if (source) q = q.eq('source', source)
+        if (giorni_inattivita_min) {
+          const cut = new Date(Date.now() - Number(giorni_inattivita_min) * 86400000).toISOString()
+          q = q.lt('last_seen_at', cut)
+        }
+        if (last_seen_from) q = q.gte('last_seen_at', last_seen_from)
+        if (last_seen_to)   q = q.lte('last_seen_at', last_seen_to)
+        const { data, error } = await q
+        if (error) throw error
+        let rows = data || []
+        if (tag_id) rows = rows.filter(c => (c.customer_tags || []).some(ct => ct.tag_id === tag_id))
+        if (Array.isArray(tag_ids) && tag_ids.length > 0) {
+          rows = rows.filter(c => {
+            const ids = (c.customer_tags || []).map(t => t.tag_id)
+            if (tag_mode === 'all') return tag_ids.every(t => ids.includes(t))
+            return tag_ids.some(t => ids.includes(t))
+          })
+        }
+        if (compleanno_mese) {
+          const m = Number(compleanno_mese)
+          rows = rows.filter(c => c.data_nascita && (new Date(c.data_nascita).getMonth() + 1) === m)
+        }
+
+        // Costruisci CSV
+        const escape = (v) => {
+          if (v == null) return ''
+          const s = String(v)
+          if (/[",;\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'
+          return s
+        }
+        const header = ['nome', 'cognome', 'telefono', 'email', 'data_nascita', 'lingua', 'tag', 'last_seen_at', 'first_seen_at', 'source', 'gdpr_marketing', 'gdpr_profilazione', 'note']
+        const lines = [header.join(';')]
+        for (const c of rows) {
+          const tags = (c.customer_tags || []).map(t => t.tag_definitions?.nome).filter(Boolean).join(',')
+          lines.push([
+            escape(c.nome), escape(c.cognome), escape(c.telefono), escape(c.email),
+            escape(c.data_nascita), escape(c.lingua), escape(tags),
+            escape(c.last_seen_at), escape(c.first_seen_at), escape(c.source),
+            escape(c.gdpr_marketing ? 'si' : 'no'), escape(c.gdpr_profilazione ? 'si' : 'no'),
+            escape((c.note || '').replace(/\n/g, ' ')),
+          ].join(';'))
+        }
+        const csv = lines.join('\n')
+        return res.status(200).json({ csv, count: rows.length })
       }
 
       // ─── GET: singolo cliente ────────────────────────────────────────

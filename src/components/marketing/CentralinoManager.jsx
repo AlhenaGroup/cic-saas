@@ -51,7 +51,7 @@ function fmtDur(s) {
 const WEBHOOK_URL = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/twilio-webhook?step=voice'
 
 export default function CentralinoManager({ sp, sps }) {
-  const localesAvail = useMemo(() => (sps && sps.length ? sps.map(s => s.name) : ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE', 'LABORATORIO']), [sps])
+  const localesAvail = useMemo(() => { const raw = sps && sps.length ? sps.map(s => s.name) : ["REMEMBEER", "CASA DE AMICIS", "BIANCOLATTE", "LABORATORIO"]; return [...new Set(raw)] }, [sps])
   const [locale, setLocale] = useState(() => localStorage.getItem('mkt_cent_locale') || (sp?.name) || localesAvail[0])
   useEffect(() => { localStorage.setItem('mkt_cent_locale', locale) }, [locale])
 

@@ -36,7 +36,7 @@ const Pill = ({ tag, onRemove }) => (
 )
 
 export default function CustomersManager({ sp, sps }) {
-  const localesAvail = useMemo(() => (sps && sps.length ? sps.map(s => s.name) : ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE', 'LABORATORIO']), [sps])
+  const localesAvail = useMemo(() => { const raw = sps && sps.length ? sps.map(s => s.name) : ["REMEMBEER", "CASA DE AMICIS", "BIANCOLATTE", "LABORATORIO"]; return [...new Set(raw)] }, [sps])
   const [locale, setLocale] = useState(() => localStorage.getItem('mkt_clienti_locale') || (sp?.name) || localesAvail[0])
   useEffect(() => { localStorage.setItem('mkt_clienti_locale', locale) }, [locale])
 
@@ -50,18 +50,41 @@ export default function CustomersManager({ sp, sps }) {
   const [editing, setEditing] = useState(null)  // cliente in editing (drawer)
   const [showTagsModal, setShowTagsModal] = useState(false)
 
+  // Ricerca avanzata
+  const [showAdv, setShowAdv] = useState(false)
+  const [adv, setAdv] = useState({
+    tag_ids: [], tag_mode: 'any',
+    has_email: null, has_telefono: null, gdpr_marketing: null,
+    giorni_inattivita_min: '', compleanno_mese: '',
+  })
+  const advActive = (adv.tag_ids?.length > 0) || adv.has_email !== null || adv.has_telefono !== null
+    || adv.gdpr_marketing !== null || adv.giorni_inattivita_min || adv.compleanno_mese
+
+  const buildFilters = () => ({
+    locale, search,
+    tag_id: tagFilter || null,
+    tag_ids: adv.tag_ids?.length > 0 ? adv.tag_ids : null,
+    tag_mode: adv.tag_mode,
+    has_email: adv.has_email,
+    has_telefono: adv.has_telefono,
+    gdpr_marketing: adv.gdpr_marketing,
+    giorni_inattivita_min: adv.giorni_inattivita_min ? Number(adv.giorni_inattivita_min) : null,
+    compleanno_mese: adv.compleanno_mese ? Number(adv.compleanno_mese) : null,
+  })
+
   const reload = useCallback(async () => {
     setLoading(true); setError('')
     try {
       const [tg, cs] = await Promise.all([
         api('/api/tags', { action: 'list', locale }),
-        api('/api/customers', { action: 'list', locale, search, tag_id: tagFilter || null }),
+        api('/api/customers', { action: 'list', ...buildFilters() }),
       ])
       setTags(tg.tags || [])
       setList(cs.customers || [])
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
-  }, [locale, search, tagFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale, search, tagFilter, JSON.stringify(adv)])
 
   useEffect(() => { reload() }, [reload])
 
@@ -111,6 +134,21 @@ export default function CustomersManager({ sp, sps }) {
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
       </select>
+      <button onClick={() => setShowAdv(true)} style={btn(advActive ? '#F59E0B' + '22' : '#1a1f2e', advActive ? '#F59E0B' : '#cbd5e1', advActive ? '#F59E0B' + '88' : '#2a3042')}>
+        Ricerca avanzata{advActive ? ' ●' : ''}
+      </button>
+      <button onClick={async () => {
+        try {
+          const r = await api('/api/customers', { action: 'export-csv', ...buildFilters() })
+          const blob = new Blob(['\ufeff' + r.csv], { type: 'text/csv;charset=utf-8' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `clienti_${locale}_${new Date().toISOString().slice(0, 10)}.csv`
+          a.click()
+          URL.revokeObjectURL(url)
+        } catch (e) { alert('Errore export: ' + e.message) }
+      }} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>Esporta CSV</button>
       <button onClick={() => setShowTagsModal(true)} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>Gestisci tag</button>
       <button onClick={openNew} style={btn('#F59E0B', '#0f1420', '#F59E0B')}>+ Nuovo cliente</button>
     </div>
@@ -218,12 +256,82 @@ export default function CustomersManager({ sp, sps }) {
 
     {/* Modal gestione tag */}
     {showTagsModal && <TagsManager locale={locale} onClose={() => { setShowTagsModal(false); reload() }} />}
+
+    {/* Drawer ricerca avanzata */}
+    {showAdv && <Drawer onClose={() => setShowAdv(false)}>
+      <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>Ricerca avanzata</h3>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tag</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {tags.map(t => {
+            const sel = (adv.tag_ids || []).includes(t.id)
+            return <button key={t.id} onClick={() => {
+              const cur = adv.tag_ids || []
+              setAdv({ ...adv, tag_ids: sel ? cur.filter(x => x !== t.id) : [...cur, t.id] })
+            }} style={{
+              ...btn(sel ? t.colore + '22' : '#0f1420', sel ? t.colore : '#94a3b8', sel ? t.colore + '88' : '#2a3042'),
+              fontSize: 12, padding: '4px 10px',
+            }}>{t.nome}</button>
+          })}
+        </div>
+        {(adv.tag_ids?.length > 1) && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            <button onClick={() => setAdv({ ...adv, tag_mode: 'any' })} style={tabBtnSm(adv.tag_mode === 'any')}>Almeno uno</button>
+            <button onClick={() => setAdv({ ...adv, tag_mode: 'all' })} style={tabBtnSm(adv.tag_mode === 'all')}>Tutti</button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <Field label="Inattivi da (giorni)"><input type="number" value={adv.giorni_inattivita_min} onChange={e => setAdv({ ...adv, giorni_inattivita_min: e.target.value })} placeholder="es. 60" style={S.input} /></Field>
+        <Field label="Compleanno mese"><select value={adv.compleanno_mese} onChange={e => setAdv({ ...adv, compleanno_mese: e.target.value })} style={S.input}>
+          <option value="">Tutti</option>
+          {['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'].map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+        </select></Field>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Contatti disponibili</div>
+        <TriToggle label="Email" value={adv.has_email} onChange={v => setAdv({ ...adv, has_email: v })} />
+        <TriToggle label="Telefono" value={adv.has_telefono} onChange={v => setAdv({ ...adv, has_telefono: v })} />
+        <TriToggle label="Consenso marketing GDPR" value={adv.gdpr_marketing} onChange={v => setAdv({ ...adv, gdpr_marketing: v })} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 18, justifyContent: 'flex-end' }}>
+        <button onClick={() => setAdv({
+          tag_ids: [], tag_mode: 'any',
+          has_email: null, has_telefono: null, gdpr_marketing: null,
+          giorni_inattivita_min: '', compleanno_mese: '',
+        })} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>Reset</button>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setShowAdv(false)} style={btn('#F59E0B', '#0f1420', '#F59E0B')}>Applica</button>
+      </div>
+    </Drawer>}
   </div>
 }
 
 // ── helpers ─────────────────────────────────────────────────────
 function btn(bg, color, border) {
   return { padding: '7px 14px', fontSize: 13, fontWeight: 600, background: bg, color, border: `1px solid ${border}`, borderRadius: 6, cursor: 'pointer' }
+}
+
+function tabBtnSm(active) {
+  return {
+    padding: '5px 10px', fontSize: 11, fontWeight: 600,
+    background: active ? '#F59E0B' : '#0f1420', color: active ? '#0f1420' : '#cbd5e1',
+    border: '1px solid ' + (active ? '#F59E0B' : '#2a3042'), borderRadius: 5, cursor: 'pointer',
+  }
+}
+
+function TriToggle({ label, value, onChange }) {
+  // value: null = qualsiasi, true = solo con, false = solo senza
+  return <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 13 }}>
+    <span style={{ flex: 1, color: '#cbd5e1' }}>{label}</span>
+    <button onClick={() => onChange(null)} style={tabBtnSm(value === null)}>Qualsiasi</button>
+    <button onClick={() => onChange(true)} style={tabBtnSm(value === true)}>Sì</button>
+    <button onClick={() => onChange(false)} style={tabBtnSm(value === false)}>No</button>
+  </div>
 }
 
 function Field({ label, children }) {

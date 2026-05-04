@@ -37,7 +37,7 @@ function fmtDateTime(iso) {
 }
 
 export default function CampaignsManager({ sp, sps }) {
-  const localesAvail = useMemo(() => (sps && sps.length ? sps.map(s => s.name) : ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE', 'LABORATORIO']), [sps])
+  const localesAvail = useMemo(() => { const raw = sps && sps.length ? sps.map(s => s.name) : ["REMEMBEER", "CASA DE AMICIS", "BIANCOLATTE", "LABORATORIO"]; return [...new Set(raw)] }, [sps])
   const [locale, setLocale] = useState(() => localStorage.getItem('mkt_camp_locale') || (sp?.name) || localesAvail[0])
   useEffect(() => { localStorage.setItem('mkt_camp_locale', locale) }, [locale])
 

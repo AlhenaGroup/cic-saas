@@ -47,7 +47,7 @@ const NODES = [
 function nodeMeta(tipo) { return NODES.find(n => n.tipo === tipo) || { label: tipo, c: '#94A3B8', icon: '•' } }
 
 export default function AutomationsManager({ sp, sps }) {
-  const localesAvail = useMemo(() => (sps && sps.length ? sps.map(s => s.name) : ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE', 'LABORATORIO']), [sps])
+  const localesAvail = useMemo(() => { const raw = sps && sps.length ? sps.map(s => s.name) : ["REMEMBEER", "CASA DE AMICIS", "BIANCOLATTE", "LABORATORIO"]; return [...new Set(raw)] }, [sps])
   const [locale, setLocale] = useState(() => localStorage.getItem('mkt_aut_locale') || (sp?.name) || localesAvail[0])
   useEffect(() => { localStorage.setItem('mkt_aut_locale', locale) }, [locale])
 
