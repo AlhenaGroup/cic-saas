@@ -7,6 +7,7 @@ import AdminPage from './pages/AdminPage'
 import WaitingPage from './pages/WaitingPage'
 import SetPasswordPage from './pages/SetPasswordPage'
 import LottoPage from './pages/LottoPage'
+import SurveyPage from './pages/SurveyPage'
 
 // Detect magic link arrivato dal supabase auth redirect (invite o recovery).
 // Nel hash dopo '#' c'e' qualcosa tipo: access_token=...&type=invite&...
@@ -28,6 +29,11 @@ export default function App() {
   if (window.location.pathname.startsWith('/lotto/')) {
     const code = decodeURIComponent(window.location.pathname.slice('/lotto/'.length).split('/')[0])
     return <LottoPage code={code} />
+  }
+  // Routing: /survey/<token> → pagina pubblica compilazione sondaggio NPS
+  if (window.location.pathname.startsWith('/survey/')) {
+    const token = decodeURIComponent(window.location.pathname.slice('/survey/'.length).split('/')[0])
+    return <SurveyPage token={token} />
   }
   // Routing: /admin → pagina admin (richiede login + flag is_admin)
   const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')

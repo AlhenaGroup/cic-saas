@@ -304,10 +304,47 @@ async function executeStep(step) {
         break
       }
 
+      case 'invito_sondaggio': {
+        // crea invitation + invia link via canale (whatsapp default, fallback email)
+        const cfg = node.config || {}
+        if (!customer?.id) { ok = false; errore = 'no customer'; break }
+        let surveyId = cfg.survey_id
+        if (!surveyId) {
+          // fallback: primo sondaggio attivo del locale
+          const { data: s } = await sb.from('surveys').select('id')
+            .eq('user_id', run.user_id).eq('locale', run.context?.locale).eq('attivo', true)
+            .order('created_at', { ascending: false }).limit(1).maybeSingle()
+          surveyId = s?.id
+        }
+        if (!surveyId) { ok = false; errore = 'nessun sondaggio attivo' }
+        else {
+          const { randomUUID } = await import('node:crypto')
+          const token = randomUUID()
+          const scadenza = new Date(Date.now() + 14 * 86400000).toISOString()
+          await sb.from('survey_invitations').insert({
+            user_id: run.user_id, locale: run.context?.locale, survey_id: surveyId,
+            customer_id: customer.id, token, canale: cfg.canale || 'whatsapp', scadenza_at: scadenza,
+          })
+          const baseUrl = process.env.PUBLIC_BASE_URL || 'https://cic-saas.vercel.app'
+          const link = `${baseUrl}/survey/${token}`
+          const text = applyPlaceholders(cfg.contenuto || `Ciao {nome}, ci aiuti con un breve feedback? ${link}`, fullCtx).replace('{link}', link)
+          const canale = cfg.canale || (customer.telefono ? 'whatsapp' : 'email')
+          if (canale === 'email' && customer.email) {
+            const subj = applyPlaceholders(cfg.oggetto || 'Il tuo feedback è importante', fullCtx)
+            const r = await sendGmail(run.user_id, customer.email, subj, text)
+            if (r.error) { ok = false; errore = r.error } else output = { sid: r.sid, link }
+          } else if (customer.telefono) {
+            const r = await sendTwilioWhatsApp(customer.telefono, text)
+            if (r.error) { ok = false; errore = r.error } else output = { sid: r.sid, link }
+          } else { ok = false; errore = 'cliente senza email/telefono' }
+        }
+        await scheduleNextSteps(run, node)
+        break
+      }
+
       case 'invito_recensione':
-      case 'invito_sondaggio':
       case 'invia_promozione':
-        // placeholder: implementare in fasi successive (richiede landing page sondaggio + tracking)
+        // placeholder: implementare in fasi successive
         output = { placeholder: true }
         await scheduleNextSteps(run, node)
         break

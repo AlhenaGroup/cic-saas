@@ -1111,6 +1111,53 @@ CREATE TABLE IF NOT EXISTS public.automation_runs (
   ended_at timestamptz
 );
 
+CREATE TABLE IF NOT EXISTS public.surveys (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  nome text NOT NULL,
+  intro text,
+  thank_you text,
+  domande jsonb NOT NULL DEFAULT '[]'::jsonb,
+  attivo boolean NOT NULL DEFAULT true,
+  routing_soglia smallint DEFAULT 8,
+  routing_link_review text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.survey_invitations (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  survey_id uuid NOT NULL REFERENCES public.surveys(id) ON DELETE CASCADE,
+  customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
+  reservation_id uuid REFERENCES public.reservations(id) ON DELETE SET NULL,
+  token text UNIQUE NOT NULL,
+  canale text,
+  inviato_at timestamptz DEFAULT now(),
+  aperto_at timestamptz,
+  scadenza_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.survey_responses (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  survey_id uuid NOT NULL REFERENCES public.surveys(id) ON DELETE CASCADE,
+  invitation_id uuid REFERENCES public.survey_invitations(id) ON DELETE SET NULL,
+  customer_id uuid REFERENCES public.customers(id) ON DELETE SET NULL,
+  risposte jsonb NOT NULL DEFAULT '{}'::jsonb,
+  nps_score smallint,
+  rating_avg numeric(3,2),
+  sentiment text,
+  ip text,
+  user_agent text,
+  submitted_at timestamptz DEFAULT now(),
+  created_at timestamptz DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.automation_run_steps (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   run_id uuid NOT NULL REFERENCES public.automation_runs(id) ON DELETE CASCADE,
@@ -1210,6 +1257,13 @@ CREATE INDEX IF NOT EXISTS idx_aut_runs_customer        ON public.automation_run
 CREATE INDEX IF NOT EXISTS idx_aut_runs_user            ON public.automation_runs(user_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_aut_run_steps_run        ON public.automation_run_steps(run_id);
 CREATE INDEX IF NOT EXISTS idx_aut_run_steps_pending    ON public.automation_run_steps(stato, schedule_at) WHERE stato = 'pending';
+CREATE INDEX IF NOT EXISTS idx_surveys_user             ON public.surveys(user_id, locale, attivo);
+CREATE INDEX IF NOT EXISTS idx_surv_inv_token           ON public.survey_invitations(token);
+CREATE INDEX IF NOT EXISTS idx_surv_inv_survey          ON public.survey_invitations(survey_id, inviato_at DESC);
+CREATE INDEX IF NOT EXISTS idx_surv_inv_customer        ON public.survey_invitations(customer_id);
+CREATE INDEX IF NOT EXISTS idx_surv_resp_survey         ON public.survey_responses(survey_id, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_surv_resp_user_locale    ON public.survey_responses(user_id, locale, submitted_at DESC);
+CREATE INDEX IF NOT EXISTS idx_surv_resp_nps            ON public.survey_responses(survey_id, nps_score) WHERE nps_score IS NOT NULL;
 
 
 -- ============================================================
@@ -1296,6 +1350,9 @@ ALTER TABLE public.automation_nodes           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_events_queue    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_runs            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_run_steps       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.surveys                    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.survey_invitations         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.survey_responses           ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -1401,6 +1458,9 @@ CREATE POLICY "own_automation_runs"       ON public.automation_runs        FOR A
 CREATE POLICY "own_automation_run_steps"  ON public.automation_run_steps   FOR ALL
   USING (EXISTS (SELECT 1 FROM public.automation_runs r WHERE r.id = automation_run_steps.run_id AND r.user_id = auth.uid()))
   WITH CHECK (EXISTS (SELECT 1 FROM public.automation_runs r WHERE r.id = automation_run_steps.run_id AND r.user_id = auth.uid()));
+CREATE POLICY "own_surveys"               ON public.surveys                FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_survey_invitations"    ON public.survey_invitations     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_survey_responses"      ON public.survey_responses       FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 
 
