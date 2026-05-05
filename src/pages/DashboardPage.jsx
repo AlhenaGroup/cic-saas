@@ -321,6 +321,10 @@ export default function DashboardPage({ settings }) {
   const [vendSubTab, setVendSubTab] = useState(() => localStorage.getItem('vend_subtab') || 'scontrini')
   useEffect(() => { localStorage.setItem('vend_subtab', vendSubTab) }, [vendSubTab])
   // Sotto-tab Contabilità
+  // contaSubTab tracks il sotto-tab "interno" di Contabilita' (Fatture/IVA/Chiusure).
+  // Quando l'utente sceglie CE o Budget dal SubTabsBar, ridirigiamo al top-level
+  // (tab='ce'/'bud') invece di settare contaSubTab — cosi' al rientro in Contabilita'
+  // ritrova l'ultimo sotto-tab interno usato.
   const [contaSubTab, setContaSubTab] = useState(() => localStorage.getItem('conta_subtab') || 'fatture')
   useEffect(() => { localStorage.setItem('conta_subtab', contaSubTab) }, [contaSubTab])
   // Filtra in base al piano dell'utente (feature flag tab.X)
@@ -588,16 +592,24 @@ export default function DashboardPage({ settings }) {
       </>}
 
       {/* ── IVA (nuovo: a debito + a credito + saldo, mensile/trimestrale) ── */}
-      {/* ── CONTABILITÀ: wrapper con sotto-tab Fatture/IVA/Chiusure ── */}
-      {tab==='conta'&&<>
+      {/* ── CONTABILITÀ: wrapper con sotto-tab CE/Budget/Fatture/IVA/Chiusure&Versamenti.
+           Visibile anche quando tab=='ce' o tab=='bud' cosi' la nav Contabilita' resta in cima. ── */}
+      {(tab==='conta'||tab==='ce'||tab==='bud')&&<>
         <SubTabsBar
           tabs={[
-            { key: 'fatture',   label: 'Fatture' },
-            { key: 'iva',       label: 'IVA' },
-            { key: 'chiusure',  label: 'Chiusure & Versamenti' },
+            { key: 'ce',        label: '💰 Conto Economico' },
+            { key: 'bud',       label: '✏️ Budget' },
+            { key: 'fatture',   label: '🧾 Fatture' },
+            { key: 'iva',       label: '🧮 IVA' },
+            { key: 'chiusure',  label: '🔒 Chiusure & Versamenti' },
           ]}
-          value={contaSubTab}
-          onChange={setContaSubTab}
+          value={tab==='ce' ? 'ce' : tab==='bud' ? 'bud' : contaSubTab}
+          onChange={(v) => {
+            if (v === 'ce') { setTab('ce'); return }
+            if (v === 'bud') { setTab('bud'); return }
+            // Per fatture/iva/chiusure: setta tab=='conta' e contaSubTab
+            setTab('conta'); setContaSubTab(v)
+          }}
         />
       </>}
 

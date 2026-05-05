@@ -5,6 +5,7 @@ import BudgetInput from '../components/budget/BudgetInput.jsx'
 import Forecast from '../components/budget/Forecast.jsx'
 import VarianceCE from '../components/budget/VarianceCE.jsx'
 import Simulator from '../components/budget/Simulator.jsx'
+import SubTabsBar from '../components/SubTabsBar'
 
 // [id, label, descrizione placeholder]
 const SUBS = [
@@ -82,21 +83,12 @@ export default function BudgetModule({ sp, sps, from, to }) {
   const commonProps = { sp, sps, year, month, onNavigate: handleNavigate }
 
   return <>
-    {/* Sub-tab bar */}
-    <div style={{
-      background: '#131825',
-      borderRadius: 8,
-      padding: 6,
-      display: 'flex',
-      gap: 4,
-      marginBottom: 16,
-      overflowX: 'auto',
-      border: '1px solid #1e2636'
-    }}>
-      {SUBS.map(([t, l]) => (
-        <button key={t} onClick={() => setSub(t)} style={subBtn(t)}>{l}</button>
-      ))}
-    </div>
+    {/* Sub-tab bar (uniforme con resto app) */}
+    <SubTabsBar
+      tabs={SUBS.map(([key, label]) => ({ key, label }))}
+      value={sub}
+      onChange={setSub}
+    />
 
     {/* Contesto: locale + selettore anno/mese (indipendente dai filtri globali) */}
     <div style={{

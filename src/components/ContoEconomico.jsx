@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { S, KPI, Card, Bar2, fmt, fmtD, fmtN, pct } from './shared/styles.jsx'
 import ManualCostsManager from './ManualCostsManager.jsx'
 import { expandManualCost, VOCE_LABELS } from '../lib/manualCosts.js'
+import SubTabsBar from './SubTabsBar'
 
 // Regole di categorizzazione automatica per fornitore/prodotto
 export const CATEGORY_RULES = {
@@ -93,6 +94,9 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
   // Voce selezionata per drill-down (null | 'ricavi' | 'food' | 'beverage' | 'materiali' | 'personale' | 'struttura' | 'altro' | 'totCosti' | 'mol')
   const [drillVoce, setDrillVoce] = useState(null)
   const drillRef = useRef(null)
+  // Sub-tab dentro CE: 'ce' (tabella+composizione+drill) | 'manuali' (costi manuali) | 'classif' (classificazione prodotti)
+  const [ceSubTab, setCeSubTab] = useState(() => localStorage.getItem('ce_subtab') || 'ce')
+  useEffect(() => { localStorage.setItem('ce_subtab', ceSubTab) }, [ceSubTab])
 
   const loadInvoices = useCallback(async () => {
     setLoading(true)
@@ -268,6 +272,14 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
       }} style={{ ...iS, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: '#3B82F6', color: '#fff', border: 'none' }}>Tutto anno</button>
     </div>}
 
+    {/* Sub-tabs CE */}
+    <SubTabsBar tabs={[
+      { key: 'ce',      label: '📋 Conto Economico' },
+      { key: 'manuali', label: '💸 Costi manuali' },
+      { key: 'classif', label: '🏷 Classificazione prodotti' },
+    ]} value={ceSubTab} onChange={setCeSubTab}/>
+
+    {ceSubTab === 'ce' && <>
     {/* KPI con F&B */}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: '1.25rem' }}>
       <KPI label="Ricavi" icon="💶" value={fmt(ce.ricavi)} sub="totale venduto" accent='#10B981' />
@@ -362,12 +374,16 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
         onClose={() => setDrillVoce(null)}
       />
     </div>}
+    </>}
 
+    {ceSubTab === 'manuali' && <>
     {/* COSTI MANUALI (affitto, utenze, ecc.) */}
     <div style={{ marginTop: 12 }}>
       <ManualCostsManager from={from} to={to} onChanged={() => { if (typeof reload === 'function') reload() }} />
     </div>
+    </>}
 
+    {ceSubTab === 'classif' && <>
     {/* PANNELLO FATTURE/PRODOTTI — SEMPRE VISIBILE */}
     <div style={{ marginTop: 12 }}>
       <Card title="Classificazione prodotti fatture" badge={totalItems > 0 ? totalItems + ' prodotti' : 'In attesa di fatture'} extra={
@@ -530,6 +546,7 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
         )}
       </Card>
     </div>
+    </>}
   </>
 }
 
