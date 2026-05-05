@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ComposedChart, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { supabase } from '../lib/supabase'
-import { useTheme } from '../lib/theme.js'
+import { useTheme, ThemeIcon } from '../lib/theme.jsx'
 import { getToken, getSalesPoints, getReportData, getFromDailyStats } from '../lib/cicApi'
 import { fmt, fmtD, fmtN, pct, today, monthStart, prevPeriod, deltaFmt, C, S, KPI, Card, Bar2, Tip, Loader } from '../components/shared/styles.jsx'
 import HRModule from './HRModule'
@@ -555,8 +555,8 @@ export default function DashboardPage({ settings }) {
         <button onClick={toggleTheme}
           title={theme === 'dark' ? 'Passa al tema chiaro' : 'Passa al tema scuro'}
           aria-label="Cambia tema"
-          style={{...iS, color:'var(--text2)', border:'1px solid var(--border)', padding:'6px 10px', cursor:'pointer', minWidth: 36}}>
-          {theme === 'dark' ? '☀' : '☾'}
+          style={{...iS, color:'var(--text2)', border:'1px solid var(--border)', padding:'6px 10px', cursor:'pointer', minWidth: 36, display:'inline-flex', alignItems:'center', justifyContent:'center'}}>
+          <ThemeIcon dark={theme === 'dark'}/>
         </button>
         <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'var(--text3)',border:'1px solid var(--border)',padding:'6px 12px'}}>Esci</button>
       </div>

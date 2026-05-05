@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import TaskCalendarPanel from '../components/timbra/TaskCalendarPanel'
-import { useTheme } from '../lib/theme.js'
+import { useTheme, ThemeIcon } from '../lib/theme.jsx'
 
 const API = '/api/attendance'
 const ALL_LOCALI = ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE']
@@ -187,9 +187,10 @@ export default function TimbraPage() {
         position: 'absolute', top: 16, right: 16,
         width: 36, height: 36, borderRadius: 18,
         background: 'var(--surface)', border: '1px solid var(--border)',
-        color: 'var(--text2)', fontSize: 16, cursor: 'pointer', zIndex: 100,
+        color: 'var(--text2)', cursor: 'pointer', zIndex: 100,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0,
       }}>
-      {theme === 'dark' ? '☀' : '☾'}
+      <ThemeIcon dark={theme === 'dark'}/>
     </button>
     <div style={{ textAlign: 'center', marginBottom: 16 }}>
       <div style={{ width: 40, height: 40, background: accent, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: bgColor, fontSize: 16, marginBottom: 8 }}>C</div>
@@ -322,10 +323,8 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
       {items.map(it => (
         <button key={it.k} onClick={() => onChoose(it.k)}
-          style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderRadius: 12, border: `2px solid ${it.color}`, background: 'var(--surface)', color: 'var(--text)', fontSize: 16, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
-          <span style={{ fontSize: 24 }}>{it.icon}</span>
-          <span style={{ flex: 1 }}>{it.label}</span>
-          <span style={{ color: it.color }}></span>
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 18px', borderRadius: 12, border: `2px solid ${it.color}`, background: 'var(--surface)', color: 'var(--text)', fontSize: 14, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', cursor: 'pointer', textAlign: 'center' }}>
+          {it.label}
         </button>
       ))}
     </div>
