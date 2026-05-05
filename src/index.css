@@ -30,6 +30,44 @@
   --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
 }
 
+/* Dark theme: attivata da data-theme="dark" su <html>.
+   Inverte i colori superficie/testo mantenendo gli accent (blue/green/red). */
+:root[data-theme="dark"] {
+  --bg: #0F0F0F;
+  --surface: #1A1A1A;
+  --surface2: #242424;
+  --surface3: #2E2E2E;
+  --border: rgba(255,255,255,0.10);
+  --border-md: rgba(255,255,255,0.18);
+  --text: #F5F5F5;
+  --text2: #B0B0B0;
+  --text3: #808080;
+  --blue: #3B82F6;
+  --blue-bg: rgba(59,130,246,0.15);
+  --blue-text: #93C5FD;
+  --green: #22C55E;
+  --green-bg: rgba(34,197,94,0.15);
+  --green-text: #86EFAC;
+  --amber: #F59E0B;
+  --amber-bg: rgba(245,158,11,0.15);
+  --amber-text: #FCD34D;
+  --red: #EF4444;
+  --red-bg: rgba(239,68,68,0.15);
+  --red-text: #FCA5A5;
+  --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* Disabilita il theme override layer quando in dark mode: i colori dark che
+   il layer rimappava a light non devono piu' essere riscritti. */
+:root[data-theme="dark"] *[style*="rgb(15, 20, 32)"],
+:root[data-theme="dark"] *[style*="rgb(26, 31, 46)"],
+:root[data-theme="dark"] *[style*="rgb(19, 24, 37)"],
+:root[data-theme="dark"] *[style*="rgb(30, 38, 54)"],
+:root[data-theme="dark"] *[style*="rgb(42, 48, 66)"] {
+  /* Lascio passare i valori originali dark — niente override */
+}
+
 /* ─── Theme override layer ─────────────────────────────────────────
    IMPORTANTE: il browser serializza gli hex inline a rgb(), quindi
    il pattern matching in CSS deve usare rgb(), NON gli hex.

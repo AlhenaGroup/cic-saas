@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ComposedChart, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { supabase } from '../lib/supabase'
+import { useTheme } from '../lib/theme.js'
 import { getToken, getSalesPoints, getReportData, getFromDailyStats } from '../lib/cicApi'
 import { fmt, fmtD, fmtN, pct, today, monthStart, prevPeriod, deltaFmt, C, S, KPI, Card, Bar2, Tip, Loader } from '../components/shared/styles.jsx'
 import HRModule from './HRModule'
@@ -92,6 +93,7 @@ function activePresetKey(from, to) {
 }
 
 export default function DashboardPage({ settings }) {
+  const [theme, toggleTheme] = useTheme()
   const [token, setToken]         = useState(null)
   const [from,  setFrom]          = useState(() => localStorage.getItem('cic_from') || monthStart())
   const [to,    setTo]            = useState(() => localStorage.getItem('cic_to') || today())
@@ -550,7 +552,13 @@ export default function DashboardPage({ settings }) {
             </>}
           </>
         })()}
-        <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'#475569',border:'1px solid #2a3042',padding:'6px 12px'}}>Esci</button>
+        <button onClick={toggleTheme}
+          title={theme === 'dark' ? 'Passa al tema chiaro' : 'Passa al tema scuro'}
+          aria-label="Cambia tema"
+          style={{...iS, color:'var(--text2)', border:'1px solid var(--border)', padding:'6px 10px', cursor:'pointer', minWidth: 36}}>
+          {theme === 'dark' ? '☀' : '☾'}
+        </button>
+        <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'var(--text3)',border:'1px solid var(--border)',padding:'6px 12px'}}>Esci</button>
       </div>
     </div>
 

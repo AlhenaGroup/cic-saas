@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import TaskCalendarPanel from '../components/timbra/TaskCalendarPanel'
+import { useTheme } from '../lib/theme.js'
 
 const API = '/api/attendance'
 const ALL_LOCALI = ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE']
@@ -15,6 +16,7 @@ async function apiCall(body) {
 }
 
 export default function TimbraPage() {
+  const [theme, toggleTheme] = useTheme()
   const params = new URLSearchParams(window.location.search)
   const locale = params.get('locale') || 'LOCALE'
 
@@ -176,7 +178,19 @@ export default function TimbraPage() {
     setLoading(false)
   }
 
-  return <div style={{ minHeight: '100vh', background: bgColor, fontFamily: "'DM Sans',system-ui,sans-serif", color: 'var(--text)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 16px' }}>
+  return <div style={{ minHeight: '100vh', background: bgColor, fontFamily: "'DM Sans',system-ui,sans-serif", color: 'var(--text)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 16px', position: 'relative' }}>
+    {/* Theme toggle in alto a destra */}
+    <button onClick={toggleTheme}
+      title={theme === 'dark' ? 'Tema chiaro' : 'Tema scuro'}
+      aria-label="Cambia tema"
+      style={{
+        position: 'absolute', top: 16, right: 16,
+        width: 36, height: 36, borderRadius: 18,
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        color: 'var(--text2)', fontSize: 16, cursor: 'pointer', zIndex: 100,
+      }}>
+      {theme === 'dark' ? '☀' : '☾'}
+    </button>
     <div style={{ textAlign: 'center', marginBottom: 16 }}>
       <div style={{ width: 40, height: 40, background: accent, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: bgColor, fontSize: 16, marginBottom: 8 }}>C</div>
       <div style={{ fontSize: 20, fontWeight: 700 }}>{step === 'pin' ? 'Accesso' : step === 'menu' ? 'Cosa vuoi fare?' : stepLabel(step)}</div>
