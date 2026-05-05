@@ -453,13 +453,25 @@ tr:hover td.ts-cell { background: transparent !important; }
    - Selettore mese CE 4x3
    ──────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* Header CIC Analytics: padding ridotto, gap stretto, font 13 */
+  /* Header CIC Analytics: padding ridotto, gap stretto, font 13.
+     Le 2 righe (left/right) riempiono ciascuna la larghezza piena: i select si
+     espandono per riempire lo spazio rimasto invece che lasciare bianco a destra. */
   .cic-header { padding: 8px 12px !important; min-height: 0 !important; gap: 8px !important; }
-  .cic-header .cic-header-left { gap: 8px !important; }
+  .cic-header .cic-header-left,
+  .cic-header .cic-header-right {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
   .cic-header .cic-header-left > span { font-size: 13px !important; }
   .cic-header .cic-header-left > div:first-child {
     width: 26px !important; height: 26px !important; font-size: 12px !important; border-radius: 8px !important;
+    flex-shrink: 0;
   }
+  /* Locale picker: prende tutto lo spazio rimasto sulla riga */
+  .cic-header .cic-header-left > select { flex: 1 1 auto !important; min-width: 0 !important; }
+  /* Periodo + Confronta: il select periodo prende lo spazio rimasto */
+  .cic-header .cic-header-right > select:first-of-type { flex: 1 1 auto !important; min-width: 0 !important; }
   .cic-header select, .cic-header input, .cic-header button {
     font-size: 12px !important; padding: 5px 8px !important; min-height: 30px !important;
   }
