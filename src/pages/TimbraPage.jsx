@@ -1026,7 +1026,7 @@ function StatBox({ label, value, sub, color, big }) {
 function InstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [installed, setInstalled] = useState(false)
-  const [showIosHelp, setShowIosHelp] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
 
   useEffect(() => {
     // Se l'app gira gia' in modalita' standalone, nascondi banner
@@ -1046,42 +1046,86 @@ function InstallBanner() {
 
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !/(crios|fxios)/i.test(navigator.userAgent)
   const isAndroid = /android/i.test(navigator.userAgent)
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+  const isChromeIos = /crios/i.test(navigator.userAgent)
 
-  const install = async () => {
-    if (!deferredPrompt) return
-    deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
-    if (outcome === 'accepted') setDeferredPrompt(null)
+  const handleClick = async () => {
+    // Android Chrome (e altri Chromium): triggera prompt nativo
+    if (deferredPrompt) {
+      deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
+      if (outcome === 'accepted') setDeferredPrompt(null)
+      return
+    }
+    // iOS o altro: apri modale con istruzioni
+    setModalOpen(true)
   }
 
-  return <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(59,130,246,.08)', border: '1px solid rgba(59,130,246,.25)', borderRadius: 12, maxWidth: 360, width: '100%' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-      <span style={{ fontSize: 22 }}></span>
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#60A5FA' }}>Installa l'app sul telefono</div>
+  return <>
+    <button onClick={handleClick}
+      style={{
+        marginTop: 24, padding: '14px 16px', background: 'rgba(59,130,246,.08)',
+        border: '1px solid rgba(59,130,246,.25)', borderRadius: 12, maxWidth: 360, width: '100%',
+        cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+      }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#60A5FA' }}>Installa l'app sul telefono</div>
+        <span style={{ fontSize: 18, color: '#60A5FA', fontWeight: 700 }}>›</span>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.5 }}>
+        {deferredPrompt
+          ? 'Tocca per installare adesso.'
+          : 'Tocca per vedere come aggiungere alla schermata Home.'}
+      </div>
+    </button>
+
+    {modalOpen && <InstallHelpModal isIos={isIos} isAndroid={isAndroid} isSafari={isSafari} isChromeIos={isChromeIos} onClose={() => setModalOpen(false)}/>}
+  </>
+}
+
+// Modale fullscreen con istruzioni installazione PWA per piattaforma.
+function InstallHelpModal({ isIos, isAndroid, isSafari, isChromeIos, onClose }) {
+  return <div onClick={onClose} style={{
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+    display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000, padding: 16,
+  }}>
+    <div onClick={e => e.stopPropagation()} style={{
+      background: 'var(--surface)', borderRadius: 16, maxWidth: 420, width: '100%',
+      padding: 20, maxHeight: '85vh', overflowY: 'auto', color: 'var(--text)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Installa Timbra sul telefono</h3>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--text2)', cursor: 'pointer', padding: 4 }}>×</button>
+      </div>
+
+      {isChromeIos && <div style={{ background: 'rgba(245,158,11,.12)', border: '1px solid rgba(245,158,11,.3)', padding: 12, borderRadius: 8, fontSize: 13, color: 'var(--amber-text)', marginBottom: 14, lineHeight: 1.5 }}>
+        <strong>Stai usando Chrome su iPhone.</strong> Per installare l'app come icona nella home, devi aprire questa pagina con <strong>Safari</strong>. Chrome su iOS non supporta l'installazione PWA.
+      </div>}
+
+      {isIos && !isChromeIos && <ol style={{ paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: 'var(--text)' }}>
+        <li>Tocca il bottone <strong>Condividi</strong> in basso a Safari (icona quadrato con freccia che esce verso l'alto).</li>
+        <li>Scorri il menu fino a trovare <strong>"Aggiungi alla schermata Home"</strong>.</li>
+        <li>Dai un nome all'app (es. <em>Timbra</em>) e tocca <strong>Aggiungi</strong> in alto a destra.</li>
+        <li>L'icona apparirà sulla schermata Home come una vera app, senza barre del browser.</li>
+      </ol>}
+
+      {isAndroid && <ol style={{ paddingLeft: 20, fontSize: 14, lineHeight: 1.8, color: 'var(--text)' }}>
+        <li>Tocca il menu <strong>⋮</strong> in alto a destra del browser.</li>
+        <li>Seleziona <strong>"Aggiungi a schermata Home"</strong> oppure <strong>"Installa app"</strong>.</li>
+        <li>Conferma toccando <strong>Aggiungi</strong>.</li>
+        <li>L'icona apparirà sulla schermata Home come una vera app.</li>
+      </ol>}
+
+      {!isIos && !isAndroid && <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
+        Apri questa pagina sul tuo smartphone (Safari su iPhone, Chrome su Android) per installare l'app.
+        Da computer non è possibile installare la PWA.
+      </div>}
+
+      <button onClick={onClose} style={{
+        marginTop: 18, width: '100%', padding: '12px', borderRadius: 8, border: 'none',
+        background: 'var(--text)', color: 'var(--surface)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+      }}>Ho capito</button>
     </div>
-    <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 10 }}>
-      Un'icona nella home per aprire Timbra con un tocco, senza barre del browser.
-    </div>
-    {deferredPrompt && <button onClick={install}
-      style={{ width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: '#3B82F6', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-      Installa adesso
-    </button>}
-    {!deferredPrompt && isIos && <button onClick={() => setShowIosHelp(v => !v)}
-      style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #3B82F6', background: 'transparent', color: '#60A5FA', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-      {showIosHelp ? 'Nascondi istruzioni' : 'Come si fa su iPhone'}
-    </button>}
-    {!deferredPrompt && isAndroid && <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.6 }}>
-      Tocca il menu ⋮ del browser <strong style={{ color: 'var(--text)' }}>Aggiungi a schermata Home</strong> / <strong style={{ color: 'var(--text)' }}>Installa app</strong>.
-    </div>}
-    {!deferredPrompt && !isIos && !isAndroid && <div style={{ fontSize: 11, color: 'var(--text2)' }}>
-      Apri questa pagina dal tuo telefono per installare l'app.
-    </div>}
-    {showIosHelp && <div style={{ marginTop: 10, padding: 10, background: 'var(--surface2)', borderRadius: 8, fontSize: 11, color: 'var(--text)', lineHeight: 1.7 }}>
-      1. Tocca il bottone <strong>Condividi</strong> <span style={{ fontSize: 14 }}>⎙</span> in basso (Safari).<br />
-      2. Scorri e tocca <strong>"Aggiungi alla schermata Home"</strong>.<br />
-      3. Dai un nome (es. "Timbra") e tocca <strong>Aggiungi</strong>.<br />
-      <span style={{ color: '#F59E0B' }}>Importante:</span> deve essere Safari, non Chrome.
-    </div>}
   </div>
 }
 
