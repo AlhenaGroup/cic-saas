@@ -29,8 +29,8 @@ const DAY_NAMES = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab']
 const iS = S.input
 
 export default function TaskManager({ sp, sps, employees }) {
-  const [tab, setTab] = useState(() => localStorage.getItem('task_tab') || 'calendario')
-  useEffect(() => { localStorage.setItem('task_tab', tab) }, [tab])
+  // NON persistito: rientro parte dal primo sub-tab (Calendario)
+  const [tab, setTab] = useState('calendario')
 
   const [tasks, setTasks] = useState([])
   const [templates, setTemplates] = useState([])

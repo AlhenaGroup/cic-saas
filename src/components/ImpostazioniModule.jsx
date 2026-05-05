@@ -19,8 +19,8 @@ const TABS = [
 ]
 
 export default function ImpostazioniModule({ settings, sps }) {
-  const [tab, setTab] = useState(() => localStorage.getItem('imp_tab') || 'generale')
-  useEffect(() => { localStorage.setItem('imp_tab', tab) }, [tab])
+  // NON persistito: rientro parte dal primo sub-tab (Generale)
+  const [tab, setTab] = useState('generale')
 
   return <div>
     <SubTabsBar tabs={TABS} value={tab} onChange={setTab} />

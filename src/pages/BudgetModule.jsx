@@ -29,8 +29,8 @@ function defaultPeriod(from) {
 }
 
 export default function BudgetModule({ sp, sps, from, to }) {
-  const [sub, setSub] = useState(() => localStorage.getItem('cic_bud_sub') || 'ov')
-  useEffect(() => { localStorage.setItem('cic_bud_sub', sub) }, [sub])
+  // NON persistito: rientro parte dal primo sub-tab (Panoramica)
+  const [sub, setSub] = useState('ov')
 
   const initial = defaultPeriod(from)
   const [year, setYear] = useState(initial.year)

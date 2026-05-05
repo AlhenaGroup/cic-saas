@@ -67,8 +67,8 @@ const SUB_TABS = [
 ]
 
 export default function ProductionManager({ sp, sps }) {
-  const [subTab, setSubTab] = useState(() => localStorage.getItem('production_tab') || 'schede')
-  useEffect(() => { localStorage.setItem('production_tab', subTab) }, [subTab])
+  // NON persistito: rientro parte dal primo sub-tab (Schede)
+  const [subTab, setSubTab] = useState('schede')
 
   return <>
     <div className="m-wrap" style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>

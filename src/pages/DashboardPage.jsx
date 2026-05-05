@@ -330,18 +330,11 @@ export default function DashboardPage({ settings }) {
   // 'bud'  da Contabilita' sub-tab Budget
   // (Produttivita' ora vive dentro HRModule come sub-tab, non e' piu' tab top-level)
   const HIDDEN_TABS = ['ce','bud']
-  // Sotto-tab Vendite (state separato per persistenza)
-  const [vendSubTab, setVendSubTab] = useState(() => localStorage.getItem('vend_subtab') || 'scontrini')
-  useEffect(() => { localStorage.setItem('vend_subtab', vendSubTab) }, [vendSubTab])
-  // Sotto-tab Contabilità
-  // contaSubTab tracks il sotto-tab "interno" di Contabilita' (Fatture/IVA/Chiusure).
-  // Quando l'utente sceglie CE o Budget dal SubTabsBar, ridirigiamo al top-level
-  // (tab='ce'/'bud') invece di settare contaSubTab.
-  // Default 'fatture': se tab='conta' (entrata pulita su Contabilita') e nessuna
-  // preferenza salvata, mostra Fatture. CE e' default-routed se l'utente clicca
-  // direttamente "Contabilita" dalla top bar (vedi handler in TABS render).
-  const [contaSubTab, setContaSubTab] = useState(() => localStorage.getItem('conta_subtab') || 'fatture')
-  useEffect(() => { localStorage.setItem('conta_subtab', contaSubTab) }, [contaSubTab])
+  // Sotto-tab Vendite/Contabilita': NON persistiti — al rientro nel modulo si
+  // riparte dal primo sub-tab (Scontrini per Vendite, gestito dal click handler
+  // top-level per Contabilita').
+  const [vendSubTab, setVendSubTab] = useState('scontrini')
+  const [contaSubTab, setContaSubTab] = useState('fatture')
   // Filtra in base al piano dell'utente (feature flag tab.X)
   const { features: planFeatures } = useUserPlan()
   const TABS = planFeatures ? ALL_TABS.filter(([k]) => planFeatures.tabs.has(k)) : ALL_TABS
@@ -565,33 +558,20 @@ export default function DashboardPage({ settings }) {
     <div className="m-compact-x" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'10px 1.75rem',display:'flex',gap:6,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
       {TABS.map(([t,l])=>(
         <button key={t} onClick={()=>{
-          // Click top-level: se arrivo da un altro top-level, apro il primo sub-tab
-          // del modulo selezionato. Se sono gia' dentro lo stesso modulo (incluso
-          // hidden child), NON resetto il sub-tab.
+          // Click top-level: i sub-tab dei moduli (HRModule, WarehouseModule,
+          // MarketingModule, ImpostazioniModule, ContoEconomico, BudgetModule,
+          // TaskManager) NON sono persistiti — al rimount partono dal primo
+          // sub-tab. Per Vendite/Contabilita' i sub-tab sono in DashboardPage:
+          // li resetto manualmente al primo quando l'utente arriva da fuori.
           const inConta = tab === 'conta' || tab === 'ce' || tab === 'bud'
           // Contabilita': primo sub-tab = Conto Economico (hidden top-tab 'ce')
           if (t === 'conta') {
-            if (!inConta) { setTab('ce'); return }
+            if (!inConta) { setContaSubTab('fatture'); setTab('ce'); return }
             return // gia' dentro, non cambiare nulla
-          }
-          // HR: primo sub-tab = Produttivita' (gestito da HRModule via hr_subtab='prod')
-          if (t === 'hr') {
-            if (tab !== 'hr') { localStorage.setItem('hr_subtab', 'prod'); setTab('hr'); return }
-            return
           }
           // Vendite: primo sub-tab = scontrini
           if (t === 'vendite') {
             if (tab !== 'vendite') { setVendSubTab('scontrini'); setTab('vendite'); return }
-            return
-          }
-          // Magazzino: primo sub-tab = cruscotto (gestito da WarehouseModule via localStorage)
-          if (t === 'mag') {
-            if (tab !== 'mag') { localStorage.setItem('warehouse_tab', 'cruscotto'); setTab('mag'); return }
-            return
-          }
-          // Marketing: primo sub-tab = prenotaz (gestito da MarketingModule via localStorage)
-          if (t === 'mkt') {
-            if (tab !== 'mkt') { localStorage.setItem('mkt_tab', 'prenotaz'); setTab('mkt'); return }
             return
           }
           setTab(t)

@@ -112,8 +112,8 @@ const SUB_TABS = [
 ]
 
 export default function AvvisiModule() {
-  const [tab, setTab] = useState(() => localStorage.getItem('avvisi_tab') || 'feed')
-  useEffect(() => { localStorage.setItem('avvisi_tab', tab) }, [tab])
+  // NON persistito: rientro parte dal primo sub-tab (Feed)
+  const [tab, setTab] = useState('feed')
 
   return <div>
     <SubTabsBar tabs={SUB_TABS} value={tab} onChange={setTab} />

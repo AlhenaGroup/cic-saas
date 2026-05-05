@@ -26,8 +26,8 @@ const SUBTABS = [
 ]
 
 export default function MarketingModule({ sp, sps }) {
-  const [tab, setTab] = useState(() => localStorage.getItem('mkt_tab') || 'prenotaz')
-  useEffect(() => { localStorage.setItem('mkt_tab', tab) }, [tab])
+  // NON persistito: rientro parte dal primo sub-tab (Prenotazioni)
+  const [tab, setTab] = useState('prenotaz')
 
   return <div>
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>

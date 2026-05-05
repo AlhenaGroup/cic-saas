@@ -30,8 +30,8 @@ const TABS = [
 ]
 
 export default function WarehouseModule({ sp, sps, from, to }) {
-  const [tab, setTab] = useState(() => localStorage.getItem('warehouse_tab') || 'cruscotto')
-  useEffect(() => { localStorage.setItem('warehouse_tab', tab) }, [tab])
+  // NON persistito: rientro parte dal primo sub-tab (Cruscotto)
+  const [tab, setTab] = useState('cruscotto')
 
   const tabStyle = (active) => ({
     padding: '8px 14px', fontSize: 12, fontWeight: 500,

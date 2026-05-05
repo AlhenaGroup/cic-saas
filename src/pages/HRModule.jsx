@@ -21,8 +21,8 @@ const HR_SUB_TABS = [
 ]
 
 export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps, renderProduttivita }) {
-  const [hrTab, setHrTab] = useState(() => localStorage.getItem('hr_subtab') || 'prod')
-  useEffect(() => { localStorage.setItem('hr_subtab', hrTab) }, [hrTab])
+  // NON persistito: rientro parte dal primo sub-tab (Produttivita')
+  const [hrTab, setHrTab] = useState('prod')
   const [employees, setEmployees]       = useState([])
   const [empDocs, setEmpDocs]           = useState([])
   const [showEmpForm, setShowEmpForm]   = useState(false)

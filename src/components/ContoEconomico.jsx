@@ -95,8 +95,8 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
   const [drillVoce, setDrillVoce] = useState(null)
   const drillRef = useRef(null)
   // Sub-tab dentro CE: 'ce' (tabella+composizione+drill) | 'manuali' (costi manuali) | 'classif' (classificazione prodotti)
-  const [ceSubTab, setCeSubTab] = useState(() => localStorage.getItem('ce_subtab') || 'ce')
-  useEffect(() => { localStorage.setItem('ce_subtab', ceSubTab) }, [ceSubTab])
+  // NON persistito: vogliamo che ogni rientro in CE parta dal primo sub-tab.
+  const [ceSubTab, setCeSubTab] = useState('ce')
 
   const loadInvoices = useCallback(async () => {
     setLoading(true)
