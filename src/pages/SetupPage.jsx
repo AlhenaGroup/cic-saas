@@ -37,7 +37,7 @@ export default function SetupPage({ onSaved }) {
   return (
     <div style={s.wrap}><div style={s.box}>
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <div style={{ fontSize: '22px', fontWeight: '600', color: 'var(--text)', letterSpacing: '-0.02em' }}>CIC Dashboard</div>
+        <div style={{ fontSize: '22px', fontWeight: '600', color: 'var(--text)', letterSpacing: '-0.02em' }}>Convivia</div>
         <div style={{ fontSize: '13px', color: 'var(--text3)', marginTop: '4px' }}>Configura il tuo account</div>
       </div>
       <div style={s.card}>

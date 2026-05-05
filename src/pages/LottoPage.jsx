@@ -158,7 +158,7 @@ export default function LottoPage({ code }) {
       {/* Footer compliance */}
       <div style={{ textAlign: 'center', fontSize: 10, color: '#94a3b8', marginTop: 16, lineHeight: 1.5 }}>
         Tracciabilità conforme Reg. CE 852/2004 + UE 1169/2011<br/>
-        Sistema: CIC Analytics
+        Sistema: Convivia
       </div>
     </div>
   </div>

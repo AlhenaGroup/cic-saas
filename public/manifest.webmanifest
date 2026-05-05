@@ -1,12 +1,12 @@
 {
-  "name": "CIC Analytics",
-  "short_name": "CIC",
-  "description": "Dashboard analytics per la ristorazione — Alhena Group",
+  "name": "Convivia",
+  "short_name": "Convivia",
+  "description": "Convivia — gestionale ristoranti",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0f1420",
-  "theme_color": "#0f1420",
+  "background_color": "#F7F6F3",
+  "theme_color": "#F7F6F3",
   "icons": [
     {
       "src": "/icon-192.png",

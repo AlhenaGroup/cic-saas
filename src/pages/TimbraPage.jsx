@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import TaskCalendarPanel from '../components/timbra/TaskCalendarPanel'
 import { useTheme, ThemeIcon } from '../lib/theme.jsx'
+import Logo from '../components/Logo'
 
 const API = '/api/attendance'
 const ALL_LOCALI = ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE']
@@ -193,7 +194,13 @@ export default function TimbraPage() {
       <ThemeIcon dark={theme === 'dark'}/>
     </button>
     <div style={{ textAlign: 'center', marginBottom: 16 }}>
-      <div style={{ width: 40, height: 40, background: accent, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: bgColor, fontSize: 16, marginBottom: 8 }}>C</div>
+      {/* Logo cliccabile: se sei autenticato torna al menu, altrimenti reset al PIN */}
+      <div style={{ marginBottom: 8 }}>
+        <Logo size={48} onClick={() => {
+          if (employee && step !== 'menu' && step !== 'pin') goTo('menu')
+          else if (!employee && step !== 'pin') reset()
+        }}/>
+      </div>
       <div style={{ fontSize: 20, fontWeight: 700 }}>{step === 'pin' ? 'Accesso' : step === 'menu' ? 'Cosa vuoi fare?' : stepLabel(step)}</div>
       <div style={{ fontSize: 14, color: 'var(--text2)' }}>{locale}</div>
       {step === 'pin' && <div style={{ marginTop: 8, fontSize: 11 }}>

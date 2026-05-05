@@ -40,7 +40,7 @@ export default function AuthPage() {
   const inp = (v,fn) => ({ value: v, onChange: e => fn(e.target.value), onFocus: e => e.target.style.borderColor='var(--blue)', onBlur: e => e.target.style.borderColor='var(--border-md)' })
   return (
     <div style={s.wrap}><div style={s.box}>
-      <div style={s.logo}><div style={s.logoTitle}>CIC Dashboard</div><div style={s.logoSub}>Analisi avanzata per Cassa in Cloud</div></div>
+      <div style={s.logo}><div style={s.logoTitle}>Convivia</div><div style={s.logoSub}>Gestionale ristoranti</div></div>
       <div style={s.card}>
         <div style={s.tabs}>
           <button style={s.tab(tab==='login')} onClick={() => { setTab('login'); setError(''); setSuccess('') }}>Accedi</button>

@@ -428,7 +428,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
       notes.forEach(n => { html += `<div class="legend-item"><b>${n.day}</b> — ${n.cat}: ${n.note}</div>` })
       html += `</div>`
     }
-    html += `<div class="footer">Generato da CIC Dashboard — ${new Date().toLocaleDateString('it-IT')} | Totale ore personale: ${totalStaff}h | =cucina =sala</div>
+    html += `<div class="footer">Generato da Convivia — ${new Date().toLocaleDateString('it-IT')} | Totale ore personale: ${totalStaff}h | =cucina =sala</div>
     </body></html>`
     const w = window.open('', '_blank')
     w.document.write(html)

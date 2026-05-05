@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ComposedChart, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { useTheme, ThemeIcon } from '../lib/theme.jsx'
+import Logo from '../components/Logo'
 import { getToken, getSalesPoints, getReportData, getFromDailyStats } from '../lib/cicApi'
 import { fmt, fmtD, fmtN, pct, today, monthStart, prevPeriod, deltaFmt, C, S, KPI, Card, Bar2, Tip, Loader } from '../components/shared/styles.jsx'
 import HRModule from './HRModule'
@@ -474,8 +475,7 @@ export default function DashboardPage({ settings }) {
     {/* Header */}
     <div className="cic-header m-compact-x m-wrap" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'12px 1.75rem',minHeight:60,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',position:'sticky',top:0,zIndex:100}}>
       <div className="cic-header-left m-wrap" style={{display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
-        <div style={{width:32,height:32,background:'var(--text)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'var(--surface)',fontSize:14,letterSpacing:'-0.02em'}}>C</div>
-        <span style={{fontSize:15,fontWeight:600,letterSpacing:'-0.01em',color:'var(--text)'}}>CIC Analytics</span>
+        <Logo size={32} label/>
         {sps.length>0&&<select value={sp} onChange={e=>setSp(e.target.value)} style={{...iS,paddingLeft:10}}>
           <option value="all">Tutti i locali</option>
           {sps.map(s=><option key={s.id} value={s.id}>{s.description||s.name}</option>)}

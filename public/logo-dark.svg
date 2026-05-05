@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Logo dashboard food - stencil posate intrecciate bianco su nero</title>
+  <desc id="desc">Logo vettoriale bianco su fondo nero con forchetta, cucchiaio e coltello intrecciati dentro un piatto circolare.</desc>
+
+  <defs>
+    <style>
+      .bg { fill: #000000; }
+      .mark { fill: #ffffff; }
+      .cut { fill: #000000; }
+    </style>
+  </defs>
+
+  <!-- Fondo nero -->
+  <rect class="bg" x="0" y="0" width="1024" height="1024"/>
+
+  <!-- Piatto esterno -->
+  <circle class="mark" cx="512" cy="512" r="382"/>
+  <circle class="cut" cx="512" cy="512" r="323"/>
+
+  <!-- Anello interno del piatto / bordo stencil -->
+  <circle class="mark" cx="512" cy="512" r="262"/>
+  <circle class="cut" cx="512" cy="512" r="234"/>
+
+  <!-- Cucchiaio centrale -->
+  <g transform="rotate(0 512 512)">
+    <ellipse class="mark" cx="512" cy="354" rx="78" ry="126"/>
+    <rect class="mark" x="486" y="450" width="52" height="360" rx="24"/>
+    <path class="mark" d="M486 740 C455 780 460 835 512 874 C564 835 569 780 538 740 Z"/>
+    <path class="cut" d="M543 253 C590 299 597 383 558 438 C584 366 574 303 543 253 Z"/>
+  </g>
+
+  <!-- Forchetta diagonale sinistra -->
+  <g transform="rotate(-43 512 512)">
+    <rect class="mark" x="280" y="462" width="72" height="390" rx="28"/>
+    <rect class="mark" x="248" y="235" width="26" height="250" rx="12"/>
+    <rect class="mark" x="290" y="235" width="26" height="250" rx="12"/>
+    <rect class="mark" x="332" y="235" width="26" height="250" rx="12"/>
+    <rect class="mark" x="374" y="235" width="26" height="250" rx="12"/>
+    <path class="mark" d="M248 455 C248 505 282 536 324 536 C366 536 400 505 400 455 L400 425 L248 425 Z"/>
+  </g>
+
+  <!-- Coltello diagonale destro -->
+  <g transform="rotate(43 512 512)">
+    <rect class="mark" x="668" y="430" width="66" height="385" rx="28"/>
+    <path class="mark" d="M668 232 C748 296 785 401 733 506 C714 544 692 573 668 602 Z"/>
+    <path class="cut" d="M707 310 C746 382 732 459 692 526 C707 450 704 379 707 310 Z"/>
+  </g>
+
+  <!-- Fasce di intreccio / effetto stencil centrale -->
+  <path class="cut" d="M306 688 L706 288 L740 322 L340 722 Z"/>
+  <path class="mark" d="M292 657 L690 259 L724 293 L326 691 Z"/>
+  <path class="cut" d="M285 626 L317 594 L755 739 L723 771 Z"/>
+
+  <!-- Piccole aperture sul piatto per look stencil -->
+  <path class="cut" d="M201 389 C222 337 258 292 305 259 L334 303 C297 330 270 365 253 407 Z"/>
+  <path class="cut" d="M824 389 C803 337 766 292 719 259 L690 303 C727 330 755 365 771 407 Z"/>
+  <path class="cut" d="M201 635 C222 687 258 732 305 765 L334 721 C297 694 270 659 253 617 Z"/>
+  <path class="cut" d="M824 635 C803 687 766 732 719 765 L690 721 C727 694 755 659 771 617 Z"/>
+</svg>

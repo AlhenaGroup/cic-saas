@@ -48,7 +48,7 @@ export default function SetPasswordPage({ mode = 'invite', email }) {
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ fontSize: 40, marginBottom: 8 }}>{mode === 'recovery' ? '' : ''}</div>
         <h1 style={{ fontSize: 22, margin: '0 0 6px 0', fontWeight: 700 }}>
-          {mode === 'recovery' ? 'Reimposta password' : 'Benvenuto su CIC Analytics'}
+          {mode === 'recovery' ? 'Reimposta password' : 'Benvenuto su Convivia'}
         </h1>
         <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
           {mode === 'recovery'
