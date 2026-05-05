@@ -195,8 +195,8 @@ export default function TimbraPage() {
     </button>
     <div style={{ textAlign: 'center', marginBottom: 16 }}>
       {/* Logo cliccabile: se sei autenticato torna al menu, altrimenti reset al PIN */}
-      <div style={{ marginBottom: 8 }}>
-        <Logo size={48} onClick={() => {
+      <div style={{ marginBottom: 12 }}>
+        <Logo size={88} onClick={() => {
           if (employee && step !== 'menu' && step !== 'pin') goTo('menu')
           else if (!employee && step !== 'pin') reset()
         }}/>
