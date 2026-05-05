@@ -314,9 +314,16 @@ export default function DashboardPage({ settings }) {
   // Contabilità include fatture/IVA/chiusure come sotto-tab.
   // 'scontrini', 'cat', 'rep' restano come keys interne ai sotto-tab di Vendite — le keys di
   // ALL_TABS per la barra principale sono solo quelle qui sotto.
-  const ALL_TABS=[['ov','Panoramica'],['vendite','Vendite'],['mag','Magazzino'],['hr','HR'],
-              ['prod','Produttività'],['conta','Contabilità'],['mkt','Marketing'],
-              ['ce','Conto Economico'],['bud','Budget'],['avvisi','Avvisi'],['imp','Impostazioni']]
+  // Ordine top-level richiesto: Panoramica · Contabilita' · Vendite · Magazzino · HR · Marketing · Impostazioni
+  // CE/Budget/Produttivita' sono routes interne (raggiungibili via sub-tabs Contabilita' / HR)
+  // Avvisi resta nel piano feature flag (puo' apparire o no a seconda del piano)
+  const ALL_TABS=[['ov','Panoramica'],['conta','Contabilità'],['vendite','Vendite'],['mag','Magazzino'],['hr','HR'],
+              ['mkt','Marketing'],['avvisi','Avvisi'],['imp','Impostazioni']]
+  // Tabs interne (non visibili in barra ma raggiungibili da sub-tabs):
+  // 'prod' → da HR sub-tab Produttivita'
+  // 'ce'   → da Contabilita' sub-tab Conto Economico
+  // 'bud'  → da Contabilita' sub-tab Budget
+  const HIDDEN_TABS = ['prod','ce','bud']
   // Sotto-tab Vendite (state separato per persistenza)
   const [vendSubTab, setVendSubTab] = useState(() => localStorage.getItem('vend_subtab') || 'scontrini')
   useEffect(() => { localStorage.setItem('vend_subtab', vendSubTab) }, [vendSubTab])
@@ -330,10 +337,12 @@ export default function DashboardPage({ settings }) {
   // Filtra in base al piano dell'utente (feature flag tab.X)
   const { features: planFeatures } = useUserPlan()
   const TABS = planFeatures ? ALL_TABS.filter(([k]) => planFeatures.tabs.has(k)) : ALL_TABS
-  // Se l'utente sta su un tab non piu' incluso nel suo piano, lo riporta sul primo disponibile
+  // Tab autorizzati: top-level visibili + hidden routes raggiungibili dai sub-tabs
+  const ALLOWED_TAB_KEYS = new Set([...TABS.map(([k]) => k), ...HIDDEN_TABS])
+  // Se l'utente sta su un tab non piu' autorizzato (ne' visibile ne' hidden route), riporta al primo
   useEffect(() => {
     if (!planFeatures) return
-    if (TABS.length > 0 && !TABS.some(([k]) => k === tab)) setTab(TABS[0][0])
+    if (TABS.length > 0 && !ALLOWED_TAB_KEYS.has(tab)) setTab(TABS[0][0])
   }, [planFeatures, tab, TABS])
 
   return <div style={{minHeight:'100vh',background:'var(--bg)',fontFamily:"'DM Sans',system-ui,sans-serif",color:'var(--text)'}}>
