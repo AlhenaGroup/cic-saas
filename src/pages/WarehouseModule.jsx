@@ -34,14 +34,15 @@ export default function WarehouseModule({ sp, sps, from, to }) {
   useEffect(() => { localStorage.setItem('warehouse_tab', tab) }, [tab])
 
   const tabStyle = (active) => ({
-    padding: '8px 16px', fontSize: 12, fontWeight: active ? 700 : 500,
-    color: active ? '#F59E0B' : '#94a3b8', background: active ? 'rgba(245,158,11,.1)' : 'transparent',
-    border: 'none', borderBottom: active ? '2px solid #F59E0B' : '2px solid transparent',
-    cursor: 'pointer', transition: 'all .2s',
+    padding: '8px 14px', fontSize: 12, fontWeight: 500,
+    borderRadius: 'var(--radius-control)', border: '1px solid transparent',
+    background: active ? 'var(--text)' : 'transparent',
+    color: active ? 'var(--surface)' : 'var(--text2)',
+    cursor: 'pointer', transition: 'all .2s', whiteSpace: 'nowrap', letterSpacing: '-0.01em',
   })
 
   return <>
-    <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid #2a3042', marginBottom: 16, overflowX: 'auto' }}>
+    <div style={{ display: 'flex', gap: 4, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
       {TABS.map(t => (
         <button key={t.key} onClick={() => setTab(t.key)} style={tabStyle(tab === t.key)}>
           {t.icon} {t.label}

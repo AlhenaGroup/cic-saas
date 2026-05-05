@@ -1,22 +1,22 @@
 // Barra sotto-tab riusabile (Vendite / Contabilità / Impostazioni / ...)
-// Stile coerente con il resto: bordi piatti, color arancio quando attivo.
+// Stile pill rounded coerente con la barra top-level.
 export default function SubTabsBar({ tabs, value, onChange }) {
   return <div style={{
-    display: 'flex', gap: 2, borderBottom: '1px solid #2a3042',
-    marginBottom: 16, overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+    display: 'flex', gap: 4, marginBottom: 16, overflowX: 'auto',
+    WebkitOverflowScrolling: 'touch', paddingBottom: 4,
   }}>
     {tabs.map(t => {
       const active = value === t.key
       return <button key={t.key} onClick={() => onChange(t.key)} disabled={t.disabled}
         style={{
-          padding: '8px 16px', fontSize: 12, fontWeight: active ? 700 : 500,
-          color: active ? '#F59E0B' : (t.disabled ? '#475569' : '#94a3b8'),
-          background: active ? 'rgba(245,158,11,.1)' : 'transparent',
-          border: 'none',
-          borderBottom: active ? '2px solid #F59E0B' : '2px solid transparent',
+          padding: '8px 14px', fontSize: 12, fontWeight: 500,
+          borderRadius: 'var(--radius-control)', border: '1px solid transparent',
+          background: active ? 'var(--text)' : 'transparent',
+          color: active ? 'var(--surface)' : (t.disabled ? 'var(--text3)' : 'var(--text2)'),
           cursor: t.disabled ? 'not-allowed' : 'pointer',
           opacity: t.disabled ? 0.5 : 1,
           whiteSpace: 'nowrap', flexShrink: 0,
+          transition: 'all .2s', letterSpacing: '-0.01em',
         }}>
         {t.label}
       </button>
