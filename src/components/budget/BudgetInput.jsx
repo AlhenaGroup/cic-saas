@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, Fragment } from 'react'
 import { S, Card, fmt, fmtD } from '../shared/styles.jsx'
 import { fetchBudget, saveBudget, fetchPreviousBudgetRows } from '../../lib/budgetData.js'
 import {
   CATS, CAT_META, DRIVERS, driversForCategory, DEFAULT_DRIVER,
   computeMOL, computeMolPct, computeTotCosti,
 } from '../../lib/budgetModel.js'
+import PersonaleDettaglioEditor from './PersonaleDettaglioEditor.jsx'
 
 // Crea righe default quando non c'è ancora budget per il mese.
 function makeDefaultRows() {
@@ -260,51 +261,74 @@ export default function BudgetInput({ sp, sps, year, month }) {
             const meta = CAT_META[r.category]
             const drivers = driversForCategory(r.category)
             const driver = DRIVERS[r.driver_type]
-            return <tr key={r.category}>
-              <td style={{ ...S.td, fontWeight: 600 }}>
-                <span style={{ color: meta.color }}>●</span> {meta.label}
-              </td>
-              <td style={S.td}>
-                <select
-                  value={r.driver_type}
-                  onChange={e => changeDriver(r.category, e.target.value)}
-                  style={selectS}
-                >
-                  {drivers.map(d => (
-                    <option key={d.key} value={d.key}>{d.label}</option>
-                  ))}
-                </select>
-              </td>
-              <td style={S.td}>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {(driver?.fields || []).map(f => (
-                    <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 10, color: '#64748b' }}>{f.label}</span>
-                      <input
-                        type="number"
-                        step={f.step || 1}
-                        value={r.driver_config?.[f.key] ?? ''}
-                        onChange={e => changeField(r.category, f.key, Number(e.target.value))}
-                        style={inputS}
-                      />
-                      <span style={{ fontSize: 10, color: '#64748b' }}>{f.unit}</span>
+            const isCustomEditor = r.driver_type === 'personale_dettaglio'
+            return <Fragment key={r.category}>
+              <tr>
+                <td style={{ ...S.td, fontWeight: 600 }}>
+                  <span style={{ color: meta.color }}>●</span> {meta.label}
+                </td>
+                <td style={S.td}>
+                  <select
+                    value={r.driver_type}
+                    onChange={e => changeDriver(r.category, e.target.value)}
+                    style={selectS}
+                  >
+                    {drivers.map(d => (
+                      <option key={d.key} value={d.key}>{d.label}</option>
+                    ))}
+                  </select>
+                </td>
+                <td style={S.td}>
+                  {isCustomEditor ? (
+                    <span style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>
+                      Vedi tabella sotto ↓
+                    </span>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {(driver?.fields || []).map(f => (
+                        <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 10, color: '#64748b' }}>{f.label}</span>
+                          <input
+                            type="number"
+                            step={f.step || 1}
+                            value={r.driver_config?.[f.key] ?? ''}
+                            onChange={e => changeField(r.category, f.key, Number(e.target.value))}
+                            style={inputS}
+                          />
+                          <span style={{ fontSize: 10, color: '#64748b' }}>{f.unit}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </td>
-              <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: meta.color }}>
-                {fmtD(r.amount)}
-              </td>
-              <td style={S.td}>
-                <input
-                  type="text"
-                  value={r.notes || ''}
-                  placeholder="—"
-                  onChange={e => changeNotes(r.category, e.target.value)}
-                  style={{ ...S.input, fontSize: 12, padding: '5px 8px', width: '100%' }}
-                />
-              </td>
-            </tr>
+                  )}
+                </td>
+                <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: meta.color }}>
+                  {fmtD(r.amount)}
+                </td>
+                <td style={S.td}>
+                  <input
+                    type="text"
+                    value={r.notes || ''}
+                    placeholder="—"
+                    onChange={e => changeNotes(r.category, e.target.value)}
+                    style={{ ...S.input, fontSize: 12, padding: '5px 8px', width: '100%' }}
+                  />
+                </td>
+              </tr>
+              {isCustomEditor && (
+                <tr>
+                  <td colSpan={5} style={{ ...S.td, padding: 0, background: 'transparent', borderBottom: 'none' }}>
+                    <PersonaleDettaglioEditor
+                      value={r.driver_config}
+                      onChange={(newCfg) => {
+                        setRows(prev => recomputeAmounts(prev.map(row => row.category === r.category ? { ...row, driver_config: newCfg } : row)))
+                        setDirty(true)
+                      }}
+                      locale={sp === 'all' ? null : (sps?.find(s => String(s.id) === sp)?.description || null)}
+                    />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           })}
         </tbody>
         <tfoot>

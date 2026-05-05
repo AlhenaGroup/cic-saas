@@ -46,6 +46,48 @@ export const DRIVERS = {
     ],
     compute: (cfg) => (Number(cfg.headcount) || 0) * (Number(cfg.costoMedio) || 0),
   },
+  personale_dettaglio: {
+    applicableTo: ['personale'],
+    label: 'Dettaglio per dipendente',
+    fields: [
+      // Editor custom: il driver_config contiene { dipendenti: [], altre_voci: [] }
+      // I "fields" qui sono solo placeholder — la UI usa <PersonaleDettaglioEditor>.
+    ],
+    compute: (cfg) => {
+      const dipendenti = Array.isArray(cfg?.dipendenti) ? cfg.dipendenti : []
+      const altre = Array.isArray(cfg?.altre_voci) ? cfg.altre_voci : []
+      let total = 0
+      for (const d of dipendenti) {
+        if (d?.attivo === false) continue
+        const costoLavoro = Number(d?.costo_lavoro) || 0
+        const bpGiorni = Number(d?.buono_pasto_giorni) || 0
+        const bpValore = Number(d?.buono_pasto_valore) || 0
+        const welfare = Number(d?.welfare) || 0
+        const splitPct = d?.split_pct == null ? 100 : Number(d.split_pct)
+        const baseRiga = costoLavoro + (bpGiorni * bpValore) + welfare
+        total += baseRiga * (splitPct / 100)
+      }
+      for (const v of altre) {
+        total += Number(v?.amount) || 0
+      }
+      return total
+    },
+    // Helper per breakdown nel CE / overview
+    breakdown: (cfg) => {
+      const dipendenti = Array.isArray(cfg?.dipendenti) ? cfg.dipendenti : []
+      const altre = Array.isArray(cfg?.altre_voci) ? cfg.altre_voci : []
+      const out = { costo_lavoro: 0, buoni_pasto: 0, welfare: 0, altre: 0 }
+      for (const d of dipendenti) {
+        if (d?.attivo === false) continue
+        const split = (d?.split_pct == null ? 100 : Number(d.split_pct)) / 100
+        out.costo_lavoro += (Number(d?.costo_lavoro) || 0) * split
+        out.buoni_pasto += ((Number(d?.buono_pasto_giorni) || 0) * (Number(d?.buono_pasto_valore) || 0)) * split
+        out.welfare += (Number(d?.welfare) || 0) * split
+      }
+      for (const v of altre) out.altre += Number(v?.amount) || 0
+      return out
+    },
+  },
   fissa: {
     applicableTo: ['food', 'beverage', 'materiali', 'personale', 'struttura'],
     label: 'Importo fisso',
