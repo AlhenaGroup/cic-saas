@@ -20,18 +20,9 @@ const HR_SUB_TABS = [
   { key: 'checklist',  label: '⚙️ Checklist' },
 ]
 
-export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps, onGoToProduttivita }) {
-  const [hrTab, setHrTab] = useState(() => localStorage.getItem('hr_subtab') || 'dip')
+export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps, renderProduttivita }) {
+  const [hrTab, setHrTab] = useState(() => localStorage.getItem('hr_subtab') || 'prod')
   useEffect(() => { localStorage.setItem('hr_subtab', hrTab) }, [hrTab])
-  // Quando l'utente sceglie il sub-tab Produttivita', delega al parent (DashboardPage)
-  // di switchare al top-level tab 'prod'. La logica di Produttivita' resta in DashboardPage.
-  // Reset hrTab a 'dip' subito dopo, cosi quando rientra in HR non ridiretta.
-  useEffect(() => {
-    if (hrTab === 'prod' && onGoToProduttivita) {
-      onGoToProduttivita()
-      setHrTab('dip')
-    }
-  }, [hrTab, onGoToProduttivita])
   const [employees, setEmployees]       = useState([])
   const [empDocs, setEmpDocs]           = useState([])
   const [showEmpForm, setShowEmpForm]   = useState(false)
@@ -126,7 +117,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
   return <>
     <SubTabsBar tabs={HR_SUB_TABS} value={hrTab} onChange={setHrTab}/>
 
-    {hrTab === 'prod' && <div style={{padding:'2rem',textAlign:'center',color:'var(--text2)',fontSize:13}}>Caricamento Produttività…</div>}
+    {hrTab === 'prod' && (typeof renderProduttivita === 'function' ? renderProduttivita() : <div style={{padding:'2rem',textAlign:'center',color:'var(--text2)',fontSize:13}}>Produttività non disponibile.</div>)}
 
     {hrTab === 'cal' && <HRCalendar employees={employees}/>}
 

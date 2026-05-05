@@ -310,7 +310,7 @@ export default function DashboardPage({ settings }) {
   // Quando l'utente sceglie 'ce' o 'bud' dal sub-tab di Contabilita', tab top-level
   // diventa 'ce'/'bud' ma la barra principale deve mostrare "Contabilita" attivo.
   // Stesso per 'prod' (Produttivita') che e' sotto-tab di HR.
-  const HIDDEN_TO_PARENT = { ce: 'conta', bud: 'conta', prod: 'hr' }
+  const HIDDEN_TO_PARENT = { ce: 'conta', bud: 'conta' }
   const effectiveTopTab = HIDDEN_TO_PARENT[tab] || tab
   const tS = (t) => ({padding:'10px 16px',borderRadius:'var(--radius-control)',fontSize:13,fontWeight:500,cursor:'pointer',border:'1px solid '+(effectiveTopTab===t?'transparent':'transparent'),
     background:effectiveTopTab===t?'var(--text)':'transparent',color:effectiveTopTab===t?'var(--surface)':'var(--text2)',transition:'all .2s',position:'relative',letterSpacing:'-0.01em'})
@@ -326,10 +326,10 @@ export default function DashboardPage({ settings }) {
   const ALL_TABS=[['ov','Panoramica'],['conta','Contabilità'],['vendite','Vendite'],['mag','Magazzino'],['hr','HR'],
               ['mkt','Marketing'],['avvisi','Avvisi'],['imp','Impostazioni']]
   // Tabs interne (non visibili in barra ma raggiungibili da sub-tabs):
-  // 'prod' → da HR sub-tab Produttivita'
   // 'ce'   → da Contabilita' sub-tab Conto Economico
   // 'bud'  → da Contabilita' sub-tab Budget
-  const HIDDEN_TABS = ['prod','ce','bud']
+  // (Produttivita' ora vive dentro HRModule come sub-tab, non e' piu' tab top-level)
+  const HIDDEN_TABS = ['ce','bud']
   // Sotto-tab Vendite (state separato per persistenza)
   const [vendSubTab, setVendSubTab] = useState(() => localStorage.getItem('vend_subtab') || 'scontrini')
   useEffect(() => { localStorage.setItem('vend_subtab', vendSubTab) }, [vendSubTab])
@@ -352,6 +352,123 @@ export default function DashboardPage({ settings }) {
     if (!planFeatures) return
     if (TABS.length > 0 && !ALLOWED_TAB_KEYS.has(tab)) setTab(TABS[0][0])
   }, [planFeatures, tab, TABS])
+
+  // Render del blocco Produttivita' come funzione che ritorna JSX. Viene passato a
+  // HRModule come prop renderProduttivita; HRModule lo invoca quando l'utente
+  // sceglie il sub-tab "Produttivita'". Closures su tutti i state di DashboardPage.
+  const renderProduttivita = () => {
+    const prodColor = v => v < sogliaRed ? '#EF4444' : v < sogliaYel ? '#F59E0B' : '#10B981'
+    const prodLabel = v => v < sogliaRed ? 'Sotto soglia' : v < sogliaYel ? 'Attenzione' : 'OK'
+    const hourKeys = new Set(ore.map(o => o.ora))
+    Object.keys(workedHoursBySlot).forEach(k => hourKeys.add(k))
+    Object.keys(staffSchedule).forEach(k => hourKeys.add(k))
+    Object.keys(personsBySlot).forEach(k => hourKeys.add(k))
+    Object.keys(copertiBySlot).forEach(k => hourKeys.add(k))
+    Object.keys(ricaviBySlot).forEach(k => hourKeys.add(k))
+    const oreMap = Object.fromEntries(ore.map(o => [o.ora, o]))
+    const oreWithProd = [...hourKeys].sort().map(ora => {
+      const fallback = oreMap[ora] || { ora, ricavi: 0, scontrini: 0 }
+      const ricavi = hasReceiptDetails ? (ricaviBySlot[ora] || 0) : (fallback.ricavi || 0)
+      const scontrini = hasReceiptDetails ? (scontriniBySlot[ora] || 0) : (fallback.scontrini || 0)
+      const oreReali = workedHoursBySlot[ora] || 0
+      const orePianif = staffSchedule[ora] || 0
+      const persone = personsBySlot[ora] || 0
+      const coperti = copertiBySlot[ora] || 0
+      const oreLavorate = useRealHours ? (oreReali > 0 ? oreReali : 0) : orePianif
+      const prodOraria = oreLavorate > 0 ? ricavi / oreLavorate : 0
+      const copPerDip = persone > 0 ? coperti / persone : 0
+      return { ora, ricavi, scontrini, staff: oreLavorate, oreLavorate, oreReali, orePianif, persone, coperti, copPerDip, prodOraria }
+    })
+    const totOreReali = Object.values(workedHoursBySlot).reduce((s, v) => s + (Number(v) || 0), 0)
+    const totOreDay = oreWithProd.reduce((s,o) => s + o.oreLavorate, 0)
+    const totIncassoOre = oreWithProd.reduce((s,o) => s + o.ricavi, 0)
+    const nDays = trend.length || 1
+    const mediaGiorn = totOreDay > 0 ? (totIncassoOre / nDays) / totOreDay : 0
+
+    return <>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:'1.25rem'}}>
+        <KPI label="Chiusura cassa" icon="🔒" value={data?.fiscalCloseTime || '—'} sub={'Z-'+(data?.zNumber||'—')} accent='#EF4444'/>
+        <KPI label="Ultima cucina/pizzeria" icon="🍕" value={data?.lastKitchenTime || '—'} sub="comanda" accent='#F59E0B'/>
+        <KPI label="Ultima bar" icon="🍺" value={data?.lastBarTime || '—'} sub="comanda" accent='#3B82F6'/>
+        <KPI label="Apertura" icon="🟢" value={data?.firstReceiptTime || '—'} sub="primo scontrino" accent='#10B981'/>
+      </div>
+      <div style={{...S.card,marginBottom:'1.25rem',display:'flex',alignItems:'center',gap:20,flexWrap:'wrap'}}>
+        <div style={{display:'flex',gap:0,border:'1px solid var(--border)',borderRadius:6,overflow:'hidden'}}>
+          <button onClick={()=>setUseRealHours(true)}
+            title={`Ore reali dalle timbrature (${(Math.floor(totOreReali*100)/100).toFixed(2)}h tot nel periodo)`}
+            style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
+              background:useRealHours?'var(--green)':'transparent',color:useRealHours?'var(--surface)':'var(--text2)'}}>
+            📍 Reali ({(Math.floor(totOreReali*100)/100).toFixed(2)}h)
+          </button>
+          <button onClick={()=>setUseRealHours(false)}
+            title="Ore pianificate dal calendario staff (tab Personale)"
+            style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
+              background:!useRealHours?'#F59E0B':'transparent',color:!useRealHours?'var(--surface)':'var(--text2)'}}>
+            🗓 Pianificate
+          </button>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:12,color:'var(--text2)'}}>Target €/h:</span>
+          <input type="number" value={prodTarget} onChange={e=>setProdTarget(Number(e.target.value))} style={{...iS,width:70,textAlign:'center'}}/>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:12,color:'#EF4444'}}>Rosso &lt;</span>
+          <input type="number" value={sogliaRed} onChange={e=>setSogliaRed(Number(e.target.value))} style={{...iS,width:60,textAlign:'center'}}/>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:12,color:'#F59E0B'}}>Giallo &lt;</span>
+          <input type="number" value={sogliaYel} onChange={e=>setSogliaYel(Number(e.target.value))} style={{...iS,width:60,textAlign:'center'}}/>
+        </div>
+        <span style={{fontSize:12,color:'#10B981'}}>Verde ≥ {sogliaYel}</span>
+        <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:10}}>
+          <span style={{fontSize:12,color:'var(--text2)'}}>Media giornaliera:</span>
+          <span style={{fontSize:18,fontWeight:700,color:prodColor(mediaGiorn)}}>{mediaGiorn > 0 ? mediaGiorn.toFixed(1)+' €/h' : '—'}</span>
+          {mediaGiorn > 0 && <span style={{fontSize:11,fontWeight:600,color:prodColor(mediaGiorn)}}>{prodLabel(mediaGiorn)}</span>}
+        </div>
+      </div>
+      <Card title="Produttività oraria" badge={isDemo?'Demo':null}>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={oreWithProd.filter(o=>o.ricavi>0)} margin={{top:5,right:20,left:0,bottom:5}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
+            <XAxis dataKey="ora" tick={{fontSize:10,fill:'var(--text3)'}} tickLine={false} axisLine={false}/>
+            <YAxis tick={{fontSize:10,fill:'var(--text3)'}} tickFormatter={v=>v+'€'} tickLine={false} axisLine={false} width={42}/>
+            <Tooltip formatter={(v,name)=>name==='prodOraria'?v.toFixed(1)+' €/h':fmt(v)} contentStyle={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,fontSize:12,color:'var(--text)'}} labelStyle={{color:'var(--text2)'}} itemStyle={{color:'var(--text)'}}/>
+            <Bar dataKey="ricavi" name="Ricavi" radius={[3,3,0,0]}>
+              {oreWithProd.filter(o=>o.ricavi>0).map((o,i)=><Cell key={i} fill={o.staff>0?prodColor(o.prodOraria):'#F59E0B'}/>)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+      <div style={{marginTop:12}}>
+        <Card title="Dettaglio per fascia oraria" badge={useRealHours ? '📍 ore da timbratura' : '🗓 ore pianificate'}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
+              {['Ora','Ricavi','🍽 Coperti','Cop./dip.','Scontrini','👥 Persone','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {oreWithProd.filter(o=>o.ricavi>0||o.oreReali>0||o.persone>0||o.coperti>0).map((o,i)=>{
+                const pc = prodColor(o.prodOraria)
+                const mismatch = o.oreReali > 0 && o.orePianif > 0 && Math.abs(o.oreReali - o.orePianif) > 0.5
+                return <tr key={i}>
+                  <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{o.ora}</td>
+                  <td style={{...S.td,fontWeight:600}}>{fmt(o.ricavi)}</td>
+                  <td style={{...S.td,color:o.coperti>0?'#F97316':'var(--text3)',fontWeight:o.coperti>0?700:400}}>{o.coperti>0?o.coperti:'—'}</td>
+                  <td style={{...S.td,color:o.copPerDip>0?'#A855F7':'var(--text3)',fontWeight:o.copPerDip>0?700:400}}>{o.copPerDip>0?o.copPerDip.toFixed(1):'—'}</td>
+                  <td style={{...S.td,color:'var(--text2)'}}>{o.scontrini}</td>
+                  <td style={{...S.td,color:o.persone>0?'#3B82F6':'var(--text3)',fontWeight:o.persone>0?700:400}}>{o.persone>0?o.persone:'—'}</td>
+                  <td style={{...S.td,color:o.oreReali>0?'#10B981':'var(--text3)',fontWeight:o.oreReali>0?600:400}}>{o.oreReali>0?o.oreReali.toFixed(2)+'h':'—'}</td>
+                  <td style={{...S.td,color:o.orePianif>0?'#F59E0B':'var(--text3)'}}>{o.orePianif>0?o.orePianif+'h':'—'}{mismatch&&<span title="Differenza reale/pianificato" style={{marginLeft:4,color:'#EF4444'}}>⚠</span>}</td>
+                  <td style={{...S.td,fontWeight:600}}>{o.oreLavorate>0?o.oreLavorate.toFixed(2)+'h':'—'}</td>
+                  <td style={{...S.td,fontWeight:700,color:o.oreLavorate>0?pc:'var(--text3)'}}>{o.oreLavorate>0?o.prodOraria.toFixed(1)+' €/h':'—'}</td>
+                  <td style={S.td}>{o.oreLavorate>0?<span style={{...S.badge(pc,pc+'22'),fontSize:10}}>{prodLabel(o.prodOraria)}</span>:'—'}</td>
+                </tr>
+              })}
+            </tbody>
+          </table>
+        </Card>
+      </div>
+    </>
+  }
 
   return <div style={{minHeight:'100vh',background:'var(--bg)',fontFamily:"'DM Sans',system-ui,sans-serif",color:'var(--text)'}}>
     <style>{`
@@ -454,16 +571,34 @@ export default function DashboardPage({ settings }) {
     <div className="m-compact-x" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'10px 1.75rem',display:'flex',gap:6,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
       {TABS.map(([t,l])=>(
         <button key={t} onClick={()=>{
-          // Click su top-level Contabilita': apri il primo sub-tab "Conto Economico"
-          // se l'utente arriva da fuori (non e' gia' dentro Contabilita' o suoi figli).
+          // Click top-level: se arrivo da un altro top-level, apro il primo sub-tab
+          // del modulo selezionato. Se sono gia' dentro lo stesso modulo (incluso
+          // hidden child), NON resetto il sub-tab.
+          const inConta = tab === 'conta' || tab === 'ce' || tab === 'bud'
+          // Contabilita': primo sub-tab = Conto Economico (hidden top-tab 'ce')
           if (t === 'conta') {
-            if (tab !== 'conta' && tab !== 'ce' && tab !== 'bud') { setTab('ce'); return }
-            setTab('conta'); return
+            if (!inConta) { setTab('ce'); return }
+            return // gia' dentro, non cambiare nulla
           }
-          // Click su top-level HR: vai al modulo HR. Se arrivo dal sub-tab Produttivita'
-          // hidden (tab='prod'), torno a tab='hr' cosi' vedo i sub-tabs HR.
+          // HR: primo sub-tab = Produttivita' (gestito da HRModule via hr_subtab='prod')
           if (t === 'hr') {
-            setTab('hr'); return
+            if (tab !== 'hr') { localStorage.setItem('hr_subtab', 'prod'); setTab('hr'); return }
+            return
+          }
+          // Vendite: primo sub-tab = scontrini
+          if (t === 'vendite') {
+            if (tab !== 'vendite') { setVendSubTab('scontrini'); setTab('vendite'); return }
+            return
+          }
+          // Magazzino: primo sub-tab = cruscotto (gestito da WarehouseModule via localStorage)
+          if (t === 'mag') {
+            if (tab !== 'mag') { localStorage.setItem('warehouse_tab', 'cruscotto'); setTab('mag'); return }
+            return
+          }
+          // Marketing: primo sub-tab = prenotaz (gestito da MarketingModule via localStorage)
+          if (t === 'mkt') {
+            if (tab !== 'mkt') { localStorage.setItem('mkt_tab', 'prenotaz'); setTab('mkt'); return }
+            return
           }
           setTab(t)
         }} style={{...tS(t),whiteSpace:'nowrap',flexShrink:0}}>
@@ -985,8 +1120,8 @@ export default function DashboardPage({ settings }) {
       {/* ── MAGAZZINO ── */}
       {tab==='mag'&&<WarehouseModule sp={sp} sps={sps} from={from} to={to}/>}
 
-      {/* ── PRODUTTIVITÀ ORARIA ── */}
-      {tab==='prod'&&(()=>{
+      {/* ── PRODUTTIVITÀ ORARIA — vive dentro HRModule sub-tab Produttivita' via renderProduttivita prop. Sotto resta del codice morto da ripulire (lasciato dietro `false &&` per evitare diff massicci, sara' pulito al prossimo refactor). ── */}
+      {false&&(()=>{
         const prodColor = v => v < sogliaRed ? '#EF4444' : v < sogliaYel ? '#F59E0B' : '#10B981'
         const prodLabel = v => v < sogliaRed ? 'Sotto soglia' : v < sogliaYel ? 'Attenzione' : 'OK'
         // Ore lavorate per fascia: reali dalle timbrature se useRealHours, altrimenti da staffSchedule pianificato
@@ -1163,7 +1298,7 @@ export default function DashboardPage({ settings }) {
       {tab==='bud'&&<BudgetModule sp={sp} sps={sps} from={from} to={to}/>}
 
       {/* ── PERSONALE ── */}
-      {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps} onGoToProduttivita={()=>setTab('prod')}/>}
+      {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps} renderProduttivita={renderProduttivita}/>}
 
       {/* ── MARKETING / CRM ── */}
       {tab==='mkt'&&<MarketingModule sp={sp} sps={sps}/>}
