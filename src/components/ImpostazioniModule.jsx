@@ -107,6 +107,26 @@ function GeneraleTab({ settings, sps }) {
 
 // ─── Integrazioni ───────────────────────────────────────────────
 function IntegrazioniTab({ settings }) {
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState(null)
+  // Default: ultimi 7 giorni
+  const today = new Date().toISOString().split('T')[0]
+  const weekAgo = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split('T')[0] })()
+  const [syncFrom, setSyncFrom] = useState(weekAgo)
+  const [syncTo, setSyncTo] = useState(today)
+
+  const doResync = async () => {
+    if (!settings?.cic_api_key) { setSyncMsg({ ok: false, text: 'API key CiC mancante' }); return }
+    setSyncing(true); setSyncMsg(null)
+    try {
+      const r = await fetch(`/api/sync-cron?apiKey=${encodeURIComponent(settings.cic_api_key)}&from=${syncFrom}&to=${syncTo}`)
+      if (!r.ok) throw new Error('Sync fallito (status ' + r.status + ')')
+      setSyncMsg({ ok: true, text: 'Re-Sync completato per il periodo ' + syncFrom + ' → ' + syncTo })
+    } catch (e) {
+      setSyncMsg({ ok: false, text: 'Errore: ' + e.message })
+    } finally { setSyncing(false) }
+  }
+
   const integrazioni = [
     {
       id: 'cic',
@@ -146,7 +166,40 @@ function IntegrazioniTab({ settings }) {
     disconnected: { l: 'Disconnesso',  c: '#EF4444', bg: 'rgba(239,68,68,.12)' },
   }
 
-  return <Card title="Integrazioni esterne" badge={`${integrazioni.filter(i => i.stato === 'connected').length}/${integrazioni.length} connesse`}>
+  return <>
+  {/* Card Re-Sync CiC */}
+  <Card title="Re-Sync dati CiC" badge={settings?.cic_api_key ? 'API key OK' : 'API key mancante'}>
+    <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12, lineHeight: 1.5 }}>
+      Forza la risincronizzazione dei dati POS Cassanova per un periodo specifico.
+      Utile dopo importazione manuale di scontrini o se il sync notturno non ha catturato tutto.
+    </div>
+    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+      <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Periodo:</span>
+      <input type="date" value={syncFrom} onChange={e => setSyncFrom(e.target.value)} style={iS}/>
+      <span style={{ color: '#475569' }}>—</span>
+      <input type="date" value={syncTo} onChange={e => setSyncTo(e.target.value)} style={iS}/>
+      <button onClick={doResync} disabled={syncing || !settings?.cic_api_key}
+        style={{
+          ...iS, padding: '6px 16px', fontWeight: 600, border: 'none', cursor: syncing ? 'wait' : 'pointer',
+          background: syncing ? '#1a1f2e' : '#10B981',
+          color: syncing ? '#94a3b8' : '#0f1420',
+        }}>
+        {syncing ? 'Sync in corso…' : 'Re-Sync'}
+      </button>
+    </div>
+    {syncMsg && (
+      <div style={{
+        padding: '8px 12px', borderRadius: 6, fontSize: 12,
+        background: syncMsg.ok ? 'rgba(16,185,129,.1)' : 'rgba(239,68,68,.1)',
+        border: '1px solid ' + (syncMsg.ok ? '#10B981' : '#EF4444'),
+        color: syncMsg.ok ? '#10B981' : '#EF4444',
+      }}>{syncMsg.text}</div>
+    )}
+  </Card>
+
+  <div style={{ marginTop: 12 }}/>
+
+  <Card title="Integrazioni esterne" badge={`${integrazioni.filter(i => i.stato === 'connected').length}/${integrazioni.length} connesse`}>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
       {integrazioni.map(i => {
         const s = STATO[i.stato]
@@ -163,6 +216,7 @@ function IntegrazioniTab({ settings }) {
       })}
     </div>
   </Card>
+  </>
 }
 
 // ─── Notifiche ──────────────────────────────────────────────────
