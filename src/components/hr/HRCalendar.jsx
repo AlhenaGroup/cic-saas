@@ -125,7 +125,7 @@ export default function HRCalendar({ employees }) {
       </div>}
 
       {/* Griglia calendario */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
+      <div className="hr-calendar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
         {DAYS_HEADER.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: '#475569', fontWeight: 600, padding: '4px 0', textTransform: 'uppercase' }}>{d}</div>)}
         {days.map((d, i) => {
           const ds = d.toISOString().split('T')[0]

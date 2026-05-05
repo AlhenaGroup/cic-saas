@@ -444,3 +444,76 @@ tr:hover td.ts-cell { background: transparent !important; }
   table { max-width: 100%; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table thead, table tbody { display: table; width: max-content; min-width: 100%; }
 }
+
+/* ────────────────────────────────────────────────────────
+   FIX MOBILE iPhone (<= 640px) — applicate sopra le base sopra
+   - Header dashboard piu' compatto
+   - Tab top-level e sub-tab con scroll-snap visibile
+   - Calendario HR forza grid 7 colonne
+   - Selettore mese CE 4x3
+   ──────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Header CIC Analytics: padding ridotto, gap stretto, font 13 */
+  .cic-header { padding: 8px 12px !important; min-height: 0 !important; gap: 8px !important; }
+  .cic-header .cic-header-left { gap: 8px !important; }
+  .cic-header .cic-header-left > span { font-size: 13px !important; }
+  .cic-header .cic-header-left > div:first-child {
+    width: 26px !important; height: 26px !important; font-size: 12px !important; border-radius: 8px !important;
+  }
+  .cic-header select, .cic-header input, .cic-header button {
+    font-size: 12px !important; padding: 5px 8px !important; min-height: 30px !important;
+  }
+  .cic-header .cic-header-right { gap: 6px !important; }
+
+  /* Tab nav top-level: scroll-snap orizzontale, indicatore ombra a destra per overflow */
+  .cic-topbar {
+    overflow-x: auto !important; scroll-snap-type: x proximity;
+    padding: 6px 12px !important; gap: 4px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    background-image: linear-gradient(to right, transparent calc(100% - 24px), rgba(0,0,0,0.06) 100%);
+    background-attachment: local;
+  }
+  .cic-topbar::-webkit-scrollbar { display: none; }
+  .cic-topbar > button {
+    scroll-snap-align: start; flex-shrink: 0;
+    padding: 8px 14px !important; font-size: 13px !important;
+    min-width: max-content !important;
+  }
+
+  /* Sub-tab bar (.SubTabsBar wrapper) : stesso scroll-snap. La nostra SubTabsBar
+     usa display:flex; gap:4 — la targettiamo via padding-left riconoscibile. */
+  [class*="m-compact"] [style*="overflowX:'auto'"],
+  [class*="m-compact"] [style*="overflow-x:auto"],
+  [class*="m-compact"] [style*="overflowX: 'auto'"],
+  [class*="m-compact"] [style*="overflow-x: auto"] {
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Calendario HR: forza grid 7 colonne (la regola .m-compact-x sopra collassa
+     tutte le grid a 1 colonna; eccezione per HRCalendar che ha la classe). */
+  .hr-calendar-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 2px !important;
+  }
+  .hr-calendar-grid > * {
+    min-width: 0 !important;
+    padding: 2px !important;
+    font-size: 10px !important;
+  }
+
+  /* Selettore mese CE: 4 colonne x 3 righe invece che 12 verticali */
+  .ce-month-picker {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px !important;
+    flex: 1 0 100% !important;
+  }
+  .ce-month-picker > button {
+    padding: 8px 4px !important;
+    font-size: 11px !important;
+    min-height: 32px !important;
+  }
+}

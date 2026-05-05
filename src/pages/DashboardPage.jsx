@@ -470,8 +470,8 @@ export default function DashboardPage({ settings }) {
     `}</style>
 
     {/* Header */}
-    <div className="m-compact-x m-wrap" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'12px 1.75rem',minHeight:60,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',position:'sticky',top:0,zIndex:100}}>
-      <div className="m-wrap" style={{display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
+    <div className="cic-header m-compact-x m-wrap" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'12px 1.75rem',minHeight:60,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap',position:'sticky',top:0,zIndex:100}}>
+      <div className="cic-header-left m-wrap" style={{display:'flex',alignItems:'center',gap:14,flexWrap:'wrap'}}>
         <div style={{width:32,height:32,background:'var(--text)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'var(--surface)',fontSize:14,letterSpacing:'-0.02em'}}>C</div>
         <span style={{fontSize:15,fontWeight:600,letterSpacing:'-0.01em',color:'var(--text)'}}>CIC Analytics</span>
         {sps.length>0&&<select value={sp} onChange={e=>setSp(e.target.value)} style={{...iS,paddingLeft:10}}>
@@ -479,7 +479,7 @@ export default function DashboardPage({ settings }) {
           {sps.map(s=><option key={s.id} value={s.id}>{s.description||s.name}</option>)}
         </select>}
       </div>
-      <div className="m-wrap" style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+      <div className="cic-header-right m-wrap" style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
         {isLive&&<span style={S.badge('#3B82F6','rgba(59,130,246,.12)')} title="Dati live da CiC, non ancora salvati su DB">LIVE</span>}
         {isEmpty&&<span style={S.badge('#94a3b8','rgba(148,163,184,.12)')} title="Nessun dato in questo periodo">VUOTO</span>}
         {(() => {
@@ -555,7 +555,7 @@ export default function DashboardPage({ settings }) {
     </div>
 
     {/* Tabs nav */}
-    <div className="m-compact-x" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'10px 1.75rem',display:'flex',gap:6,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+    <div className="cic-topbar m-compact-x" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'10px 1.75rem',display:'flex',gap:6,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
       {TABS.map(([t,l])=>(
         <button key={t} onClick={()=>{
           // Click top-level: i sub-tab dei moduli (HRModule, WarehouseModule,
