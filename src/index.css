@@ -166,8 +166,13 @@
   box-shadow: var(--shadow);
 }
 
-/* Primary buttons (amber #F59E0B → rgb(245, 158, 11)) → dark contrast pill */
-button[style*="rgb(245, 158, 11)"][style*="background"] {
+/* Primary buttons (amber #F59E0B → rgb(245, 158, 11)) → dark contrast pill.
+   Selettore stretto: solo se 'background: rgb(245, 158, 11)' come property,
+   NON se #F59E0B compare in border o color. */
+button[style*="background: rgb(245, 158, 11)"],
+button[style*="background:rgb(245, 158, 11)"],
+button[style*="background-color: rgb(245, 158, 11)"],
+button[style*="background-color:rgb(245, 158, 11)"] {
   background: var(--text) !important;
   color: var(--surface) !important;
 }
