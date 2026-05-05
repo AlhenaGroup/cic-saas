@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 const PRIORITY_COLORS = {
-  bassa:   { bg: 'rgba(148,163,184,.18)', fg: '#64748B', border: '#94a3b8' },
+  bassa:   { bg: 'rgba(148,163,184,.18)', fg: 'var(--text3)', border: 'var(--text2)' },
   media:   { bg: 'rgba(41,82,204,.18)',   fg: '#2952CC', border: '#2952CC' },
   alta:    { bg: 'rgba(245,158,11,.18)',  fg: '#B45309', border: '#F59E0B' },
   urgente: { bg: 'rgba(239,68,68,.18)',   fg: '#DC2626', border: '#EF4444' },
@@ -58,9 +58,9 @@ export default function TaskCalendarPanel({ pin, employee, permissions, onBack }
   }
 
   return <div style={{ maxWidth: 480, width: '100%', padding: '0 12px' }}>
-    <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'center' }}>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>Calendario task</div>
-      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{employee.nome}</div>
+    <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'center' }}>
+      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Calendario task</div>
+      <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>{employee.nome}</div>
     </div>
 
     {(canCreate || canDispatch) && <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
@@ -70,9 +70,9 @@ export default function TaskCalendarPanel({ pin, employee, permissions, onBack }
 
     {canCreate && <button onClick={() => setView('create')} style={btnPrimary}>+ Nuova task</button>}
 
-    {loading && <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8' }}>Caricamento…</div>}
+    {loading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text2)' }}>Caricamento…</div>}
 
-    {!loading && dates.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+    {!loading && dates.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text2)', fontSize: 13 }}>
       Nessuna task nei prossimi 30 giorni.
     </div>}
 
@@ -84,7 +84,7 @@ export default function TaskCalendarPanel({ pin, employee, permissions, onBack }
       const dayLabel = isToday ? 'OGGI' : isTomorrow ? 'DOMANI' :
         dt.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'short' }).toUpperCase()
       return <div key={d} style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 11, color: isToday ? '#F59E0B' : '#94a3b8', fontWeight: 700, letterSpacing: '.05em', marginBottom: 8, padding: '0 4px' }}>
+        <div style={{ fontSize: 11, color: isToday ? '#F59E0B' : 'var(--text2)', fontWeight: 700, letterSpacing: '.05em', marginBottom: 8, padding: '0 4px' }}>
           {dayLabel}
         </div>
         {grouped[d].map(t => <TaskListItem key={t.id} task={t} onClick={() => { setSelected(t); setView('detail') }}/>)}
@@ -101,8 +101,8 @@ function TaskListItem({ task, onClick }) {
   const icon = task.type === 'production' ? '' : ''
   return <button onClick={onClick} style={{
     display: 'block', width: '100%', textAlign: 'left',
-    background: '#1a1f2e', border: '1px solid #2a3042', borderLeft: '4px solid ' + c.border,
-    borderRadius: 10, padding: '12px 14px', marginBottom: 8, cursor: 'pointer', color: '#e2e8f0',
+    background: 'var(--surface)', border: '1px solid var(--border)', borderLeft: '4px solid ' + c.border,
+    borderRadius: 10, padding: '12px 14px', marginBottom: 8, cursor: 'pointer', color: 'var(--text)',
     opacity: isDone ? 0.55 : 1,
   }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -110,7 +110,7 @@ function TaskListItem({ task, onClick }) {
         <div style={{ fontSize: 14, fontWeight: 600, textDecoration: isDone ? 'line-through' : 'none' }}>
           {icon} {task.title}
         </div>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>
           {task.due_time?.substring(0, 5) || '—'}
           {task.duration_min ? ` · ${task.duration_min}'` : ''}
           {' · '}
@@ -122,7 +122,7 @@ function TaskListItem({ task, onClick }) {
         {task.priority}
       </span>
     </div>
-    <div style={{ marginTop: 6, fontSize: 11, color: isDone ? '#10B981' : '#94a3b8' }}>{STATUS_LABEL[task.status]}</div>
+    <div style={{ marginTop: 6, fontSize: 11, color: isDone ? '#10B981' : 'var(--text2)' }}>{STATUS_LABEL[task.status]}</div>
   </button>
 }
 
@@ -171,19 +171,19 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
     onBack()
   }
 
-  if (loading) return <div style={{ padding: 30, textAlign: 'center', color: '#94a3b8' }}>Caricamento…</div>
+  if (loading) return <div style={{ padding: 30, textAlign: 'center', color: 'var(--text2)' }}>Caricamento…</div>
 
   const c = PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.media
   const isDone = t.status === 'fatta'
   const isDelegata = t.status === 'delegata'
 
   return <div style={{ maxWidth: 480, width: '100%', padding: '0 12px' }}>
-    <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 16, marginBottom: 12, borderLeft: '4px solid ' + c.border }}>
+    <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 16, marginBottom: 12, borderLeft: '4px solid ' + c.border }}>
       <div style={{ fontSize: 11, color: c.fg, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>{t.priority}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 6 }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
         {t.type === 'production' ? '' : ''} {t.title}
       </div>
-      <div style={{ fontSize: 12, color: '#94a3b8' }}>
+      <div style={{ fontSize: 12, color: 'var(--text2)' }}>
         {t.due_date} {t.due_time?.substring(0, 5) || ''}
         {t.duration_min ? ` · ${t.duration_min} min stimati` : ''}
         {t.locale ? ` · ${t.locale}` : ''}
@@ -198,15 +198,15 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
         <strong>{recipe.nome_prodotto}</strong> {t.production_qty ? `· ${t.production_qty}${t.production_unit || ''}` : ''}
       </div>
       {Array.isArray(recipe.ingredienti) && recipe.ingredienti.length > 0 && <div>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>INGREDIENTI</div>
-        {recipe.ingredienti.map((ing, i) => <div key={i} style={{ fontSize: 12, color: '#e2e8f0', padding: '4px 0', borderBottom: '1px solid #2a3042' }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, fontWeight: 600 }}>INGREDIENTI</div>
+        {recipe.ingredienti.map((ing, i) => <div key={i} style={{ fontSize: 12, color: 'var(--text)', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
           • {ing.quantita} {ing.unita} {ing.nome_articolo}
         </div>)}
       </div>}
     </Block>}
 
     {isDelegata && subTasks.length > 0 && <Block title="Smistata a">
-      {subTasks.map(s => <div key={s.id} style={{ fontSize: 12, padding: '6px 0', color: '#e2e8f0' }}>
+      {subTasks.map(s => <div key={s.id} style={{ fontSize: 12, padding: '6px 0', color: 'var(--text)' }}>
         • {STATUS_LABEL[s.status]} {s.completed_at ? `· ${new Date(s.completed_at).toLocaleString('it-IT')}` : ''}
       </div>)}
     </Block>}
@@ -220,7 +220,7 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
       </Block>
 
       <Block title="Note">
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} style={{ width: '100%', minHeight: 60, background: '#0f1420', border: '1px solid #2a3042', borderRadius: 8, padding: 10, color: '#e2e8f0', fontSize: 13, fontFamily: 'inherit' }}/>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} style={{ width: '100%', minHeight: 60, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 10, color: 'var(--text)', fontSize: 13, fontFamily: 'inherit' }}/>
       </Block>
 
       {error && <div style={{ background: 'rgba(239,68,68,.15)', color: '#EF4444', padding: '10px 14px', borderRadius: 8, marginBottom: 10, fontSize: 13 }}>{error}</div>}
@@ -234,7 +234,7 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
 
     {isDone && <div style={{ background: 'rgba(16,185,129,.15)', color: '#10B981', padding: '12px 16px', borderRadius: 10, fontSize: 13, marginBottom: 10 }}>
       Completata il {new Date(t.completed_at).toLocaleString('it-IT')}
-      {t.completion_notes && <div style={{ marginTop: 6, color: '#94a3b8', fontStyle: 'italic' }}>"{t.completion_notes}"</div>}
+      {t.completion_notes && <div style={{ marginTop: 6, color: 'var(--text2)', fontStyle: 'italic' }}>"{t.completion_notes}"</div>}
       {t.completion_photo_url && <img src={t.completion_photo_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 8 }}/>}
     </div>}
 
@@ -304,8 +304,8 @@ function TaskCreate({ pin, onBack }) {
   }
 
   return <div style={{ maxWidth: 480, width: '100%', padding: '0 12px' }}>
-    <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'center' }}>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>+ Nuova task</div>
+    <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'center' }}>
+      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>+ Nuova task</div>
     </div>
 
     {knowledge.length > 0 && <Field label="Carica da modello (autocompila)">
@@ -358,17 +358,17 @@ function TaskCreate({ pin, onBack }) {
     </Field>
     {f.assignment_kind === 'persons' && <Field label="Sottoposti">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {subordinates.map(s => <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#e2e8f0', padding: '6px 8px', background: f.assigned_employee_ids.includes(s.id) ? '#2a3042' : 'transparent', borderRadius: 6 }}>
+        {subordinates.map(s => <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', padding: '6px 8px', background: f.assigned_employee_ids.includes(s.id) ? 'var(--border)' : 'transparent', borderRadius: 6 }}>
           <input type="checkbox" checked={f.assigned_employee_ids.includes(s.id)} onChange={e => {
             setF(prev => ({ ...prev, assigned_employee_ids: e.target.checked ? [...prev.assigned_employee_ids, s.id] : prev.assigned_employee_ids.filter(x => x !== s.id) }))
           }}/>
           {s.nome} {s.role ? '· ' + s.role : ''}
         </label>)}
-        {subordinates.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Nessun sottoposto configurato</div>}
+        {subordinates.length === 0 && <div style={{ fontSize: 12, color: 'var(--text2)', fontStyle: 'italic' }}>Nessun sottoposto configurato</div>}
       </div>
     </Field>}
     <Field>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#e2e8f0' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)' }}>
         <input type="checkbox" checked={f.requires_photo} onChange={e => setF({ ...f, requires_photo: e.target.checked })}/>
         Foto obbligatoria al completamento
       </label>
@@ -402,20 +402,20 @@ function TaskDispatch({ pin, task, onBack, onDone }) {
   }
 
   return <div style={{ maxWidth: 480, width: '100%', padding: '0 12px' }}>
-    <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Smista task</div>
-      <div style={{ fontSize: 12, color: '#94a3b8' }}>{task.title}</div>
+    <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Smista task</div>
+      <div style={{ fontSize: 12, color: 'var(--text2)' }}>{task.title}</div>
     </div>
 
     <Field label="Seleziona sottoposti">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {subordinates.map(s => <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#e2e8f0', padding: '8px 10px', background: selected.includes(s.id) ? '#2a3042' : '#1a1f2e', borderRadius: 8, border: '1px solid #2a3042' }}>
+        {subordinates.map(s => <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', padding: '8px 10px', background: selected.includes(s.id) ? 'var(--border)' : 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)' }}>
           <input type="checkbox" checked={selected.includes(s.id)} onChange={e => {
             setSelected(prev => e.target.checked ? [...prev, s.id] : prev.filter(x => x !== s.id))
           }}/>
           {s.nome} {s.role ? '· ' + s.role : ''}
         </label>)}
-        {subordinates.length === 0 && <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Nessun sottoposto configurato per il tuo profilo</div>}
+        {subordinates.length === 0 && <div style={{ fontSize: 12, color: 'var(--text2)', fontStyle: 'italic' }}>Nessun sottoposto configurato per il tuo profilo</div>}
       </div>
     </Field>
 
@@ -430,21 +430,21 @@ function TaskDispatch({ pin, task, onBack, onDone }) {
 
 // ─── helpers ───────────────────────────────────────────────────────
 function Block({ title, children }) {
-  return <div style={{ background: '#1a1f2e', borderRadius: 10, padding: 14, marginBottom: 10 }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6, letterSpacing: '.05em' }}>{title}</div>
-    <div style={{ fontSize: 13, color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>{children}</div>
+  return <div style={{ background: 'var(--surface)', borderRadius: 10, padding: 14, marginBottom: 10 }}>
+    <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6, letterSpacing: '.05em' }}>{title}</div>
+    <div style={{ fontSize: 13, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{children}</div>
   </div>
 }
 
 function Field({ label, children }) {
   return <div style={{ marginBottom: 12 }}>
-    {label && <label style={{ display: 'block', fontSize: 11, color: '#94a3b8', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</label>}
+    {label && <label style={{ display: 'block', fontSize: 11, color: 'var(--text2)', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</label>}
     {children}
   </div>
 }
 
-const inp = { width: '100%', padding: '10px 12px', fontSize: 14, background: '#0f1420', color: '#e2e8f0', border: '1px solid #2a3042', borderRadius: 8, fontFamily: 'inherit', outline: 'none' }
+const inp = { width: '100%', padding: '10px 12px', fontSize: 14, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontFamily: 'inherit', outline: 'none' }
 const btnPrimary = { display: 'block', width: '100%', padding: '14px', fontSize: 15, fontWeight: 700, background: '#10B981', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', marginBottom: 8 }
-const btnSecondary = { display: 'block', width: '100%', padding: '12px', fontSize: 14, fontWeight: 600, background: 'transparent', color: '#e2e8f0', border: '1px solid #2a3042', borderRadius: 10, cursor: 'pointer', marginBottom: 8 }
-const btnBack = { display: 'block', width: '100%', padding: '10px', fontSize: 13, background: 'transparent', color: '#64748b', border: '1px solid #2a3042', borderRadius: 8, cursor: 'pointer', marginTop: 12 }
-const tabBtn = (active) => ({ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 600, background: active ? '#F59E0B' : '#1a1f2e', color: active ? '#0f1420' : '#94a3b8', border: '1px solid ' + (active ? '#F59E0B' : '#2a3042'), borderRadius: 8, cursor: 'pointer' })
+const btnSecondary = { display: 'block', width: '100%', padding: '12px', fontSize: 14, fontWeight: 600, background: 'transparent', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer', marginBottom: 8 }
+const btnBack = { display: 'block', width: '100%', padding: '10px', fontSize: 13, background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', marginTop: 12 }
+const tabBtn = (active) => ({ flex: 1, padding: '8px 12px', fontSize: 12, fontWeight: 600, background: active ? '#F59E0B' : 'var(--surface)', color: active ? 'var(--bg)' : 'var(--text2)', border: '1px solid ' + (active ? '#F59E0B' : 'var(--border)'), borderRadius: 8, cursor: 'pointer' })
