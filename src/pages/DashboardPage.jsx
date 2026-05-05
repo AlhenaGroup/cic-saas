@@ -1121,7 +1121,7 @@ export default function DashboardPage({ settings }) {
       {tab==='bud'&&<BudgetModule sp={sp} sps={sps} from={from} to={to}/>}
 
       {/* ── PERSONALE ── */}
-      {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps}/>}
+      {tab==='hr'&&<HRModule staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule} sp={sp} sps={sps} onGoToProduttivita={()=>setTab('prod')}/>}
 
       {/* ── MARKETING / CRM ── */}
       {tab==='mkt'&&<MarketingModule sp={sp} sps={sps}/>}

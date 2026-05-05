@@ -7,8 +7,31 @@ import HRCalendar from '../components/hr/HRCalendar'
 import AttendanceView from '../components/hr/AttendanceView'
 import ChecklistManager from '../components/hr/ChecklistManager'
 import TaskManager from '../components/hr/TaskManager'
+import SubTabsBar from '../components/SubTabsBar'
 
-export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps }) {
+const HR_SUB_TABS = [
+  { key: 'prod',       label: '⏱ Produttività' },
+  { key: 'dip',        label: '👤 Dipendenti' },
+  { key: 'doc',        label: '📋 Documenti' },
+  { key: 'cal',        label: '📅 Calendario' },
+  { key: 'task',       label: '✅ Task' },
+  { key: 'presenze',   label: '🕐 Presenze' },
+  { key: 'turni',      label: '🗓 Turni' },
+  { key: 'checklist',  label: '⚙️ Checklist' },
+]
+
+export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps, onGoToProduttivita }) {
+  const [hrTab, setHrTab] = useState(() => localStorage.getItem('hr_subtab') || 'dip')
+  useEffect(() => { localStorage.setItem('hr_subtab', hrTab) }, [hrTab])
+  // Quando l'utente sceglie il sub-tab Produttivita', delega al parent (DashboardPage)
+  // di switchare al top-level tab 'prod'. La logica di Produttivita' resta in DashboardPage.
+  // Reset hrTab a 'dip' subito dopo, cosi quando rientra in HR non ridiretta.
+  useEffect(() => {
+    if (hrTab === 'prod' && onGoToProduttivita) {
+      onGoToProduttivita()
+      setHrTab('dip')
+    }
+  }, [hrTab, onGoToProduttivita])
   const [employees, setEmployees]       = useState([])
   const [empDocs, setEmpDocs]           = useState([])
   const [showEmpForm, setShowEmpForm]   = useState(false)
@@ -101,14 +124,15 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
   }
 
   return <>
-    {/* Calendario */}
-    <HRCalendar employees={employees}/>
-    <div style={{marginTop:16}}/>
+    <SubTabsBar tabs={HR_SUB_TABS} value={hrTab} onChange={setHrTab}/>
 
-    {/* Task module */}
-    <TaskManager sp={sp} sps={sps} employees={filteredEmps}/>
-    <div style={{marginTop:16}}/>
+    {hrTab === 'prod' && <div style={{padding:'2rem',textAlign:'center',color:'var(--text2)',fontSize:13}}>Caricamento Produttività…</div>}
 
+    {hrTab === 'cal' && <HRCalendar employees={employees}/>}
+
+    {hrTab === 'task' && <TaskManager sp={sp} sps={sps} employees={filteredEmps}/>}
+
+    {hrTab === 'dip' && <>
     {/* KPI dinamici */}
     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
       <KPI label="Dipendenti" icon="👤" value={filteredEmps.filter(e=>e.stato==='Attivo').length} sub="attivi" accent='#3B82F6'/>
@@ -173,7 +197,9 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
         </table>
       </Card>
     </div>
+    </>}
 
+    {hrTab === 'doc' && <>
     {/* Documenti e scadenze */}
     <div style={{marginTop:12}}>
       <Card title="Documenti e scadenze" extra={
@@ -219,20 +245,18 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
         </table>
       </Card>
     </div>
+    </>}
 
-    {/* Timbrature + QR + Presenze reali */}
-    <div style={{marginTop:12}}>
+    {hrTab === 'presenze' && <div style={{marginTop:12}}>
       <AttendanceView employees={employees} shifts={[]} sp={sp} sps={sps}/>
-    </div>
+    </div>}
 
-    {/* Checklist timbratura */}
-    <div style={{marginTop:12}}>
+    {hrTab === 'checklist' && <div style={{marginTop:12}}>
       <ChecklistManager sp={sp} sps={sps}/>
-    </div>
+    </div>}
 
-    {/* Assistente Turni + Costi */}
-    <div style={{marginTop:12}}>
+    {hrTab === 'turni' && <div style={{marginTop:12}}>
       <ShiftAssistant employees={employees} sp={sp} sps={sps} staffSchedule={staffSchedule} setStaffSchedule={setStaffSchedule} saveSchedule={saveSchedule}/>
-    </div>
+    </div>}
   </>
 }
