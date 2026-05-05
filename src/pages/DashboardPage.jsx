@@ -557,7 +557,6 @@ export default function DashboardPage({ settings }) {
             </>}
           </>
         })()}
-        <button onClick={load} style={{...iS,background:'#F59E0B',color:'#0f1420',fontWeight:600,border:'none',padding:'6px 16px'}}>Aggiorna</button>
         <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'#475569',border:'1px solid #2a3042',padding:'6px 12px'}}>Esci</button>
       </div>
     </div>
