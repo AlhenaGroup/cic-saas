@@ -487,6 +487,8 @@ function PermessiTab({ emp, onSaved }) {
     { k: 'spostamenti', t: '🔀 Spostamenti tra locali', d: 'Puo\' spostare merce da un locale all\'altro (es. REMEMBEER → CASA DE AMICIS)' },
     { k: 'inventario',  t: '📋 Inventario', d: 'Puo\' aprire, contare e chiudere inventari del locale' },
     { k: 'produzione',  t: '🥘 Produzione', d: 'Puo\' avviare e completare lotti di produzione interna (tiramisù, farinate, salse, ecc.) con tracking durata, foto e checklist HACCP' },
+    { k: 'task_create',   t: '➕ Crea task',   d: 'Puo\' creare nuove task one-shot dal calendario /timbra e assegnarle a se\' o ai sottoposti' },
+    { k: 'task_dispatch', t: '↪ Smista task', d: 'Puo\' ricevere task dalla direzione e smistarle ai propri sottoposti (richiede manager_id sui sottoposti)' },
   ]
 
   // Raggruppa per locale → mostro una sezione per locale per leggibilità

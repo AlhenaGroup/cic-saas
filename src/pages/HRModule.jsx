@@ -6,6 +6,7 @@ import ShiftAssistant from '../components/hr/ShiftAssistant'
 import HRCalendar from '../components/hr/HRCalendar'
 import AttendanceView from '../components/hr/AttendanceView'
 import ChecklistManager from '../components/hr/ChecklistManager'
+import TaskManager from '../components/hr/TaskManager'
 
 export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps }) {
   const [employees, setEmployees]       = useState([])
@@ -102,6 +103,10 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
   return <>
     {/* Calendario */}
     <HRCalendar employees={employees}/>
+    <div style={{marginTop:16}}/>
+
+    {/* Task module */}
+    <TaskManager sp={sp} sps={sps} employees={filteredEmps}/>
     <div style={{marginTop:16}}/>
 
     {/* KPI dinamici */}

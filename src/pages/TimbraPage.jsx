@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import TaskCalendarPanel from '../components/timbra/TaskCalendarPanel'
 
 const API = '/api/attendance'
 const ALL_LOCALI = ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE']
@@ -23,7 +24,7 @@ export default function TimbraPage() {
   useEffect(() => { document.title = locale ? 'Timbra · ' + locale : 'Timbra' }, [locale])
 
   const [pin, setPin] = useState('')
-  const [step, setStep] = useState('pin') // pin | menu | presenza | consumo | trasferimento | inventario | checklist | done | error
+  const [step, setStep] = useState('pin') // pin | menu | presenza | consumo | trasferimento | inventario | calendario | checklist | done | error
   const [employee, setEmployee] = useState(null)
   const [permissions, setPermissions] = useState({})
   const [suggestedTipo, setSuggestedTipo] = useState('entrata')
@@ -229,6 +230,8 @@ export default function TimbraPage() {
     {step === 'mie-ore' && <MieOrePanel pin={pin} onBack={() => goTo('menu')} />}
     {step === 'mie-ferie' && <MieFeriePanel pin={pin} onBack={() => goTo('menu')} />}
 
+    {step === 'calendario' && <TaskCalendarPanel pin={pin} employee={employee} permissions={permissions} onBack={() => goTo('menu')} />}
+
     {step === 'done' && <DonePanel message={message} employee={employee} onReset={reset} />}
     {step === 'error' && <ErrorPanel message={message} onReset={reset} />}
   </div>
@@ -239,6 +242,7 @@ function stepLabel(s) {
     presenza: 'Timbratura presenza', consumo: 'Consumo personale',
     trasferimento: 'Spostamento merce', inventario: 'Inventario',
     produzione: 'Produzione',
+    calendario: 'Calendario task',
     checklist: 'Checklist obbligatoria',
     'miei-turni': 'I miei turni', 'mie-ore': 'Le mie ore', 'mie-ferie': 'Le mie ferie',
     done: 'Fatto', error: 'Errore',
@@ -283,6 +287,7 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
   ].filter(i => permissions[i.k === 'trasferimento' ? 'spostamenti' : i.k])
   // Viste info personali: sempre visibili (sola lettura dei propri dati)
   const info = [
+    { k: 'calendario', icon: '📅', label: 'Calendario task', color: '#F59E0B' },
     { k: 'miei-turni', icon: '📆', label: 'I miei turni', color: '#3B82F6' },
     { k: 'mie-ore', icon: '⏱', label: 'Le mie ore', color: '#10B981' },
     { k: 'mie-ferie', icon: '🏖️', label: 'Le mie ferie', color: '#F97316' },
