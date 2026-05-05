@@ -132,9 +132,9 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
   return <>
     {/* KPI turni */}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 12 }}>
-      <KPI label="Turni questa settimana" icon="📅" value={shifts.length} sub="inseriti" accent='#3B82F6' />
-      <KPI label="Ore totali" icon="⏱️" value={totalHours + 'h'} sub="settimana" accent='#F59E0B' />
-      <KPI label="Costo stimato" icon="💶" value={weekCost > 0 ? fmtD(weekCost) : '—'} sub="settimana" accent='#10B981' />
+      <KPI label="Turni questa settimana" icon="" value={shifts.length} sub="inseriti" accent='#3B82F6' />
+      <KPI label="Ore totali" icon="" value={totalHours + 'h'} sub="settimana" accent='#F59E0B' />
+      <KPI label="Costo stimato" icon="" value={weekCost > 0 ? fmtD(weekCost) : '—'} sub="settimana" accent='#10B981' />
     </div>
 
     {/* Turni settimanali */}
@@ -143,14 +143,14 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
         <div style={{ display: 'flex', border: '1px solid #2a3042', borderRadius: 6, overflow: 'hidden' }}>
           <button onClick={() => setViewMode('settimana')}
             style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
-              background: viewMode === 'settimana' ? '#F59E0B' : 'transparent', color: viewMode === 'settimana' ? '#0f1420' : '#94a3b8' }}>📅 Per settimana</button>
+              background: viewMode === 'settimana' ? '#F59E0B' : 'transparent', color: viewMode === 'settimana' ? '#0f1420' : '#94a3b8' }}>Per settimana</button>
           <button onClick={() => setViewMode('giorno')}
             style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
-              background: viewMode === 'giorno' ? '#F59E0B' : 'transparent', color: viewMode === 'giorno' ? '#0f1420' : '#94a3b8' }}>⏱ Per giorno</button>
+              background: viewMode === 'giorno' ? '#F59E0B' : 'transparent', color: viewMode === 'giorno' ? '#0f1420' : '#94a3b8' }}>Per giorno</button>
         </div>
-        <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>◀</button>
+        <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
-        <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>▶</button>
+        <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
         <button onClick={autoCalcPresenze} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Aggiorna presenze</button>
       </div>
     }>
@@ -285,15 +285,15 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
   const [prepNotes, setPrepNotes] = useState(() => {
     try { return JSON.parse(localStorage.getItem('cic_prep_notes') || '{}') } catch { return {} }
   })
-  // Ore: 12:00 → 04:00 (dopo mezzanotte)
+  // Ore: 12:00 04:00 (dopo mezzanotte)
   const HOURS = Array.from({ length: 17 }, (_, i) => (i + 12) % 24) // 12,13,...,23,0,1,2,3,4
   const PREP_CATS = [
-    { key: 'prep_cucina', label: 'Prep. cucina', icon: '👨‍🍳', color: '#F59E0B', area: 'cucina' },
-    { key: 'prep_sala', label: 'Prep. sala', icon: '🍽️', color: '#3B82F6', area: 'sala' },
-    { key: 'pulizie_cucina', label: 'Pulizie cucina', icon: '🧹', color: '#8B5CF6', area: 'cucina' },
-    { key: 'pulizie_sala', label: 'Pulizie sala', icon: '🧹', color: '#10B981', area: 'sala' },
-    { key: 'pulizie_str_cucina', label: 'Pulizie straord. cucina', icon: '✨', color: '#EC4899', area: 'cucina', hasNote: true },
-    { key: 'pulizie_str_sala', label: 'Pulizie straord. sala', icon: '✨', color: '#F97316', area: 'sala', hasNote: true },
+    { key: 'prep_cucina', label: 'Prep. cucina', icon: '', color: '#F59E0B', area: 'cucina' },
+    { key: 'prep_sala', label: 'Prep. sala', icon: '', color: '#3B82F6', area: 'sala' },
+    { key: 'pulizie_cucina', label: 'Pulizie cucina', icon: '', color: '#8B5CF6', area: 'cucina' },
+    { key: 'pulizie_sala', label: 'Pulizie sala', icon: '', color: '#10B981', area: 'sala' },
+    { key: 'pulizie_str_cucina', label: 'Pulizie straord. cucina', icon: '', color: '#EC4899', area: 'cucina', hasNote: true },
+    { key: 'pulizie_str_sala', label: 'Pulizie straord. sala', icon: '', color: '#F97316', area: 'sala', hasNote: true },
   ]
   const updatePrep = (day, hour, cat, val) => {
     const k = `${day}-${hour}-${cat}`
@@ -398,8 +398,8 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
       .legend-item { font-size: 10px; margin-bottom: 3px; color: #555; }
       .footer { margin-top: 12px; font-size: 9px; color: #999; }
     </style></head><body>
-    <h1>📋 Orari Consigliati - ${locale}</h1>
-    <h2>Basato su incassi settimana ${prevMonday} → ${prevSunday} | Soglia: ${soglia}€/h per persona</h2>
+    <h1>Orari Consigliati - ${locale}</h1>
+    <h2>Basato su incassi settimana ${prevMonday} ${prevSunday} | Soglia: ${soglia}€/h per persona</h2>
     <table><thead><tr><th>Ora</th>`
     DAYS.forEach(d => { html += `<th>${d}</th>` })
     html += `</tr></thead><tbody>`
@@ -411,7 +411,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
         const cls = c.staff === 0 ? '' : c.prepStaff > 0 && c.revenueStaff === 0 ? 'p' : c.staff <= 2 ? 'g' : c.staff <= 4 ? 'y' : 'r'
         html += `<td class="${cls}"><div class="staff">${c.staff || '—'}</div>`
         if (c.ricavi > 0) html += `<div class="rev">${Math.round(c.ricavi)}€</div>`
-        if (c.prepCucina > 0 || c.prepSala > 0) html += `<div class="area">${c.prepCucina > 0 ? '🍳' + c.prepCucina : ''} ${c.prepSala > 0 ? '🍽️' + c.prepSala : ''}</div>`
+        if (c.prepCucina > 0 || c.prepSala > 0) html += `<div class="area">${c.prepCucina > 0 ? '' + c.prepCucina : ''} ${c.prepSala > 0 ? '' + c.prepSala : ''}</div>`
         html += `</td>`
       })
       html += `</tr>`
@@ -424,11 +424,11 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
     html += `</tr></tbody></table>`
     // Legenda pulizie
     if (notes.length > 0) {
-      html += `<div class="legend"><h3>🧹 Pulizie programmate</h3>`
+      html += `<div class="legend"><h3>Pulizie programmate</h3>`
       notes.forEach(n => { html += `<div class="legend-item"><b>${n.day}</b> — ${n.cat}: ${n.note}</div>` })
       html += `</div>`
     }
-    html += `<div class="footer">Generato da CIC Dashboard — ${new Date().toLocaleDateString('it-IT')} | Totale ore personale: ${totalStaff}h | 🍳=cucina 🍽️=sala</div>
+    html += `<div class="footer">Generato da CIC Dashboard — ${new Date().toLocaleDateString('it-IT')} | Totale ore personale: ${totalStaff}h | =cucina =sala</div>
     </body></html>`
     const w = window.open('', '_blank')
     w.document.write(html)
@@ -557,13 +557,13 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: '#64748b' }}>Soglia €/h:</span>
         <input type="number" value={soglia} onChange={e => setSoglia(Number(e.target.value) || 50)} style={{ ...iS, width: 55, textAlign: 'center', fontSize: 12 }} />
-        <button onClick={downloadExcel} style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }}>📊 Excel</button>
-        <button onClick={downloadCsv} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }} title="Scarica CSV riepilogo orario per giorno">📄 CSV</button>
-        <button onClick={printPDF} style={{ ...iS, background: '#EF4444', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }}>🖨 PDF</button>
+        <button onClick={downloadExcel} style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }}>Excel</button>
+        <button onClick={downloadCsv} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }} title="Scarica CSV riepilogo orario per giorno">CSV</button>
+        <button onClick={printPDF} style={{ ...iS, background: '#EF4444', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }}>PDF</button>
       </div>
     }>
       <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
-        Basato sugli incassi della settimana precedente ({prevMonday} → {prevSunday}) {localeName ? `per ${localeName}` : ''} — {daysWithData} giorni con dati
+        Basato sugli incassi della settimana precedente ({prevMonday} {prevSunday}) {localeName ? `per ${localeName}` : ''} — {daysWithData} giorni con dati
       </div>
 
       {/* Preparazioni budget */}
@@ -577,7 +577,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
               onClick={() => { const el = document.getElementById('prep-' + cat.key); if (el) el.style.display = el.style.display === 'none' ? '' : 'none' }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: cat.color }}>{cat.icon} {cat.label}</span>
               <span style={{ fontSize: 9, color: '#475569' }}>({cat.area})</span>
-              <span style={{ fontSize: 9, color: '#475569' }}>▼</span>
+              <span style={{ fontSize: 9, color: '#475569' }}></span>
             </div>
             <div id={'prep-' + cat.key} style={{ display: hasAnyValue ? '' : 'none', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
@@ -620,7 +620,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
             <tr style={{ borderBottom: '1px solid #2a3042' }}>
               <th style={{ ...S.th, fontSize: 8 }}></th>
               {DAYS.map(d => <th key={d} style={{ ...S.th, fontSize: 8, padding: '2px' }}>
-                <span style={{ color: '#F59E0B' }}>🍳</span> <span style={{ color: '#3B82F6' }}>🍽️</span> <span style={{ color: '#94a3b8' }}>Tot</span>
+                <span style={{ color: '#F59E0B' }}></span> <span style={{ color: '#3B82F6' }}></span> <span style={{ color: '#94a3b8' }}>Tot</span>
               </th>)}
             </tr></thead>
             <tbody>
@@ -692,12 +692,12 @@ function minToHm(min) {
   const m = ((min % (24 * 60)) + 24 * 60) % (24 * 60)
   return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0')
 }
-// Indice "colonna" (0..DAY_SPAN_HOURS-1) → HH:MM reale di partenza
+// Indice "colonna" (0..DAY_SPAN_HOURS-1) HH:MM reale di partenza
 function colHourToHm(col) {
   const h = (DAY_START_HOUR + col) % 24
   return String(h).padStart(2, '0') + ':00'
 }
-// Indice quarto (0..DAY_SPAN_QUARTERS-1) → minuti dall'inizio giornata reale (0..1439),
+// Indice quarto (0..DAY_SPAN_QUARTERS-1) minuti dall'inizio giornata reale (0..1439),
 // flaggando se appartiene al giorno dopo.
 function qToClock(q) {
   const totalMin = q * 15 + DAY_START_HOUR * 60 // minuti dall'inizio del giorno "calendario" di partenza
@@ -714,7 +714,7 @@ function shiftsToQuartersOp(allShifts, empId, day) {
   const set = new Set()
   const dayBefore12 = allShifts.filter(s => s.employee_id === empId && s.giorno === day)
   const dayAfterEarly = allShifts.filter(s => s.employee_id === empId && s.giorno === (day + 1) % 7)
-  // Turni di 'day' → quarti 0..47 della giornata operativa (12:00..23:59)
+  // Turni di 'day' quarti 0..47 della giornata operativa (12:00..23:59)
   for (const s of dayBefore12) {
     let start = hmToMin(s.ora_inizio?.substring(0, 5))
     let end = hmToMin(s.ora_fine?.substring(0, 5))
@@ -824,7 +824,7 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
     return d.toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: '2-digit' })
   })()
 
-  // Mappa empId → Set<quartiere> in coordinate giorno operativo (0..67, 12:00..05:00 next day)
+  // Mappa empId Set<quartiere> in coordinate giorno operativo (0..67, 12:00..05:00 next day)
   const empQuarters = {}
   for (const e of emps) empQuarters[e.id] = shiftsToQuartersOp(shifts, e.id, selectedDay)
 
@@ -893,7 +893,7 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
 
   const empHours = (empId) => Math.round((empQuarters[empId]?.size || 0) / 4 * 100) / 100
 
-  // Colonne: 0..DAY_SPAN_HOURS-1. Colonna i → ora (DAY_START_HOUR + i) % 24.
+  // Colonne: 0..DAY_SPAN_HOURS-1. Colonna i ora (DAY_START_HOUR + i) % 24.
   const COLS = Array.from({ length: DAY_SPAN_HOURS }, (_, i) => i)
 
   // Per ogni colonna calcolo:
@@ -926,11 +926,11 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
 
     {/* Legenda */}
     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>
-      💡 Orari mostrati dalle <strong style={{ color: '#e2e8f0' }}>12:00</strong> alle <strong style={{ color: '#8B5CF6' }}>05:00</strong> del giorno dopo (tutto contato come lavoro di questa giornata).
+      Orari mostrati dalle <strong style={{ color: '#e2e8f0' }}>12:00</strong> alle <strong style={{ color: '#8B5CF6' }}>05:00</strong> del giorno dopo (tutto contato come lavoro di questa giornata).
       <br /><strong style={{ color: '#94a3b8' }}>Click</strong> su un'ora per attivarla/disattivarla · <strong style={{ color: '#94a3b8' }}>Doppio click</strong> per zoom a quarti d'ora.
     </div>
 
-    {/* Griglia giornata operativa: 12:00 → 05:00 next day */}
+    {/* Griglia giornata operativa: 12:00 05:00 next day */}
     <div style={{ overflowX: 'auto' }}>
       <table style={{ borderCollapse: 'collapse', fontSize: 10, minWidth: 1100 }}>
         <thead>
@@ -1002,7 +1002,7 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
                 return <td key={c}
                   onClick={() => toggleCol(emp.id, c)}
                   onDoubleClick={() => openZoom(emp.id, c)}
-                  title={`${String(realH).padStart(2,'0')}:00${isNext ? ' (giorno dopo)' : ''}${isOver ? ' — ⚠ sovra-staffato' : ''} · click=toggle, doppio click=zoom 15min`}
+                  title={`${String(realH).padStart(2,'0')}:00${isNext ? ' (giorno dopo)' : ''}${isOver ? ' — sovra-staffato' : ''} · click=toggle, doppio click=zoom 15min`}
                   className="ts-cell"
                   style={{ height: 28, borderLeft, cursor: 'pointer' }}>
                   <span className="ts-fill" style={{ background: fillBg, display: 'flex' }}>

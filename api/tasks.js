@@ -169,7 +169,7 @@ export default async function handler(req, res) {
         const fromD = from || new Date().toISOString().split('T')[0];
         const toD = to || (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]; })();
 
-        // scope='subordinates' → lista task dei sottoposti (per responsabili)
+        // scope='subordinates' lista task dei sottoposti (per responsabili)
         if (scope === 'subordinates') {
           if (!v.emp.permissions?.task_create && !v.emp.permissions?.task_dispatch) {
             return res.status(403).json({ error: 'Permesso non sufficiente' });
@@ -248,7 +248,7 @@ export default async function handler(req, res) {
           updated_at: new Date().toISOString(),
         });
 
-        // Se è una sub-task, controlla se tutti i fratelli sono completati → marca padre
+        // Se è una sub-task, controlla se tutti i fratelli sono completati marca padre
         if (t.parent_task_id) {
           const siblings = await sbQuery(`tasks?parent_task_id=eq.${t.parent_task_id}&select=id,status`);
           const allDone = (siblings || []).every(s => s.id === task_id || s.status === 'fatta');

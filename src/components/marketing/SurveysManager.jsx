@@ -18,7 +18,7 @@ async function api(path, body) {
 
 const TIPI_DOMANDA = [
   { key: 'nps',         label: 'NPS (0-10)' },
-  { key: 'rating',      label: 'Rating ★ (1-5)' },
+  { key: 'rating',      label: 'Rating (1-5)' },
   { key: 'choice',      label: 'Scelta singola' },
   { key: 'multichoice', label: 'Scelta multipla' },
   { key: 'text',        label: 'Testo breve' },
@@ -139,7 +139,7 @@ export default function SurveysManager({ sp, sps }) {
       <KPI label="Promoter" value={kpi.nps_breakdown?.promoter || 0} accent="#10B981" />
       <KPI label="Passive" value={kpi.nps_breakdown?.passive || 0} accent="#F59E0B" />
       <KPI label="Detractor" value={kpi.nps_breakdown?.detractor || 0} accent="#EF4444" />
-      <KPI label="Rating medio" value={kpi.rating_avg != null ? kpi.rating_avg + ' ★' : '—'} />
+      <KPI label="Rating medio" value={kpi.rating_avg != null ? kpi.rating_avg + ' ' : '—'} />
     </div>}
 
     {/* Lista sondaggi */}
@@ -209,7 +209,7 @@ export default function SurveysManager({ sp, sps }) {
                 <td style={S.td}>{c ? [c.nome, c.cognome].filter(Boolean).join(' ') : <span style={{ color: '#64748b' }}>(anonimo)</span>}</td>
                 <td style={S.td}><span style={{ fontSize: 11 }}>{r.surveys?.nome || '—'}</span></td>
                 <td style={S.td}>{r.nps_score != null ? <b style={{ color: r.nps_score >= 9 ? '#10B981' : r.nps_score >= 7 ? '#F59E0B' : '#EF4444' }}>{r.nps_score}</b> : '—'}</td>
-                <td style={S.td}>{r.rating_avg != null ? <span style={{ color: '#F59E0B' }}>{r.rating_avg}★</span> : '—'}</td>
+                <td style={S.td}>{r.rating_avg != null ? <span style={{ color: '#F59E0B' }}>{r.rating_avg}</span> : '—'}</td>
                 <td style={S.td}>{r.sentiment ? <span style={{ background: SENTIMENT_COLORS[r.sentiment] + '22', color: SENTIMENT_COLORS[r.sentiment], padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700 }}>{r.sentiment}</span> : '—'}</td>
                 <td style={S.td}><div style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#cbd5e1' }}>{noteText}</div></td>
               </tr>

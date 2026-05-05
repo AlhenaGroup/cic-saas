@@ -9,11 +9,11 @@ import SubTabsBar from '../components/SubTabsBar'
 
 // [id, label, descrizione placeholder]
 const SUBS = [
-  ['ov',  '🏠 Panoramica',      'KPI consuntivo / budget / forecast, blocchi cosa va bene e cosa va male, leve suggerite'],
-  ['inp', '✏️ Budget',          'Inserisci il budget mensile per locale con driver (coperti × medio, % ricavi, FTE)'],
-  ['fc',  '🔮 Forecast',        'Proiezione di fine mese a partire dai giorni trascorsi, con slider di aggiustamento'],
-  ['var', '📊 CE scostamenti',  'Conto economico a colonne consuntivo / budget / forecast con delta e color coding'],
-  ['sim', '🎯 Simulatore',      'Motore scenari con 7 leve per simulare l\'impatto di decisioni strategiche'],
+  ['ov',  'Panoramica',      'KPI consuntivo / budget / forecast, blocchi cosa va bene e cosa va male, leve suggerite'],
+  ['inp', 'Budget',          'Inserisci il budget mensile per locale con driver (coperti × medio, % ricavi, FTE)'],
+  ['fc',  'Forecast',        'Proiezione di fine mese a partire dai giorni trascorsi, con slider di aggiustamento'],
+  ['var', 'CE scostamenti',  'Conto economico a colonne consuntivo / budget / forecast con delta e color coding'],
+  ['sim', 'Simulatore',      'Motore scenari con 7 leve per simulare l\'impatto di decisioni strategiche'],
 ]
 
 const IMPLEMENTED = new Set(['ov', 'inp', 'fc', 'var', 'sim'])
@@ -72,7 +72,7 @@ export default function BudgetModule({ sp, sps, from, to }) {
 
   const inputS = { ...S.input, fontSize: 12, padding: '5px 8px' }
 
-  // Naviga da Overview → Simulator (con leve precompilate in localStorage)
+  // Naviga da Overview Simulator (con leve precompilate in localStorage)
   const handleNavigate = (target, prefill = null) => {
     if (prefill) {
       try { localStorage.setItem('cic_bud_sim_prefill', JSON.stringify(prefill)) } catch {}
@@ -100,10 +100,10 @@ export default function BudgetModule({ sp, sps, from, to }) {
       marginBottom: 14
     }}>
       <div style={{ fontSize: 12, color: '#64748b' }}>
-        📍 <strong style={{ color: '#94a3b8' }}>{localeName}</strong>
+        <strong style={{ color: '#94a3b8' }}>{localeName}</strong>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>📅 Periodo budget:</span>
+        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Periodo budget:</span>
         <select value={month} onChange={e => setMonth(Number(e.target.value))} style={inputS}>
           {MONTH_LABELS.map((lbl, i) => (
             <option key={i + 1} value={i + 1}>{lbl}</option>
@@ -125,7 +125,7 @@ export default function BudgetModule({ sp, sps, from, to }) {
     {sub === 'sim' && <Simulator       {...commonProps} />}
 
     {!IMPLEMENTED.has(sub) && (
-      <Card title={current[1]} badge="🚧 In sviluppo">
+      <Card title={current[1]} badge="In sviluppo">
         <div style={{ padding: '32px 8px', textAlign: 'center' }}>
           <div style={{ fontSize: 56, marginBottom: 14, opacity: .3 }}>{bigIcon}</div>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>

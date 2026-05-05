@@ -146,10 +146,10 @@ export default function WarehouseDashboard() {
 
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
-      <KPI label="Valore magazzino" icon="💶" value={fmt(stats.valore)} accent="#F59E0B" />
-      <KPI label="Sotto scorta" icon="⚠️" value={stats.sottoScorta} sub="prodotti" accent="#EF4444" />
-      <KPI label="Movimenti mese" icon="📦" value={fmtN(stats.movimenti)} accent="#3B82F6" />
-      <KPI label="Scostamento inv." icon="📋" value={fmt(stats.scostamento)} sub="ultimo inventario" accent="#8B5CF6" />
+      <KPI label="Valore magazzino" icon="" value={fmt(stats.valore)} accent="#F59E0B" />
+      <KPI label="Sotto scorta" icon="" value={stats.sottoScorta} sub="prodotti" accent="#EF4444" />
+      <KPI label="Movimenti mese" icon="" value={fmtN(stats.movimenti)} accent="#3B82F6" />
+      <KPI label="Scostamento inv." icon="" value={fmt(stats.scostamento)} sub="ultimo inventario" accent="#8B5CF6" />
     </div>
 
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

@@ -125,7 +125,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
 
     {/* Sub-tabs */}
     <div style={{display:'flex',gap:4,marginBottom:16,borderBottom:'1px solid #2a3042',paddingBottom:8,flexWrap:'wrap'}}>
-      {[['info','Anagrafica'],['paga','Compensi'],['timeoff','Ferie/Permessi'],['ore','Banca Ore'],['consumi','🍪 Consumi'],['produzioni','🥘 Produzioni'],['permessi','🔐 Permessi app']].map(([k,l])=>
+      {[['info','Anagrafica'],['paga','Compensi'],['timeoff','Ferie/Permessi'],['ore','Banca Ore'],['consumi','Consumi'],['produzioni','Produzioni'],['permessi','Permessi app']].map(([k,l])=>
         <button key={k} onClick={()=>setSubTab(k)} style={tabStyle(k)}>{l}</button>
       )}
     </div>
@@ -187,9 +187,9 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
     {/* COMPENSI */}
     {subTab==='paga'&&<>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}}>
-        <KPI label="Retribuzione lorda" icon="💶" value={emp.retribuzione_lorda?fmtD(emp.retribuzione_lorda):'—'} sub="mensile" accent='#F59E0B'/>
-        <KPI label="Costo orario" icon="⏱️" value={emp.costo_orario?fmtD(emp.costo_orario):'—'} sub="azienda" accent='#3B82F6'/>
-        <KPI label="Mesi registrati" icon="📊" value={payHistory.length} sub="storico" accent='#10B981'/>
+        <KPI label="Retribuzione lorda" icon="" value={emp.retribuzione_lorda?fmtD(emp.retribuzione_lorda):'—'} sub="mensile" accent='#F59E0B'/>
+        <KPI label="Costo orario" icon="" value={emp.costo_orario?fmtD(emp.costo_orario):'—'} sub="azienda" accent='#3B82F6'/>
+        <KPI label="Mesi registrati" icon="" value={payHistory.length} sub="storico" accent='#10B981'/>
       </div>
 
       <Card title="Storico compensi" extra={
@@ -232,9 +232,9 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
     {/* FERIE / PERMESSI */}
     {subTab==='timeoff'&&<>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}}>
-        <KPI label="Giorni ferie usati" icon="🏖️" value={ferieTotali.length} sub={oreFerie+' ore'} accent='#F59E0B'/>
-        <KPI label="Permessi usati" icon="📋" value={permessiTotali.length} sub={orePermessi+' ore'} accent='#3B82F6'/>
-        <KPI label="Malattia" icon="🏥" value={timeOff.filter(t=>t.tipo==='malattia').length} sub="giorni" accent='#EF4444'/>
+        <KPI label="Giorni ferie usati" icon="" value={ferieTotali.length} sub={oreFerie+' ore'} accent='#F59E0B'/>
+        <KPI label="Permessi usati" icon="" value={permessiTotali.length} sub={orePermessi+' ore'} accent='#3B82F6'/>
+        <KPI label="Malattia" icon="" value={timeOff.filter(t=>t.tipo==='malattia').length} sub="giorni" accent='#EF4444'/>
       </div>
 
       <Card title="Registro ferie e permessi" extra={
@@ -307,10 +307,10 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
 
       return <>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:16}}>
-        <KPI label="Ore contrattuali" icon="📄" value={emp.ore_contrattuali||'—'} sub="settimanali" accent='#3B82F6'/>
-        <KPI label="Ore reali timbrate" icon="⏱️" value={totRealHours+'h'} sub={dailyHours.length+' giorni'} accent='#10B981'/>
-        <KPI label="Ore da turni" icon="📅" value={shifts.reduce((s,sh)=>s+calcShiftHours(sh.ora_inizio,sh.ora_fine),0)+'h'} sub={shifts.length+' turni'} accent='#8B5CF6'/>
-        <KPI label="Tot. straordinario" icon="⚡" value={totStraordinario||'—'} sub="ore extra" accent='#F59E0B'/>
+        <KPI label="Ore contrattuali" icon="" value={emp.ore_contrattuali||'—'} sub="settimanali" accent='#3B82F6'/>
+        <KPI label="Ore reali timbrate" icon="" value={totRealHours+'h'} sub={dailyHours.length+' giorni'} accent='#10B981'/>
+        <KPI label="Ore da turni" icon="" value={shifts.reduce((s,sh)=>s+calcShiftHours(sh.ora_inizio,sh.ora_fine),0)+'h'} sub={shifts.length+' turni'} accent='#8B5CF6'/>
+        <KPI label="Tot. straordinario" icon="" value={totStraordinario||'—'} sub="ore extra" accent='#F59E0B'/>
       </div>
 
       {/* Timbrature reali per giorno — editabili */}
@@ -374,7 +374,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
                   <td style={{...S.td,fontWeight:600,color:d.hours>0?'#e2e8f0':'#475569'}}>{d.hours>0?d.hours+'h':'—'}</td>
                   <td style={{...S.td,color:'#64748b',fontSize:11}}>{d.locale}</td>
                   <td style={S.td}>
-                    <button onClick={deleteDay} style={{background:'transparent',border:'none',color:'#475569',cursor:'pointer',fontSize:14}} title="Elimina">🗑️</button>
+                    <button onClick={deleteDay} style={{background:'transparent',border:'none',color:'#475569',cursor:'pointer',fontSize:14}} title="Elimina"></button>
                   </td>
                 </tr>
               })}
@@ -482,16 +482,16 @@ function PermessiTab({ emp, onSaved }) {
   }
 
   const items = [
-    { k: 'presenza',    t: '🕐 Timbratura presenza', d: 'Il dipendente puo\' bollare entrata/uscita dal QR' },
-    { k: 'consumo',     t: '🍪 Consumo personale', d: 'Puo\' registrare consumi personali (scarica dal magazzino e crea log per dipendente)' },
-    { k: 'spostamenti', t: '🔀 Spostamenti tra locali', d: 'Puo\' spostare merce da un locale all\'altro (es. REMEMBEER → CASA DE AMICIS)' },
-    { k: 'inventario',  t: '📋 Inventario', d: 'Puo\' aprire, contare e chiudere inventari del locale' },
-    { k: 'produzione',  t: '🥘 Produzione', d: 'Puo\' avviare e completare lotti di produzione interna (tiramisù, farinate, salse, ecc.) con tracking durata, foto e checklist HACCP' },
-    { k: 'task_create',   t: '➕ Crea task',   d: 'Puo\' creare nuove task one-shot dal calendario /timbra e assegnarle a se\' o ai sottoposti' },
-    { k: 'task_dispatch', t: '↪ Smista task', d: 'Puo\' ricevere task dalla direzione e smistarle ai propri sottoposti (richiede manager_id sui sottoposti)' },
+    { k: 'presenza',    t: 'Timbratura presenza', d: 'Il dipendente puo\' bollare entrata/uscita dal QR' },
+    { k: 'consumo',     t: 'Consumo personale', d: 'Puo\' registrare consumi personali (scarica dal magazzino e crea log per dipendente)' },
+    { k: 'spostamenti', t: 'Spostamenti tra locali', d: 'Puo\' spostare merce da un locale all\'altro (es. REMEMBEER CASA DE AMICIS)' },
+    { k: 'inventario',  t: 'Inventario', d: 'Puo\' aprire, contare e chiudere inventari del locale' },
+    { k: 'produzione',  t: 'Produzione', d: 'Puo\' avviare e completare lotti di produzione interna (tiramisù, farinate, salse, ecc.) con tracking durata, foto e checklist HACCP' },
+    { k: 'task_create',   t: 'Crea task',   d: 'Puo\' creare nuove task one-shot dal calendario /timbra e assegnarle a se\' o ai sottoposti' },
+    { k: 'task_dispatch', t: 'Smista task', d: 'Puo\' ricevere task dalla direzione e smistarle ai propri sottoposti (richiede manager_id sui sottoposti)' },
   ]
 
-  // Raggruppa per locale → mostro una sezione per locale per leggibilità
+  // Raggruppa per locale mostro una sezione per locale per leggibilità
   const groupByLocale = (list) => {
     const map = {}
     for (const c of list) { (map[c.locale] = map[c.locale] || []).push(c) }
@@ -541,24 +541,24 @@ function PermessiTab({ emp, onSaved }) {
 
     {/* Checklist obbligatorie entrata/uscita */}
     <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #2a3042' }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>📋 Checklist obbligatorie alla timbratura</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Checklist obbligatorie alla timbratura</div>
       <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
         Seleziona le checklist che <strong style={{ color: '#e2e8f0' }}>{emp.nome}</strong> dovrà compilare quando timbra.
         Se lavora su più locali, seleziona la checklist di ognuno: il sistema mostrerà automaticamente quella giusta in base al locale dove sta timbrando.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 11, color: '#10B981', fontWeight: 700, marginBottom: 6 }}>🟢 All'entrata ({(p.checklist_entrata_ids || []).length})</div>
+          <div style={{ fontSize: 11, color: '#10B981', fontWeight: 700, marginBottom: 6 }}>All'entrata ({(p.checklist_entrata_ids || []).length})</div>
           {renderChecklistGroup('checklist_entrata_ids', entrataByLoc, '#10B981')}
         </div>
         <div>
-          <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 700, marginBottom: 6 }}>🔴 All'uscita ({(p.checklist_uscita_ids || []).length})</div>
+          <div style={{ fontSize: 11, color: '#EF4444', fontWeight: 700, marginBottom: 6 }}>All'uscita ({(p.checklist_uscita_ids || []).length})</div>
           {renderChecklistGroup('checklist_uscita_ids', uscitaByLoc, '#EF4444')}
         </div>
       </div>
       {checklists.length === 0 && (
         <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 8 }}>
-          Nessuna checklist attiva. Creale prima nella sezione "📋 Checklist timbratura" del modulo Personale.
+          Nessuna checklist attiva. Creale prima nella sezione "Checklist timbratura" del modulo Personale.
         </div>
       )}
     </div>
@@ -627,13 +627,13 @@ function ConsumiTab({ emp }) {
   const trenta = new Date(Date.now() - 30 * 86400000).toISOString().substring(0, 10)
   const last30 = consumi.filter(c => c.created_at.substring(0, 10) >= trenta).length
 
-  return <Card title='🍪 Consumi personali' badge={loading ? 'Caricamento…' : consumi.length + ' totali'}>
+  return <Card title='Consumi personali' badge={loading ? 'Caricamento…' : consumi.length + ' totali'}>
     {!loading && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
-        <KPI label='Totali' icon='🍪' value={totConsumi} sub='porzioni' accent='#F59E0B' />
-        <KPI label='Oggi' icon='📅' value={oggi} sub='consumi' accent='#10B981' />
-        <KPI label='Ultimi 30gg' icon='📊' value={last30} sub='consumi' accent='#3B82F6' />
-        <KPI label='Valore' icon='💰' value={fmtD(totValore)} sub='magazzino' accent='#EF4444' />
+        <KPI label='Totali' icon='' value={totConsumi} sub='porzioni' accent='#F59E0B' />
+        <KPI label='Oggi' icon='' value={oggi} sub='consumi' accent='#10B981' />
+        <KPI label='Ultimi 30gg' icon='' value={last30} sub='consumi' accent='#3B82F6' />
+        <KPI label='Valore' icon='' value={fmtD(totValore)} sub='magazzino' accent='#EF4444' />
       </div>
     )}
     {loading ? (
@@ -725,13 +725,13 @@ function ProduzioniTab({ emp }) {
     return anom
   }
 
-  return <Card title='🥘 Produzioni' badge={loading ? 'Caricamento…' : totLotti + ' lotti totali'}>
+  return <Card title='Produzioni' badge={loading ? 'Caricamento…' : totLotti + ' lotti totali'}>
     {!loading && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
-        <KPI label='Lotti totali' icon='🥘' value={totLotti} sub='prodotti' accent='#EF4444' />
-        <KPI label='Oggi' icon='📅' value={oggi} sub='lotti' accent='#10B981' />
-        <KPI label='Ultimi 30gg' icon='📊' value={last30} sub='lotti' accent='#3B82F6' />
-        <KPI label='Durata media' icon='⏱' value={mediaDurata + " '"} sub='per lotto' accent='#F59E0B' />
+        <KPI label='Lotti totali' icon='' value={totLotti} sub='prodotti' accent='#EF4444' />
+        <KPI label='Oggi' icon='' value={oggi} sub='lotti' accent='#10B981' />
+        <KPI label='Ultimi 30gg' icon='' value={last30} sub='lotti' accent='#3B82F6' />
+        <KPI label='Durata media' icon='' value={mediaDurata + " '"} sub='per lotto' accent='#F59E0B' />
       </div>
     )}
     {loading ? (
@@ -758,7 +758,7 @@ function ProduzioniTab({ emp }) {
                 </td>
                 <td style={{ ...S.td, fontFamily: 'monospace', color: '#3B82F6', fontWeight: 600 }}>
                   {b.lotto}
-                  {b.da_mobile && <span title='Da mobile' style={{ marginLeft: 4, fontSize: 11 }}>📱</span>}
+                  {b.da_mobile && <span title='Da mobile' style={{ marginLeft: 4, fontSize: 11 }}></span>}
                 </td>
                 <td style={{ ...S.td, fontWeight: 600 }}>{recipe?.nome || '—'}</td>
                 <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{b.locale_produzione}</td>
@@ -770,7 +770,7 @@ function ProduzioniTab({ emp }) {
                   ) : (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                       {anomalie.map((a, i) => (
-                        <span key={i} style={{ ...S.badge('#F59E0B', 'rgba(245,158,11,.12)'), fontSize: 10 }}>⚠ {a}</span>
+                        <span key={i} style={{ ...S.badge('#F59E0B', 'rgba(245,158,11,.12)'), fontSize: 10 }}>{a}</span>
                       ))}
                     </div>
                   )}

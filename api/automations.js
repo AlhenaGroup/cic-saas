@@ -69,7 +69,7 @@ const TEMPLATES = {
     nodes: [
       { id: 't', tipo: 'trigger',     pos_x: 200, pos_y: 50, next: ['n1'] },
       { id: 'n1', tipo: 'invia_whatsapp', pos_x: 200, pos_y: 180, config: {
-        contenuto: 'Tanti auguri {nome}! 🎂 Per festeggiare ti regaliamo il 10% sulla tua prossima visita a {locale}. Buon compleanno!'
+        contenuto: 'Tanti auguri {nome}! Per festeggiare ti regaliamo il 10% sulla tua prossima visita a {locale}. Buon compleanno!'
       }, next: ['nf'] },
       { id: 'nf', tipo: 'fine', pos_x: 200, pos_y: 310, next: [] },
     ]

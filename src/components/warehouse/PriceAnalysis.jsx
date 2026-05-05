@@ -109,7 +109,7 @@ export default function PriceAnalysis() {
   // Pannello dettaglio storico — riusato sia inline (sotto Allerta) che in fondo (sotto tabella)
   const renderDetail = () => selected && (
     <Card title={'Storico prezzi: ' + selected.nome} badge={selected.storico.length + ' registrazioni'}
-      extra={<button onClick={closeDetail} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>✕ Chiudi</button>}>
+      extra={<button onClick={closeDetail} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Chiudi</button>}>
       {selected.storico.length === 0
         ? <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Nessuno storico prezzi</div>
         : <>
@@ -215,7 +215,7 @@ export default function PriceAnalysis() {
                 </td>
                 <td style={{ ...S.td, color: '#64748b', fontSize: 12 }}>{a.historyCount} registrazioni</td>
                 <td style={{ ...S.td, color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>
-                  {isSel ? 'Chiudi ▲' : 'Dettaglio ▼'}
+                  {isSel ? 'Chiudi ' : 'Dettaglio '}
                 </td>
               </tr>
               {isSel && (

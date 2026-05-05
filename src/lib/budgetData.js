@@ -17,7 +17,7 @@ export function startOfMonth(year, month) {
 }
 
 export function endOfMonth(year, month) {
-  const d = new Date(year, month, 0) // month 1..12 → day 0 of next month = last day
+  const d = new Date(year, month, 0) // month 1..12 day 0 of next month = last day
   const m = String(month).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${year}-${m}-${day}`
@@ -41,7 +41,7 @@ function resolveLocaleName(locale, sps = []) {
 // locale: 'all' | id salespoint (string/number) | nome locale
 // year: 2026
 // month: 1..12
-// sps: array salespoints opzionale per risolvere id → nome
+// sps: array salespoints opzionale per risolvere id nome
 
 export async function fetchConsuntivo(locale, year, month, sps = []) {
   const from = startOfMonth(year, month)
@@ -107,7 +107,7 @@ export async function fetchConsuntivo(locale, year, month, sps = []) {
   ;(pcRows || []).forEach(r => {
     const rowLocale = r.locale || ''
     if (locale === 'all' || !localeName) {
-      // All locations → somma tutti (incluso 'all' e locali specifici)
+      // All locations somma tutti (incluso 'all' e locali specifici)
       personale += Number(r.costo_totale) || 0
     } else {
       // Filtra per locale: stringa esatta o 'all'
@@ -117,7 +117,7 @@ export async function fetchConsuntivo(locale, year, month, sps = []) {
     }
   })
 
-  // ── 3. Fatture del mese → classifica in food/beverage/materiali/struttura
+  // ── 3. Fatture del mese classifica in food/beverage/materiali/struttura
   let invQuery = supabase
     .from('warehouse_invoices')
     .select('id, data, fornitore, locale, totale')
@@ -141,7 +141,7 @@ export async function fetchConsuntivo(locale, year, month, sps = []) {
     itemRows = items || []
   }
 
-  // Map invoice_id → fornitore per lookup veloce
+  // Map invoice_id fornitore per lookup veloce
   const invById = {}
   ;(invRows || []).forEach(inv => { invById[inv.id] = inv })
 
@@ -161,7 +161,7 @@ export async function fetchConsuntivo(locale, year, month, sps = []) {
     else if (category === 'materiali') materiali += amount
     else if (category === 'struttura') struttura += amount
     // personale da fatture viene ignorato (gestito da personnel_costs)
-    // 'altro' → non conteggiato nelle 6 categorie
+    // 'altro' non conteggiato nelle 6 categorie
   })
 
   // Per le fatture SENZA righe dettaglio, classifica tutta la fattura per fornitore

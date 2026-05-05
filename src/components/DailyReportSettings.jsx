@@ -10,19 +10,19 @@ import { S, Card } from './shared/styles.jsx'
 const iS = S.input
 
 const RUOLI = [
-  { v: 'imprenditore', l: '👔 Imprenditore' },
-  { v: 'resp_acquisti', l: '🛒 Resp. acquisti' },
-  { v: 'hr', l: '👥 HR' },
-  { v: 'manager', l: '⭐ Manager' },
-  { v: 'contabile', l: '📊 Contabile' },
-  { v: 'altro', l: '📧 Altro' },
+  { v: 'imprenditore', l: 'Imprenditore' },
+  { v: 'resp_acquisti', l: 'Resp. acquisti' },
+  { v: 'hr', l: 'HR' },
+  { v: 'manager', l: 'Manager' },
+  { v: 'contabile', l: 'Contabile' },
+  { v: 'altro', l: 'Altro' },
 ]
 
 const SECTIONS = [
-  { v: 'vendite',   l: '📊 Vendite del giorno', d: 'Ricavi, scontrini, coperti per ogni locale' },
-  { v: 'confronto', l: '📈 Confronto sett. scorsa', d: 'Stesso giorno della settimana scorsa, ±%' },
-  { v: 'personale', l: '👥 Personale del turno', d: 'Ore reali, costo, produttività €/h' },
-  { v: 'alert',     l: '⚠️ Alert magazzino & checklist', d: 'Sotto soglia, prezzi anomali, checklist KO' },
+  { v: 'vendite',   l: 'Vendite del giorno', d: 'Ricavi, scontrini, coperti per ogni locale' },
+  { v: 'confronto', l: 'Confronto sett. scorsa', d: 'Stesso giorno della settimana scorsa, ±%' },
+  { v: 'personale', l: 'Personale del turno', d: 'Ore reali, costo, produttività €/h' },
+  { v: 'alert',     l: 'Alert magazzino & checklist', d: 'Sotto soglia, prezzi anomali, checklist KO' },
 ]
 
 export default function DailyReportSettings({ onClose }) {
@@ -75,7 +75,7 @@ export default function DailyReportSettings({ onClose }) {
         updated_at: new Date().toISOString(),
       })
       if (error) throw error
-      setMsg('✓ Salvato')
+      setMsg('Salvato')
       setTimeout(() => setMsg(''), 2500)
     } catch (e) { setErr(e.message) }
     setSaving(false)
@@ -95,7 +95,7 @@ export default function DailyReportSettings({ onClose }) {
       if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status))
       const ok = (data.results || []).filter(x => x.ok).length
       const ko = (data.results || []).filter(x => !x.ok)
-      let m = `✓ Inviate ${ok} email`
+      let m = `Inviate ${ok} email`
       if (ko.length) m += ` · ${ko.length} errori: ` + ko.map(x => x.email + ' (' + x.error + ')').join(', ')
       setMsg(m)
     } catch (e) { setErr(e.message) }
@@ -121,24 +121,24 @@ export default function DailyReportSettings({ onClose }) {
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720 }}>
       <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 15 }}>📧 Resoconto giornaliero via email</h3>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Resoconto giornaliero via email</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Inviato ogni mattina alle 06:00 con il riepilogo del giorno prima</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
       <div style={{ padding: 20 }}>
         {loading ? (
           <div style={{ padding: 30, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
         ) : !hasGmail ? (
           <div style={{ padding: 16, background: 'rgba(245,158,11,.08)', border: '1px solid #F59E0B', borderRadius: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#F59E0B', marginBottom: 6 }}>⚠ Gmail non connesso</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#F59E0B', marginBottom: 6 }}>Gmail non connesso</div>
             <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
               Per inviare il resoconto giornaliero serve connettere il tuo account Gmail (le email partiranno da lì).
               Cliccando sotto verrai reindirizzato a Google per autorizzare l'accesso (scope: invio email).
             </div>
             <button onClick={connectGmail}
               style={{ padding: '10px 18px', background: '#10B981', color: '#0f1420', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-              🔗 Connetti Gmail
+              Connetti Gmail
             </button>
           </div>
         ) : <>
@@ -189,7 +189,7 @@ export default function DailyReportSettings({ onClose }) {
                   <select value={r.ruolo || 'imprenditore'} onChange={e => updRecipient(i, { ruolo: e.target.value })} style={{ ...iS, width: '100%' }}>
                     {RUOLI.map(x => <option key={x.v} value={x.v}>{x.l}</option>)}
                   </select>
-                  <button onClick={() => rmRecipient(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: '0 8px' }}>✕</button>
+                  <button onClick={() => rmRecipient(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: '0 8px' }}></button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#94a3b8' }}>
                   <span>Sezioni:</span>
@@ -218,13 +218,13 @@ export default function DailyReportSettings({ onClose }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
             <button onClick={testSend} disabled={sending || saving || !recipients.length}
               style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '8px 16px', fontWeight: 700, cursor: sending ? 'wait' : 'pointer', opacity: !recipients.length ? 0.5 : 1 }}>
-              {sending ? 'Invio…' : '📤 Invia ora di prova'}
+              {sending ? 'Invio…' : 'Invia ora di prova'}
             </button>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Chiudi</button>
               <button onClick={save} disabled={saving}
                 style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
-                {saving ? 'Salvo…' : '💾 Salva'}
+                {saving ? 'Salvo…' : 'Salva'}
               </button>
             </div>
           </div>

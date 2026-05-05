@@ -48,11 +48,11 @@ export default function SetupPage({ onSaved }) {
           <input style={s.input} type="password" placeholder="La tua API Key..." value={apiKey} onChange={e => setApiKey(e.target.value)} onFocus={e => e.target.style.borderColor='var(--blue)'} onBlur={e => e.target.style.borderColor='var(--border-md)'} required />
           <div style={s.hint}>La chiave viene salvata in modo sicuro e usata solo per leggere i tuoi dati.</div>
           {error && <div style={s.err}>{error}</div>}
-          <button type="submit" style={s.btn(loading || !apiKey.trim())} disabled={loading || !apiKey.trim()}>{loading?'Verifica in corso...':'Connetti e continua →'}</button>
+          <button type="submit" style={s.btn(loading || !apiKey.trim())} disabled={loading || !apiKey.trim()}>{loading?'Verifica in corso...':'Connetti e continua '}</button>
         </form>
         <div style={s.divider} />
         <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--text2)', marginBottom: '10px' }}>Come trovare la tua API Key</div>
-        {['Accedi a fo.cassanova.com con il tuo account','Vai in Impostazioni → sezione API','Clicca su "Genera nuova API Key"','Copia la chiave e incollala qui sopra'].map((step, i) => (
+        {['Accedi a fo.cassanova.com con il tuo account','Vai in Impostazioni sezione API','Clicca su "Genera nuova API Key"','Copia la chiave e incollala qui sopra'].map((step, i) => (
           <div key={i} style={s.stepRow}><div style={s.stepNum}>{i+1}</div><div style={s.stepText}>{step}</div></div>
         ))}
         <div style={{ ...s.hint, marginTop: '12px', padding: '8px', background: 'var(--amber-bg)', borderRadius: 'var(--radius-sm)', color: 'var(--amber)' }}>

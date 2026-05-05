@@ -8,7 +8,7 @@
 // - thresholds: campi configurabili (numero/giorni/percentuale)
 //
 // Gli eventi vengono generati da api/alert-cron (cron giornaliero) e/o
-// da trigger inline in altri moduli (es. produzione → resa anomala).
+// da trigger inline in altri moduli (es. produzione resa anomala).
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
@@ -224,7 +224,7 @@ function FeedTab() {
             {e.descrizione && <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>{e.descrizione}</div>}
             {e.link_url && (
               <a href={e.link_url} style={{ fontSize: 11, color: '#3B82F6', textDecoration: 'underline' }}>
-                Vedi dettaglio →
+                Vedi dettaglio 
               </a>
             )}
           </div>
@@ -245,7 +245,7 @@ function FeedTab() {
 
 // ─── CONFIGURAZIONE ────────────────────────────────────────────
 function ConfigTab() {
-  const [rules, setRules] = useState({}) // alert_key → row
+  const [rules, setRules] = useState({}) // alert_key row
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')

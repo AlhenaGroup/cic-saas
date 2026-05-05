@@ -118,7 +118,7 @@ export default function IvaTab({ sp, sps, from, to }) {
   return <div>
     {/* ─── Indicazione periodo (impostato dall'header globale) ───────────── */}
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.25rem', fontSize: 11, color: '#64748b' }}>
-      <span>📋 Periodo IVA: <strong style={{ color: '#cbd5e1' }}>{from} → {to}</strong></span>
+      <span>Periodo IVA: <strong style={{ color: '#cbd5e1' }}>{from} {to}</strong></span>
       <span style={{ marginLeft: 'auto', fontSize: 10, fontStyle: 'italic' }}>
         Cambia il periodo dalla tendina nell'header in alto
       </span>
@@ -154,7 +154,7 @@ export default function IvaTab({ sp, sps, from, to }) {
     {/* ─── Cards per aliquota ──────────────────────────────────────────── */}
     {!loading && aliquote.length === 0 && (
       <div style={{ ...S.card, textAlign: 'center', color: '#64748b', padding: 30 }}>
-        Nessun dato IVA in questo periodo. Verifica che ci siano scontrini in <code>{from} → {to}</code>.
+        Nessun dato IVA in questo periodo. Verifica che ci siano scontrini in <code>{from} {to}</code>.
       </div>
     )}
     {!loading && aliquote.length > 0 && <>
@@ -226,7 +226,7 @@ export default function IvaTab({ sp, sps, from, to }) {
     <div style={{ ...S.card, marginTop: 16, background: 'rgba(245,158,11,.05)', borderColor: 'rgba(245,158,11,.25)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 4 }}>⚙️ Manutenzione IVA</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 4 }}>Manutenzione IVA</div>
           <div style={{ fontSize: 11, color: '#94a3b8' }}>
             Le fatture importate prima dell'aggiornamento non hanno il dettaglio IVA per aliquota.
             Ricalcola scaricando di nuovo l'XML da TS Digital.
@@ -235,7 +235,7 @@ export default function IvaTab({ sp, sps, from, to }) {
         </div>
         <button onClick={runBackfill} disabled={backfilling}
           style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '8px 16px', fontWeight: 600, fontSize: 12, cursor: backfilling ? 'wait' : 'pointer', opacity: backfilling ? 0.6 : 1 }}>
-          {backfilling ? '⏳ In corso…' : '🔁 Aggiorna IVA fatture vecchie'}
+          {backfilling ? '⏳ In corso…' : 'Aggiorna IVA fatture vecchie'}
         </button>
       </div>
     </div>

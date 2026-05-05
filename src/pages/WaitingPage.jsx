@@ -27,7 +27,7 @@ export default function WaitingPage({ email }) {
         borderRadius: 8, padding: '14px 16px', textAlign: 'left',
         fontSize: 12, color: '#D97706', marginBottom: 24,
       }}>
-        <strong>📞 Hai bisogno di assistenza?</strong><br />
+        <strong>Hai bisogno di assistenza?</strong><br />
         <span style={{ color: '#94a3b8' }}>
           Scrivi a <a href="mailto:support@alhenagroup.com" style={{ color: '#F59E0B' }}>support@alhenagroup.com</a> o
           chiama il +39 011 1234567
@@ -39,7 +39,7 @@ export default function WaitingPage({ email }) {
           style={{
             background: '#F59E0B', color: '#0f1420', fontWeight: 600,
             border: 'none', padding: '10px 20px', borderRadius: 6, cursor: 'pointer',
-          }}>🔄 Ricarica</button>
+          }}>Ricarica</button>
         <button onClick={() => supabase.auth.signOut()}
           style={{
             background: 'transparent', color: '#94a3b8', border: '1px solid #2a3042',

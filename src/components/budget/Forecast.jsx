@@ -67,15 +67,15 @@ export default function Forecast({ sp, sps, year, month }) {
   }, [consuntivo, daysElapsed, totalDays, trendAdjust, year, month])
 
   if (loading) {
-    return <Card title="🔮 Forecast">
+    return <Card title="Forecast">
       <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento…</div>
     </Card>
   }
 
   if (!consuntivo || consuntivo.ricavi === 0) {
-    return <Card title="🔮 Forecast">
+    return <Card title="Forecast">
       <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
-        <div style={{ fontSize: 48, marginBottom: 14, opacity: .3 }}>📭</div>
+        <div style={{ fontSize: 48, marginBottom: 14, opacity: .3 }}></div>
         Nessun dato di consuntivo per {String(month).padStart(2, '0')}/{year}
       </div>
     </Card>
@@ -84,7 +84,7 @@ export default function Forecast({ sp, sps, year, month }) {
   const CATS_DISP = ['ricavi', 'food', 'beverage', 'materiali', 'personale', 'struttura']
 
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-    <Card title="🔮 Proiezione fine mese">
+    <Card title="Proiezione fine mese">
       <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <span>
           Giorno <strong style={{ color: '#f1f5f9' }}>{daysElapsed}</strong> di <strong style={{ color: '#f1f5f9' }}>{totalDays}</strong>
@@ -144,7 +144,7 @@ export default function Forecast({ sp, sps, year, month }) {
               const delta = forAny - parzAny
               return <tr key={k}>
                 <td style={{ ...S.td, fontWeight: 600 }}>
-                  <span style={{ color: meta.color }}>●</span> {meta.label}
+                  <span style={{ color: meta.color }}></span> {meta.label}
                 </td>
                 <td style={{ ...S.td, textAlign: 'right' }}>{fmtD(parzAny)}</td>
                 <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: meta.color }}>{fmtD(forAny)}</td>
@@ -166,7 +166,7 @@ export default function Forecast({ sp, sps, year, month }) {
       </div>
     </Card>
 
-    <Card title="📈 Ricavi cumulativi: reale + proiezione">
+    <Card title="Ricavi cumulativi: reale + proiezione">
       <div style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer>
           <LineChart data={chartData}>

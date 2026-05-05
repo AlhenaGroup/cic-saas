@@ -8,11 +8,11 @@ const sevColors = {
 }
 
 const typeConfig = {
-  'Eliminazione Documento': { icon: '🗑️', color: '#EF4444' },
-  'Eliminazione ordine': { icon: '🗑️', color: '#EF4444' },
-  'Applicazione/Modifica Sconto': { icon: '🏷️', color: '#F59E0B' },
-  'Spostamento': { icon: '↔️', color: '#3B82F6' },
-  'Apertura Cassetto': { icon: '🗃️', color: '#64748b' },
+  'Eliminazione Documento': { icon: '', color: '#EF4444' },
+  'Eliminazione ordine': { icon: '', color: '#EF4444' },
+  'Applicazione/Modifica Sconto': { icon: '', color: '#F59E0B' },
+  'Spostamento': { icon: '', color: '#3B82F6' },
+  'Apertura Cassetto': { icon: '', color: '#64748b' },
 }
 
 export default function MonitoringTab({ events = [] }) {
@@ -23,7 +23,7 @@ export default function MonitoringTab({ events = [] }) {
   // Classifica ogni evento
   const classified = events.map(ev => {
     const tipo = ev.type || 'Altro'
-    const cfg = typeConfig[tipo] || { icon: '📋', color: '#94a3b8' }
+    const cfg = typeConfig[tipo] || { icon: '', color: '#94a3b8' }
     return { ...ev, ...cfg, tipo }
   })
 
@@ -42,21 +42,21 @@ export default function MonitoringTab({ events = [] }) {
   return <>
     {/* KPI */}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: '1.25rem' }}>
-      <KPI label="Totale operazioni" icon="📋" value={classified.length} sub="nel periodo" accent='#3B82F6' />
-      <KPI label="Eliminazioni" icon="🗑️" value={counts.eliminazioni} sub="documenti annullati" accent='#EF4444' />
-      <KPI label="Sconti" icon="🏷️" value={counts.sconti} sub="applicati" accent='#F59E0B' />
-      <KPI label="Spostamenti" icon="↔️" value={counts.spostamenti} sub="ordini/doc" accent='#3B82F6' />
-      <KPI label="Apertura cassetto" icon="🗃️" value={counts.cassetto} sub="operazioni" accent='#64748b' />
+      <KPI label="Totale operazioni" icon="" value={classified.length} sub="nel periodo" accent='#3B82F6' />
+      <KPI label="Eliminazioni" icon="" value={counts.eliminazioni} sub="documenti annullati" accent='#EF4444' />
+      <KPI label="Sconti" icon="" value={counts.sconti} sub="applicati" accent='#F59E0B' />
+      <KPI label="Spostamenti" icon="" value={counts.spostamenti} sub="ordini/doc" accent='#3B82F6' />
+      <KPI label="Apertura cassetto" icon="" value={counts.cassetto} sub="operazioni" accent='#64748b' />
     </div>
 
     {/* Filtri */}
     <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
       {[
         { key: 'tutte', label: 'Tutte', count: classified.length, color: '#3B82F6' },
-        { key: 'eliminazione', label: '🗑️ Eliminazioni', count: counts.eliminazioni, color: '#EF4444' },
-        { key: 'sconto', label: '🏷️ Sconti', count: counts.sconti, color: '#F59E0B' },
-        { key: 'spostamento', label: '↔️ Spostamenti', count: counts.spostamenti, color: '#3B82F6' },
-        { key: 'cassetto', label: '🗃️ Cassetto', count: counts.cassetto, color: '#64748b' },
+        { key: 'eliminazione', label: 'Eliminazioni', count: counts.eliminazioni, color: '#EF4444' },
+        { key: 'sconto', label: 'Sconti', count: counts.sconti, color: '#F59E0B' },
+        { key: 'spostamento', label: 'Spostamenti', count: counts.spostamenti, color: '#3B82F6' },
+        { key: 'cassetto', label: 'Cassetto', count: counts.cassetto, color: '#64748b' },
       ].map(f => (
         <button key={f.key} onClick={() => setFilter(filter === f.key ? 'tutte' : f.key)} style={{ ...iS, padding: '4px 12px', fontSize: 11, fontWeight: filter === f.key ? 700 : 400, color: filter === f.key ? f.color : '#94a3b8', background: filter === f.key ? f.color + '18' : 'transparent', border: filter === f.key ? `1px solid ${f.color}` : '1px solid #2a3042' }}>
           {f.label} ({f.count})
@@ -68,7 +68,7 @@ export default function MonitoringTab({ events = [] }) {
     <Card title="Monitoring Log" badge={filtered.length + ' operazioni'}>
       {classified.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 30 }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }}></div>
           <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 8 }}>Nessuna operazione sospetta nel periodo</div>
           <div style={{ fontSize: 12, color: '#475569', maxWidth: 400, margin: '0 auto', lineHeight: 1.6 }}>
             Le operazioni vengono rilevate automaticamente dai dati CiC: annulli/resi, sconti applicati sui prodotti, aperture cassetto, spostamenti ordini.

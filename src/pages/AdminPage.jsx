@@ -128,7 +128,7 @@ function UsersList({ onEditUser, refreshKey }) {
   return <>
     <Card title={`Utenti (${users.length})`} extra={
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <input placeholder="🔍 Cerca email..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...iS, width: 200 }} />
+      <input placeholder="Cerca email..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...iS, width: 200 }} />
       <button onClick={() => setShowNew(true)} style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 12px', cursor: 'pointer' }}>
         + Nuovo cliente
       </button>
@@ -151,7 +151,7 @@ function UsersList({ onEditUser, refreshKey }) {
               <td style={S.td}>
                 {u.plan?.active === false ? <span style={S.badge('#EF4444', 'rgba(239,68,68,.12)')}>SOSP.</span>
                   : u.plan?.trial_until ? <span style={S.badge('#F59E0B', 'rgba(245,158,11,.12)')}>TRIAL</span>
-                  : u.plan ? <span style={{ color: '#10B981' }}>● Attivo</span> : '—'}
+                  : u.plan ? <span style={{ color: '#10B981' }}>Attivo</span> : '—'}
               </td>
               <td style={{ ...S.td, fontSize: 12 }}>{u.plan?.valid_until || '—'}</td>
               <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('it-IT') : '—'}</td>
@@ -162,7 +162,7 @@ function UsersList({ onEditUser, refreshKey }) {
                   <button onClick={async () => {
                     if (u.admin_role) { alert('Non posso eliminare un admin da qui. Rimuovi prima il ruolo da Supabase.'); return }
                     if (!confirm(`Eliminare definitivamente ${u.email}?\n\nVerranno cancellati: account, settings, piano, override, layout. Operazione irreversibile.`)) return
-                    try { await adminCall('delete-user', { user_id: u.id }); alert('✓ Utente eliminato'); reload() }
+                    try { await adminCall('delete-user', { user_id: u.id }); alert('Utente eliminato'); reload() }
                     catch (e) { alert('Errore: ' + e.message) }
                   }}
                     title="Elimina utente"
@@ -231,7 +231,7 @@ function NewUser({ onClose, onCreated }) {
     try {
       const { salespoints } = await adminCall('sync-salespoints', { cic_api_key: cicApiKey })
       setSalesPoints(salespoints || [])
-      alert(`✓ Trovati ${salespoints?.length || 0} locali`)
+      alert(`Trovati ${salespoints?.length || 0} locali`)
     } catch (e) { alert(e.message) }
     setSyncing(false)
   }
@@ -267,7 +267,7 @@ function NewUser({ onClose, onCreated }) {
           })
         } catch (e) { console.warn('anagrafica non salvata:', e.message) }
       }
-      alert(`✓ Cliente creato.\n\nUna email di benvenuto è stata inviata a ${email}\ncon il link per impostare la password.`)
+      alert(`Cliente creato.\n\nUna email di benvenuto è stata inviata a ${email}\ncon il link per impostare la password.`)
       onCreated()
     } catch (e) { alert('Errore: ' + e.message) }
     setCreating(false)
@@ -282,7 +282,7 @@ function NewUser({ onClose, onCreated }) {
             Riceverà una email per impostare la password al primo accesso
           </div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
 
       <div style={{ padding: 20 }}>
@@ -457,7 +457,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
     try {
       const { salespoints } = await adminCall('sync-salespoints', { cic_api_key: cicApiKey })
       setSalesPoints(salespoints || [])
-      alert(`✓ Sincronizzati ${salespoints?.length || 0} locali da CiC`)
+      alert(`Sincronizzati ${salespoints?.length || 0} locali da CiC`)
     } catch (e) { alert(e.message) }
     setSyncingSp(false)
   }
@@ -510,7 +510,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720, maxHeight: '90vh', overflow: 'auto' }}>
       <div style={{ padding: 20, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>Modifica utente · {user.email}</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
 
       {/* Tab di sezione */}
@@ -577,7 +577,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
           {!settingsLoaded && <div style={{ padding: 12, color: '#64748b' }}>Carico…</div>}
           {settingsLoaded && <>
             <div style={{ fontSize: 11, color: '#64748b', marginBottom: 14 }}>
-              Dati anagrafici dell'azienda cliente. Verranno mostrati nel modulo Impostazioni → Generale.
+              Dati anagrafici dell'azienda cliente. Verranno mostrati nel modulo Impostazioni Generale.
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
               <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Ragione sociale</div>
@@ -667,7 +667,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
               if (user.admin_role) { alert('Non posso eliminare un admin da qui.'); return }
               if (!confirm(`Eliminare definitivamente ${user.email}?\n\nVerranno cancellati: account, settings, piano, override, layout. Operazione irreversibile.`)) return
               setSaving(true)
-              try { await adminCall('delete-user', { user_id: user.id }); alert('✓ Utente eliminato'); onSaved(); onClose() }
+              try { await adminCall('delete-user', { user_id: user.id }); alert('Utente eliminato'); onSaved(); onClose() }
               catch (e) { alert('Errore: ' + e.message) }
               setSaving(false)
             }}
@@ -731,7 +731,7 @@ function PlansList() {
                 <td style={S.td}>{p.price_yearly != null ? '€ ' + p.price_yearly : '—'}</td>
                 <td style={S.td}>{tabs}</td>
                 <td style={S.td}>{wAll ? 'tutti (*)' : (p.features?.widgets?.length || 0)}</td>
-                <td style={S.td}>{p.is_default ? <span style={{ color: '#F59E0B', fontWeight: 700 }}>★</span> : ''}</td>
+                <td style={S.td}>{p.is_default ? <span style={{ color: '#F59E0B', fontWeight: 700 }}></span> : ''}</td>
                 <td style={S.td}>
                   <button onClick={() => setEditing(p)} style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}>Modifica</button>
                 </td>
@@ -789,7 +789,7 @@ function EditPlan({ plan, onClose, onSaved }) {
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 800, maxHeight: '90vh', overflow: 'auto' }}>
       <div style={{ padding: 20, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>{plan.id ? 'Modifica' : 'Nuovo'} piano</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
       <div style={{ padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12, marginBottom: 16 }}>
@@ -904,7 +904,7 @@ export default function AdminPage() {
   return <div style={{ minHeight: '100vh', background: '#0f1420', color: '#e2e8f0', fontFamily: "'DM Sans',system-ui,sans-serif" }}>
     <div style={{ background: '#131825', borderBottom: '1px solid #1e2636', padding: '0 1.5rem', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
       <span style={{ fontSize: 15, fontWeight: 700 }}>Admin · CIC SaaS</span>
-      <a href="/" style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>← Torna alla dashboard</a>
+      <a href="/" style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>Torna alla dashboard</a>
       <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/')} style={{ ...iS, color: '#475569', border: '1px solid #2a3042', padding: '6px 12px', cursor: 'pointer' }}>Esci</button>
     </div>
     <div style={{ background: '#131825', borderBottom: '1px solid #1e2636', padding: '0 1.5rem', display: 'flex', gap: 4 }}>

@@ -1,12 +1,12 @@
 // Helper centralizzato per gestione modalità conteggio inventario "pezzi + aperto".
 // Usato da:
 //   - InventoryManager.jsx (dashboard)
-//   - TimbraPage.jsx → InventoryPanel mobile
+//   - TimbraPage.jsx InventoryPanel mobile
 //   - api/attendance.js (server-side, replicato inline per dependency-free)
 //
 // Un articolo può essere in modalità:
-//   'unita' → un solo numero in unità ricetta (litri/kg, come oggi)
-//   'pezzi' → due numeri: pezzi chiusi + aperto (residuo ml/cl/g)
+//   'unita' un solo numero in unità ricetta (litri/kg, come oggi)
+//   'pezzi' due numeri: pezzi chiusi + aperto (residuo ml/cl/g)
 //             il totale in unità ricetta è: pezzi * volume_pezzo + aperto / fattore
 //
 // volume_pezzo è SEMPRE espresso in unità ricetta (es. 0.75 L per bottiglia 75cl).
@@ -14,8 +14,8 @@
 
 import { supabase } from './supabase'
 
-// Conversione unita_apertura → unità ricetta (litri/kg).
-// Es. ml → litri = / 1000 ; cl → litri = / 100
+// Conversione unita_apertura unità ricetta (litri/kg).
+// Es. ml litri = / 1000 ; cl litri = / 100
 export function aperturaToUnita(qty, unita_apertura) {
   if (qty == null || qty === '') return 0
   const n = Number(qty)

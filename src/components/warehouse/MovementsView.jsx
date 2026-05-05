@@ -12,8 +12,8 @@ const TIPO_CONFIG = {
   scarico: { l: '−Scarico', c: '#EF4444', bg: 'rgba(239,68,68,.15)', sign: '−' },
   correzione: { l: 'Correzione', c: '#F59E0B', bg: 'rgba(245,158,11,.15)', sign: '±' },
   apertura: { l: 'Apertura', c: '#3B82F6', bg: 'rgba(59,130,246,.15)', sign: '=' },
-  trasferimento_in: { l: '↔ Trasf.in', c: '#06B6D4', bg: 'rgba(6,182,212,.15)', sign: '+' },
-  trasferimento_out: { l: '↔ Trasf.out', c: '#8B5CF6', bg: 'rgba(139,92,246,.15)', sign: '−' },
+  trasferimento_in: { l: 'Trasf.in', c: '#06B6D4', bg: 'rgba(6,182,212,.15)', sign: '+' },
+  trasferimento_out: { l: 'Trasf.out', c: '#8B5CF6', bg: 'rgba(139,92,246,.15)', sign: '−' },
 }
 
 export default function MovementsView({ sp, sps, from, to }) {
@@ -73,7 +73,7 @@ export default function MovementsView({ sp, sps, from, to }) {
   const onCsv = () => { const { headers, rows, filename } = buildExportData(); exportToCsv(filename, headers, rows) }
   const onPdf = () => {
     const { headers, rows } = buildExportData()
-    const titolo = `📦 Movimenti magazzino · ${selectedLocaleName || 'Tutti i locali'} · ${from || '—'} → ${to || '—'}`
+    const titolo = `Movimenti magazzino · ${selectedLocaleName || 'Tutti i locali'} · ${from || '—'} ${to || '—'}`
     exportToPdf(titolo, headers, rows)
   }
 
@@ -95,7 +95,7 @@ export default function MovementsView({ sp, sps, from, to }) {
         <option value="manuale">Manuale</option>
         <option value="trasferimento">Trasferimento</option>
       </select>
-      <input placeholder="🔍 Articolo, riferimento, note..." value={search} onChange={e => setSearch(e.target.value)}
+      <input placeholder="Articolo, riferimento, note..." value={search} onChange={e => setSearch(e.target.value)}
         style={{ ...iS, flex: 1, maxWidth: 300 }} />
       <ExportButtons onExcel={onExcel} onCsv={onCsv} onPdf={onPdf} disabled={filtered.length === 0} size="lg" />
     </div>
@@ -132,7 +132,7 @@ export default function MovementsView({ sp, sps, from, to }) {
                   <td style={{ ...S.td, fontWeight: 600, color: '#F59E0B' }}>{m.valore_totale ? fmtD(m.valore_totale) : '—'}</td>
                   <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
                     {m.locale}{m.sub_location && m.sub_location !== 'principale' ? ' / ' + m.sub_location : ''}
-                    {m.sub_location_target && <span style={{ color: '#64748b' }}> → {m.sub_location_target}</span>}
+                    {m.sub_location_target && <span style={{ color: '#64748b' }}> {m.sub_location_target}</span>}
                   </td>
                   <td style={{ ...S.td, fontSize: 11, color: '#64748b', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {m.riferimento_label || m.fonte}

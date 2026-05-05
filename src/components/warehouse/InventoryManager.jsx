@@ -52,7 +52,7 @@ export default function InventoryManager({ sp, sps }) {
         <div style={{ padding: 24, color: '#64748b', textAlign: 'center', lineHeight: 1.6, fontSize: 13 }}>
           Nessun inventario.<br/>
           <span style={{ fontSize: 11 }}>
-            Il primo inventario di un locale dovrebbe essere di tipo <strong>🎯 Apertura</strong>: definisce le giacenze di partenza senza generare correzioni.<br/>
+            Il primo inventario di un locale dovrebbe essere di tipo <strong>Apertura</strong>: definisce le giacenze di partenza senza generare correzioni.<br/>
             Gli inventari successivi confrontano la giacenza teorica (da fatture + vendite) con quella reale e applicano le correzioni.
           </span>
         </div>
@@ -70,15 +70,15 @@ export default function InventoryManager({ sp, sps }) {
                 <td style={{ ...S.td, color: '#94a3b8' }}>{meta.sub_location || 'principale'}</td>
                 <td style={S.td}>
                   {meta.tipo === 'apertura'
-                    ? <span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>🎯 Apertura</span>
-                    : <span style={S.badge('#F59E0B', 'rgba(245,158,11,.12)')}>📋 Regolare</span>}
+                    ? <span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>Apertura</span>
+                    : <span style={S.badge('#F59E0B', 'rgba(245,158,11,.12)')}>Regolare</span>}
                 </td>
                 <td style={S.td}>
                   {inv.stato === 'chiuso'
-                    ? <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>✓ Chiuso</span>
+                    ? <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Chiuso</span>
                     : <span style={S.badge('#F59E0B', 'rgba(245,158,11,.12)')}>⏳ In corso</span>}
                 </td>
-                <td style={{ ...S.td, color: '#64748b' }}>→</td>
+                <td style={{ ...S.td, color: '#64748b' }}></td>
               </tr>
             })}
           </tbody>
@@ -151,20 +151,20 @@ function NewInventoryModal({ locale, subLocations, onClose, onCreated }) {
     <Field label="Data"><input type="date" value={data} onChange={e => setData(e.target.value)} style={{ ...iS, width: '100%' }} /></Field>
     <Field label="Tipo">
       <select value={tipo} onChange={e => setTipo(e.target.value)} style={{ ...iS, width: '100%' }}>
-        <option value="regolare">📋 Regolare (confronta teorica, applica correzioni)</option>
-        <option value="apertura">🎯 Apertura (fissa le giacenze di partenza, no correzioni)</option>
+        <option value="regolare">Regolare (confronta teorica, applica correzioni)</option>
+        <option value="apertura">Apertura (fissa le giacenze di partenza, no correzioni)</option>
       </select>
     </Field>
     {tipo === 'apertura' && (
       <div style={{ background: 'rgba(59,130,246,.08)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 6, padding: 12, fontSize: 11, color: '#60A5FA', marginBottom: 16, lineHeight: 1.5 }}>
-        <strong>🎯 Inventario di apertura:</strong> usalo SOLO la prima volta. Definirà le giacenze di partenza per questo locale/sub-location senza generare correzioni.
+        <strong>Inventario di apertura:</strong> usalo SOLO la prima volta. Definirà le giacenze di partenza per questo locale/sub-location senza generare correzioni.
       </div>
     )}
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
       <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
       <button onClick={create} disabled={creating}
         style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: creating ? 'wait' : 'pointer' }}>
-        {creating ? 'Creo…' : 'Avanti → Conta articoli'}
+        {creating ? 'Creo…' : 'Avanti Conta articoli'}
       </button>
     </div>
   </Modal>
@@ -283,8 +283,8 @@ function InventoryDetail({ inventory, onClose, onChange }) {
   const userAddedItems = useMemo(() => items.filter(it => it.is_user_added), [items])
 
   return <Modal onClose={onClose}
-    title={`📋 Inventario ${inventory.data}`}
-    subtitle={`${meta.locale || '—'}${meta.sub_location && meta.sub_location !== 'principale' ? ' / ' + meta.sub_location : ''} · ${isApertura ? '🎯 Apertura' : '📋 Regolare'} · ${isChiuso ? 'Chiuso' : 'In corso'}`}
+    title={`Inventario ${inventory.data}`}
+    subtitle={`${meta.locale || '—'}${meta.sub_location && meta.sub_location !== 'principale' ? ' / ' + meta.sub_location : ''} · ${isApertura ? 'Apertura' : 'Regolare'} · ${isChiuso ? 'Chiuso' : 'In corso'}`}
     maxWidth={880}>
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${3 + (stats.byStaff > 0 ? 1 : 0) + (stats.userAdded > 0 ? 1 : 0)}, 1fr)`, gap: 10, marginBottom: 14 }}>
       <KpiMini label="Articoli contati" value={`${stats.contati}/${items.length}`} />
@@ -292,14 +292,14 @@ function InventoryDetail({ inventory, onClose, onChange }) {
       {stats.userAdded > 0 && <KpiMini label="Aggiunti dallo staff" value={stats.userAdded} color="#10B981" />}
       {!isApertura && <KpiMini label="Differenze" value={stats.diffCount} />}
       {!isApertura && <KpiMini label="Valore diff." value={fmtD(stats.diffVal)} color={stats.diffVal < 0 ? '#EF4444' : '#10B981'} />}
-      {isApertura && <KpiMini label="Tipo" value="🎯 Apertura" color="#3B82F6" />}
+      {isApertura && <KpiMini label="Tipo" value="Apertura" color="#3B82F6" />}
       {isApertura && <KpiMini label="Effetto" value="No correzioni" color="#94a3b8" />}
     </div>
 
     {userAddedItems.length > 0 && (
       <div style={{ marginBottom: 14, background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 10, padding: 12 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-          ➕ Articoli aggiunti dai collaboratori durante l'inventario
+          Articoli aggiunti dai collaboratori durante l'inventario
           <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>({userAddedItems.length})</span>
         </div>
         <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
@@ -327,7 +327,7 @@ function InventoryDetail({ inventory, onClose, onChange }) {
                     if (!confirm(`Eliminare "${it.nome_articolo}" dall'inventario?`)) return
                     await supabase.from('warehouse_inventory_items').delete().eq('id', it.id)
                     load()
-                  }} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>✕</button>}
+                  }} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}></button>}
                 </td>
               </tr>
             })}
@@ -338,7 +338,7 @@ function InventoryDetail({ inventory, onClose, onChange }) {
 
     {!isChiuso && (
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        <input placeholder="🔍 Cerca articolo..." value={search} onChange={e => setSearch(e.target.value)}
+        <input placeholder="Cerca articolo..." value={search} onChange={e => setSearch(e.target.value)}
           style={{ ...iS, flex: 1 }} />
       </div>
     )}
@@ -428,7 +428,7 @@ function InventoryDetail({ inventory, onClose, onChange }) {
                 <td style={{ ...S.td, fontSize: 11 }}>
                   {byCollab
                     ? <div style={{ color: '#3B82F6' }}>
-                        <div style={{ fontWeight: 600 }}>👤 {it.counted_by_name}</div>
+                        <div style={{ fontWeight: 600 }}>{it.counted_by_name}</div>
                         {tsStr && <div style={{ color: '#64748b', fontSize: 10 }}>{tsStr}</div>}
                       </div>
                     : <span style={{ color: '#475569' }}>—</span>}
@@ -445,7 +445,7 @@ function InventoryDetail({ inventory, onClose, onChange }) {
         <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Chiudi senza salvare</button>
         <button onClick={closeInventory} disabled={saving}
           style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
-          {saving ? 'Applico…' : (isApertura ? '✓ Conferma apertura' : '✓ Chiudi e correggi')}
+          {saving ? 'Applico…' : (isApertura ? 'Conferma apertura' : 'Chiudi e correggi')}
         </button>
       </div>
     )}
@@ -467,7 +467,7 @@ function Modal({ title, subtitle, maxWidth = 560, onClose, children }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>{title}</h3>
           {subtitle && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>}
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
       <div style={{ padding: 20 }}>{children}</div>
     </div>

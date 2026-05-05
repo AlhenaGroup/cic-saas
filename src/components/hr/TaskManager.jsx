@@ -77,18 +77,18 @@ export default function TaskManager({ sp, sps, employees }) {
     await load()
   }
 
-  return <Card title="📋 Task" extra={
+  return <Card title="Task" extra={
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       <button onClick={() => setEditingTask({})} style={btnPrimary}>+ Nuova task</button>
       <button onClick={() => setEditingTpl({})} style={btnSecondary}>+ Nuovo ricorrente</button>
-      <button onClick={generateInstances} style={btnSecondary} disabled={loading}>🔄 Genera ricorrenze</button>
+      <button onClick={generateInstances} style={btnSecondary} disabled={loading}>Genera ricorrenze</button>
     </div>
   }>
     <SubTabsBar tabs={[
-      { key: 'calendario', label: '📅 Calendario' },
-      { key: 'lista',      label: '📋 Lista' },
-      { key: 'ricorrenti', label: '🔁 Ricorrenti (' + templates.length + ')' },
-      { key: 'modelli',    label: '📚 Modelli (' + knowledge.length + ')' },
+      { key: 'calendario', label: 'Calendario' },
+      { key: 'lista',      label: 'Lista' },
+      { key: 'ricorrenti', label: 'Ricorrenti (' + templates.length + ')' },
+      { key: 'modelli',    label: 'Modelli (' + knowledge.length + ')' },
     ]} value={tab} onChange={setTab} />
 
     {tab === 'calendario' && <CalendarView tasks={tasks} weekStart={weekStart} setWeekStart={setWeekStart} onTaskClick={setEditingTask} employees={employees}/>}
@@ -131,20 +131,20 @@ function KnowledgeView({ knowledge, onAdd, onEdit, onDelete }) {
       {filtered.map(k => <div key={k.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', padding: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-            {k.type === 'production' ? '🔪' : '📌'} {k.title}
+            {k.type === 'production' ? '' : ''} {k.title}
           </div>
           <span style={{ fontSize: 10, color: 'var(--text3)', whiteSpace: 'nowrap' }}>×{k.usage_count}</span>
         </div>
         {k.description && <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{k.description}</div>}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
           <span style={S.badge('var(--text3)', 'var(--surface)')}>{k.default_priority}</span>
-          {k.requires_photo && <span style={S.badge('var(--text3)', 'var(--surface)')}>📷</span>}
+          {k.requires_photo && <span style={S.badge('var(--text3)', 'var(--surface)')}></span>}
           {k.default_duration_min && <span style={S.badge('var(--text3)', 'var(--surface)')}>{k.default_duration_min}'</span>}
           {(k.tags || []).map(t => <span key={t} style={S.badge('var(--blue-text)', 'var(--blue-bg)')}>#{t}</span>)}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => onEdit(k)} style={btnSm}>✏️ Modifica</button>
-          <button onClick={() => onDelete(k.id)} style={btnSm}>🗑</button>
+          <button onClick={() => onEdit(k)} style={btnSm}>Modifica</button>
+          <button onClick={() => onDelete(k.id)} style={btnSm}></button>
         </div>
       </div>)}
     </div>
@@ -184,13 +184,13 @@ function KnowledgeEditor({ kn, sps, onClose, onSaved }) {
     else await supabase.from('task_knowledge').insert(payload)
     onSaved()
   }
-  return <Modal title={kn.id ? '✏️ Modifica modello' : '+ Nuovo modello'} onClose={onClose} onSave={save}>
+  return <Modal title={kn.id ? 'Modifica modello' : '+ Nuovo modello'} onClose={onClose} onSave={save}>
     <Field label="Titolo del modello *">
       <input style={iS} placeholder='es. "Gettare il cartone" o "Inventario settimanale bar"' value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
     </Field>
     <Field label="Tipo">
       <select style={iS} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
-        <option value="generic">📌 Generica</option><option value="production">🔪 Produzione</option>
+        <option value="generic">Generica</option><option value="production">Produzione</option>
       </select>
     </Field>
     <Field label="Descrizione (cosa è questo task)">
@@ -220,7 +220,7 @@ function KnowledgeEditor({ kn, sps, onClose, onSaved }) {
     <Field label="">
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
         <input type="checkbox" checked={f.requires_photo} onChange={e => setF({ ...f, requires_photo: e.target.checked })}/>
-        📷 Richiede foto al completamento
+        Richiede foto al completamento
       </label>
     </Field>
   </Modal>
@@ -252,11 +252,11 @@ function CalendarView({ tasks, weekStart, setWeekStart, onTaskClick, employees }
 
   return <div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-      <button onClick={() => moveWeek(-1)} style={btnSecondary}>←</button>
+      <button onClick={() => moveWeek(-1)} style={btnSecondary}></button>
       <strong style={{ fontSize: 14, color: 'var(--text)' }}>
         Settimana del {new Date(weekStart).toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })}
       </strong>
-      <button onClick={() => moveWeek(1)} style={btnSecondary}>→</button>
+      <button onClick={() => moveWeek(1)} style={btnSecondary}></button>
       <button onClick={() => {
         const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
         setWeekStart(d.toISOString().split('T')[0])
@@ -287,7 +287,7 @@ function TaskCard({ task, compact, onClick, employees }) {
   const assigneeLabel = task.assignment_kind === 'team' ? 'TEAM' :
     task.assignment_kind === 'roles' ? (task.assigned_roles || []).join(', ') :
     (task.assigned_employee_ids || []).map(id => (employees.find(e => e.id === id)?.nome || '?')).join(', ')
-  const icon = task.type === 'production' ? '🔪' : '📌'
+  const icon = task.type === 'production' ? '' : ''
   return <div onClick={onClick} style={{
     background: c.bg, border: '1px solid transparent', borderRadius: 8,
     padding: compact ? '6px 8px' : '10px 12px', marginBottom: 6, cursor: 'pointer',
@@ -344,14 +344,14 @@ function ListView({ tasks, employees, onEdit, onDispatch, onDelete }) {
             return <tr key={t.id}>
               <td style={S.td}>{t.due_date} {t.due_time?.substring(0, 5) || ''}</td>
               <td style={S.td}><strong>{t.title}</strong></td>
-              <td style={S.td}>{t.type === 'production' ? '🔪 Produzione' : '📌 Generica'}</td>
+              <td style={S.td}>{t.type === 'production' ? 'Produzione' : 'Generica'}</td>
               <td style={S.td}><span style={{ ...S.badge(c.fg, c.bg) }}>{t.priority}</span></td>
               <td style={S.td}>{assigneeLabel}</td>
               <td style={S.td}>{STATUS_LABEL[t.status]}</td>
               <td style={S.td}>
-                <button onClick={() => onEdit(t)} style={btnSm}>✏️</button>{' '}
-                <button onClick={() => onDispatch(t)} style={btnSm}>↪</button>{' '}
-                <button onClick={() => onDelete(t.id)} style={btnSm}>🗑</button>
+                <button onClick={() => onEdit(t)} style={btnSm}></button>{' '}
+                <button onClick={() => onDispatch(t)} style={btnSm}></button>{' '}
+                <button onClick={() => onDelete(t.id)} style={btnSm}></button>
               </td>
             </tr>
           })}
@@ -377,13 +377,13 @@ function TemplatesView({ templates, onEdit, onDelete }) {
           {templates.map(t => <tr key={t.id}>
             <td style={S.td}><strong>{t.title}</strong></td>
             <td style={S.td}>{RECURRENCE_LABEL[t.recurrence]}</td>
-            <td style={S.td}>{t.type === 'production' ? '🔪 Produzione' : '📌 Generica'}</td>
+            <td style={S.td}>{t.type === 'production' ? 'Produzione' : 'Generica'}</td>
             <td style={S.td}>{t.locale || '—'}</td>
-            <td style={S.td}>{t.requires_photo ? '📷' : '—'}</td>
-            <td style={S.td}>{t.active ? '✅' : '⏸'}</td>
+            <td style={S.td}>{t.requires_photo ? '' : '—'}</td>
+            <td style={S.td}>{t.active ? '' : '⏸'}</td>
             <td style={S.td}>
-              <button onClick={() => onEdit(t)} style={btnSm}>✏️</button>{' '}
-              <button onClick={() => onDelete(t.id)} style={btnSm}>🗑</button>
+              <button onClick={() => onEdit(t)} style={btnSm}></button>{' '}
+              <button onClick={() => onDelete(t.id)} style={btnSm}></button>
             </td>
           </tr>)}
         </tbody>
@@ -467,19 +467,19 @@ function TaskEditor({ task, employees, sps, knowledge = [], onClose, onSaved }) 
     onSaved()
   }
 
-  return <Modal title={task.id ? '✏️ Modifica task' : '+ Nuova task'} onClose={onClose} onSave={save}>
-    {!task.id && knowledge.length > 0 && <Field label="📚 Carica da modello (autocompila)">
+  return <Modal title={task.id ? 'Modifica task' : '+ Nuova task'} onClose={onClose} onSave={save}>
+    {!task.id && knowledge.length > 0 && <Field label="Carica da modello (autocompila)">
       <select style={iS} value={usedKnowledgeId || ''} onChange={e => loadKnowledge(e.target.value)}>
         <option value="">— scegli un modello pre-compilato —</option>
         {knowledge.map(k => <option key={k.id} value={k.id}>
-          {k.type === 'production' ? '🔪' : '📌'} {k.title}{k.usage_count ? ` (×${k.usage_count})` : ''}
+          {k.type === 'production' ? '' : ''} {k.title}{k.usage_count ? ` (×${k.usage_count})` : ''}
         </option>)}
       </select>
     </Field>}
     <Field label="Titolo *"><input style={iS} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/></Field>
     <Field label="Tipo">
       <select style={iS} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
-        <option value="generic">📌 Generica</option><option value="production">🔪 Produzione</option>
+        <option value="generic">Generica</option><option value="production">Produzione</option>
       </select>
     </Field>
     {f.type === 'production' && <>
@@ -534,7 +534,7 @@ function TaskEditor({ task, employees, sps, knowledge = [], onClose, onSaved }) 
     <Field label="">
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)' }}>
         <input type="checkbox" checked={f.requires_photo} onChange={e => setF({ ...f, requires_photo: e.target.checked })}/>
-        📷 Foto obbligatoria al completamento
+        Foto obbligatoria al completamento
       </label>
     </Field>
   </Modal>
@@ -548,7 +548,7 @@ function PeoplePicker({ employees, selected, onChange }) {
   const allSelected = filtered.length > 0 && filtered.every(e => selected.includes(e.id))
   return <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', overflow: 'hidden' }}>
     <div style={{ padding: 8, background: 'var(--surface2)', display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-      <input style={{ ...iS, flex: 1, padding: '6px 10px', fontSize: 12 }} placeholder="🔍 Cerca dipendente..." value={search} onChange={e => setSearch(e.target.value)}/>
+      <input style={{ ...iS, flex: 1, padding: '6px 10px', fontSize: 12 }} placeholder="Cerca dipendente..." value={search} onChange={e => setSearch(e.target.value)}/>
       <button type="button" onClick={() => onChange(allSelected ? [] : filtered.map(e => e.id))}
         style={{ padding: '6px 10px', fontSize: 11, background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }}>
         {allSelected ? 'Deseleziona' : 'Seleziona tutti'}
@@ -634,19 +634,19 @@ function TemplateEditor({ tpl, employees, sps, knowledge = [], onClose, onSaved 
     onSaved()
   }
 
-  return <Modal title={tpl.id ? '✏️ Modifica template ricorrente' : '+ Nuovo template ricorrente'} onClose={onClose} onSave={save}>
-    {!tpl.id && knowledge.length > 0 && <Field label="📚 Carica da modello (autocompila)">
+  return <Modal title={tpl.id ? 'Modifica template ricorrente' : '+ Nuovo template ricorrente'} onClose={onClose} onSave={save}>
+    {!tpl.id && knowledge.length > 0 && <Field label="Carica da modello (autocompila)">
       <select style={iS} value={usedKnowledgeId || ''} onChange={e => loadKnowledge(e.target.value)}>
         <option value="">— scegli un modello pre-compilato —</option>
         {knowledge.map(k => <option key={k.id} value={k.id}>
-          {k.type === 'production' ? '🔪' : '📌'} {k.title}
+          {k.type === 'production' ? '' : ''} {k.title}
         </option>)}
       </select>
     </Field>}
     <Field label="Titolo *"><input style={iS} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/></Field>
     <Field label="Tipo">
       <select style={iS} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
-        <option value="generic">📌 Generica</option><option value="production">🔪 Produzione</option>
+        <option value="generic">Generica</option><option value="production">Produzione</option>
       </select>
     </Field>
     <Field label="Istruzioni"><textarea style={{ ...iS, minHeight: 80 }} value={f.instructions} onChange={e => setF({ ...f, instructions: e.target.value })}/></Field>
@@ -706,7 +706,7 @@ function TemplateEditor({ tpl, employees, sps, knowledge = [], onClose, onSaved 
     <Field label="">
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
         <input type="checkbox" checked={f.requires_photo} onChange={e => setF({ ...f, requires_photo: e.target.checked })}/>
-        📷 Foto obbligatoria al completamento
+        Foto obbligatoria al completamento
       </label>
     </Field>
     <Field label="">
@@ -740,7 +740,7 @@ function DispatchModal({ task, employees, onClose, onDone }) {
     await supabase.from('tasks').update({ status: 'delegata' }).eq('id', task.id)
     onDone()
   }
-  return <Modal title={'↪ Smista: ' + task.title} onClose={onClose} onSave={dispatch} saveLabel="Smista">
+  return <Modal title={'Smista: ' + task.title} onClose={onClose} onSave={dispatch} saveLabel="Smista">
     <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>
       Crea N task figlie, una per ogni dipendente selezionato. La task originale viene marcata come "delegata".
     </div>
@@ -761,7 +761,7 @@ function Modal({ title, children, onClose, onSave, saveLabel = 'Salva' }) {
     <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, maxWidth: 600, width: '90%', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-md)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h3 style={{ margin: 0, fontSize: 16, color: 'var(--text)' }}>{title}</h3>
-        <button onClick={onClose} style={{ ...btnSecondary, padding: '4px 10px' }}>✕</button>
+        <button onClick={onClose} style={{ ...btnSecondary, padding: '4px 10px' }}></button>
       </div>
       <div>{children}</div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>

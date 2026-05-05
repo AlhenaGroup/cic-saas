@@ -140,7 +140,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
         notes: r.notes,
       }))
       await saveBudget(sp, year, month, rowsToSave, note)
-      setSaveMsg({ ok: true, text: '✓ Budget salvato' })
+      setSaveMsg({ ok: true, text: 'Budget salvato' })
       setDirty(false)
       setHasSaved(true)
     } catch (e) {
@@ -176,7 +176,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
       })
       setRows(recomputeAmounts(newRows))
       setDirty(true)
-      setSaveMsg({ ok: true, text: '✓ Copiato dal mese precedente (clicca Salva)' })
+      setSaveMsg({ ok: true, text: 'Copiato dal mese precedente (clicca Salva)' })
     } catch (e) {
       setSaveMsg({ ok: false, text: 'Errore copia: ' + e.message })
     }
@@ -193,7 +193,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
   const molPct = computeMolPct(stateObj)
 
   if (loading) {
-    return <Card title="✏️ Budget">
+    return <Card title="Budget">
       <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento…</div>
     </Card>
   }
@@ -202,8 +202,8 @@ export default function BudgetInput({ sp, sps, year, month }) {
   const selectS = { ...S.input, fontSize: 12, padding: '5px 8px' }
 
   return <Card
-    title="✏️ Budget mensile"
-    badge={hasSaved ? '💾 salvato' : '🆕 nuovo'}
+    title="Budget mensile"
+    badge={hasSaved ? 'salvato' : 'nuovo'}
     extra={
       <div style={{ display: 'flex', gap: 6 }}>
         <button
@@ -212,7 +212,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
             background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8',
             padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer'
           }}
-        >↶ Copia mese prec.</button>
+        >Copia mese prec.</button>
         {dirty && (
           <button
             onClick={load}
@@ -231,7 +231,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
             border: 'none', padding: '5px 14px', borderRadius: 6,
             fontSize: 11, fontWeight: 700, cursor: dirty ? 'pointer' : 'not-allowed'
           }}
-        >{saving ? '…' : '💾 Salva'}</button>
+        >{saving ? '…' : 'Salva'}</button>
       </div>
     }
   >
@@ -265,7 +265,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
             return <Fragment key={r.category}>
               <tr>
                 <td style={{ ...S.td, fontWeight: 600 }}>
-                  <span style={{ color: meta.color }}>●</span> {meta.label}
+                  <span style={{ color: meta.color }}></span> {meta.label}
                 </td>
                 <td style={S.td}>
                   <select
@@ -281,7 +281,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
                 <td style={S.td}>
                   {isCustomEditor ? (
                     <span style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>
-                      Vedi tabella sotto ↓
+                      Vedi tabella sotto 
                     </span>
                   ) : (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

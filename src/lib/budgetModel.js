@@ -16,7 +16,7 @@ export const CAT_META = {
 
 // ─── Driver standard ───────────────────────────────────────────────────────
 // Ogni driver definisce come calcolare l'amount di una categoria del budget.
-// `compute(cfg, ctx)` → numero (importo €)
+// `compute(cfg, ctx)` numero (importo €)
 // `ctx` contiene {ricavi} per i driver percentuali.
 
 export const DRIVERS = {
@@ -174,14 +174,14 @@ export function computeBreakEven(s = {}) {
 
 // ─── Simulatore: applyLevers ───────────────────────────────────────────────
 // Lever types supported in Fase 1:
-//   {type:'copertoMedio',  delta:+2}              → ricavi += coperti * delta
-//   {type:'coperti',       deltaPct:+5}           → coperti *= 1+deltaPct/100 → ricavi scala
-//   {type:'foodPct',       delta:-1}              → food = ricavi * (foodPct + delta)/100
-//   {type:'bevPct',        delta:-0.5}            → beverage idem
-//   {type:'assunzione',    costoMese:2100}        → personale += costoMese
-//   {type:'marketing',     costoMese:800, upliftCopertiPct:+3}  → struttura += costoMese
+//   {type:'copertoMedio',  delta:+2}              ricavi += coperti * delta
+//   {type:'coperti',       deltaPct:+5}           coperti *= 1+deltaPct/100 ricavi scala
+//   {type:'foodPct',       delta:-1}              food = ricavi * (foodPct + delta)/100
+//   {type:'bevPct',        delta:-0.5}            beverage idem
+//   {type:'assunzione',    costoMese:2100}        personale += costoMese
+//   {type:'marketing',     costoMese:800, upliftCopertiPct:+3}  struttura += costoMese
 //                                                                 coperti uplift + ricavi/food/bev scalati
-//   {type:'struttura',     deltaEuro:+500}        → struttura += deltaEuro
+//   {type:'struttura',     deltaEuro:+500}        struttura += deltaEuro
 
 export function applyLevers(base, levers = []) {
   let s = { ...base }
@@ -264,32 +264,32 @@ export function applyLevers(base, levers = []) {
 // ─── Metadata lever per UI ─────────────────────────────────────────────────
 export const LEVER_TYPES = {
   copertoMedio: {
-    label: '☕ Coperto medio',
+    label: 'Coperto medio',
     description: 'Aumenta o riduci il coperto medio in €',
     fields: [{ key: 'delta', label: 'Δ €', unit: '€', default: 1, step: 0.5 }],
   },
   coperti: {
-    label: '👥 Coperti',
+    label: 'Coperti',
     description: 'Variazione % del numero di coperti',
     fields: [{ key: 'deltaPct', label: 'Δ %', unit: '%', default: 5, step: 1 }],
   },
   foodPct: {
-    label: '🍕 Food cost %',
+    label: 'Food cost %',
     description: 'Modifica punti percentuali food cost (es. −1 = -1 punto)',
     fields: [{ key: 'delta', label: 'Δ punti', unit: 'p', default: -1, step: 0.5 }],
   },
   bevPct: {
-    label: '🍺 Beverage cost %',
+    label: 'Beverage cost %',
     description: 'Modifica punti percentuali beverage cost',
     fields: [{ key: 'delta', label: 'Δ punti', unit: 'p', default: -0.5, step: 0.5 }],
   },
   assunzione: {
-    label: '👤 Assunzione',
+    label: 'Assunzione',
     description: 'Nuova risorsa: aggiunge costo mensile al personale',
     fields: [{ key: 'costoMese', label: 'Costo/mese', unit: '€', default: 2100, step: 100 }],
   },
   marketing: {
-    label: '📣 Marketing',
+    label: 'Marketing',
     description: 'Investimento marketing con uplift coperti atteso',
     fields: [
       { key: 'costoMese',        label: 'Budget/mese',  unit: '€', default: 800, step: 100 },
@@ -297,7 +297,7 @@ export const LEVER_TYPES = {
     ],
   },
   struttura: {
-    label: '🏗️ Struttura',
+    label: 'Struttura',
     description: 'Variazione costi strutturali (affitto, utenze, ecc)',
     fields: [{ key: 'deltaEuro', label: 'Δ €/mese', unit: '€', default: 500, step: 100 }],
   },

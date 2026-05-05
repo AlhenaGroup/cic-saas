@@ -118,7 +118,7 @@ export default function PersonaleDettaglioEditor({ value, onChange, locale }) {
 
     {/* Toolbar */}
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-      <strong style={{ fontSize: 13, color: 'var(--text)' }}>👥 Dettaglio personale {locale ? `· ${locale}` : ''}</strong>
+      <strong style={{ fontSize: 13, color: 'var(--text)' }}>Dettaglio personale {locale ? `· ${locale}` : ''}</strong>
       <span style={{ flex: 1 }}/>
       <button onClick={importAll} style={btnSm} title="Aggiunge i dipendenti del locale che non sono già in tabella">
         ⤓ Importa dipendenti del locale

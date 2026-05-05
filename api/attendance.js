@@ -253,7 +253,7 @@ export default async function handler(req, res) {
         const prezzoMedio = Number(stock?.[0]?.prezzo_medio) || null;
         const um = unita || stock?.[0]?.unita || null;
         const valoreTot = prezzoMedio ? Math.round(qty * prezzoMedio * 100) / 100 : null;
-        const refLabel = `Trasferimento ${v.emp.nome} ${locale_from} → ${locale_to}`;
+        const refLabel = `Trasferimento ${v.emp.nome} ${locale_from} ${locale_to}`;
         // Due movimenti: out su locale_from, in su locale_to
         await sbQuery('article_movement', 'POST', [
           {
@@ -485,7 +485,7 @@ export default async function handler(req, res) {
       case 'inv-count': {
         // Supporta due modalità:
         //  - "unita":  { giacenza_reale } numero diretto (litri/kg)
-        //  - "pezzi":  { qty_pezzi, qty_aperto } → calcolo server-side da config articolo
+        //  - "pezzi":  { qty_pezzi, qty_aperto } calcolo server-side da config articolo
         const { pin, inventory_id, nome_articolo, giacenza_reale, qty_pezzi, qty_aperto } = req.body;
         const v = await verifyPin(pin, 'inventario');
         if (v.error) return res.status(v.code).json({ error: v.error });
@@ -911,7 +911,7 @@ export default async function handler(req, res) {
       // ─── PRODUZIONE MOBILE: catalogo "cosa posso produrre" ─
       // Ritorna semilavorati (manual_articles) + articoli stock per autocomplete.
       // I semilavorati includono ingredienti + resa per consentire al client
-      // lo scaling proporzionale ("voglio farne N → ti calcolo la ricetta").
+      // lo scaling proporzionale ("voglio farne N ti calcolo la ricetta").
       case 'prod-articles': {
         const { pin, locale } = req.body;
         const v = await verifyPin(pin, 'produzione');

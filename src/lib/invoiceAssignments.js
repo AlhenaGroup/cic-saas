@@ -1,4 +1,4 @@
-// ─── Assegnazioni fatture TS Digital → locale ─────────────────────────
+// ─── Assegnazioni fatture TS Digital locale ─────────────────────────
 // Sync bidirezionale tra Supabase (cross-device) e localStorage (cache locale).
 // Schema DB: ts_invoice_assignments (user_id, hub_id, locale, auto_assigned, item_overrides)
 
@@ -41,7 +41,7 @@ export async function loadAndSyncAssignments() {
   const lsAuto = readLs(LS_AUTO)
   const lsItems = readLs(LS_ITEMS)
 
-  // 4. Trova entries LS non ancora su DB → upserto
+  // 4. Trova entries LS non ancora su DB upserto
   const toUpsert = []
   const allHubs = new Set([...Object.keys(lsLocale), ...Object.keys(lsAuto)])
   for (const hubId of allHubs) {

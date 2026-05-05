@@ -21,21 +21,21 @@ function getMagicLinkType() {
 }
 
 export default function App() {
-  // Routing: /timbra → pagina pubblica timbratura
+  // Routing: /timbra pagina pubblica timbratura
   if (window.location.pathname === '/timbra' || window.location.search.includes('timbra=1')) {
     return <TimbraPage />
   }
-  // Routing: /lotto/<codice> → pagina pubblica tracciabilità lotto produzione (per ASL/clienti)
+  // Routing: /lotto/<codice> pagina pubblica tracciabilità lotto produzione (per ASL/clienti)
   if (window.location.pathname.startsWith('/lotto/')) {
     const code = decodeURIComponent(window.location.pathname.slice('/lotto/'.length).split('/')[0])
     return <LottoPage code={code} />
   }
-  // Routing: /survey/<token> → pagina pubblica compilazione sondaggio NPS
+  // Routing: /survey/<token> pagina pubblica compilazione sondaggio NPS
   if (window.location.pathname.startsWith('/survey/')) {
     const token = decodeURIComponent(window.location.pathname.slice('/survey/'.length).split('/')[0])
     return <SurveyPage token={token} />
   }
-  // Routing: /admin → pagina admin (richiede login + flag is_admin)
+  // Routing: /admin pagina admin (richiede login + flag is_admin)
   const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')
   const [session, setSession] = useState(undefined)
   const [settings, setSettings] = useState(null)
@@ -78,14 +78,14 @@ export default function App() {
 
   if (session === undefined) return <Spinner />
   if (!session) return <AuthPage />
-  // Magic link da invito o reset password → pagina dedicata per impostare/cambiare password
+  // Magic link da invito o reset password pagina dedicata per impostare/cambiare password
   if (magicLinkType) return <SetPasswordPage mode={magicLinkType} email={session.user.email} />
   // /admin: serve essere loggati ma NON serve aver configurato la dashboard cliente
   if (isAdminRoute) return <AdminPage />
   // Mostra Spinner solo al PRIMO caricamento settings; i refetch successivi
   // (es. dopo TOKEN_REFRESHED) avvengono in background senza smontare la dashboard
   if (settings === null && loadingSettings) return <Spinner />
-  // Account non ancora configurato dall'admin → pagina di attesa
+  // Account non ancora configurato dall'admin pagina di attesa
   // (la chiave CiC viene impostata da postmaster@alhenagroup.com tramite /admin)
   if (!settings?.cic_api_key) return <WaitingPage email={session.user.email} />
   return <DashboardPage settings={settings} />

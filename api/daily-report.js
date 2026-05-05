@@ -111,7 +111,7 @@ function buildEmailHtml({ date, dayName, stats, comparisonStats, sections }) {
   <div style="padding: 24px;">`
 
   if (sections.vendite) {
-    html += `<h2 style="font-size: 16px; margin: 0 0 12px; color: #111;">📊 Vendite del giorno</h2>
+    html += `<h2 style="font-size: 16px; margin: 0 0 12px; color: #111;">Vendite del giorno</h2>
 <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
   <tr>
     <td style="padding: 12px; background: #fef3c7; border-radius: 8px; width: 33%;">
@@ -152,7 +152,7 @@ function buildEmailHtml({ date, dayName, stats, comparisonStats, sections }) {
   }
 
   if (sections.confronto && comparisonStats?.length > 0) {
-    html += `<h2 style="font-size: 16px; margin: 24px 0 12px; color: #111;">📈 Confronto stessa giornata settimana scorsa</h2>
+    html += `<h2 style="font-size: 16px; margin: 24px 0 12px; color: #111;">Confronto stessa giornata settimana scorsa</h2>
 <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
   <tr>
     <td style="padding: 10px; background: #f9fafb;">
@@ -177,14 +177,14 @@ function buildEmailHtml({ date, dayName, stats, comparisonStats, sections }) {
 
   if (sections.personale) {
     // Placeholder - lo riempiamo con dati attendance in v2
-    html += `<h2 style="font-size: 16px; margin: 24px 0 12px; color: #111;">👥 Personale del turno</h2>
+    html += `<h2 style="font-size: 16px; margin: 24px 0 12px; color: #111;">Personale del turno</h2>
 <div style="padding: 12px; background: #f9fafb; border-radius: 8px; color: #6b7280; font-size: 13px;">
   Sezione in fase di sviluppo. Ore reali, costo personale stimato e produttività €/h saranno aggiunti prossimamente.
 </div>`
   }
 
   if (sections.alert) {
-    html += `<h2 style="font-size: 16px; margin: 24px 0 12px; color: #111;">⚠️ Alert</h2>
+    html += `<h2 style="font-size: 16px; margin: 24px 0 12px; color: #111;">Alert</h2>
 <div style="padding: 12px; background: #f9fafb; border-radius: 8px; color: #6b7280; font-size: 13px;">
   Sezione in fase di sviluppo. Articoli sotto soglia, allerta prezzi e checklist non completate saranno mostrate qui.
 </div>`
@@ -238,7 +238,7 @@ async function processUser(setting, dateOverride) {
     if (!r?.email) continue
     const sections = r.sections && typeof r.sections === 'object' ? { ...defaults, ...r.sections } : defaults
     const html = buildEmailHtml({ date: targetDate, dayName: dayName.charAt(0).toUpperCase() + dayName.slice(1), stats, comparisonStats: compStats, sections })
-    const subject = `📊 Resoconto ${targetDate} · ${r.ruolo || 'CIC Analytics'}`
+    const subject = `Resoconto ${targetDate} · ${r.ruolo || 'CIC Analytics'}`
     try {
       await sendGmail(accessToken, fromEmail, r.email, subject, html)
       results.push({ email: r.email, ok: true })

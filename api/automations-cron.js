@@ -2,9 +2,9 @@
 // Schedula in vercel.json a cadenza frequente (es. ogni 1 min).
 //
 // Flusso:
-//   1) Per ogni evento pending → trova automazioni attive che matchano (user_id+locale+trigger_event+filters)
-//      → crea automation_run + automation_run_steps[trigger node] con stato 'done', poi crea step pending per i next nodes.
-//   2) Per ogni run_step pending con schedule_at <= now → esegue il nodo:
+//   1) Per ogni evento pending trova automazioni attive che matchano (user_id+locale+trigger_event+filters)
+//      crea automation_run + automation_run_steps[trigger node] con stato 'done', poi crea step pending per i next nodes.
+//   2) Per ogni run_step pending con schedule_at <= now esegue il nodo:
 //      - attesa: schedula i next con schedule_at = now + delay
 //      - condizione: valuta la condizione e schedula solo il branch giusto
 //      - azione (email/whatsapp/sms/...): esegue side-effect e schedula i next
@@ -372,7 +372,7 @@ async function executeStep(step) {
 // ─── Main: process queue + execute pending steps ────────────────────
 export default async function handler(req, res) {
   try {
-    // 1) Process pending events (matching → create runs)
+    // 1) Process pending events (matching create runs)
     const { data: events } = await sb.from('automation_events_queue')
       .select('*').eq('stato', 'pending').order('created_at').limit(100)
 

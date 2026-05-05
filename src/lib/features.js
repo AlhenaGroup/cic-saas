@@ -4,15 +4,15 @@
 // - feature_plans: catalogo dei piani (Full, Starter, Pro, ecc.) con set di
 //   tab/widget abilitati come jsonb { tabs: [...], widgets: [...] }.
 //   Il valore '*' per widgets significa "tutti i widget di tutti i tab".
-// - user_plans: assegnazione utente → piano (uno per utente).
+// - user_plans: assegnazione utente piano (uno per utente).
 // - user_feature_overrides: extra/escludi rispetto al piano (per casi singoli).
 // - user_widget_layout: ordine + visibilita' widget personalizzati dal cliente.
 //
 // Hook esposti:
-//   useUserPlan()             → { plan, features, loading }
-//   useFeature('tab.iva')     → boolean
-//   useFeature('widget.kpi.ricavi') → boolean
-//   useUserLayout(tabKey)     → { layout, setLayout, loading } (per Step 5)
+//   useUserPlan()             { plan, features, loading }
+//   useFeature('tab.iva')     boolean
+//   useFeature('widget.kpi.ricavi') boolean
+//   useUserLayout(tabKey)     { layout, setLayout, loading } (per Step 5)
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from './supabase'
@@ -38,7 +38,7 @@ async function loadFeaturesFromDb() {
     .select('plan_id, active, valid_until, feature_plans!inner(features)')
     .eq('user_id', user.id)
     .single()
-  // Se nessun piano assegnato → 'full' di default (dietro le quinte)
+  // Se nessun piano assegnato 'full' di default (dietro le quinte)
   let planFeatures = up?.feature_plans?.features || null
   if (!planFeatures) {
     const { data: defPlan } = await supabase

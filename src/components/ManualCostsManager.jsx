@@ -68,9 +68,9 @@ export default function ManualCostsManager({ from, to, onChanged }) {
                 <td style={{ ...S.td, fontWeight: 600, color: inPeriod > 0 ? '#10B981' : '#475569' }}>{fmtD(inPeriod)}</td>
                 <td style={S.td}>
                   <button onClick={() => setEditing(c.id)}
-                    style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11, marginRight: 6 }}>✏️</button>
+                    style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11, marginRight: 6 }}></button>
                   <button onClick={() => remove(c.id)}
-                    style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>🗑</button>
+                    style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}></button>
                 </td>
               </tr>
             })}
@@ -126,7 +126,7 @@ function CostForm({ cost, onClose, onSaved }) {
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 520 }}>
       <div style={{ padding: 18, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>{cost ? 'Modifica costo' : '+ Nuovo costo manuale'}</h3>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}>✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}></button>
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Field label="Descrizione">

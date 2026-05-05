@@ -30,18 +30,18 @@ const TRIGGERS = [
 ]
 
 const NODES = [
-  { tipo: 'invia_email',       label: 'Invia email',       icon: '✉️',  c: '#3B82F6' },
-  { tipo: 'invia_whatsapp',    label: 'Invia WhatsApp',    icon: '💬',  c: '#25D366' },
-  { tipo: 'invia_sms',         label: 'Invia SMS',         icon: '📱',  c: '#8B5CF6' },
-  { tipo: 'modifica_tag',      label: 'Modifica tag',      icon: '🏷️',  c: '#F59E0B' },
-  { tipo: 'punti_fidelity',    label: 'Punti fidelity',    icon: '⭐',  c: '#FFD700' },
-  { tipo: 'invia_promozione',  label: 'Invia promozione',  icon: '🎟️',  c: '#EC4899' },
-  { tipo: 'invito_recensione', label: 'Invito recensione', icon: '⭐',  c: '#10B981' },
-  { tipo: 'invito_sondaggio',  label: 'Invito sondaggio',  icon: '📋',  c: '#06B6D4' },
-  { tipo: 'invia_webhook',     label: 'Invia webhook',     icon: '🔌',  c: '#94A3B8' },
-  { tipo: 'attesa',            label: 'Attesa',            icon: '⏱️',  c: '#F59E0B' },
-  { tipo: 'condizione',        label: 'Condizione',        icon: '🔀',  c: '#8B5CF6' },
-  { tipo: 'fine',              label: 'Fine',              icon: '🛑',  c: '#EF4444' },
+  { tipo: 'invia_email',       label: 'Invia email',       icon: '',  c: '#3B82F6' },
+  { tipo: 'invia_whatsapp',    label: 'Invia WhatsApp',    icon: '',  c: '#25D366' },
+  { tipo: 'invia_sms',         label: 'Invia SMS',         icon: '',  c: '#8B5CF6' },
+  { tipo: 'modifica_tag',      label: 'Modifica tag',      icon: '',  c: '#F59E0B' },
+  { tipo: 'punti_fidelity',    label: 'Punti fidelity',    icon: '',  c: '#FFD700' },
+  { tipo: 'invia_promozione',  label: 'Invia promozione',  icon: '',  c: '#EC4899' },
+  { tipo: 'invito_recensione', label: 'Invito recensione', icon: '',  c: '#10B981' },
+  { tipo: 'invito_sondaggio',  label: 'Invito sondaggio',  icon: '',  c: '#06B6D4' },
+  { tipo: 'invia_webhook',     label: 'Invia webhook',     icon: '',  c: '#94A3B8' },
+  { tipo: 'attesa',            label: 'Attesa',            icon: '',  c: '#F59E0B' },
+  { tipo: 'condizione',        label: 'Condizione',        icon: '',  c: '#8B5CF6' },
+  { tipo: 'fine',              label: 'Fine',              icon: '',  c: '#EF4444' },
 ]
 
 function nodeMeta(tipo) { return NODES.find(n => n.tipo === tipo) || { label: tipo, c: '#94A3B8', icon: '•' } }
@@ -240,7 +240,7 @@ function AutomationEditor({ data, onClose }) {
     const r = await api('/api/automations', { action: 'node-upsert', node: {
       automation_id: aut.id, tipo, pos_x: 200, pos_y: newY, config: defaultConfig(tipo),
     }})
-    // collega last → new
+    // collega last new
     if (last) {
       const newNext = [...(last.next_node_ids || []).filter(x => x !== r.node.id), r.node.id]
       await api('/api/automations', { action: 'node-upsert', node: { ...last, id: last.id, next_node_ids: newNext } })
@@ -267,12 +267,12 @@ function AutomationEditor({ data, onClose }) {
 
   return <Drawer onClose={onClose} wide>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-      <button onClick={onClose} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>← Torna</button>
+      <button onClick={onClose} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>Torna</button>
       <input value={aut.nome} onBlur={e => e.target.value !== aut.nome && updateMeta({ nome: e.target.value })}
         onChange={e => setAut({ ...aut, nome: e.target.value })}
         style={{ ...S.input, flex: 1, fontSize: 16, fontWeight: 600 }} />
       <button onClick={() => updateMeta({ attivo: !aut.attivo })} style={btn(aut.attivo ? '#10B981' : '#1a1f2e', aut.attivo ? '#0f1420' : '#cbd5e1', aut.attivo ? '#10B981' : '#2a3042')}>
-        {aut.attivo ? '✓ Attiva' : 'Disattiva'}
+        {aut.attivo ? 'Attiva' : 'Disattiva'}
       </button>
     </div>
 
@@ -496,7 +496,7 @@ function Modal({ children, onClose, title }) {
     <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 95%)', maxHeight: '85vh', overflowY: 'auto', background: '#1a1f2e', padding: 20, borderRadius: 12, border: '1px solid #2a3042' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
         <h3 style={{ margin: 0, fontSize: 16, flex: 1 }}>{title}</h3>
-        <button onClick={onClose} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>✕</button>
+        <button onClick={onClose} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}></button>
       </div>
       {children}
     </div>

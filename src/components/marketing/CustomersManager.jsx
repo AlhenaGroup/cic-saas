@@ -135,7 +135,7 @@ export default function CustomersManager({ sp, sps }) {
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
       </select>
       <button onClick={() => setShowAdv(true)} style={btn(advActive ? '#F59E0B' + '22' : '#1a1f2e', advActive ? '#F59E0B' : '#cbd5e1', advActive ? '#F59E0B' + '88' : '#2a3042')}>
-        Ricerca avanzata{advActive ? ' ●' : ''}
+        Ricerca avanzata{advActive ? ' ' : ''}
       </button>
       <button onClick={async () => {
         try {

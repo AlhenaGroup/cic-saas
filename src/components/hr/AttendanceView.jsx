@@ -12,7 +12,7 @@ function weekMonday(offset = 0) {
 }
 
 // Converte una data "YYYY-MM-DD" + ora "HH:mm" (locale browser) in ISO UTC.
-// La colonna attendance.timestamp e' TIMESTAMPTZ → Postgres salva sempre UTC.
+// La colonna attendance.timestamp e' TIMESTAMPTZ Postgres salva sempre UTC.
 // Per coerenza tra scrittura e lettura, convertiamo l'ora digitata (intesa
 // come ora locale Europe/Rome) nell'istante UTC corrispondente.
 function localDateTimeToIsoUtc(ds, hhmm) {
@@ -56,7 +56,7 @@ function hmFromTsTz(ts) {
 
 // I locali notturni chiudono dopo mezzanotte. Una timbratura prima di questa
 // ora (in Europe/Rome) appartiene al "giorno operativo" precedente.
-// Es: cutoff=5 → uscita 03:00 del 18/04 conta come turno del 17/04.
+// Es: cutoff=5 uscita 03:00 del 18/04 conta come turno del 17/04.
 const OPERATING_DAY_CUTOFF_HOUR = 5
 
 // Restituisce il "giorno operativo" YYYY-MM-DD a cui appartiene il timestamp.
@@ -126,12 +126,12 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     return h * 60 + (m || 0)
   }
 
-  // Abbina timbrature a coppie entrata→uscita in ordine cronologico.
+  // Abbina timbrature a coppie entratauscita in ordine cronologico.
   // Ogni blocco ha un proprio locale (quello dell'entrata).
   // Gestisce:
-  //   - entrata senza uscita successiva → blocco "aperto", non contato nelle ore
-  //   - uscita senza entrata precedente → ignorata nel calcolo, ma visibile
-  //   - turno che scavalca mezzanotte (delta negativo → +24h)
+  //   - entrata senza uscita successiva blocco "aperto", non contato nelle ore
+  //   - uscita senza entrata precedente ignorata nel calcolo, ma visibile
+  //   - turno che scavalca mezzanotte (delta negativo +24h)
   const buildBlocks = (dayRecords) => {
     const sorted = [...dayRecords].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
     const blocks = []
@@ -284,7 +284,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
         <button key="laboratorio" onClick={() => generateQR('LABORATORIO')}
           style={{ ...iS, background: qrLocale === 'LABORATORIO' ? '#F59E0B' : '#1a1f2e', color: qrLocale === 'LABORATORIO' ? '#0f1420' : '#e2e8f0', border: '1px dashed #475569', padding: '5px 14px', fontWeight: 600, fontSize: 12 }}
           title="Laboratorio (punto di timbratura, non e' un locale di vendita)">
-          🔧 LABORATORIO
+          LABORATORIO
         </button>
       </div>
     }>
@@ -309,19 +309,19 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     <div style={{ marginTop: 12 }}>
       <Card title="Presenze reali" badge={Math.round(totalHoursWeek) + 'h totali'} extra={
         <div className="m-wrap" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>◀</button>
+          <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
-          <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>▶</button>
+          <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
           <button onClick={loadAttendance} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Aggiorna</button>
           <button onClick={() => setExportModal('excel')} disabled={filteredEmps.length === 0}
             style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
-            title="Scarica Excel di un periodo a tua scelta">📊 Excel</button>
+            title="Scarica Excel di un periodo a tua scelta">Excel</button>
           <button onClick={() => setExportModal('csv')} disabled={filteredEmps.length === 0}
             style={{ ...iS, background: '#3B82F6', color: '#fff', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
-            title="Scarica CSV di un periodo a tua scelta">📄 CSV</button>
+            title="Scarica CSV di un periodo a tua scelta">CSV</button>
           <button onClick={() => setExportModal('pdf')} disabled={filteredEmps.length === 0}
             style={{ ...iS, background: '#EF4444', color: '#fff', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
-            title="Stampa o salva come PDF di un periodo a tua scelta">🖨 PDF</button>
+            title="Stampa o salva come PDF di un periodo a tua scelta">PDF</button>
         </div>
       }>
         {filteredEmps.length === 0 ? (
@@ -360,7 +360,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                         const b = att.blocks[0]
                         const eH = b.entrata ? hmFromTs(b.entrata.timestamp) : '—'
                         const uH = b.uscita ? hmFromTs(b.uscita.timestamp) : '…'
-                        summaryMain = eH + '→' + uH
+                        summaryMain = eH + '' + uH
                         summarySub = b.locale || ''
                       } else {
                         summaryMain = nBlocks + ' blocchi'
@@ -384,7 +384,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                                 return pTot > 0 ? <span title={`Pausa sottratta: ${pTot} min`} style={{ marginLeft: 3, color: '#94a3b8', fontWeight: 500 }}>⏸{pTot}'</span> : null
                               })()}
                               {hasMulti && <span title="Turno spezzato" style={{ marginLeft: 3, color: '#3B82F6' }}>ℹ︎</span>}
-                              {att.incompleta && <span title="Timbratura incompleta" style={{ marginLeft: 3, color: '#EF4444' }}>⚠</span>}
+                              {att.incompleta && <span title="Timbratura incompleta" style={{ marginLeft: 3, color: '#EF4444' }}></span>}
                             </div>
                           </button>
                         ) : (
@@ -472,7 +472,7 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
       const { data: rows } = await supabase.from('attendance').select('*')
         .gte('timestamp', start + 'T00:00:00').lt('timestamp', endStr + 'T00:00:00').order('timestamp')
       // 2. Aggrego per dipendente / giorno operativo / locale
-      const byEmpDay = {} // emp.id → { ds → blocks[] }
+      const byEmpDay = {} // emp.id { ds blocks[] }
       const byEmp = {}
       ;(rows || []).forEach(r => {
         if (!r.timestamp) return
@@ -492,7 +492,7 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
         d0.setDate(d0.getDate() + 1)
       }
 
-      // 4. Per ogni dipendente, per ogni data: ricreo i blocchi (entrata→uscita)
+      // 4. Per ogni dipendente, per ogni data: ricreo i blocchi (entratauscita)
       const minutesFromHm = (s) => { if (!s || !s.includes(':')) return null; const [h, m] = s.split(':').map(Number); return h * 60 + (m || 0) }
       const buildBlocks = (recs) => {
         const sorted = [...recs].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
@@ -591,7 +591,7 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
               const showLab = b.locale === LAB
               const showLabel = !localeFilter || showLab
               const pausaTag = b.pausa > 0 ? ` [-${b.pausa}m pausa]` : ''
-              return `${eH}→${uH}${(showLabel && b.locale) ? ' (' + b.locale + ')' : ''}${pausaTag}`
+              return `${eH}${uH}${(showLabel && b.locale) ? ' (' + b.locale + ')' : ''}${pausaTag}`
             }).join('\n') + (ore > 0 ? `\n= ${ore.toFixed(2)}h` : '')
           return { ore: Math.floor(ore * 100) / 100, text }
         })
@@ -606,7 +606,7 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
         const dd = d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })
         return wd.charAt(0).toUpperCase() + wd.slice(1) + ' ' + dd
       }
-      const titolo = `Presenze · ${locale || 'Tutti i locali'} · ${start} → ${to}`
+      const titolo = `Presenze · ${locale || 'Tutti i locali'} · ${start} ${to}`
       const headers = ['Dipendente', ...dates.map(dayLabel), 'Totale ore']
       const tableRows = empRows.map(r => [r.nome, ...r.cells.map(c => c.text || '—'), r.tot.toFixed(2) + 'h'])
       const dayTot = dates.map((_, i) => empRows.reduce((s, r) => s + (r.cells[i]?.ore || 0), 0))
@@ -621,7 +621,7 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
       } else if (kind === 'csv') {
         exportToCsv(filename, headers, [...tableRows, footerRow])
       } else {
-        const ok = exportToPdf('📋 ' + titolo, headers, tableRows, { footerRow })
+        const ok = exportToPdf('' + titolo, headers, tableRows, { footerRow })
         if (!ok) { setErr('Popup bloccato — abilita i popup per la stampa.'); setBusy(false); return }
       }
       onClose()
@@ -631,8 +631,8 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 480 }}>
       <div style={{ padding: 18, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>{kind === 'excel' ? '📊 Esporta Excel' : kind === 'csv' ? '📄 Esporta CSV' : '🖨 Esporta PDF'}</h3>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}>✕</button>
+        <h3 style={{ margin: 0, fontSize: 16 }}>{kind === 'excel' ? 'Esporta Excel' : kind === 'csv' ? 'Esporta CSV' : 'Esporta PDF'}</h3>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}></button>
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -699,7 +699,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
     const nowH = new Date().getHours()
     let timestamp
     if (tipo === 'pausa') {
-      // La pausa deve cadere DENTRO un blocco entrata→uscita per essere conteggiata
+      // La pausa deve cadere DENTRO un blocco entratauscita per essere conteggiata
       // dal calcolo cronologico. La piazzo subito dopo l'ultima entrata trovata
       // (o subito dopo l'ultimo record qualunque, se non ci sono entrate).
       const sortedRecs = [...records].sort((a, b) => a.timestamp.localeCompare(b.timestamp))
@@ -808,7 +808,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>{emp.nome}</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
 
       <div style={{ padding: 16 }}>
@@ -850,7 +850,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
                     <option value="uscita">Uscita</option>
                   </select>
                   {isPausa ? (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#F59E0B', flex: 1, minWidth: 110 }} title="Durata pausa in minuti — sottratta dalle ore del blocco entrata→uscita corrente">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#F59E0B', flex: 1, minWidth: 110 }} title="Durata pausa in minuti — sottratta dalle ore del blocco entratauscita corrente">
                       <span style={{ fontWeight: 600 }}>durata</span>
                       <input type="number" min={0} max={600} step={5} defaultValue={Number(r.pausa_minuti) || 0}
                         onBlur={e => {
@@ -874,7 +874,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
                     </>
                   )}
                   <button onClick={() => deleteRec(r.id)} title="Elimina"
-                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, padding: '2px 6px', fontWeight: 700 }}>✕</button>
+                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, padding: '2px 6px', fontWeight: 700 }}></button>
                 </div>
               )
             })}
@@ -898,13 +898,13 @@ function DayManager({ data, allLocali, onClose, onChange }) {
           </button>
           {records.length > 0 && (
             <button onClick={deleteAll} disabled={saving} style={{ ...iS, color: '#EF4444', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12, marginLeft: 'auto' }}>
-              🗑 Elimina tutto
+              Elimina tutto
             </button>
           )}
         </div>
 
         <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5, borderTop: '1px solid #2a3042', paddingTop: 10 }}>
-          💡 Le ore vengono calcolate abbinando <strong>entrata→uscita</strong> in ordine cronologico.<br/>
+          Le ore vengono calcolate abbinando <strong>entratauscita</strong> in ordine cronologico.<br/>
           Turni spezzati (es. 10-13 + 18-22) contano solo le ore effettive, non il buco tra i due.<br/>
           Ogni blocco eredita il locale dell'<strong>entrata</strong>.<br/>
           <strong>⏸ Pausa</strong>: aggiungi una riga pausa tra entrata e uscita, i minuti vengono sottratti dalle ore del blocco.

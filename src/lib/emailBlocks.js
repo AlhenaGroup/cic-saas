@@ -4,11 +4,11 @@
 export const BLOCK_TYPES = [
   { type: 'header',   label: 'Intestazione', icon: 'H' },
   { type: 'text',     label: 'Testo',        icon: '¶' },
-  { type: 'image',    label: 'Immagine',     icon: '🖼' },
-  { type: 'button',   label: 'Bottone',      icon: '▭' },
+  { type: 'image',    label: 'Immagine',     icon: '' },
+  { type: 'button',   label: 'Bottone',      icon: '' },
   { type: 'divider',  label: 'Divisore',     icon: '─' },
-  { type: 'spacer',   label: 'Spaziatura',   icon: '↕' },
-  { type: 'social',   label: 'Social',       icon: '☆' },
+  { type: 'spacer',   label: 'Spaziatura',   icon: '' },
+  { type: 'social',   label: 'Social',       icon: '' },
   { type: 'footer',   label: 'Footer',       icon: '_' },
 ]
 

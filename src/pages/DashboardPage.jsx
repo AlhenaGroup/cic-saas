@@ -98,7 +98,7 @@ export default function DashboardPage({ settings }) {
   const [sp,    setSp]            = useState(() => localStorage.getItem('cic_sp') || 'all')
   const [sps,   setSps]           = useState(() => {
     const raw = Array.isArray(settings?.sales_points) ? settings.sales_points : []
-    // Rinomina FIORIO → BIANCOLATTE
+    // Rinomina FIORIO BIANCOLATTE
     return raw.map(s => ({...s, description: s.description === 'FIORIO' ? 'BIANCOLATTE' : s.description, name: s.name === 'FIORIO' ? 'BIANCOLATTE' : s.name }))
   })
   const [data,  setData]          = useState(null)
@@ -210,7 +210,7 @@ export default function DashboardPage({ settings }) {
       if (localeName) q = q.eq('locale', localeName)
       const { data: rows, error } = await q
       if (error || !rows) { setWorkedHoursBySlot({}); setPersonsBySlot({}); return }
-      // Raggruppa per dipendente, costruisci blocchi entrata→uscita
+      // Raggruppa per dipendente, costruisci blocchi entratauscita
       const byEmp = {}
       rows.forEach(r => {
         if (!byEmp[r.employee_id]) byEmp[r.employee_id] = []
@@ -306,7 +306,7 @@ export default function DashboardPage({ settings }) {
 
 
   const iS = S.input
-  // Mapping hidden tab → top-level tab "padre" che deve restare evidenziato.
+  // Mapping hidden tab top-level tab "padre" che deve restare evidenziato.
   // Quando l'utente sceglie 'ce' o 'bud' dal sub-tab di Contabilita', tab top-level
   // diventa 'ce'/'bud' ma la barra principale deve mostrare "Contabilita" attivo.
   // Stesso per 'prod' (Produttivita') che e' sotto-tab di HR.
@@ -326,8 +326,8 @@ export default function DashboardPage({ settings }) {
   const ALL_TABS=[['ov','Panoramica'],['conta','Contabilità'],['vendite','Vendite'],['mag','Magazzino'],['hr','HR'],
               ['mkt','Marketing'],['avvisi','Avvisi'],['imp','Impostazioni']]
   // Tabs interne (non visibili in barra ma raggiungibili da sub-tabs):
-  // 'ce'   → da Contabilita' sub-tab Conto Economico
-  // 'bud'  → da Contabilita' sub-tab Budget
+  // 'ce'   da Contabilita' sub-tab Conto Economico
+  // 'bud'  da Contabilita' sub-tab Budget
   // (Produttivita' ora vive dentro HRModule come sub-tab, non e' piu' tab top-level)
   const HIDDEN_TABS = ['ce','bud']
   // Sotto-tab Vendite (state separato per persistenza)
@@ -387,10 +387,10 @@ export default function DashboardPage({ settings }) {
 
     return <>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:'1.25rem'}}>
-        <KPI label="Chiusura cassa" icon="🔒" value={data?.fiscalCloseTime || '—'} sub={'Z-'+(data?.zNumber||'—')} accent='#EF4444'/>
-        <KPI label="Ultima cucina/pizzeria" icon="🍕" value={data?.lastKitchenTime || '—'} sub="comanda" accent='#F59E0B'/>
-        <KPI label="Ultima bar" icon="🍺" value={data?.lastBarTime || '—'} sub="comanda" accent='#3B82F6'/>
-        <KPI label="Apertura" icon="🟢" value={data?.firstReceiptTime || '—'} sub="primo scontrino" accent='#10B981'/>
+        <KPI label="Chiusura cassa" icon="" value={data?.fiscalCloseTime || '—'} sub={'Z-'+(data?.zNumber||'—')} accent='#EF4444'/>
+        <KPI label="Ultima cucina/pizzeria" icon="" value={data?.lastKitchenTime || '—'} sub="comanda" accent='#F59E0B'/>
+        <KPI label="Ultima bar" icon="" value={data?.lastBarTime || '—'} sub="comanda" accent='#3B82F6'/>
+        <KPI label="Apertura" icon="" value={data?.firstReceiptTime || '—'} sub="primo scontrino" accent='#10B981'/>
       </div>
       <div style={{...S.card,marginBottom:'1.25rem',display:'flex',alignItems:'center',gap:20,flexWrap:'wrap'}}>
         <div style={{display:'flex',gap:0,border:'1px solid var(--border)',borderRadius:6,overflow:'hidden'}}>
@@ -398,13 +398,13 @@ export default function DashboardPage({ settings }) {
             title={`Ore reali dalle timbrature (${(Math.floor(totOreReali*100)/100).toFixed(2)}h tot nel periodo)`}
             style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
               background:useRealHours?'var(--green)':'transparent',color:useRealHours?'var(--surface)':'var(--text2)'}}>
-            📍 Reali ({(Math.floor(totOreReali*100)/100).toFixed(2)}h)
+            Reali ({(Math.floor(totOreReali*100)/100).toFixed(2)}h)
           </button>
           <button onClick={()=>setUseRealHours(false)}
             title="Ore pianificate dal calendario staff (tab Personale)"
             style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
               background:!useRealHours?'#F59E0B':'transparent',color:!useRealHours?'var(--surface)':'var(--text2)'}}>
-            🗓 Pianificate
+            Pianificate
           </button>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -440,10 +440,10 @@ export default function DashboardPage({ settings }) {
         </ResponsiveContainer>
       </Card>
       <div style={{marginTop:12}}>
-        <Card title="Dettaglio per fascia oraria" badge={useRealHours ? '📍 ore da timbratura' : '🗓 ore pianificate'}>
+        <Card title="Dettaglio per fascia oraria" badge={useRealHours ? 'ore da timbratura' : 'ore pianificate'}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
-              {['Ora','Ricavi','🍽 Coperti','Cop./dip.','Scontrini','👥 Persone','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
+              {['Ora','Ricavi','Coperti','Cop./dip.','Scontrini','Persone','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
             <tbody>
               {oreWithProd.filter(o=>o.ricavi>0||o.oreReali>0||o.persone>0||o.coperti>0).map((o,i)=>{
@@ -457,7 +457,7 @@ export default function DashboardPage({ settings }) {
                   <td style={{...S.td,color:'var(--text2)'}}>{o.scontrini}</td>
                   <td style={{...S.td,color:o.persone>0?'#3B82F6':'var(--text3)',fontWeight:o.persone>0?700:400}}>{o.persone>0?o.persone:'—'}</td>
                   <td style={{...S.td,color:o.oreReali>0?'#10B981':'var(--text3)',fontWeight:o.oreReali>0?600:400}}>{o.oreReali>0?o.oreReali.toFixed(2)+'h':'—'}</td>
-                  <td style={{...S.td,color:o.orePianif>0?'#F59E0B':'var(--text3)'}}>{o.orePianif>0?o.orePianif+'h':'—'}{mismatch&&<span title="Differenza reale/pianificato" style={{marginLeft:4,color:'#EF4444'}}>⚠</span>}</td>
+                  <td style={{...S.td,color:o.orePianif>0?'#F59E0B':'var(--text3)'}}>{o.orePianif>0?o.orePianif+'h':'—'}{mismatch&&<span title="Differenza reale/pianificato" style={{marginLeft:4,color:'#EF4444'}}></span>}</td>
                   <td style={{...S.td,fontWeight:600}}>{o.oreLavorate>0?o.oreLavorate.toFixed(2)+'h':'—'}</td>
                   <td style={{...S.td,fontWeight:700,color:o.oreLavorate>0?pc:'var(--text3)'}}>{o.oreLavorate>0?o.prodOraria.toFixed(1)+' €/h':'—'}</td>
                   <td style={S.td}>{o.oreLavorate>0?<span style={{...S.badge(pc,pc+'22'),fontSize:10}}>{prodLabel(o.prodOraria)}</span>:'—'}</td>
@@ -482,7 +482,7 @@ export default function DashboardPage({ settings }) {
         <div style={{width:32,height:32,background:'var(--text)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'var(--surface)',fontSize:14,letterSpacing:'-0.02em'}}>C</div>
         <span style={{fontSize:15,fontWeight:600,letterSpacing:'-0.01em',color:'var(--text)'}}>CIC Analytics</span>
         {sps.length>0&&<select value={sp} onChange={e=>setSp(e.target.value)} style={{...iS,paddingLeft:10}}>
-          <option value="all">📍 Tutti i locali</option>
+          <option value="all">Tutti i locali</option>
           {sps.map(s=><option key={s.id} value={s.id}>{s.description||s.name}</option>)}
         </select>}
       </div>
@@ -501,7 +501,7 @@ export default function DashboardPage({ settings }) {
               }}
               style={{...iS,fontSize:12,paddingLeft:10}}
               title="Preset periodo">
-              <option value="">📅 Personalizzato</option>
+              <option value="">Personalizzato</option>
               {PERIOD_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
             </select>
             {showDates && <>
@@ -521,7 +521,7 @@ export default function DashboardPage({ settings }) {
             border: '1px solid ' + (compareEnabled ? 'var(--text)' : 'var(--border)'),
           }}
           title={compareEnabled ? 'Confronto attivo — clicca per disattivare' : 'Attiva confronto con un altro periodo'}>
-          {compareEnabled ? '✓ Confronto' : '+ Confronta'}
+          {compareEnabled ? 'Confronto' : '+ Confronta'}
         </button>
         {compareEnabled && (() => {
           // 'prev' = stesso periodo precedente del principale
@@ -546,8 +546,8 @@ export default function DashboardPage({ settings }) {
               }}
               style={{...iS,fontSize:11,padding:'4px 8px'}}
               title="Preset periodo confronto">
-              <option value="">📅 Personalizzato</option>
-              <option value="prev">↩ Periodo precedente</option>
+              <option value="">Personalizzato</option>
+              <option value="prev">Periodo precedente</option>
               {PERIOD_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
             </select>
             {showDates2 && <>
@@ -561,7 +561,7 @@ export default function DashboardPage({ settings }) {
         <button onClick={forceSync} disabled={syncing}
           style={{...iS,background:syncing?'#1a1f2e':'#10B981',color:syncing?'#94a3b8':'#0f1420',fontWeight:600,border:'none',padding:'6px 12px',cursor:syncing?'wait':'pointer'}}
           title="Forza sync dati CiC nel periodo">
-          {syncing?'⏳':'🔄'}
+          {syncing?'⏳':''}
         </button>
         <button onClick={()=>supabase.auth.signOut()} style={{...iS,color:'#475569',border:'1px solid #2a3042',padding:'6px 12px'}}>Esci</button>
       </div>
@@ -614,7 +614,7 @@ export default function DashboardPage({ settings }) {
         <button onClick={forceSync} disabled={syncing} style={{...iS,background:syncing?'#1a1f2e':'#10B981',color:syncing?'#94a3b8':'#0f1420',fontWeight:600,border:'none',padding:'6px 14px',cursor:syncing?'wait':'pointer'}}>{syncing?'Sync in corso…':'Forza sync ora'}</button>
       </div>}
       {isLive&&<div style={{background:'rgba(59,130,246,.06)',border:'1px solid rgba(59,130,246,.2)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'#60A5FA',marginBottom:'1.25rem'}}>
-        🔵 Dati live da CiC (non ancora salvati nel DB). Il sync notturno li archivierà automaticamente.
+        Dati live da CiC (non ancora salvati nel DB). Il sync notturno li archivierà automaticamente.
       </div>}
 
       {loading?<Loader/>:<>
@@ -624,17 +624,17 @@ export default function DashboardPage({ settings }) {
         {/* KPI Cards 3x2 — personalizzabili dall'utente (drag&drop + show/hide) */}
         <WidgetGrid tabKey="ov" gridStyle={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}} widgets={[
           { id:'kpi.ricavi', label:'Ricavi totali', element:
-              <KPI label="Ricavi totali" icon="💶" value={fmt(totale)} sub={dRicavi?<span style={{color:dRicavi.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dRicavi.label}</span>:from+' → '+to} accent='#F59E0B' trend={dRicavi?.pct}/> },
+              <KPI label="Ricavi totali" icon="" value={fmt(totale)} sub={dRicavi?<span style={{color:dRicavi.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dRicavi.label}</span>:from+' '+to} accent='#F59E0B' trend={dRicavi?.pct}/> },
           { id:'kpi.scontrini', label:'Scontrini', element:
-              <KPI label="Scontrini" icon="🧾" value={fmtN(data?.scontrini)} sub={dScontrini?<span style={{color:dScontrini.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dScontrini.label}</span>:'documenti'} accent='#3B82F6' trend={dScontrini?.pct}/> },
+              <KPI label="Scontrini" icon="" value={fmtN(data?.scontrini)} sub={dScontrini?<span style={{color:dScontrini.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dScontrini.label}</span>:'documenti'} accent='#3B82F6' trend={dScontrini?.pct}/> },
           { id:'kpi.medio', label:'Scontrino medio', element:
-              <KPI label="Scontrino medio" icon="📈" value={fmtD(data?.medio)} sub="per documento" accent='#10B981'/> },
+              <KPI label="Scontrino medio" icon="" value={fmtD(data?.medio)} sub="per documento" accent='#10B981'/> },
           { id:'kpi.coperti', label:'Coperti totali', element:
-              <KPI label="Coperti totali" icon="🍽️" value={fmtN(coperti)} sub={dCoperti?<span style={{color:dCoperti.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCoperti.label}</span>:'persone'} accent='#F97316' trend={dCoperti?.pct}/> },
+              <KPI label="Coperti totali" icon="" value={fmtN(coperti)} sub={dCoperti?<span style={{color:dCoperti.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCoperti.label}</span>:'persone'} accent='#F97316' trend={dCoperti?.pct}/> },
           { id:'kpi.coperto_medio', label:'Coperto medio', element:
-              <KPI label="Coperto medio" icon="💰" value={fmtD(copertoMedio)} sub={dCopertoMedio?<span style={{color:dCopertoMedio.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCopertoMedio.label}</span>:'incasso / coperto'} accent='#8B5CF6' trend={dCopertoMedio?.pct}/> },
+              <KPI label="Coperto medio" icon="" value={fmtD(copertoMedio)} sub={dCopertoMedio?<span style={{color:dCopertoMedio.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCopertoMedio.label}</span>:'incasso / coperto'} accent='#8B5CF6' trend={dCopertoMedio?.pct}/> },
           { id:'kpi.reparti', label:'Reparti attivi', element:
-              <KPI label="Reparti attivi" icon="🏷️" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#06B6D4'/> },
+              <KPI label="Reparti attivi" icon="" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#06B6D4'/> },
         ]}/>
 
         {/* Giorno migliore / peggiore */}
@@ -702,7 +702,7 @@ export default function DashboardPage({ settings }) {
           <KPI label="Medio" value={fmtD(data?.medio)} sub="per scontrino" accent='#10B981'/>
         </div>
         <Card title="Lista scontrini" badge={recs.length + ' comande'} extra={
-          <input placeholder="🔍 Cerca..." value={recSearch} onChange={e=>setRecSearch(e.target.value)} style={{...iS,width:220}}/>
+          <input placeholder="Cerca..." value={recSearch} onChange={e=>setRecSearch(e.target.value)} style={{...iS,width:220}}/>
         }>
           <div style={{overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
@@ -762,11 +762,11 @@ export default function DashboardPage({ settings }) {
       {(tab==='conta'||tab==='ce'||tab==='bud')&&<>
         <SubTabsBar
           tabs={[
-            { key: 'ce',        label: '💰 Conto Economico' },
-            { key: 'bud',       label: '✏️ Budget' },
-            { key: 'fatture',   label: '🧾 Fatture' },
-            { key: 'iva',       label: '🧮 IVA' },
-            { key: 'chiusure',  label: '🔒 Chiusure & Versamenti' },
+            { key: 'ce',        label: 'Conto Economico' },
+            { key: 'bud',       label: 'Budget' },
+            { key: 'fatture',   label: 'Fatture' },
+            { key: 'iva',       label: 'IVA' },
+            { key: 'chiusure',  label: 'Chiusure & Versamenti' },
           ]}
           value={tab==='ce' ? 'ce' : tab==='bud' ? 'bud' : contaSubTab}
           onChange={(v) => {
@@ -854,23 +854,23 @@ export default function DashboardPage({ settings }) {
           const detail = (log.description || log.details || log.message || '')
           if (op.includes('eliminazione ordine') || op.includes('delete order') || op.includes('cancellazione ordine')) {
             const daPagare = detail.toLowerCase().includes('da pagare')
-            return { tipo: 'Eliminazione ordine', icon: '🗑️', severity: daPagare ? 'high' : 'medium', color: '#EF4444' }
+            return { tipo: 'Eliminazione ordine', icon: '', severity: daPagare ? 'high' : 'medium', color: '#EF4444' }
           }
           if (op.includes('eliminazione documento') || op.includes('delete document') || op.includes('cancellazione documento')) {
-            return { tipo: 'Eliminazione documento', icon: '📄', severity: 'high', color: '#EF4444' }
+            return { tipo: 'Eliminazione documento', icon: '', severity: 'high', color: '#EF4444' }
           }
           if (op.includes('sconto') || op.includes('discount')) {
             const match = detail.match(/(\d+)%/)
             const pct = match ? parseInt(match[1]) : 0
-            return { tipo: 'Sconto', icon: '🏷️', severity: pct > 30 ? 'medium' : 'low', color: '#F59E0B' }
+            return { tipo: 'Sconto', icon: '', severity: pct > 30 ? 'medium' : 'low', color: '#F59E0B' }
           }
           if (op.includes('spostamento') || op.includes('move') || op.includes('trasferimento')) {
-            return { tipo: 'Spostamento', icon: '↔️', severity: 'medium', color: '#3B82F6' }
+            return { tipo: 'Spostamento', icon: '', severity: 'medium', color: '#3B82F6' }
           }
           if (op.includes('apertura cassetto') || op.includes('open drawer') || op.includes('cassetto')) {
-            return { tipo: 'Apertura cassetto', icon: '🗃️', severity: 'low', color: '#64748b' }
+            return { tipo: 'Apertura cassetto', icon: '', severity: 'low', color: '#64748b' }
           }
-          return { tipo: log.operation || 'Altro', icon: '📋', severity: 'low', color: '#94a3b8' }
+          return { tipo: log.operation || 'Altro', icon: '', severity: 'low', color: '#94a3b8' }
         }
 
         const classified = monLogs.map(log => {
@@ -906,7 +906,7 @@ export default function DashboardPage({ settings }) {
           <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Connessione a Cassa in Cloud</div>
           <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
             Per caricare i monitoring logs serve il cookie di sessione CiC. Apri <a href="https://fo.cassanova.com" target="_blank" style={{ color: '#F59E0B' }}>fo.cassanova.com</a>,
-            poi F12 → Console → digita: <code style={{ background: '#0f1420', padding: '2px 6px', borderRadius: 4 }}>document.cookie</code>
+            poi F12 Console digita: <code style={{ background: '#0f1420', padding: '2px 6px', borderRadius: 4 }}>document.cookie</code>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input value={monCookie} onChange={e => setMonCookie(e.target.value)} placeholder="Incolla il cookie..." style={{ ...iS, flex: 1 }} />
@@ -917,21 +917,21 @@ export default function DashboardPage({ settings }) {
 
         {/* KPI */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          <KPI label="Totale operazioni" icon="📋" value={classified.length} sub="nel periodo" accent='#3B82F6'/>
-          <KPI label="Eliminazioni" icon="🗑️" value={counts.eliminazioni} sub="ordini/documenti" accent='#EF4444'/>
-          <KPI label="Sconti" icon="🏷️" value={counts.sconti} sub="applicati" accent='#F59E0B'/>
-          <KPI label="Spostamenti" icon="↔️" value={counts.spostamenti} sub="ordini/doc" accent='#3B82F6'/>
-          <KPI label="Apertura cassetto" icon="🗃️" value={counts.cassetto} sub="operazioni" accent='#64748b'/>
+          <KPI label="Totale operazioni" icon="" value={classified.length} sub="nel periodo" accent='#3B82F6'/>
+          <KPI label="Eliminazioni" icon="" value={counts.eliminazioni} sub="ordini/documenti" accent='#EF4444'/>
+          <KPI label="Sconti" icon="" value={counts.sconti} sub="applicati" accent='#F59E0B'/>
+          <KPI label="Spostamenti" icon="" value={counts.spostamenti} sub="ordini/doc" accent='#3B82F6'/>
+          <KPI label="Apertura cassetto" icon="" value={counts.cassetto} sub="operazioni" accent='#64748b'/>
         </div>
 
         {/* Filtri */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           {[
             { key: 'tutte', label: 'Tutte', count: classified.length, color: '#3B82F6' },
-            { key: 'eliminazione', label: '🗑️ Eliminazioni', count: counts.eliminazioni, color: '#EF4444' },
-            { key: 'sconto', label: '🏷️ Sconti', count: counts.sconti, color: '#F59E0B' },
-            { key: 'spostamento', label: '↔️ Spostamenti', count: counts.spostamenti, color: '#3B82F6' },
-            { key: 'cassetto', label: '🗃️ Cassetto', count: counts.cassetto, color: '#64748b' },
+            { key: 'eliminazione', label: 'Eliminazioni', count: counts.eliminazioni, color: '#EF4444' },
+            { key: 'sconto', label: 'Sconti', count: counts.sconti, color: '#F59E0B' },
+            { key: 'spostamento', label: 'Spostamenti', count: counts.spostamenti, color: '#3B82F6' },
+            { key: 'cassetto', label: 'Cassetto', count: counts.cassetto, color: '#64748b' },
           ].map(f => (
             <button key={f.key} onClick={() => setMonFilter(f.key)} style={{ ...iS, padding: '4px 12px', fontSize: 11, fontWeight: monFilter === f.key ? 700 : 400, color: monFilter === f.key ? f.color : '#94a3b8', background: monFilter === f.key ? f.color + '18' : 'transparent', border: monFilter === f.key ? `1px solid ${f.color}` : '1px solid #2a3042' }}>
               {f.label} ({f.count})
@@ -939,7 +939,7 @@ export default function DashboardPage({ settings }) {
           ))}
           <div style={{ marginLeft: 'auto' }}>
             <button onClick={loadLogs} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>
-              {monCookie ? '🔄 Aggiorna' : '⚙️ Configura CiC'}
+              {monCookie ? 'Aggiorna' : 'Configura CiC'}
             </button>
           </div>
         </div>
@@ -1052,13 +1052,13 @@ export default function DashboardPage({ settings }) {
 
         return <>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          <KPI label="Totale fatture" icon="📄" value={cicInvoices.length} sub="da CiC" accent='#3B82F6'/>
-          <KPI label="Da assegnare" icon="📋" value={cicInvoices.filter(f=>!localeMap[f.id]||localeMap[f.id]==='Alhena Group').length} sub="senza locale" accent='#F97316'/>
-          <KPI label="Assegnate" icon="✓" value={cicInvoices.filter(f=>localeMap[f.id]&&localeMap[f.id]!=='Alhena Group').length} sub="con locale" accent='#10B981'/>
+          <KPI label="Totale fatture" icon="" value={cicInvoices.length} sub="da CiC" accent='#3B82F6'/>
+          <KPI label="Da assegnare" icon="" value={cicInvoices.filter(f=>!localeMap[f.id]||localeMap[f.id]==='Alhena Group').length} sub="senza locale" accent='#F97316'/>
+          <KPI label="Assegnate" icon="" value={cicInvoices.filter(f=>localeMap[f.id]&&localeMap[f.id]!=='Alhena Group').length} sub="con locale" accent='#10B981'/>
         </div>
         <Card title="Fatture passive da CiC" badge={fatLoading?'Caricamento...':cicInvoices.length+' fatture'} extra={
           <div style={{display:'flex',gap:8}}>
-            <input placeholder="🔍 Fornitore / N° doc..." value={fatSearch} onChange={e=>setFatSearch(e.target.value)} style={{...iS,width:200}}/>
+            <input placeholder="Fornitore / N° doc..." value={fatSearch} onChange={e=>setFatSearch(e.target.value)} style={{...iS,width:200}}/>
             <button onClick={loadCicInvoices} style={{...iS,background:'#F59E0B',color:'#0f1420',border:'none',padding:'6px 16px',fontWeight:600}}>Aggiorna</button>
           </div>
         }>
@@ -1071,7 +1071,7 @@ export default function DashboardPage({ settings }) {
                 {cicInvoices.length===0&&!fatLoading&&<tr><td colSpan={8} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessuna fattura. Clicca "Aggiorna" per caricare da CiC. Serve essere loggati su fo.cassanova.com.</td></tr>}
                 {filtered.slice(0,50).map((f,i)=><React.Fragment key={f.id||i}>
                   <tr onClick={()=>{setExpandedFat(expandedFat===f.id?null:f.id);if(expandedFat!==f.id){setXmlContent(null)}}} style={{cursor:'pointer',borderBottom:'1px solid #1a1f2e'}}>
-                    <td style={{...S.td,width:24,color:'#64748b'}}>{expandedFat===f.id?'▼':'▶'}</td>
+                    <td style={{...S.td,width:24,color:'#64748b'}}>{expandedFat===f.id?'':''}</td>
                     <td style={{...S.td,color:'#F59E0B',fontWeight:600}}>{f.date}</td>
                     <td style={{...S.td,fontWeight:500}}>{f.sender?.name||'—'}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{f.number}</td>
@@ -1162,10 +1162,10 @@ export default function DashboardPage({ settings }) {
         return <>
         {/* Box informativi */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:'1.25rem'}}>
-          <KPI label="Chiusura cassa" icon="🔒" value={data?.fiscalCloseTime || '—'} sub={'Z-'+(data?.zNumber||'—')} accent='#EF4444'/>
-          <KPI label="Ultima cucina/pizzeria" icon="🍕" value={data?.lastKitchenTime || '—'} sub="comanda" accent='#F59E0B'/>
-          <KPI label="Ultima bar" icon="🍺" value={data?.lastBarTime || '—'} sub="comanda" accent='#3B82F6'/>
-          <KPI label="Apertura" icon="🟢" value={data?.firstReceiptTime || '—'} sub="primo scontrino" accent='#10B981'/>
+          <KPI label="Chiusura cassa" icon="" value={data?.fiscalCloseTime || '—'} sub={'Z-'+(data?.zNumber||'—')} accent='#EF4444'/>
+          <KPI label="Ultima cucina/pizzeria" icon="" value={data?.lastKitchenTime || '—'} sub="comanda" accent='#F59E0B'/>
+          <KPI label="Ultima bar" icon="" value={data?.lastBarTime || '—'} sub="comanda" accent='#3B82F6'/>
+          <KPI label="Apertura" icon="" value={data?.firstReceiptTime || '—'} sub="primo scontrino" accent='#10B981'/>
         </div>
 
         {/* Target e soglie */}
@@ -1176,13 +1176,13 @@ export default function DashboardPage({ settings }) {
               title={`Ore reali dalle timbrature (${(Math.floor(totOreReali*100)/100).toFixed(2)}h tot nel periodo)`}
               style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
                 background:useRealHours?'#10B981':'transparent',color:useRealHours?'#0f1420':'#94a3b8'}}>
-              📍 Reali ({(Math.floor(totOreReali*100)/100).toFixed(2)}h)
+              Reali ({(Math.floor(totOreReali*100)/100).toFixed(2)}h)
             </button>
             <button onClick={()=>setUseRealHours(false)}
               title="Ore pianificate dal calendario staff (tab Personale)"
               style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
                 background:!useRealHours?'#F59E0B':'transparent',color:!useRealHours?'#0f1420':'#94a3b8'}}>
-              🗓 Pianificate
+              Pianificate
             </button>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -1223,10 +1223,10 @@ export default function DashboardPage({ settings }) {
 
         {/* Tabella dettaglio */}
         <div style={{marginTop:12}}>
-          <Card title="Dettaglio per fascia oraria" badge={useRealHours ? '📍 ore da timbratura' : '🗓 ore pianificate'}>
+          <Card title="Dettaglio per fascia oraria" badge={useRealHours ? 'ore da timbratura' : 'ore pianificate'}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
               <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
-                {['Ora','Ricavi','🍽 Coperti','Cop./dip.','Scontrini','👥 Persone','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
+                {['Ora','Ricavi','Coperti','Cop./dip.','Scontrini','Persone','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {oreWithProd.filter(o=>o.ricavi>0||o.oreReali>0||o.persone>0||o.coperti>0).map((o,i)=>{
@@ -1240,7 +1240,7 @@ export default function DashboardPage({ settings }) {
                     <td style={{...S.td,color:'#94a3b8'}}>{o.scontrini}</td>
                     <td style={{...S.td,color:o.persone>0?'#3B82F6':'#475569',fontWeight:o.persone>0?700:400}} title={o.persone>0?`${o.persone} dipendent${o.persone===1?'e':'i'} in turno (almeno parziale) nella fascia`:''}>{o.persone>0?o.persone:'—'}</td>
                     <td style={{...S.td,color:o.oreReali>0?'#10B981':'#475569',fontWeight:o.oreReali>0?600:400}}>{o.oreReali>0?o.oreReali.toFixed(2)+'h':'—'}</td>
-                    <td style={{...S.td,color:o.orePianif>0?'#F59E0B':'#475569'}}>{o.orePianif>0?o.orePianif+'h':'—'}{mismatch&&<span title="Differenza reale/pianificato" style={{marginLeft:4,color:'#EF4444'}}>⚠</span>}</td>
+                    <td style={{...S.td,color:o.orePianif>0?'#F59E0B':'#475569'}}>{o.orePianif>0?o.orePianif+'h':'—'}{mismatch&&<span title="Differenza reale/pianificato" style={{marginLeft:4,color:'#EF4444'}}></span>}</td>
                     <td style={{...S.td,fontWeight:600}}>{o.oreLavorate>0?o.oreLavorate.toFixed(2)+'h':'—'}</td>
                     <td style={{...S.td,fontWeight:700,color:o.oreLavorate>0?pc:'#475569'}}>{o.oreLavorate>0?o.prodOraria.toFixed(1)+' €/h':'—'}</td>
                     <td style={S.td}>{o.oreLavorate>0?<span style={{...S.badge(pc,pc+'22'),fontSize:10}}>{prodLabel(o.prodOraria)}</span>:'—'}</td>
@@ -1261,7 +1261,7 @@ export default function DashboardPage({ settings }) {
               <tbody>
                 {(data?.receiptDetails||[]).map((r,i)=><>
                   <tr key={i} onClick={()=>setExpandedReceipt(expandedReceipt===i?null:i)} style={{cursor:'pointer',borderBottom:'1px solid #1a1f2e'}}>
-                    <td style={{...S.td,width:24,color:'#64748b'}}>{expandedReceipt===i?'▼':'▶'}</td>
+                    <td style={{...S.td,width:24,color:'#64748b'}}>{expandedReceipt===i?'':''}</td>
                     <td style={{...S.td,fontWeight:600,color:'#e2e8f0'}}>{r.tavolo||'—'}</td>
                     <td style={{...S.td,fontWeight:600,color:'#10B981'}}>{r.aperturaComanda||r.ora}</td>
                     <td style={{...S.td,color:'#94a3b8'}}>{r.chiusuraComanda||r.ora}</td>

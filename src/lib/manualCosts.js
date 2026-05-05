@@ -57,12 +57,12 @@ export function aggregateManualCosts(costs, from, to) {
 
 // Label umane per le voci (duplicate dal CE ma utili se serve uno standalone)
 export const VOCE_LABELS = {
-  food: '🍕 Food cost',
-  beverage: '🍺 Beverage cost',
-  materiali: '📦 Mat. consumo',
-  struttura: '🏗️ Struttura',
-  personale: '👥 Personale',
-  altro: '📄 Altro',
+  food: 'Food cost',
+  beverage: 'Beverage cost',
+  materiali: 'Mat. consumo',
+  struttura: 'Struttura',
+  personale: 'Personale',
+  altro: 'Altro',
 }
 
 export const CADENZE_LABELS = {

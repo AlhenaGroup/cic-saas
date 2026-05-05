@@ -35,7 +35,7 @@ export default function LottoPage({ code }) {
     })()
   }, [code])
 
-  // Iniziali operatore per privacy (es. "Mario Rossi" → "M. R.")
+  // Iniziali operatore per privacy (es. "Mario Rossi" "M. R.")
   const operatoreIniziali = (n) => {
     if (!n) return null
     return n.split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase() + '.').join(' ')
@@ -53,7 +53,7 @@ export default function LottoPage({ code }) {
   if (batch === null) {
     return <div style={wrapper}>
       <div style={{ maxWidth: 480, margin: '40px auto', background: '#fff', borderRadius: 12, padding: 32, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,.06)' }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+        <div style={{ fontSize: 48, marginBottom: 12 }}></div>
         <h1 style={{ fontSize: 18, margin: '0 0 8px' }}>Lotto non trovato</h1>
         <div style={{ fontSize: 13, color: '#64748b' }}>
           Il codice <strong style={{ fontFamily: 'monospace' }}>{code}</strong> non corrisponde a nessun lotto registrato.
@@ -82,7 +82,7 @@ export default function LottoPage({ code }) {
       {/* Allergeni - in evidenza */}
       {batch.allergeni?.length > 0 && (
         <div style={{ background: '#fef3c7', border: '2px solid #F59E0B', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: '#92400e', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>⚠️ Allergeni</div>
+          <div style={{ fontSize: 11, color: '#92400e', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>Allergeni</div>
           <div style={{ fontSize: 14, fontWeight: 700, color: '#7c2d12', lineHeight: 1.6 }}>
             Contiene: {batch.allergeni.map(a => ALLERGENI_LABELS[a] || a.toUpperCase()).join(', ')}
           </div>
@@ -118,7 +118,7 @@ export default function LottoPage({ code }) {
           <div style={{ color: '#64748b' }}>Locale:</div>
           <div style={{ fontWeight: 600 }}>
             {batch.locale_produzione}
-            {batch.locale_destinazione && batch.locale_destinazione !== batch.locale_produzione && ` → ${batch.locale_destinazione}`}
+            {batch.locale_destinazione && batch.locale_destinazione !== batch.locale_produzione && ` ${batch.locale_destinazione}`}
           </div>
           <div style={{ color: '#64748b' }}>Quantità:</div>
           <div style={{ fontWeight: 600 }}>{batch.quantita_prodotta} {batch.unita || ''}</div>
@@ -151,7 +151,7 @@ export default function LottoPage({ code }) {
       {/* Stato */}
       {batch.stato && batch.stato !== 'attivo' && (
         <div style={{ background: '#fee2e2', borderRadius: 12, padding: 12, marginBottom: 16, fontSize: 12, color: '#991b1b', textAlign: 'center', fontWeight: 600 }}>
-          ⚠ Stato lotto: {batch.stato.toUpperCase()}
+          Stato lotto: {batch.stato.toUpperCase()}
         </div>
       )}
 

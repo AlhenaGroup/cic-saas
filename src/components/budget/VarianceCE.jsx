@@ -119,18 +119,18 @@ export default function VarianceCE({ sp, sps, year, month }) {
   const onCsv = () => { const { headers, dataRows, filename } = buildExportData(); exportToCsv(filename, headers, dataRows) }
   const onPdf = () => {
     const { headers, dataRows } = buildExportData()
-    const titolo = `📊 CE scostamenti · ${year}-${String(month).padStart(2, '0')}`
+    const titolo = `CE scostamenti · ${year}-${String(month).padStart(2, '0')}`
     exportToPdf(titolo, headers, dataRows)
   }
 
   if (loading) {
-    return <Card title="📊 CE scostamenti">
+    return <Card title="CE scostamenti">
       <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento…</div>
     </Card>
   }
 
   return <Card
-    title="📊 Conto economico: consuntivo vs budget vs forecast"
+    title="Conto economico: consuntivo vs budget vs forecast"
     extra={<ExportButtons onExcel={onExcel} onCsv={onCsv} onPdf={onPdf} disabled={!rows.length} />}
   >
     {!budget && (
@@ -139,7 +139,7 @@ export default function VarianceCE({ sp, sps, year, month }) {
         background: 'rgba(245,158,11,.1)',
         border: '1px solid #F59E0B',
         borderRadius: 6, color: '#F59E0B', fontSize: 12
-      }}>⚠ Nessun budget inserito per questo mese. Vai al tab <strong>✏️ Budget</strong> per crearlo.</div>
+      }}>Nessun budget inserito per questo mese. Vai al tab <strong>Budget</strong> per crearlo.</div>
     )}
 
     <div style={{ overflowX: 'auto' }}>
@@ -161,7 +161,7 @@ export default function VarianceCE({ sp, sps, year, month }) {
             const rowStyle = r.bold ? { borderTop: '2px solid #2a3042' } : {}
             return <tr key={r.key} style={r.highlight ? { background: 'rgba(245,158,11,.06)' } : {}}>
               <td style={{ ...S.td, ...rowStyle, fontWeight: r.bold ? 700 : 600 }}>
-                {meta && <span style={{ color: meta.color }}>●</span>} {r.label}
+                {meta && <span style={{ color: meta.color }}></span>} {r.label}
               </td>
               <td style={{ ...S.td, ...rowStyle, textAlign: 'right' }}>{fmtD(r.consuntivo)}</td>
               <td style={{ ...S.td, ...rowStyle, textAlign: 'right', color: r.budget != null ? '#94a3b8' : '#475569' }}>
@@ -189,9 +189,9 @@ export default function VarianceCE({ sp, sps, year, month }) {
       marginTop: 14, padding: '8px 12px', background: '#131825', borderRadius: 6,
       fontSize: 11, color: '#64748b', display: 'flex', gap: 18, flexWrap: 'wrap'
     }}>
-      <span><span style={{ color: '#10B981' }}>●</span> meglio del budget</span>
-      <span><span style={{ color: '#EF4444' }}>●</span> peggio del budget</span>
-      <span><span style={{ color: '#94a3b8' }}>●</span> in linea (Δ &lt; 1%)</span>
+      <span><span style={{ color: '#10B981' }}></span> meglio del budget</span>
+      <span><span style={{ color: '#EF4444' }}></span> peggio del budget</span>
+      <span><span style={{ color: '#94a3b8' }}></span> in linea (Δ &lt; 1%)</span>
       <span style={{ marginLeft: 'auto' }}>Per ricavi/MOL "meglio" = più alto; per costi "meglio" = più basso.</span>
     </div>
   </Card>

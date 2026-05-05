@@ -10,14 +10,14 @@ import TaskManager from '../components/hr/TaskManager'
 import SubTabsBar from '../components/SubTabsBar'
 
 const HR_SUB_TABS = [
-  { key: 'prod',       label: '⏱ Produttività' },
-  { key: 'dip',        label: '👤 Dipendenti' },
-  { key: 'doc',        label: '📋 Documenti' },
-  { key: 'cal',        label: '📅 Calendario' },
-  { key: 'task',       label: '✅ Task' },
-  { key: 'presenze',   label: '🕐 Presenze' },
-  { key: 'turni',      label: '🗓 Turni' },
-  { key: 'checklist',  label: '⚙️ Checklist' },
+  { key: 'prod',       label: 'Produttività' },
+  { key: 'dip',        label: 'Dipendenti' },
+  { key: 'doc',        label: 'Documenti' },
+  { key: 'cal',        label: 'Calendario' },
+  { key: 'task',       label: 'Task' },
+  { key: 'presenze',   label: 'Presenze' },
+  { key: 'turni',      label: 'Turni' },
+  { key: 'checklist',  label: 'Checklist' },
 ]
 
 export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps, renderProduttivita }) {
@@ -126,9 +126,9 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
     {hrTab === 'dip' && <>
     {/* KPI dinamici */}
     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:'1.25rem'}}>
-      <KPI label="Dipendenti" icon="👤" value={filteredEmps.filter(e=>e.stato==='Attivo').length} sub="attivi" accent='#3B82F6'/>
-      <KPI label="Documenti" icon="📁" value={filteredDocs.length} sub="caricati" accent='#10B981'/>
-      <KPI label="Scadenze" icon="📅" value={scadProssime.length} sub="nei prossimi 30gg" accent='#F59E0B'/>
+      <KPI label="Dipendenti" icon="" value={filteredEmps.filter(e=>e.stato==='Attivo').length} sub="attivi" accent='#3B82F6'/>
+      <KPI label="Documenti" icon="" value={filteredDocs.length} sub="caricati" accent='#10B981'/>
+      <KPI label="Scadenze" icon="" value={scadProssime.length} sub="nei prossimi 30gg" accent='#F59E0B'/>
     </div>
 
     {/* Dipendenti CRUD */}
@@ -177,7 +177,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
                 <td style={{...S.td,fontSize:12,color:'#64748b'}}>{d.locale}</td>
                 <td style={{...S.td,fontSize:12,color:'#94a3b8'}}>{d.telefono||'—'}</td>
                 <td style={{...S.td,fontSize:12,color:'#94a3b8'}}>{d.email||'—'}</td>
-                <td style={S.td}><span style={S.badge(d.stato==='Attivo'?'#10B981':'#EF4444',d.stato==='Attivo'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)')}>{d.stato==='Attivo'?'✓':''} {d.stato}</span></td>
+                <td style={S.td}><span style={S.badge(d.stato==='Attivo'?'#10B981':'#EF4444',d.stato==='Attivo'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)')}>{d.stato==='Attivo'?'':''} {d.stato}</span></td>
                 <td style={{...S.td,whiteSpace:'nowrap'}}>
                   <button onClick={()=>{setEditEmp(d);setEmpForm({nome:d.nome,ruolo:d.ruolo||'',locale:d.locale||'',telefono:d.telefono||'',email:d.email||'',pin:d.pin||''});setShowEmpForm(true)}} style={{background:'none',border:'none',color:'#3B82F6',cursor:'pointer',fontSize:12,marginRight:8}}>Modifica</button>
                   <button onClick={()=>{if(confirm('Eliminare '+d.nome+'?'))deleteEmployee(d.id)}} style={{background:'none',border:'none',color:'#EF4444',cursor:'pointer',fontSize:12}}>Elimina</button>

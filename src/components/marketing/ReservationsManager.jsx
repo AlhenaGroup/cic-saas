@@ -179,7 +179,7 @@ export default function ReservationsManager({ sp, sps }) {
         <button onClick={() => setPreset('storico')} style={btnSm('#0f1420')}>Storico 90gg</button>
       </div>
       <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={S.input} />
-      <span style={{ color: '#64748b' }}>→</span>
+      <span style={{ color: '#64748b' }}></span>
       <input type="date" value={to} onChange={e => setTo(e.target.value)} style={S.input} />
       <select value={statoFilter} onChange={e => setStatoFilter(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         <option value="">Tutti gli stati</option>
@@ -187,7 +187,7 @@ export default function ReservationsManager({ sp, sps }) {
       </select>
       <div style={{ flex: 1 }} />
       <button onClick={() => setShowStats(!showStats)} style={btnSm(showStats ? '#F59E0B' : '#0f1420')}>
-        {showStats ? '📊 Nascondi statistiche' : '📊 Mostra statistiche'}
+        {showStats ? 'Nascondi statistiche' : 'Mostra statistiche'}
       </button>
     </div>
 
@@ -249,7 +249,7 @@ export default function ReservationsManager({ sp, sps }) {
                 <td style={S.td}><span style={{ fontSize: 11, color: '#94a3b8' }}>{r.source || '—'}</span></td>
                 <td style={S.td}>
                   <div style={{ fontSize: 11, color: '#cbd5e1', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {[r.occasione, r.allergie && `⚠ ${r.allergie}`, r.note].filter(Boolean).join(' · ') || '—'}
+                    {[r.occasione, r.allergie && `${r.allergie}`, r.note].filter(Boolean).join(' · ') || '—'}
                   </div>
                 </td>
               </tr>

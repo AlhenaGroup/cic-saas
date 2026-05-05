@@ -1,6 +1,6 @@
 // Endpoint pubblico (no auth utente) per la pagina /survey/:token.
-// GET  ?token=...        → restituisce { survey, invitation } o errore se token invalido/scaduto
-// POST { token, risposte } → registra survey_response, calcola nps/rating/sentiment, ritorna routing review URL se promoter
+// GET  ?token=...        restituisce { survey, invitation } o errore se token invalido/scaduto
+// POST { token, risposte } registra survey_response, calcola nps/rating/sentiment, ritorna routing review URL se promoter
 
 import { createClient } from '@supabase/supabase-js'
 

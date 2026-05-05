@@ -2,7 +2,7 @@
 //
 // Legge article_stock. Somma per nome_articolo + locale (+ eventuale sub-location).
 // Filtro sub-location (se il locale ne ha definite piu' di una).
-// Click su articolo → popup con storico movimenti + movimento manuale rapido.
+// Click su articolo popup con storico movimenti + movimento manuale rapido.
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -76,7 +76,7 @@ export default function StockView({ sp, sps }) {
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
       {selectedLocaleName ? (
         <>
-          <strong style={{ fontSize: 12, color: '#94a3b8' }}>📍 {selectedLocaleName}</strong>
+          <strong style={{ fontSize: 12, color: '#94a3b8' }}>{selectedLocaleName}</strong>
           {subsForLocale.length > 1 && (
             <select value={selSub} onChange={e => setSelSub(e.target.value)} style={iS}>
               <option value="all">Tutte le sub-location</option>
@@ -84,13 +84,13 @@ export default function StockView({ sp, sps }) {
             </select>
           )}
           <button onClick={() => setShowSubConfig(true)} style={{ ...iS, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>
-            ⚙️ Sub-location
+            Sub-location
           </button>
         </>
       ) : (
         <span style={{ fontSize: 12, color: '#64748b' }}>Seleziona un locale nell'header per filtrare</span>
       )}
-      <input placeholder="🔍 Cerca articolo..." value={search} onChange={e => setSearch(e.target.value)}
+      <input placeholder="Cerca articolo..." value={search} onChange={e => setSearch(e.target.value)}
         style={{ ...iS, flex: 1, maxWidth: 260 }} />
       <select value={filterType} onChange={e => setFilterType(e.target.value)} style={iS}>
         <option value="tutti">Mostra tutti</option>
@@ -103,9 +103,9 @@ export default function StockView({ sp, sps }) {
     </div>
 
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 14 }}>
-      <KPI label="Articoli in stock" icon="📦" value={aggregated.length} sub={selectedLocaleName || 'tutti i locali'} accent='#3B82F6' />
-      <KPI label="Valore magazzino" icon="💰" value={fmtD(valoreTot)} sub="a prezzo medio" accent='#10B981' />
-      <KPI label="Sotto scorta" icon="⚠️" value={sottoScorta} sub="da riordinare" accent={sottoScorta > 0 ? '#EF4444' : '#64748b'} />
+      <KPI label="Articoli in stock" icon="" value={aggregated.length} sub={selectedLocaleName || 'tutti i locali'} accent='#3B82F6' />
+      <KPI label="Valore magazzino" icon="" value={fmtD(valoreTot)} sub="a prezzo medio" accent='#10B981' />
+      <KPI label="Sotto scorta" icon="" value={sottoScorta} sub="da riordinare" accent={sottoScorta > 0 ? '#EF4444' : '#64748b'} />
     </div>
 
     <Card title={`Giacenze${selSub !== 'all' ? ' · ' + selSub : ''}`} badge={aggregated.length + ' articoli'}>
@@ -146,7 +146,7 @@ export default function StockView({ sp, sps }) {
                   )}
                   <td style={{ ...S.td, color: '#64748b', fontSize: 11 }}>{s.scorta_minima || '—'}</td>
                   <td style={S.td}><span style={S.badge(stato.c, stato.bg)}>{stato.l}</span></td>
-                  <td style={{ ...S.td, color: '#64748b' }}>→</td>
+                  <td style={{ ...S.td, color: '#64748b' }}></td>
                 </tr>
               })}
             </tbody>
@@ -196,7 +196,7 @@ function SubLocationConfig({ locale, map, onClose, onSaved }) {
       <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
       <button onClick={save} disabled={saving}
         style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
-        {saving ? 'Salvo…' : '💾 Salva'}
+        {saving ? 'Salvo…' : 'Salva'}
       </button>
     </div>
   </Modal>
@@ -291,7 +291,7 @@ function ManualMovementModal({ locale, subLocations, onClose, onSaved }) {
       <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
       <button onClick={submit} disabled={saving}
         style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
-        {saving ? 'Salvo…' : '💾 Salva movimento'}
+        {saving ? 'Salvo…' : 'Salva movimento'}
       </button>
     </div>
   </Modal>
@@ -370,7 +370,7 @@ function ArticleDetailModal({ item, locale, onClose, onChange }) {
                   {sign}{fmtN(m.quantita)} {m.unita || ''}
                 </td>
                 <td style={{ padding: '6px 4px', fontSize: 10, color: '#64748b' }}>
-                  {m.sub_location} {m.sub_location_target ? '→ ' + m.sub_location_target : ''}
+                  {m.sub_location} {m.sub_location_target ? '' + m.sub_location_target : ''}
                 </td>
                 <td style={{ padding: '6px 4px', fontSize: 10, color: '#94a3b8', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {m.riferimento_label || m.note || m.fonte}
@@ -392,7 +392,7 @@ function Modal({ title, subtitle, maxWidth = 560, onClose, children }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>{title}</h3>
           {subtitle && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>}
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
       <div style={{ padding: 20 }}>{children}</div>
     </div>

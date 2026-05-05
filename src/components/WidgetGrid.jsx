@@ -5,7 +5,7 @@
 // Ogni widget e' un oggetto:
 //   { id: 'kpi.ricavi', label: 'Ricavi totali', element: <Component .../> }
 //
-// Mostra bottone ⚙️ "Personalizza" che apre il customizer drag&drop.
+// Mostra bottone "Personalizza" che apre il customizer drag&drop.
 
 import { useMemo, useState } from 'react'
 import { useUserLayout, useUserPlan } from '../lib/features'
@@ -41,7 +41,7 @@ export default function WidgetGrid({ tabKey, widgets = [], gridStyle = { display
       <button onClick={() => setCustomizing(true)}
         title="Personalizza widget"
         style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer', color: '#94a3b8', background: 'transparent' }}>
-        ⚙️ Personalizza
+        Personalizza
       </button>
     </div>
     <div style={gridStyle} className={className}>

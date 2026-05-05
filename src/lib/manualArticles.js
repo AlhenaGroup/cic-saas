@@ -18,18 +18,18 @@ export function toBaseUnit(qty, um) {
 }
 
 // Costo €/UM di un singolo ingrediente:
-//   - se `nome_articolo` corrisponde a un manual_article → ricorre sulla sub-ricetta
-//   - altrimenti cerca prezzo medio in `articlesPriceByName` (mappa nome→€/UM)
+//   - se `nome_articolo` corrisponde a un manual_article ricorre sulla sub-ricetta
+//   - altrimenti cerca prezzo medio in `articlesPriceByName` (mappa nome€/UM)
 //
-// `manualByName`: { nome → { unita, resa, ingredienti } }
-// `articlesPriceByName`: { nome (lower) → €/UM_base }
+// `manualByName`: { nome { unita, resa, ingredienti } }
+// `articlesPriceByName`: { nome (lower) €/UM_base }
 //
 // Ritorna { perUnit, baseUm, missing[] } dove perUnit e' €/baseUm,
 // missing[] elenca eventuali ingredienti non trovati (prezzo 0).
 export function unitCostOf(nome, articlesPriceByName, manualByName, depth = 0) {
   if (depth > 8) return { perUnit: 0, baseUm: 'PZ', missing: ['LOOP:' + nome] } // protezione cicli
   const key = (nome || '').trim().toLowerCase()
-  // Manual article → ricorri
+  // Manual article ricorri
   if (manualByName[key]) {
     return costOfManualArticle(manualByName[key], articlesPriceByName, manualByName, depth + 1)
   }

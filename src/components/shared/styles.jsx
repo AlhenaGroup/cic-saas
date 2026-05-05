@@ -54,7 +54,7 @@ export function KPI({label,value,sub,icon,accent='var(--blue)',trend}) {
     </div>
     <div style={{fontSize:28,fontWeight:600,color:'var(--text)',letterSpacing:'-0.02em',marginBottom:4,fontFamily:'DM Sans, system-ui, sans-serif'}}>{value}</div>
     {sub&&<div style={{fontSize:12,color:'var(--text2)'}}>{sub}</div>}
-    {trend!=null&&<div style={{marginTop:8,display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:999,background:trend>=0?'var(--green-bg)':'var(--red-bg)',color:trend>=0?'var(--green)':'var(--red)'}}>{trend>=0?'↑':'↓'} {Math.abs(trend).toFixed(1)}%</div>}
+    {trend!=null&&<div style={{marginTop:8,display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:999,background:trend>=0?'var(--green-bg)':'var(--red-bg)',color:trend>=0?'var(--green)':'var(--red)'}}>{trend>=0?'':''} {Math.abs(trend).toFixed(1)}%</div>}
   </div>
 }
 

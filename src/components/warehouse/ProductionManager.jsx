@@ -14,20 +14,20 @@ const iS = S.input
 
 // 14 allergeni Reg. UE 1169/2011
 export const ALLERGENI = [
-  { v: 'glutine',         l: 'Glutine',          ico: '🌾' },
-  { v: 'crostacei',       l: 'Crostacei',        ico: '🦐' },
-  { v: 'uova',            l: 'Uova',             ico: '🥚' },
-  { v: 'pesce',           l: 'Pesce',            ico: '🐟' },
-  { v: 'arachidi',        l: 'Arachidi',         ico: '🥜' },
-  { v: 'soia',            l: 'Soia',             ico: '🌱' },
-  { v: 'latte',           l: 'Latte',            ico: '🥛' },
-  { v: 'frutta_a_guscio', l: 'Frutta a guscio',  ico: '🌰' },
-  { v: 'sedano',          l: 'Sedano',           ico: '🥬' },
-  { v: 'senape',          l: 'Senape',           ico: '🌶️' },
-  { v: 'sesamo',          l: 'Sesamo',           ico: '⚪' },
-  { v: 'solfiti',         l: 'Solfiti',          ico: '🧪' },
-  { v: 'lupini',          l: 'Lupini',           ico: '🟡' },
-  { v: 'molluschi',       l: 'Molluschi',        ico: '🐚' },
+  { v: 'glutine',         l: 'Glutine',          ico: '' },
+  { v: 'crostacei',       l: 'Crostacei',        ico: '' },
+  { v: 'uova',            l: 'Uova',             ico: '' },
+  { v: 'pesce',           l: 'Pesce',            ico: '' },
+  { v: 'arachidi',        l: 'Arachidi',         ico: '' },
+  { v: 'soia',            l: 'Soia',             ico: '' },
+  { v: 'latte',           l: 'Latte',            ico: '' },
+  { v: 'frutta_a_guscio', l: 'Frutta a guscio',  ico: '' },
+  { v: 'sedano',          l: 'Sedano',           ico: '' },
+  { v: 'senape',          l: 'Senape',           ico: '' },
+  { v: 'sesamo',          l: 'Sesamo',           ico: '' },
+  { v: 'solfiti',         l: 'Solfiti',          ico: '' },
+  { v: 'lupini',          l: 'Lupini',           ico: '' },
+  { v: 'molluschi',       l: 'Molluschi',        ico: '' },
 ]
 export const ALLERGENI_BY_KEY = Object.fromEntries(ALLERGENI.map(a => [a.v, a]))
 
@@ -61,9 +61,9 @@ export function detectAllergeni(nome) {
 }
 
 const SUB_TABS = [
-  { k: 'schede',         l: '📋 Schede',         d: 'Template ricette di produzione' },
-  { k: 'lotti',          l: '🏷️ Lotti',          d: 'Esecuzioni reali con etichette + QR' },
-  { k: 'tracciabilita',  l: '🔍 Tracciabilità',  d: 'Origine ingredienti, dove sono finiti' },
+  { k: 'schede',         l: 'Schede',         d: 'Template ricette di produzione' },
+  { k: 'lotti',          l: 'Lotti',          d: 'Esecuzioni reali con etichette + QR' },
+  { k: 'tracciabilita',  l: 'Tracciabilità',  d: 'Origine ingredienti, dove sono finiti' },
 ]
 
 export default function ProductionManager({ sp, sps }) {
@@ -94,7 +94,7 @@ export default function ProductionManager({ sp, sps }) {
 function PlaceholderTab({ title, msg }) {
   return <Card title={title}>
     <div style={{ padding: 24, color: '#94a3b8', fontSize: 13, lineHeight: 1.6, textAlign: 'center' }}>
-      <div style={{ fontSize: 32, marginBottom: 12 }}>🚧</div>
+      <div style={{ fontSize: 32, marginBottom: 12 }}></div>
       {msg}
     </div>
   </Card>
@@ -146,7 +146,7 @@ function SchedeTab({ sp, sps }) {
     load()
   }
 
-  return <Card title="📋 Schede produzione" badge={`${filtered.length}/${recipes.length}`} extra={
+  return <Card title="Schede produzione" badge={`${filtered.length}/${recipes.length}`} extra={
     <button onClick={() => setEditing({
       nome: '', locale_produzione: allLocali[0] || '', locale_destinazione: '',
       ingredienti: [], procedimento: '', allergeni: [], conservazione: '+4°C frigo',
@@ -158,7 +158,7 @@ function SchedeTab({ sp, sps }) {
     </button>
   }>
     <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-      <input placeholder="🔍 Cerca scheda…" value={search} onChange={e => setSearch(e.target.value)}
+      <input placeholder="Cerca scheda…" value={search} onChange={e => setSearch(e.target.value)}
         style={{ ...iS, flex: 1, minWidth: 200 }} />
       <select value={filterLocale} onChange={e => setFilterLocale(e.target.value)} style={iS}>
         <option value="">Tutti i locali</option>
@@ -221,7 +221,7 @@ function SchedeTab({ sp, sps }) {
                       style={{ background: '#10B981', color: '#0f1420', border: 'none', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginRight: 4 }}>Approva</button>
                   )}
                   <button onClick={() => duplicate(r)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}>Dup</button>
-                  <button onClick={() => remove(r)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>✕</button>
+                  <button onClick={() => remove(r)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}></button>
                 </td>
               </tr>
             ))}
@@ -314,8 +314,8 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 760 }}>
       <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>{isNew ? '➕ Nuova scheda produzione' : '✎ ' + r.nome}</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <h3 style={{ margin: 0, fontSize: 15 }}>{isNew ? 'Nuova scheda produzione' : '' + r.nome}</h3>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
       <div style={{ padding: 20 }}>
         {/* Anagrafica */}
@@ -369,7 +369,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
               <button onClick={autoDetectFromIngredients}
                 style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
                 title="Rileva allergeni dai nomi degli ingredienti">
-                🔍 Auto-allergeni
+                Auto-allergeni
               </button>
               <button onClick={addIng}
                 style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
@@ -399,7 +399,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
               <select value={ing.unita || ''} onChange={e => updIng(i, { unita: e.target.value })} style={{ ...iS, width: '100%', fontSize: 11 }}>
                 {['', 'KG', 'GR', 'LT', 'ML', 'CL', 'PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
               </select>
-              <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}>✕</button>
+              <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}></button>
             </div>
           ))}
         </div>
@@ -432,7 +432,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
 
         {/* Configurazione mobile produzione */}
         <div style={{ borderTop: '1px solid #2a3042', paddingTop: 14, marginTop: 14, marginBottom: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>📱 Configurazione mobile (per dipendenti)</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Configurazione mobile (per dipendenti)</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <label>
               <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Durata attesa (min)</div>
@@ -466,7 +466,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
                   Obbl.
                 </label>
                 <button onClick={() => update('checklist_haccp_template', r.checklist_haccp_template.filter((_, idx) => idx !== i))}
-                  style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                  style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}></button>
               </div>
             ))}
           </div>
@@ -483,7 +483,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
           <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
           <button onClick={save} disabled={saving}
             style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
-            {saving ? 'Salvo…' : '💾 Salva scheda'}
+            {saving ? 'Salvo…' : 'Salva scheda'}
           </button>
         </div>
       </div>
@@ -569,7 +569,7 @@ function LottiTab({ sp, sps }) {
     load()
   }
 
-  return <Card title="🏷️ Lotti produzione" badge={`${filtered.length}/${batches.length}`} extra={
+  return <Card title="Lotti produzione" badge={`${filtered.length}/${batches.length}`} extra={
     <button onClick={() => setCreating({ recipe: null })} disabled={recipes.length === 0}
       style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '6px 14px', cursor: recipes.length ? 'pointer' : 'not-allowed', opacity: recipes.length ? 1 : 0.5 }}>
       + Nuovo lotto
@@ -594,7 +594,7 @@ function LottiTab({ sp, sps }) {
         </select>
         <select value={filterMobile} onChange={e => setFilterMobile(e.target.value)} style={iS}>
           <option value="">Tutte le origini</option>
-          <option value="mobile">📱 Da mobile</option>
+          <option value="mobile">Da mobile</option>
           <option value="admin">Solo da admin</option>
         </select>
       </div>
@@ -621,7 +621,7 @@ function LottiTab({ sp, sps }) {
                 return <tr key={b.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
                   <td style={{ ...S.td, fontFamily: 'monospace', fontWeight: 700, color: '#3B82F6' }}>
                     {b.lotto}
-                    {b.da_mobile && <span title="Creato da mobile (dipendente)" style={{ marginLeft: 4, fontSize: 11 }}>📱</span>}
+                    {b.da_mobile && <span title="Creato da mobile (dipendente)" style={{ marginLeft: 4, fontSize: 11 }}></span>}
                   </td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{b.recipe_id ? (recipes.find(r => r.id === b.recipe_id)?.nome || '—') : '—'}</td>
                   <td style={{ ...S.td, fontSize: 11 }}>{b.data_produzione} <span style={{ color: '#64748b' }}>{(b.ora_produzione || '').slice(0, 5)}</span></td>
@@ -634,7 +634,7 @@ function LottiTab({ sp, sps }) {
                   <td style={{ ...S.td, fontSize: 11 }}>
                     {b.locale_produzione}
                     {b.locale_destinazione && b.locale_destinazione !== b.locale_produzione && (
-                      <div style={{ color: '#64748b' }}>→ {b.locale_destinazione}</div>
+                      <div style={{ color: '#64748b' }}>{b.locale_destinazione}</div>
                     )}
                   </td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{b.quantita_prodotta} {b.unita || ''}</td>
@@ -649,7 +649,7 @@ function LottiTab({ sp, sps }) {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {anomalie.map((a, i) => (
                           <span key={i} title={a.label} style={{ ...S.badge('#F59E0B', 'rgba(245,158,11,.12)'), fontSize: 10 }}>
-                            ⚠ {a.tipo}
+                            {a.tipo}
                           </span>
                         ))}
                       </div>
@@ -664,9 +664,9 @@ function LottiTab({ sp, sps }) {
                   <td style={S.td}>
                     <button onClick={() => printEtichetta([b], recipes.find(r => r.id === b.recipe_id))}
                       style={{ background: 'none', border: '1px solid #2a3042', color: '#3B82F6', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}
-                      title="Stampa etichetta PDF (1 lotto)">🖨</button>
+                      title="Stampa etichetta PDF (1 lotto)"></button>
                     {b.stato !== 'annullato' && (
-                      <button onClick={() => annulla(b)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }} title="Annulla lotto">✕</button>
+                      <button onClick={() => annulla(b)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }} title="Annulla lotto"></button>
                     )}
                   </td>
                 </tr>
@@ -816,7 +816,7 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>+ Nuovo lotto produzione</h3>
           <div style={{ fontSize: 11, color: '#64748b' }}>Crea un lotto: scarica ingredienti, carica prodotto, stampa etichetta</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
       <div style={{ padding: 20 }}>
         <label style={{ display: 'block', marginBottom: 10 }}>
@@ -897,7 +897,7 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
           {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
 
           <div style={{ background: 'rgba(245,158,11,.06)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 6, padding: 10, fontSize: 11, color: '#F59E0B', marginBottom: 14 }}>
-            ⚠ Confermando il lotto: <br/>
+            Confermando il lotto: <br/>
             • Verranno scaricati gli ingredienti dal magazzino di {localeProd}<br/>
             • Verrà caricato il prodotto finito sul magazzino di {localeDest || localeProd}<br/>
             • Verrà generato un codice lotto univoco e l'etichetta PDF
@@ -907,7 +907,7 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
             <button onClick={onClose} disabled={creating} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
             <button onClick={submit} disabled={creating}
               style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
-              {creating ? 'Creo lotto…' : '✓ Conferma e crea lotto'}
+              {creating ? 'Creo lotto…' : 'Conferma e crea lotto'}
             </button>
           </div>
         </>}
@@ -948,7 +948,7 @@ async function printEtichetta(batches, recipe) {
       ${(b.allergeni || []).length > 0 ? `<div class="allerg"><span class="k">Allergeni:</span> <strong>${escHtml(allergLabel(b))}</strong></div>` : ''}
       ${b.conservazione ? `<div class="cons"><span class="k">Conservazione:</span> ${escHtml(b.conservazione)}</div>` : ''}
       <div class="footer">
-        <div class="loc">${escHtml(b.locale_produzione)}${b.locale_destinazione && b.locale_destinazione !== b.locale_produzione ? ' → ' + escHtml(b.locale_destinazione) : ''}</div>
+        <div class="loc">${escHtml(b.locale_produzione)}${b.locale_destinazione && b.locale_destinazione !== b.locale_produzione ? ' ' + escHtml(b.locale_destinazione) : ''}</div>
         ${qrs[i] ? `<img src="${qrs[i]}" class="qr"/>` : ''}
       </div>
     </div>
@@ -988,7 +988,7 @@ function TracciabilitaTab({ sp, sps }) {
   const [batches, setBatches] = useState([])
   const [selected, setSelected] = useState(null)
   const [movements, setMovements] = useState([])
-  const [origini, setOrigini] = useState({}) // nome_articolo → [{fattura, fornitore, data}]
+  const [origini, setOrigini] = useState({}) // nome_articolo [{fattura, fornitore, data}]
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
@@ -1030,9 +1030,9 @@ function TracciabilitaTab({ sp, sps }) {
       || (b.locale_produzione || '').toLowerCase().includes(s)
   })
 
-  return <Card title="🔍 Tracciabilità lotti" badge={loading ? '...' : `${filtered.length} lotti`}>
+  return <Card title="Tracciabilità lotti" badge={loading ? '...' : `${filtered.length} lotti`}>
     <input value={search} onChange={e => setSearch(e.target.value)}
-      placeholder="🔍 Cerca lotto (es. P-20260503-001)…"
+      placeholder="Cerca lotto (es. P-20260503-001)…"
       style={{ ...iS, width: '100%', marginBottom: 12 }} />
 
     {loading ? (
@@ -1062,14 +1062,14 @@ function TracciabilitaTab({ sp, sps }) {
         <div style={{ maxHeight: 540, overflowY: 'auto' }}>
           {!selected ? (
             <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 12 }}>
-              ← Seleziona un lotto per vedere la tracciabilità
+              Seleziona un lotto per vedere la tracciabilità
             </div>
           ) : <>
             <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
               <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#3B82F6', fontSize: 14 }}>{selected.lotto}</div>
               <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                 {selected.data_produzione} {(selected.ora_produzione || '').slice(0, 5)} · {selected.locale_produzione}
-                {selected.locale_destinazione && selected.locale_destinazione !== selected.locale_produzione && ` → ${selected.locale_destinazione}`}
+                {selected.locale_destinazione && selected.locale_destinazione !== selected.locale_produzione && ` ${selected.locale_destinazione}`}
               </div>
               <div style={{ fontSize: 12, marginTop: 6 }}>{selected.quantita_prodotta} {selected.unita || ''} prodotti{selected.operatore_nome ? ` · ${selected.operatore_nome}` : ''}</div>
             </div>
@@ -1077,7 +1077,7 @@ function TracciabilitaTab({ sp, sps }) {
             {/* ONE STEP BACK: ingredienti origine */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
-                ◀ Ingredienti origine (one step back)
+                Ingredienti origine (one step back)
               </div>
               {(selected.ingredienti_usati || []).length === 0 ? (
                 <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>Nessun ingrediente registrato.</div>
@@ -1106,7 +1106,7 @@ function TracciabilitaTab({ sp, sps }) {
             {/* ONE STEP FORWARD: movimenti magazzino generati */}
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
-                ▶ Movimenti generati (one step forward)
+                Movimenti generati (one step forward)
               </div>
               {movements.length === 0 ? (
                 <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>Nessun movimento collegato.</div>
@@ -1124,7 +1124,7 @@ function TracciabilitaTab({ sp, sps }) {
                         </td>
                         <td style={{ ...S.td, fontWeight: 600 }}>{m.nome_articolo}</td>
                         <td style={{ ...S.td }}>{Number(m.quantita).toFixed(2)} {m.unita || ''}</td>
-                        <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{m.locale}{m.sub_location_target ? ` → ${m.sub_location_target}` : ''}</td>
+                        <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{m.locale}{m.sub_location_target ? ` ${m.sub_location_target}` : ''}</td>
                       </tr>
                     })}
                   </tbody>
@@ -1134,7 +1134,7 @@ function TracciabilitaTab({ sp, sps }) {
 
             {/* Link pagina pubblica */}
             <div style={{ marginTop: 16, padding: 10, background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 6, fontSize: 11 }}>
-              🔗 Pagina pubblica del lotto:&nbsp;
+              Pagina pubblica del lotto:&nbsp;
               <a href={`/lotto/${encodeURIComponent(selected.lotto)}`} target="_blank" rel="noreferrer"
                 style={{ color: '#3B82F6', fontFamily: 'monospace', textDecoration: 'underline' }}>
                 /lotto/{selected.lotto}

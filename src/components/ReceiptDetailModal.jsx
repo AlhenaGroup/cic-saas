@@ -92,7 +92,7 @@ export default function ReceiptDetailModal({ receipt, onClose }) {
             {receipt.date} · {receipt.locale}
           </div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
 
       <div style={{ padding: 20 }}>

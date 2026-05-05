@@ -46,7 +46,7 @@ export default function SetPasswordPage({ mode = 'invite', email }) {
       padding: '36px 32px', maxWidth: 440, width: '100%',
     }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ fontSize: 40, marginBottom: 8 }}>{mode === 'recovery' ? '🔑' : '👋'}</div>
+        <div style={{ fontSize: 40, marginBottom: 8 }}>{mode === 'recovery' ? '' : ''}</div>
         <h1 style={{ fontSize: 22, margin: '0 0 6px 0', fontWeight: 700 }}>
           {mode === 'recovery' ? 'Reimposta password' : 'Benvenuto su CIC Analytics'}
         </h1>
@@ -64,7 +64,7 @@ export default function SetPasswordPage({ mode = 'invite', email }) {
           borderRadius: 8, padding: '14px 16px', textAlign: 'center',
           fontSize: 13, color: '#10B981',
         }}>
-          ✓ Password impostata. Ti porto alla dashboard…
+          Password impostata. Ti porto alla dashboard…
         </div>
       ) : (
         <>
@@ -95,7 +95,7 @@ export default function SetPasswordPage({ mode = 'invite', email }) {
               fontWeight: 600, fontSize: 14, border: 'none',
               cursor: saving ? 'wait' : 'pointer',
             }}>
-            {saving ? 'Salvo…' : (mode === 'recovery' ? '🔑 Imposta nuova password' : '✓ Crea password & entra')}
+            {saving ? 'Salvo…' : (mode === 'recovery' ? 'Imposta nuova password' : 'Crea password & entra')}
           </button>
         </>
       )}

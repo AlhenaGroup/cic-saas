@@ -1,10 +1,10 @@
-// Bottone ⚙ + popover modale per configurare la modalità di conteggio inventario
+// Bottone + popover modale per configurare la modalità di conteggio inventario
 // di un articolo. Usato in: ArticoliTab, InventoryManager, TimbraPage (mobile).
 
 import { useState, useEffect } from 'react'
 import { upsertConfig, deleteConfig } from '../../lib/inventoryConfig'
 
-export default function InventoryConfigButton({ locale, nomeArticolo, currentConfig, onSaved, label = '⚙', size = 'sm', style = {} }) {
+export default function InventoryConfigButton({ locale, nomeArticolo, currentConfig, onSaved, label = '', size = 'sm', style = {} }) {
   const [open, setOpen] = useState(false)
   const [cfg, setCfg] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -56,7 +56,7 @@ export default function InventoryConfigButton({ locale, nomeArticolo, currentCon
       <div onClick={(e) => e.stopPropagation()} style={modal}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 15, flex: 1 }}>Conteggio inventario</h3>
-          <button onClick={() => setOpen(false)} style={closeBtn}>✕</button>
+          <button onClick={() => setOpen(false)} style={closeBtn}></button>
         </div>
         <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 12 }}><b>{nomeArticolo}</b></div>
 
@@ -65,11 +65,11 @@ export default function InventoryConfigButton({ locale, nomeArticolo, currentCon
           <div style={lab}>Modalità conteggio</div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => setCfg({ ...cfg, modalita: 'unita' })} style={pill(cfg.modalita === 'unita')}>
-              <div style={{ fontWeight: 600 }}>📏 Unità ricetta</div>
+              <div style={{ fontWeight: 600 }}>Unità ricetta</div>
               <div style={{ fontSize: 10, opacity: 0.7 }}>Un solo numero (litri/kg)</div>
             </button>
             <button onClick={() => setCfg({ ...cfg, modalita: 'pezzi' })} style={pill(cfg.modalita === 'pezzi')}>
-              <div style={{ fontWeight: 600 }}>🍾 Pezzi + aperto</div>
+              <div style={{ fontWeight: 600 }}>Pezzi + aperto</div>
               <div style={{ fontSize: 10, opacity: 0.7 }}>Bottiglie chiuse + residuo</div>
             </button>
           </div>
@@ -98,8 +98,8 @@ export default function InventoryConfigButton({ locale, nomeArticolo, currentCon
           </div>
 
           <div style={hint}>
-            <b>Esempio:</b> bottiglia di vino da 75cl → volume_pezzo = <code>0.75</code>, residuo aperto in <code>ml</code>.
-            All'inventario inserirai "12 bottiglie chiuse + 350 ml aperti" → calcolo automatico = <b>9.35 L</b>.
+            <b>Esempio:</b> bottiglia di vino da 75cl volume_pezzo = <code>0.75</code>, residuo aperto in <code>ml</code>.
+            All'inventario inserirai "12 bottiglie chiuse + 350 ml aperti" calcolo automatico = <b>9.35 L</b>.
           </div>
         </>}
 

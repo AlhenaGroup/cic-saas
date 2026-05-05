@@ -17,7 +17,7 @@ export default function RecipeManager({ sp, sps }) {
   // Semilavorati (manual_articles) — ingredienti prodotti internamente
   const [manualArticles, setManualArticles] = useState([])
   // Ricette salvate
-  const [recipes, setRecipes] = useState({}) // nome_prodotto → recipe
+  const [recipes, setRecipes] = useState({}) // nome_prodotto recipe
   const [loading, setLoading] = useState(false)
   // UI
   const [selected, setSelected] = useState(null) // prodotto selezionato per editare ricetta
@@ -137,7 +137,7 @@ export default function RecipeManager({ sp, sps }) {
   const selectedRecipe = selected ? recipes[selected.name] : null
   const ingredienti = selectedRecipe?.ingredienti || []
 
-  // Converti quantità in UM base per calcolo costo (g→KG, cl→LT)
+  // Converti quantità in UM base per calcolo costo (gKG, clLT)
   const toBaseUnit = (qty, um) => {
     const q = Number(qty) || 0
     const u = um || 'PZ'
@@ -147,12 +147,12 @@ export default function RecipeManager({ sp, sps }) {
     return { qty: q, baseUm: u }
   }
 
-  // Mappa nome → semilavorato per lookup rapido
+  // Mappa nome semilavorato per lookup rapido
   const manualByName = {}
   for (const m of manualArticles) manualByName[m.nome.trim().toLowerCase()] = m
 
   // Costo unitario di un singolo ingrediente (€/UM_base):
-  //  - se e' un semilavorato → ricorre sulla sub-ricetta (somma costi / resa)
+  //  - se e' un semilavorato ricorre sulla sub-ricetta (somma costi / resa)
   //  - altrimenti cerca prezzo medio in articles (warehouse_invoice_items)
   const ingrUnitCost = (nome, depth = 0) => {
     if (depth > 8) return 0 // protezione cicli
@@ -266,7 +266,7 @@ export default function RecipeManager({ sp, sps }) {
     <div style={{ flex: selected ? '0 0 45%' : '1' }}>
       <Card title="Prodotti venduti" badge={loading ? '...' : `${filtered.length} prodotti · ${conRicetta} con ricetta`} extra={
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <input placeholder="🔍 Cerca..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...iS, fontSize: 11, padding: '4px 8px', width: 130 }} />
+          <input placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...iS, fontSize: 11, padding: '4px 8px', width: 130 }} />
           <select value={filter} onChange={e => setFilter(e.target.value)} style={{ ...iS, fontSize: 10, padding: '4px 6px' }}>
             <option value="tutti">Tutti</option>
             <option value="con_ricetta">Con ricetta</option>
@@ -299,7 +299,7 @@ export default function RecipeManager({ sp, sps }) {
                       : <span style={{ color: '#475569', fontSize: 10 }}>—</span>}
                   </td>
                   <td style={{ ...S.td, fontSize: 10 }}>
-                    {hasRecipe ? <span style={{ color: '#10B981' }}>✓</span> : null}
+                    {hasRecipe ? <span style={{ color: '#10B981' }}></span> : null}
                   </td>
                 </tr>
               })}
@@ -317,10 +317,10 @@ export default function RecipeManager({ sp, sps }) {
             <span style={{ fontSize: 11, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 4 }}>⏳ Salvando…</span>
           )}
           {saveStatus === 'saved' && (
-            <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>✓ Salvato</span>
+            <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>Salvato</span>
           )}
           {saveStatus === 'error' && (
-            <span title={saveError} style={{ fontSize: 11, color: '#EF4444', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help' }}>⚠ Errore</span>
+            <span title={saveError} style={{ fontSize: 11, color: '#EF4444', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help' }}>Errore</span>
           )}
           <span style={{ fontSize: 11, color: '#94a3b8' }}>{selected.reparto} · {fmtD(selected.avgPrice)}</span>
         </div>
@@ -369,7 +369,7 @@ export default function RecipeManager({ sp, sps }) {
               } catch { prezzoDisplay = '—' }
               return <tr key={idx} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 500, fontSize: 12 }}>
-                  {isManual && <span style={{ marginRight: 4, fontSize: 10 }} title="Semilavorato (sub-ricetta)">🥣</span>}
+                  {isManual && <span style={{ marginRight: 4, fontSize: 10 }} title="Semilavorato (sub-ricetta)"></span>}
                   {ig.nome_articolo}
                 </td>
                 <td style={{ ...S.td, padding: '4px 6px' }}>
@@ -397,7 +397,7 @@ export default function RecipeManager({ sp, sps }) {
                 <td style={{ ...S.td, fontSize: 10, color: '#64748b' }}>{prezzoDisplay}</td>
                 <td style={{ ...S.td, fontWeight: 600, fontSize: 11, color: '#F59E0B' }}>{costo > 0 ? fmtD(Math.round(costo * 10000) / 10000) : '—'}</td>
                 <td style={{ ...S.td }}>
-                  <button onClick={() => removeIngredient(idx)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}>✗</button>
+                  <button onClick={() => removeIngredient(idx)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}></button>
                 </td>
               </tr>
             })}
@@ -419,7 +419,7 @@ export default function RecipeManager({ sp, sps }) {
             <div key={a.nome + (a.isManual ? ':m' : '')} onClick={() => addIngredient(a.nome)}
               style={{ padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid #1a1f2e', fontSize: 12, color: '#e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 500 }}>
-                {a.isManual && <span style={{ marginRight: 4, fontSize: 10 }} title="Semilavorato">🥣</span>}
+                {a.isManual && <span style={{ marginRight: 4, fontSize: 10 }} title="Semilavorato"></span>}
                 {a.nome}
               </span>
               <span style={{ fontSize: 10, color: a.isManual ? '#10B981' : '#64748b' }}>{a.prezzoMedio > 0 ? fmtD(Math.round(a.prezzoMedio * 100) / 100) + '/' + a.unita : '—'}</span>

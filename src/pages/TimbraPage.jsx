@@ -133,7 +133,7 @@ export default function TimbraPage() {
           attendance_id: pendingChecklist.attendanceId || null,
           risposte,
         })
-        setMessage(`ENTRATA registrata alle ${new Date(pendingChecklist.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}\nChecklist completata ✓`)
+        setMessage(`ENTRATA registrata alle ${new Date(pendingChecklist.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}\nChecklist completata `)
       } else {
         // USCITA: atomic timbra + response
         if (gpsStatus !== 'ok') { setMessage('GPS non disponibile. Attiva la localizzazione.'); setLoading(false); return }
@@ -169,7 +169,7 @@ export default function TimbraPage() {
         lat: coords?.lat, lng: coords?.lng,
       })
       const ts = isUscita ? d.timestamp : pendingChecklist.timestamp
-      setMessage(`${pendingChecklist.tipo.toUpperCase()} registrata alle ${ts ? new Date(ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : 'ora'}\nChecklist delegata a un collega ✓`)
+      setMessage(`${pendingChecklist.tipo.toUpperCase()} registrata alle ${ts ? new Date(ts).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : 'ora'}\nChecklist delegata a un collega `)
       setPendingChecklist(null)
       setStep('done')
     } catch (e) { setMessage(e.message) }
@@ -279,18 +279,18 @@ function PinPad({ pin, onDigit, onClear, loading }) {
 function MainMenu({ employee, permissions, onChoose, onReset }) {
   // Azioni operative filtrate dai permessi
   const azioni = [
-    { k: 'presenza', icon: '🕐', label: 'Timbra presenza', color: '#10B981' },
-    { k: 'consumo', icon: '🍪', label: 'Consumo personale', color: '#F59E0B' },
-    { k: 'trasferimento', icon: '🔀', label: 'Spostamento merce', color: '#3B82F6' },
-    { k: 'inventario', icon: '📋', label: 'Inventario', color: '#8B5CF6' },
-    { k: 'produzione', icon: '🥘', label: 'Produzione', color: '#EF4444' },
+    { k: 'presenza', icon: '', label: 'Timbra presenza', color: '#10B981' },
+    { k: 'consumo', icon: '', label: 'Consumo personale', color: '#F59E0B' },
+    { k: 'trasferimento', icon: '', label: 'Spostamento merce', color: '#3B82F6' },
+    { k: 'inventario', icon: '', label: 'Inventario', color: '#8B5CF6' },
+    { k: 'produzione', icon: '', label: 'Produzione', color: '#EF4444' },
   ].filter(i => permissions[i.k === 'trasferimento' ? 'spostamenti' : i.k])
   // Viste info personali: sempre visibili (sola lettura dei propri dati)
   const info = [
-    { k: 'calendario', icon: '📅', label: 'Calendario task', color: '#F59E0B' },
-    { k: 'miei-turni', icon: '📆', label: 'I miei turni', color: '#3B82F6' },
-    { k: 'mie-ore', icon: '⏱', label: 'Le mie ore', color: '#10B981' },
-    { k: 'mie-ferie', icon: '🏖️', label: 'Le mie ferie', color: '#F97316' },
+    { k: 'calendario', icon: '', label: 'Calendario task', color: '#F59E0B' },
+    { k: 'miei-turni', icon: '', label: 'I miei turni', color: '#3B82F6' },
+    { k: 'mie-ore', icon: '', label: 'Le mie ore', color: '#10B981' },
+    { k: 'mie-ferie', icon: '', label: 'Le mie ferie', color: '#F97316' },
   ]
   const items = [...azioni, ...info]
 
@@ -311,7 +311,7 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
           style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', borderRadius: 12, border: `2px solid ${it.color}`, background: '#1a1f2e', color: '#e2e8f0', fontSize: 16, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
           <span style={{ fontSize: 24 }}>{it.icon}</span>
           <span style={{ flex: 1 }}>{it.label}</span>
-          <span style={{ color: it.color }}>→</span>
+          <span style={{ color: it.color }}></span>
         </button>
       ))}
     </div>
@@ -324,7 +324,7 @@ function PresenzaPanel({ employee, suggestedTipo, history, checklistEntrata, che
   return <div style={{ maxWidth: 320, width: '100%', textAlign: 'center' }}>
     <div style={{ background: '#1a1f2e', borderRadius: 16, padding: 20, marginBottom: 16 }}>
       <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{employee.nome}</div>
-      <div style={{ fontSize: 12, color: '#94a3b8' }}>GPS: {gpsStatus === 'ok' ? '✓' : '⚠ ' + gpsStatus}</div>
+      <div style={{ fontSize: 12, color: '#94a3b8' }}>GPS: {gpsStatus === 'ok' ? '' : '' + gpsStatus}</div>
     </div>
     <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
       <button onClick={() => onTimbra('entrata')} disabled={loading}
@@ -336,7 +336,7 @@ function PresenzaPanel({ employee, suggestedTipo, history, checklistEntrata, che
     </div>
     <div style={{ marginBottom: 8 }} />
     {message && <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 8, padding: 12, fontSize: 13, color: '#FCA5A5', marginBottom: 12 }}>{message}</div>}
-    <button onClick={onBack} style={{ background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '8px 20px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Indietro</button>
+    <button onClick={onBack} style={{ background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '8px 20px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>Indietro</button>
     {history.length > 0 && <div style={{ marginTop: 20, textAlign: 'left' }}>
       <div style={{ fontSize: 11, color: '#475569', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Oggi</div>
       {history.map((h, i) => <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #1e2636', fontSize: 13 }}>
@@ -364,7 +364,7 @@ function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timest
     return true
   }
   const allRequired = items.every(isCompiled)
-  const momentoLabel = tipo === 'entrata' ? '🟢 ENTRATA' : '🔴 USCITA'
+  const momentoLabel = tipo === 'entrata' ? 'ENTRATA' : 'USCITA'
   const momentoColor = tipo === 'entrata' ? '#10B981' : '#EF4444'
   const tsStr = timestamp ? new Date(timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : ''
 
@@ -372,17 +372,17 @@ function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timest
     <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 12 }}>
       <div style={{ fontSize: 11, color: momentoColor, fontWeight: 700, letterSpacing: '.06em' }}>{momentoLabel} · {checklist.reparto?.toUpperCase()}</div>
       <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{checklist.nome}</div>
-      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{employee?.nome} · {alreadyTimbrato ? `entrata ${tsStr} ✓ — completa la checklist` : 'compila per timbrare'}</div>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{employee?.nome} · {alreadyTimbrato ? `entrata ${tsStr} — completa la checklist` : 'compila per timbrare'}</div>
     </div>
     {alreadyTimbrato && (
       <div style={{ background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#10B981' }}>
-        ✓ Entrata registrata alle <strong>{tsStr}</strong>. Compila la checklist.
+        Entrata registrata alle <strong>{tsStr}</strong>. Compila la checklist.
       </div>
     )}
     {onSkip && (
       <button onClick={onSkip} disabled={loading}
         style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px dashed #F59E0B', background: 'transparent', color: '#F59E0B', fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', marginBottom: 12 }}>
-        🤝 La compila un collega in turno
+        La compila un collega in turno
       </button>
     )}
 
@@ -397,11 +397,11 @@ function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timest
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setAns(it.id, true)}
                 style={{ flex: 1, padding: '12px', borderRadius: 8, border: `1px solid ${risposte[it.id] === true ? '#10B981' : '#2a3042'}`, background: risposte[it.id] === true ? 'rgba(16,185,129,.15)' : '#0f1420', color: risposte[it.id] === true ? '#10B981' : '#e2e8f0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                ✓ Sì
+                Sì
               </button>
               <button onClick={() => setAns(it.id, false)}
                 style={{ flex: 1, padding: '12px', borderRadius: 8, border: `1px solid ${risposte[it.id] === false ? '#EF4444' : '#2a3042'}`, background: risposte[it.id] === false ? 'rgba(239,68,68,.15)' : '#0f1420', color: risposte[it.id] === false ? '#EF4444' : '#e2e8f0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                ✕ No
+                No
               </button>
             </div>
           )}
@@ -429,10 +429,10 @@ function ChecklistFormPanel({ checklist, tipo, employee, alreadyTimbrato, timest
 
     <button onClick={() => onSubmit(risposte)} disabled={!allRequired || loading}
       style={{ width: '100%', height: 56, borderRadius: 12, border: 'none', background: allRequired ? momentoColor : '#2a3042', color: allRequired ? '#fff' : '#64748b', fontSize: 16, fontWeight: 700, cursor: allRequired && !loading ? 'pointer' : 'not-allowed', marginBottom: 8 }}>
-      {loading ? 'Salvataggio…' : (alreadyTimbrato ? '✓ Salva checklist' : `✓ Conferma e timbra ${tipo}`)}
+      {loading ? 'Salvataggio…' : (alreadyTimbrato ? 'Salva checklist' : `Conferma e timbra ${tipo}`)}
     </button>
     {!alreadyTimbrato && (
-      <button onClick={onBack} disabled={loading} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Indietro</button>
+      <button onClick={onBack} disabled={loading} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>Indietro</button>
     )}
   </div>
 }
@@ -476,7 +476,7 @@ function ConsumoPanel({ pin, locale, onDone, onBack }) {
 
   return <div style={{ maxWidth: 400, width: '100%' }}>
     {!selected ? <>
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Cerca prodotto..."
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca prodotto..."
         style={{ width: '100%', padding: '12px 14px', fontSize: 15, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none' }} />
       {reparti.length > 1 && <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 10, paddingBottom: 4 }}>
         <button onClick={() => setRepFilter('')}
@@ -518,14 +518,14 @@ function ConsumoPanel({ pin, locale, onDone, onBack }) {
       {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={() => setSelected(null)} disabled={loading}
-          style={{ flex: 1, padding: '14px', borderRadius: 10, border: '1px solid #2a3042', background: 'none', color: '#94a3b8', fontSize: 14, cursor: 'pointer' }}>← Cambia</button>
+          style={{ flex: 1, padding: '14px', borderRadius: 10, border: '1px solid #2a3042', background: 'none', color: '#94a3b8', fontSize: 14, cursor: 'pointer' }}>Cambia</button>
         <button onClick={submit} disabled={loading || !porzioni || Number(porzioni) <= 0}
           style={{ flex: 2, padding: '14px', borderRadius: 10, border: 'none', background: '#F59E0B', color: bgColor, fontSize: 15, fontWeight: 700, cursor: loading ? 'wait' : 'pointer' }}>
           {loading ? 'Registro…' : 'Conferma consumo'}
         </button>
       </div>
     </>}
-    <button onClick={onBack} style={{ marginTop: 16, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+    <button onClick={onBack} style={{ marginTop: 16, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>Menu</button>
   </div>
 }
 
@@ -569,7 +569,7 @@ function TrasferimentoPanel({ pin, locale, onDone, onBack }) {
       </select>
     </div>
     {!selected ? <>
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Cerca articolo..."
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca articolo..."
         style={{ width: '100%', padding: '12px 14px', fontSize: 15, borderRadius: 10, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 10, outline: 'none' }} />
       <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
         {filtered.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Nessun articolo in {locale}</div>}
@@ -594,14 +594,14 @@ function TrasferimentoPanel({ pin, locale, onDone, onBack }) {
       {err && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{err}</div>}
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={() => setSelected(null)} disabled={loading}
-          style={{ flex: 1, padding: '14px', borderRadius: 10, border: '1px solid #2a3042', background: 'none', color: '#94a3b8', fontSize: 14, cursor: 'pointer' }}>← Cambia</button>
+          style={{ flex: 1, padding: '14px', borderRadius: 10, border: '1px solid #2a3042', background: 'none', color: '#94a3b8', fontSize: 14, cursor: 'pointer' }}>Cambia</button>
         <button onClick={submit} disabled={loading || !qty || Number(qty) <= 0}
           style={{ flex: 2, padding: '14px', borderRadius: 10, border: 'none', background: '#3B82F6', color: '#fff', fontSize: 15, fontWeight: 700, cursor: loading ? 'wait' : 'pointer' }}>
           {loading ? 'Sposto…' : 'Conferma spostamento'}
         </button>
       </div>
     </>}
-    <button onClick={onBack} style={{ marginTop: 16, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+    <button onClick={onBack} style={{ marginTop: 16, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>Menu</button>
   </div>
 }
 
@@ -618,7 +618,7 @@ const MAG_OPTIONS = [
 ]
 const MAG_BADGE = Object.fromEntries(MAG_OPTIONS.map(m => [m.key, m]))
 
-// Risolve la chiave magazzino di un articolo (null/'' → 'altro')
+// Risolve la chiave magazzino di un articolo (null/'' 'altro')
 const magKeyOf = (a) => {
   const m = (a.magazzino || '').toLowerCase().trim()
   return m || 'altro'
@@ -740,7 +740,7 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
         Chiudi
       </button>
     </div>}
-    <input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Cerca..."
+    <input value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca..."
       style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none' }} />
     <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 6, marginBottom: 8, WebkitOverflowScrolling: 'touch' }} className="keep-grid">
       {MAG_OPTIONS.filter(m => m.key === 'tutti' || (countByMag[m.key] || 0) > 0).map(m => {
@@ -759,17 +759,17 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
         border: `1px solid ${onlyTodo ? '#F59E0B' : '#2a3042'}`,
         background: onlyTodo ? 'rgba(245,158,11,.15)' : 'transparent',
         color: onlyTodo ? '#F59E0B' : '#94a3b8', cursor: 'pointer' }}>
-      {onlyTodo ? '☑ Mostra solo da contare' : '☐ Mostra solo da contare'} ({todoCount})
+      {onlyTodo ? 'Mostra solo da contare' : 'Mostra solo da contare'} ({todoCount})
     </button>
     {!showAdd ? (
       <button onClick={() => setShowAdd(true)}
         style={{ width: '100%', padding: '8px 12px', fontSize: 12, fontWeight: 600, borderRadius: 8, marginBottom: 10,
           border: '1px dashed #10B981', background: 'transparent', color: '#10B981', cursor: 'pointer' }}>
-        ➕ Aggiungi articolo non in lista
+        Aggiungi articolo non in lista
       </button>
     ) : (
       <div style={{ background: '#0f1420', border: '1px solid #10B981', borderRadius: 10, padding: 10, marginBottom: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', marginBottom: 8 }}>➕ Nuovo articolo</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', marginBottom: 8 }}>Nuovo articolo</div>
         <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome articolo (es. Birra MORETTI)"
           style={{ width: '100%', padding: '10px 12px', fontSize: 14, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
@@ -791,7 +791,7 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
           </button>
           <button onClick={addArticle} disabled={adding || !newName.trim() || !newQty}
             style={{ flex: 2, padding: '10px', fontSize: 13, fontWeight: 700, borderRadius: 8, border: 'none', background: '#10B981', color: '#0f1420', cursor: adding ? 'wait' : 'pointer', opacity: adding || !newName.trim() || !newQty ? 0.5 : 1 }}>
-            {adding ? 'Aggiungo…' : '✓ Aggiungi'}
+            {adding ? 'Aggiungo…' : 'Aggiungi'}
           </button>
         </div>
       </div>
@@ -806,7 +806,7 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, minWidth: 0 }}>
             <span style={{ fontSize: 9, fontWeight: 700, color: mag.color, background: mag.bg, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em', flexShrink: 0 }}>{mag.label}</span>
             <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{a.nome_articolo}</div>
-            {isPezzi && <span style={{ fontSize: 9, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.15)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>🍾 {a.volume_pezzo}{a.unita || 'L'}</span>}
+            {isPezzi && <span style={{ fontSize: 9, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.15)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>{a.volume_pezzo}{a.unita || 'L'}</span>}
           </div>
           {isPezzi ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -844,14 +844,14 @@ function InventarioPanel({ pin, locale, onDone, onBack }) {
         </div>
       })}
     </div>
-    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>Menu</button>
   </div>
 }
 
 // ─── FEEDBACK ───────────────────────────────────────────────────────
 function DonePanel({ message, employee, onReset }) {
   return <div style={{ maxWidth: 320, width: '100%', textAlign: 'center' }}>
-    <div style={{ fontSize: 64, marginBottom: 12 }}>✓</div>
+    <div style={{ fontSize: 64, marginBottom: 12 }}></div>
     <div style={{ fontSize: 18, fontWeight: 700, color: '#10B981', marginBottom: 8 }}>{message}</div>
     <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 24 }}>{employee?.nome}</div>
     <button onClick={onReset} style={{ background: accent, color: bgColor, border: 'none', borderRadius: 12, padding: '12px 32px', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>Torna al PIN</button>
@@ -860,7 +860,7 @@ function DonePanel({ message, employee, onReset }) {
 
 function ErrorPanel({ message, onReset }) {
   return <div style={{ maxWidth: 320, width: '100%', textAlign: 'center' }}>
-    <div style={{ fontSize: 64, marginBottom: 12 }}>✗</div>
+    <div style={{ fontSize: 64, marginBottom: 12 }}></div>
     <div style={{ fontSize: 16, color: '#EF4444', marginBottom: 8 }}>{message}</div>
     <button onClick={onReset} style={{ background: '#1a1f2e', color: '#e2e8f0', border: '1px solid #2a3042', borderRadius: 12, padding: '12px 32px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Riprova</button>
   </div>
@@ -895,7 +895,7 @@ function MieiTurniPanel({ pin, onBack }) {
       return <div key={s.id} style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${isCurrent ? '#10B981' : '#2a3042'}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: isCurrent ? '#10B981' : '#e2e8f0' }}>
-            {isCurrent ? '📌 Settimana corrente' : 'Settimana del ' + new Date(s.settimana).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
+            {isCurrent ? 'Settimana corrente' : 'Settimana del ' + new Date(s.settimana).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
           </div>
           {s.ore_totali && <div style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600 }}>{s.ore_totali}h</div>}
         </div>
@@ -916,7 +916,7 @@ function MieiTurniPanel({ pin, onBack }) {
         </div>
       </div>
     })}
-    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>Menu</button>
   </div>
 }
 
@@ -954,7 +954,7 @@ function MieOrePanel({ pin, onBack }) {
         ))}
       </div>
     </>}
-    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>Menu</button>
   </div>
 }
 
@@ -989,7 +989,7 @@ function MieFeriePanel({ pin, onBack }) {
           return <div key={t.id} style={{ padding: '8px 0', borderBottom: '1px solid #1e2636', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: c, background: c + '22', padding: '2px 8px', borderRadius: 10, textTransform: 'uppercase' }}>{t.tipo}</span>
             <div style={{ flex: 1, fontSize: 12 }}>
-              <div style={{ color: '#e2e8f0' }}>{t.data_inizio}{t.data_fine && t.data_fine !== t.data_inizio ? ' → ' + t.data_fine : ''}</div>
+              <div style={{ color: '#e2e8f0' }}>{t.data_inizio}{t.data_fine && t.data_fine !== t.data_inizio ? ' ' + t.data_fine : ''}</div>
               {t.ore && <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.ore}h</div>}
             </div>
             <span style={{ fontSize: 10, fontWeight: 600, color: sc }}>{t.stato}</span>
@@ -997,7 +997,7 @@ function MieFeriePanel({ pin, onBack }) {
         })}
       </div>
     </>}
-    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>Menu</button>
   </div>
 }
 
@@ -1043,7 +1043,7 @@ function InstallBanner() {
 
   return <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(59,130,246,.08)', border: '1px solid rgba(59,130,246,.25)', borderRadius: 12, maxWidth: 360, width: '100%' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-      <span style={{ fontSize: 22 }}>📱</span>
+      <span style={{ fontSize: 22 }}></span>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#60A5FA' }}>Installa l'app sul telefono</div>
     </div>
     <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5, marginBottom: 10 }}>
@@ -1058,7 +1058,7 @@ function InstallBanner() {
       {showIosHelp ? 'Nascondi istruzioni' : 'Come si fa su iPhone'}
     </button>}
     {!deferredPrompt && isAndroid && <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6 }}>
-      Tocca il menu ⋮ del browser → <strong style={{ color: '#e2e8f0' }}>Aggiungi a schermata Home</strong> / <strong style={{ color: '#e2e8f0' }}>Installa app</strong>.
+      Tocca il menu ⋮ del browser <strong style={{ color: '#e2e8f0' }}>Aggiungi a schermata Home</strong> / <strong style={{ color: '#e2e8f0' }}>Installa app</strong>.
     </div>}
     {!deferredPrompt && !isIos && !isAndroid && <div style={{ fontSize: 11, color: '#94a3b8' }}>
       Apri questa pagina dal tuo telefono per installare l'app.
@@ -1073,9 +1073,9 @@ function InstallBanner() {
 }
 
 // ─── PRODUZIONE ──────────────────────────────────────────────────────
-// Flow: lista schede → seleziona scheda → "Inizia produzione" (timestamp)
-// → schermata produzione con cronometro live + ingredienti modificabili
-// + checklist HACCP (se template) + foto (se richiede_foto) → "Termina"
+// Flow: lista schede seleziona scheda "Inizia produzione" (timestamp)
+// schermata produzione con cronometro live + ingredienti modificabili
+// + checklist HACCP (se template) + foto (se richiede_foto) "Termina"
 function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
   const [recipes, setRecipes] = useState([])
   const [allArticles, setAllArticles] = useState([]) // articoli + semilavorati per autocomplete
@@ -1272,12 +1272,12 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
           }}
           style={{ width: '100%', padding: '12px', fontSize: 14, fontWeight: 600, borderRadius: 8, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }}>
           <option value="">— scegli un prodotto —</option>
-          {optionsRecipes.length > 0 && <optgroup label="🥘 Schede produzione">
+          {optionsRecipes.length > 0 && <optgroup label="Schede produzione">
             {optionsRecipes.map(o => <option key={o.key} value={o.key}>
               {o.nome}{o.approved === false ? ' [da confermare]' : ''}
             </option>)}
           </optgroup>}
-          {optionsSemi.length > 0 && <optgroup label="🧪 Semilavorati">
+          {optionsSemi.length > 0 && <optgroup label="Semilavorati">
             {optionsSemi.map(o => <option key={o.key} value={o.key}>
               {o.nome}{o.approved === false ? ' [da confermare]' : ''}
             </option>)}
@@ -1326,7 +1326,7 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
           }))
           return <div style={{ background: 'rgba(16,185,129,.06)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 12, padding: 14, marginBottom: 10 }}>
             <div style={{ fontSize: 11, color: '#10B981', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>
-              📋 Ricetta per {qty} {selected.resa_unita}
+              Ricetta per {qty} {selected.resa_unita}
             </div>
             <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10 }}>
               Proporzionata da {selected.resa_quantita} {selected.resa_unita} a {qty} {selected.resa_unita}
@@ -1365,13 +1365,13 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
 
         <button onClick={startProduction} disabled={loading || !qty || Number(qty) <= 0}
           style={{ width: '100%', padding: 16, background: (qty && Number(qty) > 0) ? '#EF4444' : '#2a3042', color: (qty && Number(qty) > 0) ? '#fff' : '#64748b', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'wait' : ((qty && Number(qty) > 0) ? 'pointer' : 'not-allowed'), marginBottom: 8 }}>
-          {loading ? 'Avvio…' : `▶ Inizia produzione: ${qty || '?'} ${selected.resa_unita || ''}`}
+          {loading ? 'Avvio…' : `Inizia produzione: ${qty || '?'} ${selected.resa_unita || ''}`}
         </button>
       </>}
 
       {/* Search opzionale (utile se ci sono molti prodotti) */}
       {allOptions.length > 8 && (
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Cerca prodotto…"
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cerca prodotto…"
           style={{ width: '100%', padding: '10px 12px', fontSize: 13, borderRadius: 8, border: '1px solid #2a3042', background: '#1a1f2e', color: '#e2e8f0', marginBottom: 8, outline: 'none', boxSizing: 'border-box' }} />
       )}
 
@@ -1380,7 +1380,7 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
         + Crea nuova scheda di produzione
       </button>
 
-      <button onClick={onBack} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>← Menu</button>
+      <button onClick={onBack} style={{ width: '100%', background: 'none', border: '1px solid #2a3042', borderRadius: 8, padding: '10px', color: '#64748b', fontSize: 13, cursor: 'pointer' }}>Menu</button>
     </div>
   }
 
@@ -1409,7 +1409,7 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
     <div style={{ background: 'linear-gradient(135deg, #EF4444, #F59E0B)', borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'center', color: '#fff' }}>
       <div style={{ fontSize: 11, opacity: 0.9, textTransform: 'uppercase', letterSpacing: 1 }}>In produzione</div>
       <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>{selected.nome}</div>
-      <div style={{ fontSize: 32, fontWeight: 700, fontFamily: 'monospace', marginTop: 6 }}>⏱ {elapsedStr}</div>
+      <div style={{ fontSize: 32, fontWeight: 700, fontFamily: 'monospace', marginTop: 6 }}>{elapsedStr}</div>
       {selected.durata_attesa_minuti && (
         <div style={{ fontSize: 10, opacity: 0.85, marginTop: 4 }}>Tempo atteso: ~{selected.durata_attesa_minuti} min</div>
       )}
@@ -1419,7 +1419,7 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
     {selected.procedimento && (
       <details style={{ background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 10, padding: 0, marginBottom: 10 }}>
         <summary style={{ padding: 12, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#10B981', listStyle: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>📋 Procedimento</span>
+          <span>Procedimento</span>
           <span style={{ fontSize: 10, color: '#64748b' }}>tocca per leggere</span>
         </summary>
         <div style={{ padding: '0 12px 12px', fontSize: 13, color: '#e2e8f0', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
@@ -1490,7 +1490,7 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
           </div>
         ) : (
           <label style={{ display: 'block', padding: 24, background: '#0f1420', border: '1px dashed #475569', borderRadius: 8, textAlign: 'center', cursor: 'pointer', color: '#94a3b8', fontSize: 13 }}>
-            📸 Tocca per scattare/scegliere foto
+            Tocca per scattare/scegliere foto
             <input type="file" accept="image/*" capture="environment" onChange={onPhotoChange} style={{ display: 'none' }} />
           </label>
         )}
@@ -1505,7 +1505,7 @@ function ProduzionePanel({ pin, locale, employee, onDone, onBack }) {
 
     <button onClick={finishProduction} disabled={loading || !allRequiredOk}
       style={{ width: '100%', padding: 16, background: allRequiredOk ? '#10B981' : '#2a3042', color: allRequiredOk ? '#fff' : '#64748b', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'wait' : (allRequiredOk ? 'pointer' : 'not-allowed') }}>
-      {loading ? 'Salvo lotto…' : '✓ Termina produzione'}
+      {loading ? 'Salvo lotto…' : 'Termina produzione'}
     </button>
 
     <div style={{ marginTop: 8, fontSize: 11, color: '#64748b', textAlign: 'center' }}>
@@ -1618,7 +1618,7 @@ function CreaSchedaForm({ pin, locale, allArticles, onCreated, onCreatedSemilavo
 
   return <div style={{ maxWidth: 460, width: '100%' }}>
     <div style={{ background: 'rgba(16,185,129,.06)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 10, padding: 12, marginBottom: 12, fontSize: 12, color: '#10B981' }}>
-      ➕ Stai creando una nuova scheda. Verrà inviata in dashboard come "da confermare" — l'admin potrà modificarla o approvarla.
+      Stai creando una nuova scheda. Verrà inviata in dashboard come "da confermare" — l'admin potrà modificarla o approvarla.
     </div>
 
     <label style={{ display: 'block', marginBottom: 10 }}>
@@ -1662,11 +1662,11 @@ function CreaSchedaForm({ pin, locale, allArticles, onCreated, onCreatedSemilavo
               style={{ padding: '8px 4px', fontSize: 11, borderRadius: 6, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }}>
               {['','KG','GR','LT','ML','CL','PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
             </select>
-            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}>✕</button>
+            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}></button>
           </div>
           {ing.nome_articolo?.trim() && !allArticles.find(a => a.nome.toLowerCase().trim() === ing.nome_articolo.toLowerCase().trim()) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, color: '#F59E0B' }}>
-              <span>⚠ Non trovato in magazzino.</span>
+              <span>Non trovato in magazzino.</span>
               <button onClick={() => setShowSemi({ rowIdx: i, name: ing.nome_articolo, unita: ing.unita })}
                 style={{ background: 'none', border: 'none', color: '#10B981', textDecoration: 'underline', cursor: 'pointer', fontSize: 10 }}>
                 Crea come semilavorato
@@ -1694,7 +1694,7 @@ function CreaSchedaForm({ pin, locale, allArticles, onCreated, onCreatedSemilavo
         <span>Allergeni {autoAllergeni && <span style={{ color: '#10B981', fontSize: 10 }}>(auto-rilevati)</span>}</span>
         <button onClick={() => setAutoAllergeni(true)} disabled={autoAllergeni}
           style={{ background: 'none', border: 'none', color: '#3B82F6', textDecoration: 'underline', cursor: autoAllergeni ? 'default' : 'pointer', fontSize: 10 }}>
-          {autoAllergeni ? '✓ Auto' : 'Ripristina auto'}
+          {autoAllergeni ? 'Auto' : 'Ripristina auto'}
         </button>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -1729,7 +1729,7 @@ function CreaSchedaForm({ pin, locale, allArticles, onCreated, onCreatedSemilavo
         </div>
       ) : (
         <label style={{ display: 'block', padding: 16, background: '#0f1420', border: '1px dashed #475569', borderRadius: 8, textAlign: 'center', cursor: 'pointer', color: '#94a3b8', fontSize: 12 }}>
-          📸 Aggiungi foto
+          Aggiungi foto
           <input type="file" accept="image/*" capture="environment" onChange={onPhotoChange} style={{ display: 'none' }} />
         </label>
       )}
@@ -1744,7 +1744,7 @@ function CreaSchedaForm({ pin, locale, allArticles, onCreated, onCreatedSemilavo
       </button>
       <button onClick={submit} disabled={creating}
         style={{ flex: 2, padding: 12, background: '#10B981', color: '#0f1420', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
-        {creating ? 'Creo scheda…' : '✓ Crea scheda'}
+        {creating ? 'Creo scheda…' : 'Crea scheda'}
       </button>
     </div>
   </div>
@@ -1781,7 +1781,7 @@ function CreaSemilavoratoInline({ pin, locale, preset, allArticles, onCreated, o
     <div style={{ background: '#0f1420', border: '1px solid #10B981', borderRadius: 12, width: '100%', maxWidth: 420, padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ margin: 0, fontSize: 14, color: '#10B981' }}>+ Crea semilavorato</h3>
-        <button onClick={onCancel} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 16 }}>✕</button>
+        <button onClick={onCancel} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 16 }}></button>
       </div>
       <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
         Es. salse, basi pizza, brodi. Verrà aggiunto come articolo "interno" da confermare in dashboard.
@@ -1824,7 +1824,7 @@ function CreaSemilavoratoInline({ pin, locale, preset, allArticles, onCreated, o
               style={{ padding: 8, fontSize: 10, borderRadius: 4, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', outline: 'none', boxSizing: 'border-box' }}>
               {['','KG','GR','LT','ML','PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
             </select>
-            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}>✕</button>
+            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}></button>
           </div>
         ))}
         <button onClick={addIng} style={{ width: '100%', padding: 6, background: 'transparent', border: '1px dashed #2a3042', color: '#3B82F6', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>+ Aggiungi</button>
@@ -1836,7 +1836,7 @@ function CreaSemilavoratoInline({ pin, locale, preset, allArticles, onCreated, o
         <button onClick={onCancel} disabled={creating} style={{ flex: 1, padding: 10, background: 'none', border: '1px solid #2a3042', color: '#94a3b8', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Annulla</button>
         <button onClick={submit} disabled={creating || !nome.trim()}
           style={{ flex: 2, padding: 10, background: '#10B981', color: '#0f1420', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
-          {creating ? 'Creo…' : '✓ Crea semilavorato'}
+          {creating ? 'Creo…' : 'Crea semilavorato'}
         </button>
       </div>
     </div>

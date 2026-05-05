@@ -8,7 +8,7 @@ const UM_OPTS = ['KG', 'LT', 'PZ']
 const ING_UM_OPTS = ['KG', 'g', 'LT', 'cl', 'ml', 'PZ']
 
 // Costruisce la mappa prezzo medio per articoli del magazzino:
-//   nome (lower) → { perUnit (€/UM_base), baseUm }
+//   nome (lower) { perUnit (€/UM_base), baseUm }
 function buildArticlesPriceMap(items) {
   const map = {}
   ;(items || []).forEach(it => {
@@ -118,7 +118,7 @@ export default function ManualArticlesManager({ sp, sps }) {
                 <td style={{ ...S.td, color: '#F59E0B' }}>{fmtD(c.totalCost)}</td>
                 <td style={{ ...S.td, fontWeight: 600, color: c.missing.length ? '#EF4444' : '#10B981' }}>
                   {c.perUnit > 0 ? fmtD(c.perUnit) + '/' + c.baseUm : '—'}
-                  {c.missing.length > 0 && <span title={'Ingredienti senza prezzo: ' + c.missing.join(', ')} style={{ marginLeft: 4 }}>⚠</span>}
+                  {c.missing.length > 0 && <span title={'Ingredienti senza prezzo: ' + c.missing.join(', ')} style={{ marginLeft: 4 }}></span>}
                 </td>
                 <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{a.locale || '—'}</td>
                 <td style={S.td}>
@@ -200,7 +200,7 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720 }}>
       <div style={{ padding: 18, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>{article ? 'Modifica semilavorato' : '+ Nuovo semilavorato'}</h3>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}>✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}></button>
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Field label="Nome (es. Salsa Remembeer, Cipolla Caramellata)">
@@ -259,7 +259,7 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
             Totale ingredienti: {fmtD(preview.totalCost || 0)} · Resa: {Number(resa || 1).toFixed(3)} {unita}
           </div>
           {preview.missing.length > 0 && <div style={{ fontSize: 11, color: '#EF4444', marginTop: 4 }}>
-            ⚠ Ingredienti senza prezzo: {preview.missing.join(', ')}
+            Ingredienti senza prezzo: {preview.missing.join(', ')}
           </div>}
         </div>
 

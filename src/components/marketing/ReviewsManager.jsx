@@ -39,7 +39,7 @@ function fmtDateTime(iso) {
 function Stars({ v }) {
   const value = v || 0
   return <span style={{ color: votoColor(v), fontSize: 14, letterSpacing: 1 }}>
-    {'★'.repeat(value)}<span style={{ color: '#2a3042' }}>{'★'.repeat(5 - value)}</span>
+    {''.repeat(value)}<span style={{ color: '#2a3042' }}>{''.repeat(5 - value)}</span>
   </span>
 }
 
@@ -174,14 +174,14 @@ export default function ReviewsManager({ sp, sps }) {
       <KPI label="Voto medio" value={kpi.media || '—'} accent={votoColor(kpi.media)} />
       <KPI label="Senza risposta" value={kpi.senzaRisposta} accent={kpi.senzaRisposta > 0 ? '#F59E0B' : '#10B981'} />
       <KPI label="Risposte pubblicate" value={kpi.conRisposta} accent="#10B981" />
-      <KPI label="Negative (1-2★)" value={kpi.negative} accent={kpi.negative > 0 ? '#EF4444' : '#94A3B8'} />
+      <KPI label="Negative (1-2)" value={kpi.negative} accent={kpi.negative > 0 ? '#EF4444' : '#94A3B8'} />
     </div>}
 
     {/* Filtri */}
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
       <select value={filterVoto} onChange={e => setFilterVoto(e.target.value ? Number(e.target.value) : '')} style={{ ...S.input, padding: '7px 10px' }}>
         <option value="">Tutti i voti</option>
-        {[5, 4, 3, 2, 1].map(v => <option key={v} value={v}>{v} ★</option>)}
+        {[5, 4, 3, 2, 1].map(v => <option key={v} value={v}>{v} </option>)}
       </select>
       <select value={filterSorgente} onChange={e => setFilterSorgente(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         <option value="">Tutte le sorgenti</option>
@@ -242,7 +242,7 @@ export default function ReviewsManager({ sp, sps }) {
         </select></Field>
         <Field label="Voto"><select value={editing.voto || ''} onChange={e => setEditing({ ...editing, voto: e.target.value ? Number(e.target.value) : null })} style={S.input}>
           <option value="">—</option>
-          {[5, 4, 3, 2, 1].map(v => <option key={v} value={v}>{v} ★</option>)}
+          {[5, 4, 3, 2, 1].map(v => <option key={v} value={v}>{v} </option>)}
         </select></Field>
         <Field label="Autore"><input value={editing.autore || ''} onChange={e => setEditing({ ...editing, autore: e.target.value })} style={S.input} /></Field>
         <Field label="Data pubblicazione"><input type="datetime-local" value={editing.data_pubblicazione || ''} onChange={e => setEditing({ ...editing, data_pubblicazione: e.target.value })} style={S.input} /></Field>
@@ -261,7 +261,7 @@ export default function ReviewsManager({ sp, sps }) {
           <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '.06em' }}>Risposta</div>
           <div style={{ flex: 1 }} />
           {!editing.risposta && <button onClick={generateReply} disabled={generating} style={btn(generating ? '#64748b' : '#8B5CF6', '#fff', generating ? '#64748b' : '#8B5CF6')}>
-            {generating ? 'Generazione…' : '✨ Genera con AI'}
+            {generating ? 'Generazione…' : 'Genera con AI'}
           </button>}
         </div>
         {editing.risposta ? (
@@ -291,7 +291,7 @@ export default function ReviewsManager({ sp, sps }) {
         <button onClick={() => setEditing(null)} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>Annulla</button>
         <button onClick={onSave} style={btn('#F59E0B', '#0f1420', '#F59E0B')}>Salva</button>
         {editing.id && !editing.risposta && editing.reply_draft && (
-          <button onClick={publishReply} style={btn('#10B981', '#0f1420', '#10B981')}>✓ Marca pubblicata</button>
+          <button onClick={publishReply} style={btn('#10B981', '#0f1420', '#10B981')}>Marca pubblicata</button>
         )}
       </div>
     </Drawer>}

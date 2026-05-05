@@ -59,7 +59,7 @@ export default function WidgetCustomizer({ tabKey, widgets, layout, onSave, onCl
           <h3 style={{ margin: 0, fontSize: 16 }}>Personalizza widget</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{visibleCount} di {items.length} visibili · trascina per riordinare</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
 
       <div style={{ padding: 12 }}>
@@ -93,17 +93,17 @@ export default function WidgetCustomizer({ tabKey, widgets, layout, onSave, onCl
                 fontSize: 13, padding: '4px 8px',
               }}
             >
-              {item.visible ? '👁 Visibile' : '◌ Nascosto'}
+              {item.visible ? 'Visibile' : 'Nascosto'}
             </button>
           </div>
         ))}
       </div>
 
       <div style={{ padding: 16, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-        <button onClick={reset} style={{ ...iS, padding: '8px 14px', cursor: 'pointer', color: '#94a3b8' }}>↺ Ripristina default</button>
+        <button onClick={reset} style={{ ...iS, padding: '8px 14px', cursor: 'pointer', color: '#94a3b8' }}>Ripristina default</button>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
-          <button onClick={save} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: 'pointer' }}>💾 Salva</button>
+          <button onClick={save} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: 'pointer' }}>Salva</button>
         </div>
       </div>
     </div>

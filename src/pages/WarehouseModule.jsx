@@ -15,18 +15,18 @@ import ManualArticlesManager from '../components/warehouse/ManualArticlesManager
 import ProductionManager from '../components/warehouse/ProductionManager'
 
 const TABS = [
-  { key: 'cruscotto',     label: 'Cruscotto',     icon: '📊' },
-  { key: 'fatture',       label: 'Fatture',       icon: '🧾' },
-  { key: 'prodotti',      label: 'Prodotti',      icon: '🍕' },
-  { key: 'articoli',      label: 'Articoli',      icon: '📦' },
-  { key: 'semilavorati',  label: 'Semilavorati',  icon: '🥣' },
-  { key: 'ricette',       label: 'Ricette',       icon: '🍳' },
-  { key: 'produzione',    label: 'Produzione',    icon: '🥘' },
-  { key: 'giacenze',      label: 'Giacenze',      icon: '🏠' },
-  { key: 'movimenti',     label: 'Movimenti',     icon: '↔️' },
-  { key: 'inventario',    label: 'Inventario',    icon: '📋' },
-  { key: 'ordini',        label: 'Ordini',        icon: '🛒' },
-  { key: 'prezzi',        label: 'Prezzi',        icon: '💰' },
+  { key: 'cruscotto',     label: 'Cruscotto',     icon: '' },
+  { key: 'fatture',       label: 'Fatture',       icon: '' },
+  { key: 'prodotti',      label: 'Prodotti',      icon: '' },
+  { key: 'articoli',      label: 'Articoli',      icon: '' },
+  { key: 'semilavorati',  label: 'Semilavorati',  icon: '' },
+  { key: 'ricette',       label: 'Ricette',       icon: '' },
+  { key: 'produzione',    label: 'Produzione',    icon: '' },
+  { key: 'giacenze',      label: 'Giacenze',      icon: '' },
+  { key: 'movimenti',     label: 'Movimenti',     icon: '' },
+  { key: 'inventario',    label: 'Inventario',    icon: '' },
+  { key: 'ordini',        label: 'Ordini',        icon: '' },
+  { key: 'prezzi',        label: 'Prezzi',        icon: '' },
 ]
 
 export default function WarehouseModule({ sp, sps, from, to }) {
@@ -75,7 +75,7 @@ const SORT_OPTIONS = [
   { key: 'mol_asc', label: 'Margine più basso' },
   { key: 'fc_desc', label: 'Food cost % più alto' },
   { key: 'fc_asc', label: 'Food cost % più basso' },
-  { key: 'name_asc', label: 'Nome A→Z' },
+  { key: 'name_asc', label: 'Nome AZ' },
 ]
 
 function ProdottiCiC({ sp, sps }) {
@@ -162,13 +162,13 @@ function ProdottiCiC({ sp, sps }) {
         <div style={{ position: 'absolute', top: '50%', left: 0, right: '50%', bottom: 0, background: 'rgba(239,68,68,.06)', borderRight: '1px dashed #2a3042' }} />
         <div style={{ position: 'absolute', top: '50%', left: '50%', right: 0, bottom: 0, background: 'rgba(59,130,246,.06)' }} />
         {/* Label quadranti */}
-        <div style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, color: '#F59E0B', fontWeight: 600, opacity: 0.8 }}>⚠ Alto vendente / Basso margine</div>
-        <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, color: '#10B981', fontWeight: 600, opacity: 0.8, textAlign: 'right' }}>⭐ Alto vendente / Alto margine</div>
-        <div style={{ position: 'absolute', bottom: 28, left: 8, fontSize: 10, color: '#EF4444', fontWeight: 600, opacity: 0.8 }}>✗ Basso vendente / Basso margine</div>
-        <div style={{ position: 'absolute', bottom: 28, right: 8, fontSize: 10, color: '#3B82F6', fontWeight: 600, opacity: 0.8, textAlign: 'right' }}>💎 Basso vendente / Alto margine</div>
+        <div style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, color: '#F59E0B', fontWeight: 600, opacity: 0.8 }}>Alto vendente / Basso margine</div>
+        <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, color: '#10B981', fontWeight: 600, opacity: 0.8, textAlign: 'right' }}>Alto vendente / Alto margine</div>
+        <div style={{ position: 'absolute', bottom: 28, left: 8, fontSize: 10, color: '#EF4444', fontWeight: 600, opacity: 0.8 }}>Basso vendente / Basso margine</div>
+        <div style={{ position: 'absolute', bottom: 28, right: 8, fontSize: 10, color: '#3B82F6', fontWeight: 600, opacity: 0.8, textAlign: 'right' }}>Basso vendente / Alto margine</div>
         {/* Assi label */}
-        <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: '#475569' }}>Margine → alto</div>
-        <div style={{ position: 'absolute', top: '50%', left: 4, transform: 'translateY(-50%) rotate(-90deg)', fontSize: 9, color: '#475569', transformOrigin: 'left center' }}>Vendite ↑</div>
+        <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: '#475569' }}>Margine alto</div>
+        <div style={{ position: 'absolute', top: '50%', left: 4, transform: 'translateY(-50%) rotate(-90deg)', fontSize: 9, color: '#475569', transformOrigin: 'left center' }}>Vendite </div>
         <SRC>
           <ScatterChart margin={{ top: 30, right: 20, bottom: 25, left: 20 }}>
             <SX type="number" dataKey="y" name="Margine €" stroke="#2a3042" fontSize={9} tick={{ fill: '#475569' }} />
@@ -194,9 +194,9 @@ function ProdottiCiC({ sp, sps }) {
       {!loading && products.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#475569' }}>Nessun dato vendite.</div>}
       {sorted.length > 0 && <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
-          <KPI label="Prodotti" icon="🍕" value={products.length} accent="#F59E0B" />
-          <KPI label="Incasso totale" icon="💰" value={fmtD(totalRevenue)} accent="#10B981" />
-          <KPI label="Pezzi venduti" icon="📦" value={fmtN(totalQty)} accent="#3B82F6" />
+          <KPI label="Prodotti" icon="" value={products.length} accent="#F59E0B" />
+          <KPI label="Incasso totale" icon="" value={fmtD(totalRevenue)} accent="#10B981" />
+          <KPI label="Pezzi venduti" icon="" value={fmtN(totalQty)} accent="#3B82F6" />
         </div>
         <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -227,7 +227,7 @@ function ProdottiCiC({ sp, sps }) {
 
 // ─── Tab Articoli: aggregati da warehouse_invoice_items ──────────────
 const ART_SORT = [
-  { key: 'name_asc', label: 'Nome A→Z' },
+  { key: 'name_asc', label: 'Nome AZ' },
   { key: 'qty_desc', label: 'Più acquistati' },
   { key: 'spend_desc', label: 'Spesa più alta' },
   { key: 'price_desc', label: 'Prezzo €/UM più alto' },
@@ -314,7 +314,7 @@ function ArticoliTab({ sp, sps }) {
 
   return <Card title="Articoli acquistati" badge={loading ? '...' : filtered.length + ' articoli'} extra={
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <input placeholder="🔍 Cerca..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...S.input, fontSize: 11, padding: '4px 8px', width: 140 }} />
+      <input placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...S.input, fontSize: 11, padding: '4px 8px', width: 140 }} />
       <select value={magFilter} onChange={e => setMagFilter(e.target.value)} style={{ ...S.input, fontSize: 10, padding: '4px 6px' }}>
         {MAG_FILTERS.map(m => <option key={m} value={m}>{m === 'tutti' ? 'Tutti i mag.' : m}</option>)}
       </select>
@@ -327,9 +327,9 @@ function ArticoliTab({ sp, sps }) {
     {!loading && articles.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#475569' }}>Nessun articolo. Importa e associa le fatture nel tab Fatture.</div>}
     {filtered.length > 0 && <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
-        <KPI label="Articoli" icon="📦" value={totArticoli} accent="#F59E0B" />
-        <KPI label="Spesa totale" icon="💰" value={fmtD(totSpesa)} accent="#EF4444" />
-        <KPI label="Fornitori" icon="🏭" value={new Set(articles.flatMap(a => a.fornitori.split(', '))).size} accent="#3B82F6" />
+        <KPI label="Articoli" icon="" value={totArticoli} accent="#F59E0B" />
+        <KPI label="Spesa totale" icon="" value={fmtD(totSpesa)} accent="#EF4444" />
+        <KPI label="Fornitori" icon="" value={new Set(articles.flatMap(a => a.fornitori.split(', '))).size} accent="#3B82F6" />
       </div>
       <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -434,9 +434,9 @@ function ArticleEditModal({ article, onClose, onSaved }) {
   }
 
   const MAG_OPTIONS = [
-    { v: 'food', l: '🍔 Food' }, { v: 'beverage', l: '🍺 Beverage' },
-    { v: 'materiali', l: '🧻 Materiali' }, { v: 'attrezzatura', l: '🔧 Attrezzatura' },
-    { v: 'altro', l: '📦 Altro' },
+    { v: 'food', l: 'Food' }, { v: 'beverage', l: 'Beverage' },
+    { v: 'materiali', l: 'Materiali' }, { v: 'attrezzatura', l: 'Attrezzatura' },
+    { v: 'altro', l: 'Altro' },
   ]
   const UNIT_OPTIONS = ['', 'PZ', 'KG', 'LT', 'GR', 'ML', 'CONF', 'CASSA']
 
@@ -444,10 +444,10 @@ function ArticleEditModal({ article, onClose, onSaved }) {
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 800 }}>
       <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 15 }}>📦 Modifica articolo</h3>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Modifica articolo</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Le modifiche si applicano a tutte le {rows.length} righe fattura di questo articolo</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
       <div style={{ padding: 20 }}>
         {/* Campi modificabili globali */}
@@ -526,7 +526,7 @@ function ArticleEditModal({ article, onClose, onSaved }) {
                         <input type="checkbox" checked={!!r.escludi_magazzino} onChange={() => toggleRowExclude(r)} style={{ cursor: 'pointer' }} />
                       </td>
                       <td style={S.td}>
-                        <button onClick={() => deleteRow(r.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>✕</button>
+                        <button onClick={() => deleteRow(r.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}></button>
                       </td>
                     </tr>
                   })}
@@ -540,7 +540,7 @@ function ArticleEditModal({ article, onClose, onSaved }) {
           <button onClick={onClose} style={{ ...S.input, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
           <button onClick={save} disabled={saving || !nome.trim()}
             style={{ ...S.input, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer', opacity: saving || !nome.trim() ? 0.5 : 1 }}>
-            {saving ? 'Salvo…' : '💾 Salva modifiche globali'}
+            {saving ? 'Salvo…' : 'Salva modifiche globali'}
           </button>
         </div>
       </div>

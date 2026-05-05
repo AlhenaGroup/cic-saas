@@ -35,7 +35,7 @@ function fmtSconto(p) {
 function fmtValidita(p) {
   const parts = []
   if (p.data_inizio || p.data_fine) {
-    parts.push(`${p.data_inizio || '—'} → ${p.data_fine || '—'}`)
+    parts.push(`${p.data_inizio || '—'} ${p.data_fine || '—'}`)
   }
   if (p.giorni_settimana && p.giorni_settimana.length) {
     parts.push(p.giorni_settimana.map(d => GIORNI[d]).join(' '))
@@ -170,7 +170,7 @@ export default function PromotionsManager({ sp, sps }) {
             <button onClick={(e) => { e.stopPropagation(); onToggle(p) }} style={{
               position: 'absolute', top: 10, right: 10, width: 16, height: 16, padding: 0,
               background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 11,
-            }} title={p.attivo ? 'Disattiva' : 'Attiva'}>{p.attivo ? '⏸' : '▶'}</button>
+            }} title={p.attivo ? 'Disattiva' : 'Attiva'}>{p.attivo ? '⏸' : ''}</button>
           </div>
         ))}
       </div>

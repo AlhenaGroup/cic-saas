@@ -1,5 +1,5 @@
 // Helper export uniformi per Excel / CSV / PDF.
-// UI standard: 3 bottoni con icone 📊 (verde) · 📄 (blu) · 🖨 (rosso).
+// UI standard: 3 bottoni con icone (verde) · (blu) · (rosso).
 //
 // USO:
 //   import { exportToXlsx, exportToCsv, exportToPdf, ExportButtons } from '../../lib/exporters'
@@ -116,13 +116,13 @@ export function ExportButtons({ onExcel, onCsv, onPdf, disabled = false, size = 
     <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
       {onExcel && <button onClick={onExcel} disabled={disabled}
         style={{ ...base, background: '#10B981', color: '#0f1420' }}
-        title="Scarica Excel">📊 Excel</button>}
+        title="Scarica Excel">Excel</button>}
       {onCsv && <button onClick={onCsv} disabled={disabled}
         style={{ ...base, background: '#3B82F6', color: '#fff' }}
-        title="Scarica CSV">📄 CSV</button>}
+        title="Scarica CSV">CSV</button>}
       {onPdf && <button onClick={onPdf} disabled={disabled}
         style={{ ...base, background: '#EF4444', color: '#fff' }}
-        title="Stampa o salva come PDF">🖨 PDF</button>}
+        title="Stampa o salva come PDF">PDF</button>}
     </div>
   )
 }

@@ -79,14 +79,14 @@ export default function SurveyPage({ token }) {
       </>}
 
       {done && <div style={{ textAlign: 'center', padding: 20 }}>
-        <div style={{ fontSize: 48, marginBottom: 10 }}>🙏</div>
+        <div style={{ fontSize: 48, marginBottom: 10 }}></div>
         <h2 style={{ margin: 0, fontSize: 20 }}>{done.thank_you}</h2>
         {done.review_link && <div style={{ marginTop: 18 }}>
           <p style={{ fontSize: 14, color: '#94a3b8', marginBottom: 12 }}>Ci hai dato un voto fantastico — ti va di lasciarci una recensione anche su Google? Significherebbe molto per noi.</p>
           <a href={done.review_link} target="_blank" rel="noreferrer" style={{
             display: 'inline-block', padding: '10px 18px', background: '#10B981', color: '#0f1420',
             fontWeight: 700, fontSize: 14, borderRadius: 8, textDecoration: 'none',
-          }}>⭐ Lascia recensione</a>
+          }}>Lascia recensione</a>
         </div>}
       </div>}
     </div>
@@ -152,7 +152,7 @@ function RatingStars({ value, onChange }) {
         background: 'transparent', border: 'none', cursor: 'pointer',
         fontSize: 32, color: (value || 0) >= n ? '#F59E0B' : '#2a3042',
         padding: 0,
-      }}>★</button>
+      }}></button>
     ))}
   </div>
 }

@@ -4,10 +4,10 @@
 //   https://<dominio>/api/twilio-webhook?step=voice
 //
 // Step:
-//   - voice         → entry point, risponde con TwiML IVR (greeting + gather)
-//   - gather        → riceve digit (1=WA link, 2=parallel ring)
-//   - dial-status   → callback al termine del Dial parallelo
-//   - voicemail     → callback dopo registrazione segreteria
+//   - voice         entry point, risponde con TwiML IVR (greeting + gather)
+//   - gather        riceve digit (1=WA link, 2=parallel ring)
+//   - dial-status   callback al termine del Dial parallelo
+//   - voicemail     callback dopo registrazione segreteria
 //
 // Variabili ambiente Vercel richieste per attivare:
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM (es. whatsapp:+14155238886)
@@ -131,7 +131,7 @@ export default async function handler(req, res) {
       if (cfg.opt2_enabled) opts.push('2')
 
       if (opts.length === 0) {
-        // No opzioni → segreteria diretta
+        // No opzioni segreteria diretta
         return res.status(200).send(xml(`
           <Say language="${cfg.lingua}">${escXml(cfg.voicemail_text || 'Lasciate un messaggio.')}</Say>
           <Record action="/api/twilio-webhook?step=voicemail" maxLength="120" playBeep="true" trim="trim-silence"/>

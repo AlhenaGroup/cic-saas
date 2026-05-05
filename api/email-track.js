@@ -1,6 +1,6 @@
 // Endpoint pubblico (no auth) per tracking email:
-// - GET ?p=TOKEN  → 1×1 pixel GIF + marca aperto_at e aperture_count
-// - GET ?l=TOKEN  → 302 redirect a URL originale + marca click_at e click_count
+// - GET ?p=TOKEN  1×1 pixel GIF + marca aperto_at e aperture_count
+// - GET ?l=TOKEN  302 redirect a URL originale + marca click_at e click_count
 //
 // I token sono opachi (uuid v4) e mappati nel DB.
 // pixel: campaign_messages.pixel_token
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
           return res.status(302).end()
         }
       }
-      // token non trovato → redirect a homepage
+      // token non trovato redirect a homepage
       res.setHeader('Location', '/')
       return res.status(302).end()
     }

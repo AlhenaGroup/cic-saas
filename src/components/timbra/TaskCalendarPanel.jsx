@@ -11,7 +11,7 @@ const PRIORITY_COLORS = {
 }
 
 const STATUS_LABEL = {
-  da_fare: 'Da fare', in_corso: 'In corso', fatta: '✅ Fatta',
+  da_fare: 'Da fare', in_corso: 'In corso', fatta: 'Fatta',
   saltata: 'Saltata', scaduta: 'Scaduta', delegata: 'Delegata',
 }
 
@@ -59,7 +59,7 @@ export default function TaskCalendarPanel({ pin, employee, permissions, onBack }
 
   return <div style={{ maxWidth: 480, width: '100%', padding: '0 12px' }}>
     <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'center' }}>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>📅 Calendario task</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>Calendario task</div>
       <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{employee.nome}</div>
     </div>
 
@@ -91,14 +91,14 @@ export default function TaskCalendarPanel({ pin, employee, permissions, onBack }
       </div>
     })}
 
-    <button onClick={onBack} style={btnBack}>← Indietro</button>
+    <button onClick={onBack} style={btnBack}>Indietro</button>
   </div>
 }
 
 function TaskListItem({ task, onClick }) {
   const c = PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.media
   const isDone = task.status === 'fatta'
-  const icon = task.type === 'production' ? '🔪' : '📌'
+  const icon = task.type === 'production' ? '' : ''
   return <button onClick={onClick} style={{
     display: 'block', width: '100%', textAlign: 'left',
     background: '#1a1f2e', border: '1px solid #2a3042', borderLeft: '4px solid ' + c.border,
@@ -115,7 +115,7 @@ function TaskListItem({ task, onClick }) {
           {task.duration_min ? ` · ${task.duration_min}'` : ''}
           {' · '}
           {task.assignment_kind === 'team' ? 'TEAM' : task.assignment_kind === 'roles' ? 'RUOLI' : 'PERSONA'}
-          {task.requires_photo ? ' · 📷' : ''}
+          {task.requires_photo ? ' · ' : ''}
         </div>
       </div>
       <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: c.bg, color: c.fg, textTransform: 'uppercase' }}>
@@ -181,7 +181,7 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
     <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 16, marginBottom: 12, borderLeft: '4px solid ' + c.border }}>
       <div style={{ fontSize: 11, color: c.fg, fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>{t.priority}</div>
       <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 6 }}>
-        {t.type === 'production' ? '🔪' : '📌'} {t.title}
+        {t.type === 'production' ? '' : ''} {t.title}
       </div>
       <div style={{ fontSize: 12, color: '#94a3b8' }}>
         {t.due_date} {t.due_time?.substring(0, 5) || ''}
@@ -193,7 +193,7 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
     {t.description && <Block title="Descrizione">{t.description}</Block>}
     {t.instructions && <Block title="Istruzioni">{t.instructions}</Block>}
 
-    {t.type === 'production' && recipe && <Block title="🔪 Produzione">
+    {t.type === 'production' && recipe && <Block title="Produzione">
       <div style={{ fontSize: 13, marginBottom: 8 }}>
         <strong>{recipe.nome_prodotto}</strong> {t.production_qty ? `· ${t.production_qty}${t.production_unit || ''}` : ''}
       </div>
@@ -205,16 +205,16 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
       </div>}
     </Block>}
 
-    {isDelegata && subTasks.length > 0 && <Block title="↪ Smistata a">
+    {isDelegata && subTasks.length > 0 && <Block title="Smistata a">
       {subTasks.map(s => <div key={s.id} style={{ fontSize: 12, padding: '6px 0', color: '#e2e8f0' }}>
         • {STATUS_LABEL[s.status]} {s.completed_at ? `· ${new Date(s.completed_at).toLocaleString('it-IT')}` : ''}
       </div>)}
     </Block>}
 
     {!isDone && !isDelegata && <>
-      {t.status === 'da_fare' && <button onClick={handleStart} style={btnSecondary}>▶ Avvia</button>}
+      {t.status === 'da_fare' && <button onClick={handleStart} style={btnSecondary}>Avvia</button>}
 
-      <Block title={t.requires_photo ? '📷 Foto obbligatoria' : '📷 Foto (opzionale)'}>
+      <Block title={t.requires_photo ? 'Foto obbligatoria' : 'Foto (opzionale)'}>
         <input type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{ display: 'block', marginBottom: 8 }}/>
         {photoData && <img src={photoData} alt="anteprima" style={{ maxWidth: '100%', borderRadius: 8 }}/>}
       </Block>
@@ -226,19 +226,19 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
       {error && <div style={{ background: 'rgba(239,68,68,.15)', color: '#EF4444', padding: '10px 14px', borderRadius: 8, marginBottom: 10, fontSize: 13 }}>{error}</div>}
 
       <button onClick={handleComplete} disabled={completing} style={btnPrimary}>
-        {completing ? 'Completamento…' : '✅ Fatto'}
+        {completing ? 'Completamento…' : 'Fatto'}
       </button>
 
-      {canDispatch && <button onClick={onDispatch} style={btnSecondary}>↪ Smista a sottoposti</button>}
+      {canDispatch && <button onClick={onDispatch} style={btnSecondary}>Smista a sottoposti</button>}
     </>}
 
     {isDone && <div style={{ background: 'rgba(16,185,129,.15)', color: '#10B981', padding: '12px 16px', borderRadius: 10, fontSize: 13, marginBottom: 10 }}>
-      ✅ Completata il {new Date(t.completed_at).toLocaleString('it-IT')}
+      Completata il {new Date(t.completed_at).toLocaleString('it-IT')}
       {t.completion_notes && <div style={{ marginTop: 6, color: '#94a3b8', fontStyle: 'italic' }}>"{t.completion_notes}"</div>}
       {t.completion_photo_url && <img src={t.completion_photo_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, marginTop: 8 }}/>}
     </div>}
 
-    <button onClick={onBack} style={btnBack}>← Indietro</button>
+    <button onClick={onBack} style={btnBack}>Indietro</button>
   </div>
 }
 
@@ -308,11 +308,11 @@ function TaskCreate({ pin, onBack }) {
       <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>+ Nuova task</div>
     </div>
 
-    {knowledge.length > 0 && <Field label="📚 Carica da modello (autocompila)">
+    {knowledge.length > 0 && <Field label="Carica da modello (autocompila)">
       <select style={inp} value={usedKnowledgeId || ''} onChange={e => loadKnowledge(e.target.value)}>
         <option value="">— scegli un modello pre-compilato —</option>
         {knowledge.map(k => <option key={k.id} value={k.id}>
-          {k.type === 'production' ? '🔪' : '📌'} {k.title}{k.usage_count ? ` (×${k.usage_count})` : ''}
+          {k.type === 'production' ? '' : ''} {k.title}{k.usage_count ? ` (×${k.usage_count})` : ''}
         </option>)}
       </select>
     </Field>}
@@ -320,7 +320,7 @@ function TaskCreate({ pin, onBack }) {
     <Field label="Titolo *"><input style={inp} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/></Field>
     <Field label="Tipo">
       <select style={inp} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
-        <option value="generic">📌 Generica</option><option value="production">🔪 Produzione</option>
+        <option value="generic">Generica</option><option value="production">Produzione</option>
       </select>
     </Field>
     {f.type === 'production' && <>
@@ -370,7 +370,7 @@ function TaskCreate({ pin, onBack }) {
     <Field>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#e2e8f0' }}>
         <input type="checkbox" checked={f.requires_photo} onChange={e => setF({ ...f, requires_photo: e.target.checked })}/>
-        📷 Foto obbligatoria al completamento
+        Foto obbligatoria al completamento
       </label>
     </Field>
 
@@ -403,7 +403,7 @@ function TaskDispatch({ pin, task, onBack, onDone }) {
 
   return <div style={{ maxWidth: 480, width: '100%', padding: '0 12px' }}>
     <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>↪ Smista task</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Smista task</div>
       <div style={{ fontSize: 12, color: '#94a3b8' }}>{task.title}</div>
     </div>
 
@@ -424,7 +424,7 @@ function TaskDispatch({ pin, task, onBack, onDone }) {
     <button onClick={send} disabled={saving || selected.length === 0} style={btnPrimary}>
       {saving ? 'Smistamento…' : `Smista a ${selected.length} dipendente${selected.length !== 1 ? 'i' : ''}`}
     </button>
-    <button onClick={onBack} style={btnBack}>← Indietro</button>
+    <button onClick={onBack} style={btnBack}>Indietro</button>
   </div>
 }
 

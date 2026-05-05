@@ -227,7 +227,7 @@ export default function CentralinoManager({ sp, sps }) {
                 <td style={S.td}><span style={{ background: e.c + '22', color: e.c, fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999 }}>{e.label}</span></td>
                 <td style={S.td}>{fmtDur(c.durata_sec)}</td>
                 <td style={S.td}>
-                  {c.recording_url && <a href={c.recording_url} target="_blank" rel="noreferrer" style={{ color: '#F59E0B', fontSize: 11 }}>🎧 audio</a>}
+                  {c.recording_url && <a href={c.recording_url} target="_blank" rel="noreferrer" style={{ color: '#F59E0B', fontSize: 11 }}>audio</a>}
                   {c.trascrizione && <div style={{ fontSize: 11, color: '#cbd5e1', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.trascrizione}</div>}
                 </td>
               </tr>
@@ -309,7 +309,7 @@ export default function CentralinoManager({ sp, sps }) {
                     <input type="time" value={s.from} onChange={e => {
                       const ns = [...slots]; ns[i] = { ...ns[i], from: e.target.value }; updateGiorno(g.key, ns)
                     }} style={{ ...S.input, padding: '4px 6px', fontSize: 12 }} />
-                    <span style={{ color: '#64748b', alignSelf: 'center' }}>→</span>
+                    <span style={{ color: '#64748b', alignSelf: 'center' }}></span>
                     <input type="time" value={s.to} onChange={e => {
                       const ns = [...slots]; ns[i] = { ...ns[i], to: e.target.value }; updateGiorno(g.key, ns)
                     }} style={{ ...S.input, padding: '4px 6px', fontSize: 12 }} />

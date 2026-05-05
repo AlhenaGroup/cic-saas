@@ -55,7 +55,7 @@ export default function Simulator({ sp, sps, year, month }) {
           const parsed = JSON.parse(raw)
           if (parsed && Array.isArray(parsed.levers)) {
             setLevers(parsed.levers.map(l => ({ ...l, id: Math.random().toString(36).slice(2, 9) })))
-            setMsg({ ok: true, text: '✨ Leve precaricate dal suggerimento Overview' })
+            setMsg({ ok: true, text: 'Leve precaricate dal suggerimento Overview' })
           }
           localStorage.removeItem('cic_bud_sim_prefill')
         }
@@ -136,7 +136,7 @@ export default function Simulator({ sp, sps, year, month }) {
         simulated_values: simulated,
       }
       const saved = await saveScenario(payload)
-      setMsg({ ok: true, text: '✓ Scenario salvato' })
+      setMsg({ ok: true, text: 'Scenario salvato' })
       const fresh = await fetchScenarios(sp)
       setScenarios(fresh || [])
       setActiveId(saved.id)
@@ -155,14 +155,14 @@ export default function Simulator({ sp, sps, year, month }) {
       const fresh = await fetchScenarios(sp)
       setScenarios(fresh || [])
       handleNew()
-      setMsg({ ok: true, text: '✓ Scenario eliminato' })
+      setMsg({ ok: true, text: 'Scenario eliminato' })
     } catch (e) {
       setMsg({ ok: false, text: 'Errore: ' + e.message })
     }
   }
 
   if (loading) {
-    return <Card title="🎯 Simulatore">
+    return <Card title="Simulatore">
       <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento…</div>
     </Card>
   }
@@ -185,7 +185,7 @@ export default function Simulator({ sp, sps, year, month }) {
     )}
 
     {/* Barra scenari */}
-    <Card title="📂 I miei scenari">
+    <Card title="I miei scenari">
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <button
           onClick={handleNew}
@@ -193,7 +193,7 @@ export default function Simulator({ sp, sps, year, month }) {
             background: '#F59E0B', color: '#0f1420', border: 'none',
             padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer'
           }}
-        >➕ Nuovo</button>
+        >Nuovo</button>
         {scenarios.length === 0 && (
           <span style={{ fontSize: 12, color: '#64748b' }}>Nessuno scenario salvato finora.</span>
         )}
@@ -213,7 +213,7 @@ export default function Simulator({ sp, sps, year, month }) {
     </Card>
 
     {/* Nome + descrizione + base */}
-    <Card title={activeId ? '✏️ Modifica scenario' : '➕ Nuovo scenario'}>
+    <Card title={activeId ? 'Modifica scenario' : 'Nuovo scenario'}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10, marginBottom: 14 }}>
         <input
           placeholder="Nome scenario"
@@ -248,7 +248,7 @@ export default function Simulator({ sp, sps, year, month }) {
               onChange={() => setBaseSource(src)}
               style={{ accentColor: '#F59E0B' }}
             />
-            {src === 'consuntivo' ? '📊 Consuntivo' : src === 'budget' ? '🎯 Budget' : '🔮 Forecast'}
+            {src === 'consuntivo' ? 'Consuntivo' : src === 'budget' ? 'Budget' : 'Forecast'}
           </label>
         ))}
       </div>
@@ -268,7 +268,7 @@ export default function Simulator({ sp, sps, year, month }) {
     </Card>
 
     {/* Leve */}
-    <Card title="🎛 Leve">
+    <Card title="Leve">
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
         {Object.entries(LEVER_TYPES).map(([type, meta]) => (
           <button
@@ -324,7 +324,7 @@ export default function Simulator({ sp, sps, year, month }) {
     </Card>
 
     {/* Risultato: Base vs Simulato */}
-    <Card title="📈 Risultato simulazione">
+    <Card title="Risultato simulazione">
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -345,7 +345,7 @@ export default function Simulator({ sp, sps, year, month }) {
               const dPct = b !== 0 ? (d / b) * 100 : null
               return <tr key={k}>
                 <td style={{ ...S.td, fontWeight: 600 }}>
-                  <span style={{ color: meta.color }}>●</span> {meta.label}
+                  <span style={{ color: meta.color }}></span> {meta.label}
                 </td>
                 <td style={{ ...S.td, textAlign: 'right', color: '#94a3b8' }}>{fmtD(b)}</td>
                 <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: meta.color }}>{fmtD(s)}</td>
@@ -397,7 +397,7 @@ export default function Simulator({ sp, sps, year, month }) {
     </Card>
 
     {/* Confronto */}
-    <Card title="🔀 Confronta con un altro scenario">
+    <Card title="Confronta con un altro scenario">
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
         <span style={{ fontSize: 12, color: '#94a3b8' }}>Scenario da confrontare:</span>
         <select
@@ -429,7 +429,7 @@ export default function Simulator({ sp, sps, year, month }) {
                 const b = Number(compareScenario.simulated_values?.[k]) || 0
                 const d = a - b
                 return <tr key={k}>
-                  <td style={{ ...S.td, fontWeight: 600 }}><span style={{ color: meta.color }}>●</span> {meta.label}</td>
+                  <td style={{ ...S.td, fontWeight: 600 }}><span style={{ color: meta.color }}></span> {meta.label}</td>
                   <td style={{ ...S.td, textAlign: 'right', color: meta.color }}>{fmtD(a)}</td>
                   <td style={{ ...S.td, textAlign: 'right', color: '#94a3b8' }}>{fmtD(b)}</td>
                   <td style={{ ...S.td, textAlign: 'right', color: d >= 0 ? '#10B981' : '#EF4444', fontWeight: 600 }}>
@@ -465,7 +465,7 @@ export default function Simulator({ sp, sps, year, month }) {
             background: 'transparent', border: '1px solid #EF4444', color: '#EF4444',
             padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer'
           }}
-        >🗑 Elimina</button>
+        >Elimina</button>
       )}
       <button
         onClick={() => handleSave(true)}
@@ -474,7 +474,7 @@ export default function Simulator({ sp, sps, year, month }) {
           background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8',
           padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer'
         }}
-      >💾 Salva come nuovo</button>
+      >Salva come nuovo</button>
       <button
         onClick={() => handleSave(false)}
         disabled={saving}
@@ -482,7 +482,7 @@ export default function Simulator({ sp, sps, year, month }) {
           background: '#10B981', color: '#0f1420', border: 'none',
           padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer'
         }}
-      >{saving ? '…' : activeId ? '💾 Aggiorna' : '💾 Salva'}</button>
+      >{saving ? '…' : activeId ? 'Aggiorna' : 'Salva'}</button>
     </div>
 
   </div>

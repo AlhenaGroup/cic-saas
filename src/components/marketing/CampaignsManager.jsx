@@ -212,8 +212,8 @@ export default function CampaignsManager({ sp, sps }) {
       {editing.canale === 'email' && (
         <div style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-            <button onClick={() => setEmailMode('builder')} style={tabBtnSm(emailMode === 'builder')}>🎨 Builder visuale</button>
-            <button onClick={() => setEmailMode('text')} style={tabBtnSm(emailMode === 'text')}>📝 Testo semplice</button>
+            <button onClick={() => setEmailMode('builder')} style={tabBtnSm(emailMode === 'builder')}>Builder visuale</button>
+            <button onClick={() => setEmailMode('text')} style={tabBtnSm(emailMode === 'text')}>Testo semplice</button>
           </div>
           {emailMode === 'builder' ? (
             <EmailBuilder

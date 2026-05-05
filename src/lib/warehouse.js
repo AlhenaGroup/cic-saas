@@ -2,16 +2,16 @@
 // Magazzino v2: helper per giacenze e movimenti
 //
 // Schema:
-//   article_stock    → giacenza corrente per (user, locale, sub_location, articolo)
-//   article_movement → storico movimenti (append-only), genera delta su stock
+//   article_stock    giacenza corrente per (user, locale, sub_location, articolo)
+//   article_movement storico movimenti (append-only), genera delta su stock
 //
 // Tipi di movimento:
-//   'carico'              → +qty  (fonte: fattura | manuale)
-//   'scarico'             → -qty  (fonte: scontrino | manuale | spreco)
-//   'correzione'          → ±qty  (fonte: inventario)
-//   'apertura'            → set   (inventario di apertura, NO correzione)
-//   'trasferimento_out'   → -qty  (in un paio con trasferimento_in)
-//   'trasferimento_in'    → +qty
+//   'carico'              +qty  (fonte: fattura | manuale)
+//   'scarico'             -qty  (fonte: scontrino | manuale | spreco)
+//   'correzione'          ±qty  (fonte: inventario)
+//   'apertura'            set   (inventario di apertura, NO correzione)
+//   'trasferimento_out'   -qty  (in un paio con trasferimento_in)
+//   'trasferimento_in'    +qty
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { supabase } from './supabase'
@@ -149,7 +149,7 @@ async function upsertStock(userId, locale, sub, nome, unita, delta, prezzo, setD
 }
 
 // ─── Applica inventario fisico (chiusura sessione) ─────────────────────────
-// Per ogni riga: se giacenza_reale != teorica → movimento 'correzione' + set stock
+// Per ogni riga: se giacenza_reale != teorica movimento 'correzione' + set stock
 export async function applyInventoryClose(inventoryId, items) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('non autenticato')
@@ -164,7 +164,7 @@ export async function applyInventoryClose(inventoryId, items) {
       valore_totale: it.prezzo_medio ? Math.round(Math.abs(diff) * Number(it.prezzo_medio) * 100) / 100 : null,
       fonte: 'inventario', riferimento_id: inventoryId,
       riferimento_label: 'Inventario ' + (it.inv_date || ''),
-      note: `${it.giacenza_teorica || 0} → ${it.giacenza_reale} (diff ${diff > 0 ? '+' : ''}${diff})`,
+      note: `${it.giacenza_teorica || 0} ${it.giacenza_reale} (diff ${diff > 0 ? '+' : ''}${diff})`,
       created_by: user.id,
     })
     // Set diretto del nuovo stock

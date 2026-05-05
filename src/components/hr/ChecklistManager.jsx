@@ -10,8 +10,8 @@ const iS = S.input
 
 const REPARTI = ['Bar', 'Sala', 'Cucina', 'Cassa', 'Pizzeria', 'Magazzino', 'Altro']
 const MOMENTI = [
-  { v: 'entrata', l: '🟢 Entrata', color: '#10B981' },
-  { v: 'uscita',  l: '🔴 Uscita',  color: '#EF4444' },
+  { v: 'entrata', l: 'Entrata', color: '#10B981' },
+  { v: 'uscita',  l: 'Uscita',  color: '#EF4444' },
 ]
 const ITEM_TYPES = [
   { v: 'sino',   l: 'Sì / No' },
@@ -68,7 +68,7 @@ export default function ChecklistManager({ sp, sps }) {
     (!filterMomento || c.momento === filterMomento)
   )
 
-  return <Card title="📋 Checklist timbratura" badge={`${filtered.length} / ${checklists.length} totali`} extra={
+  return <Card title="Checklist timbratura" badge={`${filtered.length} / ${checklists.length} totali`} extra={
     <button onClick={() => setEditing({ nome: '', locale: allLocali[0] || '', reparto: 'Bar', momento: 'entrata', attivo: true, items: [], google_sheet_tab: '' })}
       style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '6px 14px', cursor: 'pointer' }}>
       + Nuova checklist
@@ -120,10 +120,10 @@ export default function ChecklistManager({ sp, sps }) {
                   <button onClick={() => setViewingResponses(cl)}
                     style={{ background: respCounts[cl.id] > 0 ? 'rgba(59,130,246,.12)' : 'none', border: '1px solid ' + (respCounts[cl.id] > 0 ? '#3B82F6' : '#2a3042'), color: respCounts[cl.id] > 0 ? '#3B82F6' : '#94a3b8', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4, fontWeight: respCounts[cl.id] > 0 ? 600 : 400 }}
                     title="Vedi risposte ricevute">
-                    📊 {respCounts[cl.id] || 0}
+                    {respCounts[cl.id] || 0}
                   </button>
                   <button onClick={() => duplicate(cl)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}>Duplica</button>
-                  <button onClick={() => remove(cl)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>✕</button>
+                  <button onClick={() => remove(cl)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}></button>
                 </td>
               </tr>
             })}
@@ -164,7 +164,7 @@ function ResponsesViewer({ checklist, onClose }) {
   const itemById = Object.fromEntries(items.map(it => [it.id, it]))
   const formatAns = (v) => {
     if (v == null || v === '') return '—'
-    if (typeof v === 'boolean') return v ? '✓ Sì' : '✕ No'
+    if (typeof v === 'boolean') return v ? 'Sì' : 'No'
     if (Array.isArray(v)) return v.join(', ')
     return String(v)
   }
@@ -173,10 +173,10 @@ function ResponsesViewer({ checklist, onClose }) {
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 880 }}>
       <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: 15 }}>📊 Risposte: {checklist.nome}</h3>
+          <h3 style={{ margin: 0, fontSize: 15 }}>Risposte: {checklist.nome}</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{checklist.locale} · {checklist.reparto} · {checklist.momento}</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
       <div style={{ padding: 20 }}>
         {loading ? (
@@ -200,15 +200,15 @@ function ResponsesViewer({ checklist, onClose }) {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
                       {r.employee_name || '—'}
-                      {skipped && <span style={{ fontSize: 10, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.15)', padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>🤝 Delegata</span>}
+                      {skipped && <span style={{ fontSize: 10, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.15)', padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>Delegata</span>}
                     </div>
                     <div style={{ fontSize: 11, color: '#94a3b8' }}>
                       {ts.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       {skipped && <span style={{ color: '#F59E0B', marginLeft: 8 }}>· ha delegato a un collega</span>}
-                      {!skipped && r.google_sheet_synced && <span style={{ color: '#10B981', marginLeft: 8 }}>· ✓ Sheet</span>}
+                      {!skipped && r.google_sheet_synced && <span style={{ color: '#10B981', marginLeft: 8 }}>· Sheet</span>}
                     </div>
                   </div>
-                  {!skipped && <span style={{ color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>{isOpen ? '▲' : '▼'}</span>}
+                  {!skipped && <span style={{ color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>{isOpen ? '' : ''}</span>}
                 </div>
                 {isOpen && !skipped && (
                   <div style={{ padding: '0 10px 10px', borderTop: '1px solid #2a3042' }}>
@@ -312,8 +312,8 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720 }}>
       <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>{isNew ? '➕ Nuova checklist' : '✎ Modifica: ' + c.nome}</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        <h3 style={{ margin: 0, fontSize: 15 }}>{isNew ? 'Nuova checklist' : 'Modifica: ' + c.nome}</h3>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
       </div>
       <div style={{ padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
@@ -399,8 +399,8 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
                   ⋮⋮
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <button onClick={() => moveItem(it.id, -1)} disabled={i === 0} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === 0 ? 'not-allowed' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}>▲</button>
-                  <button onClick={() => moveItem(it.id, +1)} disabled={i === c.items.length - 1} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === c.items.length - 1 ? 'not-allowed' : 'pointer', opacity: i === c.items.length - 1 ? 0.3 : 1 }}>▼</button>
+                  <button onClick={() => moveItem(it.id, -1)} disabled={i === 0} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === 0 ? 'not-allowed' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}></button>
+                  <button onClick={() => moveItem(it.id, +1)} disabled={i === c.items.length - 1} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === c.items.length - 1 ? 'not-allowed' : 'pointer', opacity: i === c.items.length - 1 ? 0.3 : 1 }}></button>
                 </div>
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 6 }}>
                   <input value={it.label} onChange={e => updateItem(it.id, { label: e.target.value })} placeholder={`Domanda ${i + 1}`} style={{ ...iS, width: '100%' }} />
@@ -416,7 +416,7 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
                   <input type="checkbox" checked={!!it.required} onChange={e => updateItem(it.id, { required: e.target.checked })} />
                   Obbligatoria
                 </label>
-                <button onClick={() => removeItem(it.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: 4 }}>✕</button>
+                <button onClick={() => removeItem(it.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: 4 }}></button>
               </div>
             </div>
           })}
@@ -428,7 +428,7 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
           <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
           <button onClick={save} disabled={saving}
             style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
-            {saving ? 'Salvo…' : '💾 Salva'}
+            {saving ? 'Salvo…' : 'Salva'}
           </button>
         </div>
       </div>

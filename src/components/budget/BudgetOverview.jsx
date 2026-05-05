@@ -74,15 +74,15 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
   }, [consuntivo, budget, forecast])
 
   if (loading) {
-    return <Card title="🏠 Panoramica" badge="⏳ caricamento">
+    return <Card title="Panoramica" badge="⏳ caricamento">
       <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento dati consuntivo…</div>
     </Card>
   }
 
   if (!consuntivo || consuntivo.ricavi === 0) {
-    return <Card title="🏠 Panoramica">
+    return <Card title="Panoramica">
       <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
-        <div style={{ fontSize: 48, marginBottom: 14, opacity: .3 }}>📭</div>
+        <div style={{ fontSize: 48, marginBottom: 14, opacity: .3 }}></div>
         <div style={{ fontSize: 14, color: '#cbd5e1', marginBottom: 6 }}>
           Nessun dato di consuntivo per {String(month).padStart(2, '0')}/{year}
         </div>
@@ -109,7 +109,7 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
       {' · '}
       {budget
         ? <span style={{ color: '#10B981' }}>Budget impostato</span>
-        : <span style={{ color: '#F59E0B' }}>⚠ Nessun budget — apri "Budget" per inserirlo</span>}
+        : <span style={{ color: '#F59E0B' }}>Nessun budget — apri "Budget" per inserirlo</span>}
     </div>
 
     {/* KPI grid 4×2 */}
@@ -119,7 +119,7 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
         value={fmtD(consuntivo.ricavi)}
         sub={ricaviBudget > 0 ? `Budget ${fmtD(ricaviBudget)}` : 'Nessun budget'}
         accent={CAT_META.ricavi.color}
-        icon="💰"
+        icon=""
         trend={ricaviBudget > 0 ? ((consuntivo.ricavi - ricaviBudget) / ricaviBudget * 100) : null}
       />
       <KPI
@@ -127,7 +127,7 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
         value={fmtD(molConsuntivo)}
         sub={`${computeMolPct(consuntivo).toFixed(1)}% sui ricavi` + (molBudget != null ? ` · budget ${fmtD(molBudget)}` : '')}
         accent="#10B981"
-        icon="📈"
+        icon=""
         trend={molBudget != null && molBudget !== 0 ? ((molConsuntivo - molBudget) / Math.abs(molBudget) * 100) : null}
       />
       <KPI
@@ -135,56 +135,56 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
         value={forecast ? fmtD(forecast.ricavi) : '—'}
         sub={forecast ? `MOL forecast ${fmtD(molForecast)}` : 'Mese futuro'}
         accent="#F59E0B"
-        icon="🔮"
+        icon=""
       />
       <KPI
         label="Break-even"
         value={fmtD(breakEven)}
         sub={breakEven > 0 && consuntivo.ricavi > 0 ? `${((consuntivo.ricavi / breakEven) * 100).toFixed(0)}% raggiunto` : '—'}
         accent="#8B5CF6"
-        icon="⚖️"
+        icon=""
       />
       <KPI
         label="Food cost"
         value={`${computeFoodPct(consuntivo).toFixed(1)}%`}
         sub={fmtD(consuntivo.food)}
         accent={CAT_META.food.color}
-        icon="🍕"
+        icon=""
       />
       <KPI
         label="Beverage cost"
         value={`${computeBevPct(consuntivo).toFixed(1)}%`}
         sub={fmtD(consuntivo.beverage)}
         accent={CAT_META.beverage.color}
-        icon="🍺"
+        icon=""
       />
       <KPI
         label="Costo lavoro"
         value={`${computePersPct(consuntivo).toFixed(1)}%`}
         sub={fmtD(consuntivo.personale)}
         accent={CAT_META.personale.color}
-        icon="👥"
+        icon=""
       />
       <KPI
         label="Coperti / medio"
         value={fmtN(consuntivo.coperti || 0)}
         sub={consuntivo.coperti > 0 ? `${fmtD(computeCopertoMedio(consuntivo))} /coperto` : '—'}
         accent="#06B6D4"
-        icon="🪑"
+        icon=""
       />
     </div>
 
     {/* Due colonne: cosa va bene / cosa va male */}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-      <Card title="✅ Cosa va bene" badge={budget ? null : 'inserisci budget'}>
-        {!budget && <div style={{ color: '#64748b', fontSize: 12 }}>Inserisci un budget nel tab <strong>✏️ Budget</strong> per vedere gli scostamenti.</div>}
+      <Card title="Cosa va bene" badge={budget ? null : 'inserisci budget'}>
+        {!budget && <div style={{ color: '#64748b', fontSize: 12 }}>Inserisci un budget nel tab <strong>Budget</strong> per vedere gli scostamenti.</div>}
         {budget && goodHealth.length === 0 && <div style={{ color: '#64748b', fontSize: 12 }}>Nulla sopra target per ora.</div>}
         {budget && goodHealth.map(h => (
           <div key={h.metric} style={{
             display: 'flex', justifyContent: 'space-between', padding: '8px 0',
             borderBottom: '1px solid #1a1f2e', fontSize: 13
           }}>
-            <span style={{ color: '#cbd5e1' }}>🟢 {h.label}</span>
+            <span style={{ color: '#cbd5e1' }}>{h.label}</span>
             <span style={{ color: '#10B981', fontWeight: 600 }}>
               {h.delta >= 0 ? '+' : ''}{fmtD(h.delta)} ({h.pct >= 0 ? '+' : ''}{h.pct.toFixed(1)}%)
             </span>
@@ -192,15 +192,15 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
         ))}
       </Card>
 
-      <Card title="⚠️ Cosa sta andando male" badge={budget ? null : 'inserisci budget'}>
+      <Card title="Cosa sta andando male" badge={budget ? null : 'inserisci budget'}>
         {!budget && <div style={{ color: '#64748b', fontSize: 12 }}>Inserisci un budget per rivelare le criticità.</div>}
-        {budget && badHealth.length === 0 && <div style={{ color: '#10B981', fontSize: 12 }}>Tutto in linea con il budget. 🎉</div>}
+        {budget && badHealth.length === 0 && <div style={{ color: '#10B981', fontSize: 12 }}>Tutto in linea con il budget. </div>}
         {budget && badHealth.map(h => (
           <div key={h.metric} style={{
             display: 'flex', justifyContent: 'space-between', padding: '8px 0',
             borderBottom: '1px solid #1a1f2e', fontSize: 13
           }}>
-            <span style={{ color: '#cbd5e1' }}>🔴 {h.label}</span>
+            <span style={{ color: '#cbd5e1' }}>{h.label}</span>
             <span style={{ color: '#EF4444', fontWeight: 600 }}>
               {h.delta >= 0 ? '+' : ''}{fmtD(h.delta)} ({h.pct >= 0 ? '+' : ''}{h.pct.toFixed(1)}%)
             </span>
@@ -211,7 +211,7 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
 
     {/* Leve suggerite */}
     {suggestions.length > 0 && (
-      <Card title="💡 Leve suggerite">
+      <Card title="Leve suggerite">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {suggestions.map((s, i) => (
             <div key={i} style={{
@@ -235,7 +235,7 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
                   padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700,
                   cursor: 'pointer'
                 }}
-              >🎯 Simula</button>
+              >Simula</button>
             </div>
           ))}
         </div>
@@ -243,7 +243,7 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
     )}
 
     {/* Mini chart: budget (barre) + forecast (linea) + consuntivo (linea) */}
-    <Card title="📊 Consuntivo · Budget · Forecast per categoria">
+    <Card title="Consuntivo · Budget · Forecast per categoria">
       <div style={{ width: '100%', height: 320 }}>
         <ResponsiveContainer>
           <ComposedChart data={chartData}>

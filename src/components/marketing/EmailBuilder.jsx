@@ -106,8 +106,8 @@ function BlockPreview({ block, selected, onClick, onMoveUp, onMoveDown, onDelete
     {/* render dei singoli blocchi è approssimato qui (no tabella nidificata, solo visual) */}
     <BlockVisual block={block} />
     {selected && <div style={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 4, background: '#1a1f2e', padding: 3, borderRadius: 6 }}>
-      {onMoveUp && <button onClick={(e) => { e.stopPropagation(); onMoveUp() }} style={iconBtn}>↑</button>}
-      {onMoveDown && <button onClick={(e) => { e.stopPropagation(); onMoveDown() }} style={iconBtn}>↓</button>}
+      {onMoveUp && <button onClick={(e) => { e.stopPropagation(); onMoveUp() }} style={iconBtn}></button>}
+      {onMoveDown && <button onClick={(e) => { e.stopPropagation(); onMoveDown() }} style={iconBtn}></button>}
       <button onClick={(e) => { e.stopPropagation(); onDelete() }} style={{ ...iconBtn, color: '#EF4444' }}>×</button>
     </div>}
   </div>
@@ -123,7 +123,7 @@ function BlockVisual({ block }) {
     case 'image':
       return <div style={{ padding: '8px 24px', textAlign: 'center' }}>
         {p.src ? <img src={p.src} alt={p.alt || ''} style={{ maxWidth: '100%', display: 'block', margin: '0 auto', maxHeight: 300 }} />
-          : <div style={{ background: '#e5e7eb', padding: 30, color: '#64748b', fontSize: 12 }}>📷 immagine vuota — imposta URL</div>}
+          : <div style={{ background: '#e5e7eb', padding: 30, color: '#64748b', fontSize: 12 }}>immagine vuota — imposta URL</div>}
       </div>
     case 'button':
       return <div style={{ padding: '14px 24px', textAlign: 'center' }}>
@@ -219,7 +219,7 @@ function AlignButtons({ value, onChange }) {
         flex: 1, padding: '6px 8px', fontSize: 12, fontWeight: 600,
         background: value === a ? '#F59E0B' : '#0f1420', color: value === a ? '#0f1420' : '#cbd5e1',
         border: '1px solid ' + (value === a ? '#F59E0B' : '#2a3042'), borderRadius: 5, cursor: 'pointer',
-      }}>{a === 'left' ? '⬅' : a === 'center' ? '⬌' : '➡'}</button>
+      }}>{a === 'left' ? '' : a === 'center' ? '' : ''}</button>
     ))}
   </div>
 }

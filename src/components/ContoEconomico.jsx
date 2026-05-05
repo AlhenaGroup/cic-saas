@@ -8,31 +8,31 @@ import SubTabsBar from './SubTabsBar'
 // Regole di categorizzazione automatica per fornitore/prodotto
 export const CATEGORY_RULES = {
   beverage: {
-    label: '🍺 Beverage cost',
+    label: 'Beverage cost',
     color: '#3B82F6',
     bg: 'rgba(59,130,246,.12)',
     prodotti: /birr|vin[oa]|spirit|cocktail|coca.?col|fanta|sprite|acqua.*min|succ[ohi]|prosecc|spumant|amar[oie]|grapp|whisk|vodka|gin\b|rum\b|tonic|aperol|campari|spritz|beverage|drink|beer|wine|liquor|bottigli|lattin|fusto|keg|chinotto|gassosa|cedrata|limonat|aranciata|energy|redbull|red bull|monster|schweppes|sanbitter|crodino|vermouth|negroni|mojito|daiquiri|sangria|champagn|lambrusco|chianti|barolo|barbera|moscato|nebbiolo|merlot|cabernet|chardonnay|sauvignon|pinot|syrah|primitivo|nero.*avola|montepulciano|trebbiano|malvasia|verdicchio|ribolla|sciropp|the\b|te\b|tea\b|tisana|infuso|camomilla|caffe|espresso|cappuccin|orzata|cedro|menta|sambuc|limoncell|genepy|mirto|fernet|jager|bailey|kahlua|cointreau|maraschino|angostura|bitter|soda|seltz|tequila|mezcal|sake|pisco|absinth|vernacc/i,
   },
   materiali: {
-    label: '📦 Mat. consumo',
+    label: 'Mat. consumo',
     color: '#8B5CF6',
     bg: 'rgba(139,92,246,.12)',
     prodotti: /tovagli|piatt|bicchier|posat[eai]|bust[ae]|sacchett|pellic|allumini|detersiv|sapon|carta|guant|mascherin|contenitor|vaschett|monous|rotol|dispenser|igienizz|bobina|film|cling|doypak|stagnola|candegg|sgrassat|detergent|spugn|scope|paletta|secchi|mocio|sacco|nettezza|imballag|scotch|nastro.*ades/i,
   },
   struttura: {
-    label: '🏗️ Struttura',
+    label: 'Struttura',
     color: '#EC4899',
     bg: 'rgba(236,72,153,.12)',
     prodotti: /energi|gas\b|elettri|acqua\b|affitt|canon[ei]|manutenz|riparaz|assicuraz|telefon|internet|pulizi|smaltiment|rifiut|noleggi|utenz|rata\b|leasing|consulenz|commercialist|notai|avvocat|boll[oi]|tribut|fiber|fibra|adsl|sim\b|telefonia|luce\b|metano|gpl|gasolio|diesel|cauzion|spes[ea]|commission|bancari|bonico|postaliz|francobol|corriere|spedizion|trasport|facchinag|multa|sanzione|penale|tassa|imposit|diritti|marca.*bollo|vidimaz/i,
   },
   personale: {
-    label: '👥 Personale',
+    label: 'Personale',
     color: '#10B981',
     bg: 'rgba(16,185,129,.12)',
     prodotti: /stipendi|contribut|inps|inail|tfr|consulenza.*lavoro|busta.*paga|cedolin|retribuz/i,
   },
   food: {
-    label: '🍕 Food cost',
+    label: 'Food cost',
     color: '#F59E0B',
     bg: 'rgba(245,158,11,.12)',
     // Match parziale: "mortad" matcha mortadella, "olive" matcha olive, "provol" matcha provola
@@ -40,7 +40,7 @@ export const CATEGORY_RULES = {
   },
 }
 
-// ─── Mappature apprese: nome_prodotto → categoria (Supabase) ────────
+// ─── Mappature apprese: nome_prodotto categoria (Supabase) ────────
 // Quando l'utente corregge una categoria, il nome viene salvato su DB.
 // La prossima volta che lo stesso nome appare (anche per un altro utente
 // dello stesso account), viene classificato automaticamente.
@@ -179,7 +179,7 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
   // Override categoria + impara per il futuro (salva su Supabase)
   const setCategory = async (itemId, newCat) => {
     setOverrides(prev => ({ ...prev, [itemId]: newCat }))
-    // Impara: salva nome_prodotto → categoria su DB per auto-classificazione futura
+    // Impara: salva nome_prodotto categoria su DB per auto-classificazione futura
     const item = categorizedItems.find(it => it.id === itemId)
     if (item && item.nome_fattura) {
       const key = item.nome_fattura.toLowerCase().trim()
@@ -202,8 +202,8 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
 
   const confidenceBadge = (conf) => {
     const colors = {
-      appresa: { c: '#10B981', bg: 'rgba(16,185,129,.12)', label: 'Appresa ✓' },
-      alta: { c: '#10B981', bg: 'rgba(16,185,129,.12)', label: 'Auto ✓' },
+      appresa: { c: '#10B981', bg: 'rgba(16,185,129,.12)', label: 'Appresa ' },
+      alta: { c: '#10B981', bg: 'rgba(16,185,129,.12)', label: 'Auto ' },
       media: { c: '#F59E0B', bg: 'rgba(245,158,11,.12)', label: 'Auto ~' },
       bassa: { c: '#EF4444', bg: 'rgba(239,68,68,.12)', label: 'Auto ?' },
       manuale: { c: '#3B82F6', bg: 'rgba(59,130,246,.12)', label: 'Manuale' },
@@ -216,12 +216,12 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
   const iS = S.input
 
   const voceLabels = {
-    'food': '🍕 Food cost',
-    'beverage': '🍺 Beverage cost',
-    'materiali': '📦 Mat. consumo',
-    'struttura': '🏗️ Struttura',
-    'personale': '👥 Personale',
-    'altro': '📄 Non categorizzate',
+    'food': 'Food cost',
+    'beverage': 'Beverage cost',
+    'materiali': 'Mat. consumo',
+    'struttura': 'Struttura',
+    'personale': 'Personale',
+    'altro': 'Non categorizzate',
   }
 
   // Anno selezionato per la barra mesi (default = anno del from corrente)
@@ -247,10 +247,10 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <button onClick={() => setSelectedYear(y => y - 1)}
-          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>◀</button>
+          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}></button>
         <span style={{ fontSize: 14, fontWeight: 700, color: '#F59E0B', minWidth: 50, textAlign: 'center' }}>{selectedYear}</span>
         <button onClick={() => setSelectedYear(y => y + 1)}
-          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>▶</button>
+          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}></button>
       </div>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flex: 1 }}>
         {MESI.map((m, i) => {
@@ -274,19 +274,19 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
 
     {/* Sub-tabs CE */}
     <SubTabsBar tabs={[
-      { key: 'ce',      label: '📋 Conto Economico' },
-      { key: 'manuali', label: '💸 Costi manuali' },
-      { key: 'classif', label: '🏷 Classificazione prodotti' },
+      { key: 'ce',      label: 'Conto Economico' },
+      { key: 'manuali', label: 'Costi manuali' },
+      { key: 'classif', label: 'Classificazione prodotti' },
     ]} value={ceSubTab} onChange={setCeSubTab}/>
 
     {ceSubTab === 'ce' && <>
     {/* KPI con F&B */}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: '1.25rem' }}>
-      <KPI label="Ricavi" icon="💶" value={fmt(ce.ricavi)} sub="totale venduto" accent='#10B981' />
-      <KPI label="F&B" icon="🍽️" value={fmt(fb)} sub={fbPct.toFixed(1) + '% su incasso'} accent='#F97316' />
-      <KPI label="Food cost" icon="🍕" value={fmt(ce.foodCost)} sub={pct(ce.foodCost, ce.ricavi) + ' dei ricavi'} accent='#F59E0B' />
-      <KPI label="Bev. cost" icon="🍺" value={fmt(ce.bevCost)} sub={pct(ce.bevCost, ce.ricavi) + ' dei ricavi'} accent='#3B82F6' />
-      <KPI label="MOL" icon="📊" value={fmt(ce.mol)} sub={pct(ce.mol, ce.ricavi) + ' margine'} accent='#10B981' />
+      <KPI label="Ricavi" icon="" value={fmt(ce.ricavi)} sub="totale venduto" accent='#10B981' />
+      <KPI label="F&B" icon="" value={fmt(fb)} sub={fbPct.toFixed(1) + '% su incasso'} accent='#F97316' />
+      <KPI label="Food cost" icon="" value={fmt(ce.foodCost)} sub={pct(ce.foodCost, ce.ricavi) + ' dei ricavi'} accent='#F59E0B' />
+      <KPI label="Bev. cost" icon="" value={fmt(ce.bevCost)} sub={pct(ce.bevCost, ce.ricavi) + ' dei ricavi'} accent='#3B82F6' />
+      <KPI label="MOL" icon="" value={fmt(ce.mol)} sub={pct(ce.mol, ce.ricavi) + ' margine'} accent='#10B981' />
     </div>
 
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -298,14 +298,14 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
           </tr></thead>
           <tbody>
             {[
-              { label: '📈 RICAVI', val: ce.ricavi, bold: true, color: '#10B981', voce: 'ricavi' },
-              { label: '🍕 Food cost', val: -ce.foodCost, color: '#EF4444', voce: 'food' },
-              { label: '🍺 Beverage cost', val: -ce.bevCost, color: '#EF4444', voce: 'beverage' },
-              { label: '📦 Mat. consumo', val: -ce.matCost, color: '#EF4444', voce: 'materiali' },
-              { label: '👥 Personale', val: -(ce.persCost || 0), color: '#EF4444', voce: 'personale' },
-              { label: '🏗️ Struttura', val: -ce.strCost, color: '#EF4444', voce: 'struttura' },
+              { label: 'RICAVI', val: ce.ricavi, bold: true, color: '#10B981', voce: 'ricavi' },
+              { label: 'Food cost', val: -ce.foodCost, color: '#EF4444', voce: 'food' },
+              { label: 'Beverage cost', val: -ce.bevCost, color: '#EF4444', voce: 'beverage' },
+              { label: 'Mat. consumo', val: -ce.matCost, color: '#EF4444', voce: 'materiali' },
+              { label: 'Personale', val: -(ce.persCost || 0), color: '#EF4444', voce: 'personale' },
+              { label: 'Struttura', val: -ce.strCost, color: '#EF4444', voce: 'struttura' },
               { label: '── TOTALE COSTI', val: -ce.totCosti, bold: true, color: '#EF4444', voce: 'totCosti' },
-              { label: '📊 MOL', val: ce.mol, bold: true, color: '#10B981', voce: 'mol' },
+              { label: 'MOL', val: ce.mol, bold: true, color: '#10B981', voce: 'mol' },
             ].map((r, i) => {
               const isActive = drillVoce === r.voce
               return (
@@ -313,7 +313,7 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
                   onClick={() => r.voce && setDrillVoce(isActive ? null : r.voce)}>
                   <td style={{ ...S.td, fontWeight: r.bold ? 700 : 400, color: isActive ? '#F59E0B' : undefined }}>
                     {r.label}
-                    {r.voce && <span style={{ marginLeft: 6, fontSize: 10, color: isActive ? '#F59E0B' : '#64748b' }}>{isActive ? '▼' : '▶'}</span>}
+                    {r.voce && <span style={{ marginLeft: 6, fontSize: 10, color: isActive ? '#F59E0B' : '#64748b' }}>{isActive ? '' : ''}</span>}
                   </td>
                   <td style={{ ...S.td, fontWeight: r.bold ? 700 : 500, color: r.color || '#e2e8f0' }}>{fmt(Math.abs(r.val))}</td>
                   <td style={{ ...S.td, color: '#64748b' }}>{pct(Math.abs(r.val), ce.ricavi)}</td>
@@ -405,10 +405,10 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
           <div style={{ textAlign: 'center', padding: 20, color: '#F59E0B', fontSize: 12 }}>Caricamento fatture...</div>
         ) : totalItems === 0 ? (
           <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 8 }}>Nessuna fattura nel sistema</div>
             <div style={{ fontSize: 12, color: '#475569', maxWidth: 500, margin: '0 auto', lineHeight: 1.6 }}>
-              Quando importerai le fatture passive (da CiC o manualmente nel modulo Magazzino → Fatture),
+              Quando importerai le fatture passive (da CiC o manualmente nel modulo Magazzino Fatture),
               i prodotti verranno automaticamente classificati in <span style={{ color: '#F59E0B' }}>Food</span>,{' '}
               <span style={{ color: '#3B82F6' }}>Beverage</span>, <span style={{ color: '#8B5CF6' }}>Materiali</span>,{' '}
               <span style={{ color: '#EC4899' }}>Struttura</span> e <span style={{ color: '#10B981' }}>Personale</span> in base al fornitore e alla descrizione del prodotto.
@@ -431,7 +431,7 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>Come funziona il riconoscimento automatico:</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Auto ✓</span>
+                  <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Auto </span>
                   <span style={{ color: '#94a3b8' }}>Fornitore + prodotto riconosciuti</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -488,7 +488,7 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
                         (CATEGORY_RULES[item._cat]?.color || '#64748b'),
                         (CATEGORY_RULES[item._cat]?.bg || 'rgba(100,116,139,.12)')
                       )}>
-                        {voceLabels[item._cat] || '📄 Altro'}
+                        {voceLabels[item._cat] || 'Altro'}
                       </span>
                     </td>
                     <td style={S.td}>{confidenceBadge(item._confidence)}</td>
@@ -512,7 +512,7 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
                         (CATEGORY_RULES[inv._cat]?.color || '#64748b'),
                         (CATEGORY_RULES[inv._cat]?.bg || 'rgba(100,116,139,.12)')
                       )}>
-                        {voceLabels[inv._cat] || '📄 Altro'}
+                        {voceLabels[inv._cat] || 'Altro'}
                       </span>
                     </td>
                     <td style={S.td}>{confidenceBadge(inv._confidence)}</td>
@@ -553,9 +553,9 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
 // ─── Pannello drill-down per una voce CE selezionata ────────────────────
 function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices, manualCosts, onClose }) {
   const label = {
-    ricavi: '📈 RICAVI', food: '🍕 Food cost', beverage: '🍺 Beverage cost',
-    materiali: '📦 Mat. consumo', personale: '👥 Personale', struttura: '🏗️ Struttura',
-    altro: '📄 Non categorizzate', totCosti: '── TOTALE COSTI', mol: '📊 MOL',
+    ricavi: 'RICAVI', food: 'Food cost', beverage: 'Beverage cost',
+    materiali: 'Mat. consumo', personale: 'Personale', struttura: 'Struttura',
+    altro: 'Non categorizzate', totCosti: '── TOTALE COSTI', mol: 'MOL',
   }[voce] || voce
 
   const totale = voce === 'ricavi' ? ce.ricavi
@@ -600,18 +600,18 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
     title={'Dettaglio · ' + label}
     badge={fmtD(totale)}
     extra={
-      <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 13 }}>✕ Chiudi</button>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 13 }}>Chiudi</button>
     }
   >
     {/* RICAVI */}
     {voce === 'ricavi' && <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <KPI label="Scontrini" icon="🧾" value={fmtN(ce.scontrini || 0)} accent="#3B82F6" />
-        <KPI label="Coperti" icon="🍽️" value={fmtN(ce.coperti || 0)} accent="#F97316" />
-        <KPI label="Scontrino medio" icon="💶" value={fmt(ce.medio || 0)} accent="#10B981" />
+        <KPI label="Scontrini" icon="" value={fmtN(ce.scontrini || 0)} accent="#3B82F6" />
+        <KPI label="Coperti" icon="" value={fmtN(ce.coperti || 0)} accent="#F97316" />
+        <KPI label="Scontrino medio" icon="" value={fmt(ce.medio || 0)} accent="#10B981" />
       </div>
       <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8' }}>
-        I ricavi vengono dagli scontrini CiC del periodo {from} → {to}.
+        I ricavi vengono dagli scontrini CiC del periodo {from} {to}.
         Per il dettaglio per giorno, fascia oraria, reparto e categoria consulta il tab <strong>Panoramica</strong> e <strong>Produttività</strong>.
       </div>
     </div>}
@@ -620,14 +620,14 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
     {isVoceCosto && <div>
       {/* Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
-        <KPI label="Da fatture" icon="🧾" value={fmtD(totFatt)} sub={(itemsVoce.length + invoicesNoItemsVoce.length) + ' righe'} accent="#3B82F6" />
-        <KPI label="Costi manuali" icon="📝" value={fmtD(totManuali)} sub={manualVoce.length + ' voci nel periodo'} accent="#8B5CF6" />
-        <KPI label="Totale voce" icon="💰" value={fmtD(totFatt + totManuali)} sub={pct(totFatt + totManuali, ce.ricavi) + ' su ricavi'} accent="#F59E0B" />
+        <KPI label="Da fatture" icon="" value={fmtD(totFatt)} sub={(itemsVoce.length + invoicesNoItemsVoce.length) + ' righe'} accent="#3B82F6" />
+        <KPI label="Costi manuali" icon="" value={fmtD(totManuali)} sub={manualVoce.length + ' voci nel periodo'} accent="#8B5CF6" />
+        <KPI label="Totale voce" icon="" value={fmtD(totFatt + totManuali)} sub={pct(totFatt + totManuali, ce.ricavi) + ' su ricavi'} accent="#F59E0B" />
       </div>
 
       {/* Costi manuali di questa voce */}
       {manualVoce.length > 0 && <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>📝 Costi manuali ({manualVoce.length})</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Costi manuali ({manualVoce.length})</div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
             {['Descrizione', 'Importo singolo', 'Cadenza', 'Nel periodo'].map(h => <th key={h} style={S.th}>{h}</th>)}
@@ -647,7 +647,7 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
 
       {/* Top fornitori */}
       {fornSorted.length > 0 && <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>🏭 Top fornitori (da fatture)</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Top fornitori (da fatture)</div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
             {['Fornitore', 'Righe', 'Totale', '% voce'].map(h => <th key={h} style={S.th}>{h}</th>)}
@@ -667,7 +667,7 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
 
       {/* Righe dettaglio */}
       {itemsVoce.length > 0 && <div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>📋 Dettaglio righe ({itemsVoce.length})</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Dettaglio righe ({itemsVoce.length})</div>
         <div style={{ maxHeight: 400, overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ position: 'sticky', top: 0, background: '#1a1f2e' }}><tr style={{ borderBottom: '1px solid #2a3042' }}>
@@ -702,12 +702,12 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           {[
-            ['🍕 Food', ce.foodCost],
-            ['🍺 Beverage', ce.bevCost],
-            ['📦 Mat. consumo', ce.matCost],
-            ['👥 Personale', ce.persCost || 0],
-            ['🏗️ Struttura', ce.strCost],
-            ['📄 Non categorizzato', ce.altCost || 0],
+            ['Food', ce.foodCost],
+            ['Beverage', ce.bevCost],
+            ['Mat. consumo', ce.matCost],
+            ['Personale', ce.persCost || 0],
+            ['Struttura', ce.strCost],
+            ['Non categorizzato', ce.altCost || 0],
           ].map(([lbl, val], i) => (
             <tr key={i} style={{ borderBottom: '1px solid #1a1f2e' }}>
               <td style={S.td}>{lbl}</td>
@@ -730,7 +730,7 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           <tr style={{ borderBottom: '1px solid #1a1f2e' }}>
-            <td style={S.td}>📈 Ricavi</td>
+            <td style={S.td}>Ricavi</td>
             <td style={{ ...S.td, fontWeight: 600, color: '#10B981' }}>+ {fmtD(ce.ricavi)}</td>
           </tr>
           <tr style={{ borderBottom: '1px solid #1a1f2e' }}>
@@ -738,7 +738,7 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
             <td style={{ ...S.td, fontWeight: 600, color: '#EF4444' }}>− {fmtD(ce.totCosti)}</td>
           </tr>
           <tr style={{ background: '#131825', fontWeight: 700 }}>
-            <td style={S.td}>📊 MOL</td>
+            <td style={S.td}>MOL</td>
             <td style={{ ...S.td, color: ce.mol >= 0 ? '#10B981' : '#EF4444' }}>{fmtD(ce.mol)}</td>
           </tr>
           <tr>

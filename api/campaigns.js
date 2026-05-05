@@ -269,7 +269,7 @@ async function sendCampaign(user_id, campaign) {
       if (campaign.canale === 'email') {
         if (!gmail) { r = { error: 'Gmail non connesso' } }
         else {
-          // Se la campaign ha blocks, render → HTML completo, poi inietta tracking
+          // Se la campaign ha blocks, render HTML completo, poi inietta tracking
           let html, isHtml = false
           if (Array.isArray(campaign.blocks) && campaign.blocks.length > 0) {
             // Sostituisci placeholder NEL render dei blocks (mutando deep)

@@ -22,7 +22,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
   const [tsLocaleMap, setTsLocaleMap] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_ts_invoice_locales') || '{}') } catch { return {} } })
   // Auto-assigned (non confermate dall'utente) — hubId set
   const [tsAutoAssigned, setTsAutoAssigned] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_ts_auto_assigned') || '{}') } catch { return {} } })
-  // Item-level locale overrides: "hubId:lineIdx" → locale (quando diverso dalla fattura)
+  // Item-level locale overrides: "hubId:lineIdx" locale (quando diverso dalla fattura)
   const [tsItemLocaleMap, setTsItemLocaleMap] = useState(() => { try { return JSON.parse(localStorage.getItem('cic_ts_item_locales') || '{}') } catch { return {} } })
   // Parsed XML lines per invoice espansa
   const [expandedLines, setExpandedLines] = useState([])
@@ -282,11 +282,11 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
 
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.25rem' }}>
-      <KPI label="Fatture" icon="📄" value={tsFiltered.length} sub={tsLoading ? 'caricamento...' : (showOnlyUnassigned ? 'solo da assegnare' : (selectedLocaleName || 'tutti'))} accent='#3B82F6' />
+      <KPI label="Fatture" icon="" value={tsFiltered.length} sub={tsLoading ? 'caricamento...' : (showOnlyUnassigned ? 'solo da assegnare' : (selectedLocaleName || 'tutti'))} accent='#3B82F6' />
       <div onClick={() => setShowOnlyUnassigned(!showOnlyUnassigned)} style={{ cursor: 'pointer' }}>
-        <KPI label={showOnlyUnassigned ? '✓ Filtro attivo' : 'Da assegnare'} icon="📋" value={unassignedCount} sub={showOnlyUnassigned ? 'click per mostrare tutte' : 'click per filtrare'} accent={showOnlyUnassigned ? '#10B981' : '#F97316'} />
+        <KPI label={showOnlyUnassigned ? 'Filtro attivo' : 'Da assegnare'} icon="" value={unassignedCount} sub={showOnlyUnassigned ? 'click per mostrare tutte' : 'click per filtrare'} accent={showOnlyUnassigned ? '#10B981' : '#F97316'} />
       </div>
-      <KPI label="Totale importo" icon="💰" value={fmtD(tsFiltered.reduce((s, f) => {
+      <KPI label="Totale importo" icon="" value={fmtD(tsFiltered.reduce((s, f) => {
         const isNC = f.detail?.td === 'TD04' || f.detail?.td === 'TD05'
         return s + (isNC ? -Math.abs(f.detail?.totalAmount || 0) : (f.detail?.totalAmount || 0))
       }, 0))} sub={tsFiltered.length + ' fatture'} accent='#10B981' />
@@ -299,12 +299,12 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     )}
 
     {/* Upload file fatture (multi-file) */}
-    <Card title="📤 Carica fatture da file" badge="XML · CSV · PDF" extra={
+    <Card title="Carica fatture da file" badge="XML · CSV · PDF" extra={
       <div style={{ display: 'flex', gap: 6 }}>
         <button onClick={() => { if (fileInputRef.current) fileInputRef.current.click() }}
           disabled={uploading}
           style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '6px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-        >{uploading ? '...' : '📤 Seleziona file'}</button>
+        >{uploading ? '...' : 'Seleziona file'}</button>
         <input
           type="file"
           accept=".xml,.csv,.pdf"
@@ -379,11 +379,11 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                 setUploadPreviews([])
                 setUploadMsg(errors.length > 0
                   ? { ok: false, text: `${saved} salvate, ${errors.length} errori: ${errors.join(' · ')}` }
-                  : { ok: true, text: `${saved} fatture salvate con ${totalRows} righe (visibili in Magazzino → Fatture)` })
+                  : { ok: true, text: `${saved} fatture salvate con ${totalRows} righe (visibili in Magazzino Fatture)` })
                 setUploading(false)
               }} disabled={uploading}
                 style={{ background: '#0f1420', border: 'none', color: '#10B981', padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
-              >{uploading ? 'Salvataggio...' : '💾 Salva tutte'}</button>
+              >{uploading ? 'Salvataggio...' : 'Salva tutte'}</button>
             </div>
           </div>
           {uploadPreviews.map(preview => {
@@ -392,7 +392,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
             return <div key={preview._id} style={{ borderTop: '1px solid #2a3042' }}>
               <div onClick={() => setUploadPreviews(prev => prev.map(p => p._id === preview._id ? { ...p, _expanded: !p._expanded } : p))}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#131825', cursor: 'pointer' }}>
-                <span style={{ color: '#64748b', fontSize: 12 }}>{preview._expanded ? '▼' : '▶'}</span>
+                <span style={{ color: '#64748b', fontSize: 12 }}>{preview._expanded ? '' : ''}</span>
                 <span style={S.badge(preview.format === 'PDF' ? '#F59E0B' : '#10B981', preview.format === 'PDF' ? 'rgba(245,158,11,.15)' : 'rgba(16,185,129,.15)')}>{preview.format}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', flex: 1 }}>{preview.fornitore || preview._filename || '—'}</span>
                 <span style={{ fontSize: 12, color: '#94a3b8' }}>{preview.numero ? `N. ${preview.numero}` : ''}</span>
@@ -454,7 +454,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     {/* Fatture TS Digital */}
     <Card title="Fatture passive — TS Digital" badge={tsLoading ? 'Caricamento...' : (usingFullCache ? `${tsFiltered.length} · Pag. ${safePage + 1}/${totalPages}` : `Pagina ${tsPage + 1}`)} extra={
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <input placeholder="🔍 Fornitore / N° doc..." value={fatSearch} onChange={e => setFatSearch(e.target.value)} style={{ ...iS, width: 200 }} />
+        <input placeholder="Fornitore / N° doc..." value={fatSearch} onChange={e => setFatSearch(e.target.value)} style={{ ...iS, width: 200 }} />
         <button onClick={() => loadTsPage(0)} disabled={tsLoading} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 12px', fontWeight: 600, fontSize: 12 }}>
           {tsLoading ? '...' : 'Ricarica'}
         </button>
@@ -484,7 +484,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                   } catch {} finally { setTsXmlLoading(false) }
                 }}
                 style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: isExpanded ? '#131825' : (isNotaCredito ? 'rgba(16,185,129,.04)' : 'transparent') }}>
-                <td style={{ ...S.td, width: 24, color: '#64748b' }}>{isExpanded ? '▼' : '▶'}</td>
+                <td style={{ ...S.td, width: 24, color: '#64748b' }}>{isExpanded ? '' : ''}</td>
                 <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{f.docDate}</td>
                 <td style={{ ...S.td, fontWeight: 500 }}>{f.senderName || '—'}</td>
                 <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{f.docId || '—'}</td>
@@ -564,20 +564,20 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: '0 4px' }}>
           <button onClick={() => setTsPage(p => Math.max(0, p - 1))} disabled={safePage === 0}
             style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: safePage === 0 ? 'not-allowed' : 'pointer',
-              background: safePage === 0 ? '#1a1f2e' : '#3B82F6', color: safePage === 0 ? '#475569' : '#fff', border: 'none' }}>← Precedente</button>
+              background: safePage === 0 ? '#1a1f2e' : '#3B82F6', color: safePage === 0 ? '#475569' : '#fff', border: 'none' }}>Precedente</button>
           <span style={{ fontSize: 12, color: '#94a3b8' }}>
             Pagina <strong style={{ color: '#e2e8f0' }}>{safePage + 1}/{totalPages}</strong>
             {' · '}{tsFiltered.length} fatture {selectedLocaleName ? `su ${selectedLocaleName}` : 'totali'}
           </span>
           <button onClick={() => setTsPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}
             style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: safePage >= totalPages - 1 ? 'not-allowed' : 'pointer',
-              background: safePage >= totalPages - 1 ? '#1a1f2e' : '#3B82F6', color: safePage >= totalPages - 1 ? '#475569' : '#fff', border: 'none' }}>Successiva →</button>
+              background: safePage >= totalPages - 1 ? '#1a1f2e' : '#3B82F6', color: safePage >= totalPages - 1 ? '#475569' : '#fff', border: 'none' }}>Successiva </button>
         </div>
       ) : (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, padding: '0 4px' }}>
           <button onClick={() => loadTsPage(tsPage - 1)} disabled={tsPage === 0 || tsLoading}
             style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: tsPage === 0 ? 'not-allowed' : 'pointer',
-              background: tsPage === 0 ? '#1a1f2e' : '#3B82F6', color: tsPage === 0 ? '#475569' : '#fff', border: 'none' }}>← Precedente</button>
+              background: tsPage === 0 ? '#1a1f2e' : '#3B82F6', color: tsPage === 0 ? '#475569' : '#fff', border: 'none' }}>Precedente</button>
           <span style={{ fontSize: 12, color: '#94a3b8' }}>
             Pagina <strong style={{ color: '#e2e8f0' }}>{tsPage + 1}</strong>
             {' · '}{tsInvoices.length} fatture
@@ -585,7 +585,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
           </span>
           <button onClick={() => loadTsPage(tsPage + 1)} disabled={!tsHasNext || tsLoading}
             style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: !tsHasNext ? 'not-allowed' : 'pointer',
-              background: !tsHasNext ? '#1a1f2e' : '#3B82F6', color: !tsHasNext ? '#475569' : '#fff', border: 'none' }}>Successiva →</button>
+              background: !tsHasNext ? '#1a1f2e' : '#3B82F6', color: !tsHasNext ? '#475569' : '#fff', border: 'none' }}>Successiva </button>
         </div>
       )}
     </Card>
