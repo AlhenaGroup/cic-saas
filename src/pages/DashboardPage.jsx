@@ -115,6 +115,10 @@ export default function DashboardPage({ settings }) {
   const [from2, setFrom2]         = useState(() => localStorage.getItem('cic_from2') || '')
   const [to2,   setTo2]           = useState(() => localStorage.getItem('cic_to2') || '')
   const [prevData, setPrevData]   = useState(null)
+  // Toggle confronto: OFF di default, salvato in localStorage. Quando OFF i KPI non
+  // mostrano delta/percentuali e nessun fetch del periodo precedente viene fatto.
+  const [compareEnabled, setCompareEnabled] = useState(() => localStorage.getItem('cic_compare') === 'true')
+  useEffect(() => { localStorage.setItem('cic_compare', String(compareEnabled)) }, [compareEnabled])
   // Modalita' "personalizzato" forzata: anche se le date combaciano con un preset,
   // la tendina mostra Personalizzato e i date pickers restano visibili
   const [customMode,  setCustomMode]  = useState(false)
@@ -175,17 +179,21 @@ export default function DashboardPage({ settings }) {
       const spf = sp==='all'?[]:[ parseInt(sp) ]
       const d = await getReportData(token,{from,to,idsSalesPoint:spf},sps)
       setData(d)
-      // Carica dati periodo di confronto
-      const pp = (from2 && to2) ? { from: from2, to: to2 } : prevPeriod(from, to)
-      if (!from2) setFrom2(pp.from)
-      if (!to2) setTo2(pp.to)
-      try {
-        const pd = await getFromDailyStats(pp.from, pp.to, spf)
-        setPrevData(pd)
-      } catch { setPrevData(null) }
+      // Carica dati periodo di confronto SOLO se confronto attivo
+      if (compareEnabled) {
+        const pp = (from2 && to2) ? { from: from2, to: to2 } : prevPeriod(from, to)
+        if (!from2) setFrom2(pp.from)
+        if (!to2) setTo2(pp.to)
+        try {
+          const pd = await getFromDailyStats(pp.from, pp.to, spf)
+          setPrevData(pd)
+        } catch { setPrevData(null) }
+      } else {
+        setPrevData(null)
+      }
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
-  },[token,from,to,sp,sps,from2,to2])
+  },[token,from,to,sp,sps,from2,to2,compareEnabled])
   useEffect(()=>{load()},[load])
 
   // ─── Carica timbrature nel periodo e calcola ore lavorate per fascia oraria ──
@@ -365,8 +373,19 @@ export default function DashboardPage({ settings }) {
             </>}
           </>
         })()}
-        <span style={{color:'#475569',fontSize:11,marginLeft:8}}>vs</span>
-        {(() => {
+        {/* Toggle confronto: discreto bottone "+ Confronta" che apre la selezione periodo confronto */}
+        <button
+          onClick={() => setCompareEnabled(v => !v)}
+          style={{
+            ...iS, fontSize: 12, padding: '6px 12px', cursor: 'pointer',
+            background: compareEnabled ? 'var(--text)' : 'transparent',
+            color: compareEnabled ? 'var(--surface)' : 'var(--text2)',
+            border: '1px solid ' + (compareEnabled ? 'var(--text)' : 'var(--border)'),
+          }}
+          title={compareEnabled ? 'Confronto attivo — clicca per disattivare' : 'Attiva confronto con un altro periodo'}>
+          {compareEnabled ? '✓ Confronto' : '+ Confronta'}
+        </button>
+        {compareEnabled && (() => {
           // 'prev' = stesso periodo precedente del principale
           const ms = 86400000
           const len = (new Date(to) - new Date(from))/ms + 1
@@ -376,6 +395,7 @@ export default function DashboardPage({ settings }) {
           const presetKey2 = customMode2 ? '' : (isPrev ? 'prev' : (from2 && to2 ? activePresetKey(from2, to2) : ''))
           const showDates2 = !presetKey2
           return <>
+            <span style={{color:'var(--text3)',fontSize:11}}>vs</span>
             <select value={presetKey2}
               onChange={e=>{
                 const v = e.target.value
@@ -394,7 +414,7 @@ export default function DashboardPage({ settings }) {
             </select>
             {showDates2 && <>
               <input type="date" value={from2} onChange={e=>{ setCustomMode2(true); setFrom2(e.target.value) }} style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta dal"/>
-              <span style={{color:'#2a3042'}}>—</span>
+              <span style={{color:'var(--text3)'}}>—</span>
               <input type="date" value={to2}   onChange={e=>{ setCustomMode2(true); setTo2(e.target.value) }}   style={{...iS,fontSize:11,padding:'4px 6px',width:120}} title="Confronta al"/>
             </>}
           </>
