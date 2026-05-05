@@ -306,8 +306,14 @@ export default function DashboardPage({ settings }) {
 
 
   const iS = S.input
-  const tS = (t) => ({padding:'10px 16px',borderRadius:'var(--radius-control)',fontSize:13,fontWeight:500,cursor:'pointer',border:'1px solid '+(tab===t?'transparent':'transparent'),
-    background:tab===t?'var(--text)':'transparent',color:tab===t?'var(--surface)':'var(--text2)',transition:'all .2s',position:'relative',letterSpacing:'-0.01em'})
+  // Mapping hidden tab → top-level tab "padre" che deve restare evidenziato.
+  // Quando l'utente sceglie 'ce' o 'bud' dal sub-tab di Contabilita', tab top-level
+  // diventa 'ce'/'bud' ma la barra principale deve mostrare "Contabilita" attivo.
+  // Stesso per 'prod' (Produttivita') che e' sotto-tab di HR.
+  const HIDDEN_TO_PARENT = { ce: 'conta', bud: 'conta', prod: 'hr' }
+  const effectiveTopTab = HIDDEN_TO_PARENT[tab] || tab
+  const tS = (t) => ({padding:'10px 16px',borderRadius:'var(--radius-control)',fontSize:13,fontWeight:500,cursor:'pointer',border:'1px solid '+(effectiveTopTab===t?'transparent':'transparent'),
+    background:effectiveTopTab===t?'var(--text)':'transparent',color:effectiveTopTab===t?'var(--surface)':'var(--text2)',transition:'all .2s',position:'relative',letterSpacing:'-0.01em'})
 
   // Ordine top-level e label senza emoji.
   // Vendite include scontrini/categorie/reparti come sotto-tab (gestiti via subTab state).
@@ -330,8 +336,10 @@ export default function DashboardPage({ settings }) {
   // Sotto-tab Contabilità
   // contaSubTab tracks il sotto-tab "interno" di Contabilita' (Fatture/IVA/Chiusure).
   // Quando l'utente sceglie CE o Budget dal SubTabsBar, ridirigiamo al top-level
-  // (tab='ce'/'bud') invece di settare contaSubTab — cosi' al rientro in Contabilita'
-  // ritrova l'ultimo sotto-tab interno usato.
+  // (tab='ce'/'bud') invece di settare contaSubTab.
+  // Default 'fatture': se tab='conta' (entrata pulita su Contabilita') e nessuna
+  // preferenza salvata, mostra Fatture. CE e' default-routed se l'utente clicca
+  // direttamente "Contabilita" dalla top bar (vedi handler in TABS render).
   const [contaSubTab, setContaSubTab] = useState(() => localStorage.getItem('conta_subtab') || 'fatture')
   useEffect(() => { localStorage.setItem('conta_subtab', contaSubTab) }, [contaSubTab])
   // Filtra in base al piano dell'utente (feature flag tab.X)
@@ -445,7 +453,20 @@ export default function DashboardPage({ settings }) {
     {/* Tabs nav */}
     <div className="m-compact-x" style={{background:'var(--surface)',borderBottom:'1px solid var(--border)',padding:'10px 1.75rem',display:'flex',gap:6,overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
       {TABS.map(([t,l])=>(
-        <button key={t} onClick={()=>setTab(t)} style={{...tS(t),whiteSpace:'nowrap',flexShrink:0}}>
+        <button key={t} onClick={()=>{
+          // Click su top-level Contabilita': apri il primo sub-tab "Conto Economico"
+          // se l'utente arriva da fuori (non e' gia' dentro Contabilita' o suoi figli).
+          if (t === 'conta') {
+            if (tab !== 'conta' && tab !== 'ce' && tab !== 'bud') { setTab('ce'); return }
+            setTab('conta'); return
+          }
+          // Click su top-level HR: vai al modulo HR. Se arrivo dal sub-tab Produttivita'
+          // hidden (tab='prod'), torno a tab='hr' cosi' vedo i sub-tabs HR.
+          if (t === 'hr') {
+            setTab('hr'); return
+          }
+          setTab(t)
+        }} style={{...tS(t),whiteSpace:'nowrap',flexShrink:0}}>
           {l}
         </button>
       ))}
