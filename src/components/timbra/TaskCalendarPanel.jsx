@@ -246,6 +246,8 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
 function TaskCreate({ pin, onBack }) {
   const [subordinates, setSubordinates] = useState([])
   const [recipes, setRecipes] = useState([])
+  const [knowledge, setKnowledge] = useState([])
+  const [usedKnowledgeId, setUsedKnowledgeId] = useState(null)
   const [f, setF] = useState({
     title: '', description: '', instructions: '',
     type: 'generic', priority: 'media',
@@ -253,12 +255,14 @@ function TaskCreate({ pin, onBack }) {
     assignment_kind: 'team', assigned_employee_ids: [],
     requires_photo: false,
     production_recipe_id: null, production_qty: '', production_unit: '',
+    duration_min: '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     api({ action: 'subordinates', pin }).then(o => setSubordinates(o.subordinates || []))
+    api({ action: 'knowledge_list', pin }).then(o => setKnowledge(o.knowledge || []))
   }, [pin])
   useEffect(() => {
     if (f.type === 'production' && recipes.length === 0) {
@@ -266,12 +270,36 @@ function TaskCreate({ pin, onBack }) {
     }
   }, [f.type, pin, recipes.length])
 
+  const loadKnowledge = (id) => {
+    const k = knowledge.find(x => String(x.id) === String(id))
+    if (!k) return
+    setF(prev => ({
+      ...prev,
+      title: k.title,
+      description: k.description || '',
+      instructions: k.instructions || '',
+      type: k.type || 'generic',
+      priority: k.default_priority || 'media',
+      duration_min: k.default_duration_min || '',
+      requires_photo: !!k.requires_photo,
+      production_recipe_id: k.production_recipe_id || null,
+      production_qty: k.production_qty || '',
+      production_unit: k.production_unit || '',
+    }))
+    setUsedKnowledgeId(k.id)
+  }
+
   const save = async () => {
     if (!f.title.trim()) return setError('Titolo obbligatorio')
     setSaving(true); setError('')
-    const out = await api({ action: 'create', pin, task: { ...f, production_qty: f.production_qty ? Number(f.production_qty) : null } })
+    const out = await api({ action: 'create', pin, task: {
+      ...f,
+      duration_min: f.duration_min ? Number(f.duration_min) : null,
+      production_qty: f.production_qty ? Number(f.production_qty) : null,
+    }})
     setSaving(false)
     if (out.error) return setError(out.error)
+    if (usedKnowledgeId) await api({ action: 'knowledge_use', pin, knowledge_id: usedKnowledgeId })
     onBack()
   }
 
@@ -279,6 +307,15 @@ function TaskCreate({ pin, onBack }) {
     <div style={{ background: '#1a1f2e', borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'center' }}>
       <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>+ Nuova task</div>
     </div>
+
+    {knowledge.length > 0 && <Field label="📚 Carica da modello (autocompila)">
+      <select style={inp} value={usedKnowledgeId || ''} onChange={e => loadKnowledge(e.target.value)}>
+        <option value="">— scegli un modello pre-compilato —</option>
+        {knowledge.map(k => <option key={k.id} value={k.id}>
+          {k.type === 'production' ? '🔪' : '📌'} {k.title}{k.usage_count ? ` (×${k.usage_count})` : ''}
+        </option>)}
+      </select>
+    </Field>}
 
     <Field label="Titolo *"><input style={inp} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/></Field>
     <Field label="Tipo">

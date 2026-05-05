@@ -357,6 +357,27 @@ export default async function handler(req, res) {
         return res.status(200).json({ subordinates: subs || [] });
       }
 
+      // Lista modelli (knowledge base) per autocompila form
+      case 'knowledge_list': {
+        const v = await verifyPin(req.body?.pin, 'task_create');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        const list = await sbQuery(`task_knowledge?user_id=eq.${v.emp.user_id}&select=*&order=usage_count.desc,title.asc&limit=200`);
+        return res.status(200).json({ knowledge: list || [] });
+      }
+
+      // Incrementa usage_count quando si usa un modello (chiamabile dopo create)
+      case 'knowledge_use': {
+        const { pin, knowledge_id } = req.body;
+        const v = await verifyPin(pin, 'task_create');
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        if (!knowledge_id) return res.status(400).json({ error: 'knowledge_id richiesto' });
+        // Fetch attuale per incrementare (Supabase REST non supporta x = x + 1 senza RPC)
+        const cur = await sbQuery(`task_knowledge?id=eq.${knowledge_id}&user_id=eq.${v.emp.user_id}&select=usage_count&limit=1`);
+        const next = (Number(cur?.[0]?.usage_count) || 0) + 1;
+        await sbQuery(`task_knowledge?id=eq.${knowledge_id}`, 'PATCH', { usage_count: next });
+        return res.status(200).json({ ok: true, usage_count: next });
+      }
+
       // Lista ricette del tenant (per task produzione)
       case 'recipes': {
         const v = await verifyPin(req.body?.pin, 'task_create');

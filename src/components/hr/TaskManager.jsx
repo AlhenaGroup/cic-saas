@@ -34,9 +34,11 @@ export default function TaskManager({ sp, sps, employees }) {
 
   const [tasks, setTasks] = useState([])
   const [templates, setTemplates] = useState([])
+  const [knowledge, setKnowledge] = useState([])
   const [loading, setLoading] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [editingTpl, setEditingTpl] = useState(null)
+  const [editingKn, setEditingKn] = useState(null)
   const [dispatchTask, setDispatchTask] = useState(null)
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
@@ -55,6 +57,10 @@ export default function TaskManager({ sp, sps, employees }) {
     if (localeFilter) qt = qt.eq('locale', localeFilter)
     const { data: tp } = await qt
     setTemplates(tp || [])
+    let qk = supabase.from('task_knowledge').select('*').order('usage_count', { ascending: false }).order('title')
+    if (localeFilter) qk = qk.or(`locale.eq.${localeFilter},locale.is.null`)
+    const { data: kn } = await qk
+    setKnowledge(kn || [])
     setLoading(false)
   }, [localeFilter])
   useEffect(() => { load() }, [load])
@@ -82,6 +88,7 @@ export default function TaskManager({ sp, sps, employees }) {
       { key: 'calendario', label: '📅 Calendario' },
       { key: 'lista',      label: '📋 Lista' },
       { key: 'ricorrenti', label: '🔁 Ricorrenti (' + templates.length + ')' },
+      { key: 'modelli',    label: '📚 Modelli (' + knowledge.length + ')' },
     ]} value={tab} onChange={setTab} />
 
     {tab === 'calendario' && <CalendarView tasks={tasks} weekStart={weekStart} setWeekStart={setWeekStart} onTaskClick={setEditingTask} employees={employees}/>}
@@ -95,11 +102,128 @@ export default function TaskManager({ sp, sps, employees }) {
       await supabase.from('task_templates').delete().eq('id', id)
       await load()
     }} />}
+    {tab === 'modelli' && <KnowledgeView knowledge={knowledge} onAdd={() => setEditingKn({})} onEdit={setEditingKn} onDelete={async (id) => {
+      if (!confirm('Eliminare il modello?')) return
+      await supabase.from('task_knowledge').delete().eq('id', id)
+      await load()
+    }} />}
 
-    {editingTask && <TaskEditor task={editingTask} employees={employees} sps={sps} onClose={() => setEditingTask(null)} onSaved={() => { setEditingTask(null); load() }}/>}
-    {editingTpl && <TemplateEditor tpl={editingTpl} employees={employees} sps={sps} onClose={() => setEditingTpl(null)} onSaved={() => { setEditingTpl(null); load() }}/>}
+    {editingTask && <TaskEditor task={editingTask} employees={employees} sps={sps} knowledge={knowledge} onClose={() => setEditingTask(null)} onSaved={() => { setEditingTask(null); load() }}/>}
+    {editingTpl && <TemplateEditor tpl={editingTpl} employees={employees} sps={sps} knowledge={knowledge} onClose={() => setEditingTpl(null)} onSaved={() => { setEditingTpl(null); load() }}/>}
+    {editingKn && <KnowledgeEditor kn={editingKn} sps={sps} onClose={() => setEditingKn(null)} onSaved={() => { setEditingKn(null); load() }}/>}
     {dispatchTask && <DispatchModal task={dispatchTask} employees={employees} onClose={() => setDispatchTask(null)} onDone={() => { setDispatchTask(null); load() }}/>}
   </Card>
+}
+
+// ─── Lista modelli (knowledge base) ───────────────────────────────
+function KnowledgeView({ knowledge, onAdd, onEdit, onDelete }) {
+  const [search, setSearch] = useState('')
+  const filtered = knowledge.filter(k => !search || k.title.toLowerCase().includes(search.toLowerCase()))
+  return <div>
+    <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+      <input style={{ ...iS, flex: 1, minWidth: 200 }} placeholder="Cerca modello..." value={search} onChange={e => setSearch(e.target.value)}/>
+      <button onClick={onAdd} style={btnPrimary}>+ Nuovo modello</button>
+    </div>
+    <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, fontStyle: 'italic' }}>
+      Modelli di task riusabili. Quando crei una nuova task, puoi caricare uno di questi e descrizione/istruzioni si compilano automaticamente.
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+      {filtered.map(k => <div key={k.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', padding: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+            {k.type === 'production' ? '🔪' : '📌'} {k.title}
+          </div>
+          <span style={{ fontSize: 10, color: 'var(--text3)', whiteSpace: 'nowrap' }}>×{k.usage_count}</span>
+        </div>
+        {k.description && <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{k.description}</div>}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          <span style={S.badge('var(--text3)', 'var(--surface)')}>{k.default_priority}</span>
+          {k.requires_photo && <span style={S.badge('var(--text3)', 'var(--surface)')}>📷</span>}
+          {k.default_duration_min && <span style={S.badge('var(--text3)', 'var(--surface)')}>{k.default_duration_min}'</span>}
+          {(k.tags || []).map(t => <span key={t} style={S.badge('var(--blue-text)', 'var(--blue-bg)')}>#{t}</span>)}
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => onEdit(k)} style={btnSm}>✏️ Modifica</button>
+          <button onClick={() => onDelete(k.id)} style={btnSm}>🗑</button>
+        </div>
+      </div>)}
+    </div>
+    {filtered.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: 'var(--text3)' }}>
+      {search ? 'Nessun modello trovato' : 'Nessun modello. Click "+ Nuovo modello" per crearne uno.'}
+    </div>}
+  </div>
+}
+
+function KnowledgeEditor({ kn, sps, onClose, onSaved }) {
+  const [f, setF] = useState({
+    title: kn.title || '',
+    description: kn.description || '',
+    instructions: kn.instructions || '',
+    type: kn.type || 'generic',
+    default_priority: kn.default_priority || 'media',
+    default_duration_min: kn.default_duration_min || '',
+    requires_photo: kn.requires_photo || false,
+    locale: kn.locale || '',
+    tags: (kn.tags || []).join(', '),
+    production_recipe_id: kn.production_recipe_id || null,
+    production_qty: kn.production_qty || '',
+    production_unit: kn.production_unit || '',
+  })
+  const save = async () => {
+    if (!f.title.trim()) return alert('Titolo obbligatorio')
+    const { data: { user } } = await supabase.auth.getUser()
+    const payload = {
+      ...f, user_id: user.id,
+      locale: f.locale || null,
+      default_duration_min: f.default_duration_min ? Number(f.default_duration_min) : null,
+      tags: f.tags ? f.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+      production_recipe_id: f.production_recipe_id || null,
+      production_qty: f.production_qty ? Number(f.production_qty) : null,
+    }
+    if (kn.id) await supabase.from('task_knowledge').update(payload).eq('id', kn.id)
+    else await supabase.from('task_knowledge').insert(payload)
+    onSaved()
+  }
+  return <Modal title={kn.id ? '✏️ Modifica modello' : '+ Nuovo modello'} onClose={onClose} onSave={save}>
+    <Field label="Titolo del modello *">
+      <input style={iS} placeholder='es. "Gettare il cartone" o "Inventario settimanale bar"' value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
+    </Field>
+    <Field label="Tipo">
+      <select style={iS} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
+        <option value="generic">📌 Generica</option><option value="production">🔪 Produzione</option>
+      </select>
+    </Field>
+    <Field label="Descrizione (cosa è questo task)">
+      <textarea style={{ ...iS, minHeight: 60 }} value={f.description} onChange={e => setF({ ...f, description: e.target.value })}/>
+    </Field>
+    <Field label="Istruzioni · come si fa (passo-passo)">
+      <textarea style={{ ...iS, minHeight: 140 }} placeholder="1. Prendere il cartone&#10;2. Schiacciarlo&#10;3. Portarlo nel cassonetto blu&#10;..." value={f.instructions} onChange={e => setF({ ...f, instructions: e.target.value })}/>
+    </Field>
+    <Field label="Priorità default + durata (min)">
+      <div style={{ display: 'flex', gap: 8 }}>
+        <select style={iS} value={f.default_priority} onChange={e => setF({ ...f, default_priority: e.target.value })}>
+          <option value="bassa">Bassa</option><option value="media">Media</option>
+          <option value="alta">Alta</option><option value="urgente">Urgente</option>
+        </select>
+        <input style={iS} placeholder="Durata stimata (min)" value={f.default_duration_min} onChange={e => setF({ ...f, default_duration_min: e.target.value })}/>
+      </div>
+    </Field>
+    <Field label="Locale (vuoto = visibile a tutti)">
+      <select style={iS} value={f.locale} onChange={e => setF({ ...f, locale: e.target.value })}>
+        <option value="">— tutti i locali —</option>
+        {sps.map(s => <option key={s.id} value={s.description}>{s.description}</option>)}
+      </select>
+    </Field>
+    <Field label="Tag (categorie, separate da virgola — es. pulizia, cucina, sicurezza)">
+      <input style={iS} value={f.tags} onChange={e => setF({ ...f, tags: e.target.value })}/>
+    </Field>
+    <Field label="">
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+        <input type="checkbox" checked={f.requires_photo} onChange={e => setF({ ...f, requires_photo: e.target.checked })}/>
+        📷 Richiede foto al completamento
+      </label>
+    </Field>
+  </Modal>
 }
 
 // ─── Calendario settimanale ─────────────────────────────────────────
@@ -270,7 +394,7 @@ function TemplatesView({ templates, onEdit, onDelete }) {
 }
 
 // ─── Editor task one-shot ─────────────────────────────────────────
-function TaskEditor({ task, employees, sps, onClose, onSaved }) {
+function TaskEditor({ task, employees, sps, knowledge = [], onClose, onSaved }) {
   const [f, setF] = useState({
     title: task.title || '',
     description: task.description || '',
@@ -292,11 +416,32 @@ function TaskEditor({ task, employees, sps, onClose, onSaved }) {
     status: task.status || 'da_fare',
   })
   const [recipes, setRecipes] = useState([])
+  const [usedKnowledgeId, setUsedKnowledgeId] = useState(null)
   useEffect(() => {
     if (f.type === 'production' && recipes.length === 0) {
       supabase.from('recipes').select('id,nome_prodotto,reparto').order('nome_prodotto').limit(500).then(({ data }) => setRecipes(data || []))
     }
   }, [f.type, recipes.length])
+
+  // Carica modello: autocompila campi
+  const loadKnowledge = (id) => {
+    const k = knowledge.find(x => String(x.id) === String(id))
+    if (!k) return
+    setF(prev => ({
+      ...prev,
+      title: k.title,
+      description: k.description || '',
+      instructions: k.instructions || '',
+      type: k.type || 'generic',
+      priority: k.default_priority || 'media',
+      duration_min: k.default_duration_min || '',
+      requires_photo: !!k.requires_photo,
+      production_recipe_id: k.production_recipe_id || null,
+      production_qty: k.production_qty || '',
+      production_unit: k.production_unit || '',
+    }))
+    setUsedKnowledgeId(k.id)
+  }
 
   const save = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -314,10 +459,23 @@ function TaskEditor({ task, employees, sps, onClose, onSaved }) {
     } else {
       await supabase.from('tasks').insert(payload)
     }
+    // Incrementa usage del modello se è stato usato
+    if (usedKnowledgeId) {
+      const cur = knowledge.find(k => k.id === usedKnowledgeId)
+      if (cur) await supabase.from('task_knowledge').update({ usage_count: (cur.usage_count || 0) + 1 }).eq('id', usedKnowledgeId)
+    }
     onSaved()
   }
 
   return <Modal title={task.id ? '✏️ Modifica task' : '+ Nuova task'} onClose={onClose} onSave={save}>
+    {!task.id && knowledge.length > 0 && <Field label="📚 Carica da modello (autocompila)">
+      <select style={iS} value={usedKnowledgeId || ''} onChange={e => loadKnowledge(e.target.value)}>
+        <option value="">— scegli un modello pre-compilato —</option>
+        {knowledge.map(k => <option key={k.id} value={k.id}>
+          {k.type === 'production' ? '🔪' : '📌'} {k.title}{k.usage_count ? ` (×${k.usage_count})` : ''}
+        </option>)}
+      </select>
+    </Field>}
     <Field label="Titolo *"><input style={iS} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/></Field>
     <Field label="Tipo">
       <select style={iS} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
@@ -365,13 +523,10 @@ function TaskEditor({ task, employees, sps, onClose, onSaved }) {
         <option value="roles">Per ruolo</option>
       </select>
     </Field>
-    {f.assignment_kind === 'persons' && <Field label="Dipendenti">
-      <select multiple style={{ ...iS, minHeight: 100 }} value={f.assigned_employee_ids} onChange={e => {
-        const sel = Array.from(e.target.selectedOptions, o => o.value)
-        setF({ ...f, assigned_employee_ids: sel })
-      }}>
-        {employees.filter(e => !f.locale || (e.locale || '').includes(f.locale)).map(e => <option key={e.id} value={e.id}>{e.nome} {e.ruolo ? '· ' + e.ruolo : ''}</option>)}
-      </select>
+    {f.assignment_kind === 'persons' && <Field label="Dipendenti (clicca per selezionare)">
+      <PeoplePicker employees={employees.filter(e => !f.locale || (e.locale || '').includes(f.locale))}
+        selected={f.assigned_employee_ids}
+        onChange={ids => setF({ ...f, assigned_employee_ids: ids })}/>
     </Field>}
     {f.assignment_kind === 'roles' && <Field label="Ruoli (separati da virgola, es. cuoco, barista)">
       <input style={iS} value={(f.assigned_roles || []).join(', ')} onChange={e => setF({ ...f, assigned_roles: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}/>
@@ -385,8 +540,43 @@ function TaskEditor({ task, employees, sps, onClose, onSaved }) {
   </Modal>
 }
 
+// ─── Picker dipendenti riusabile ──────────────────────────────────
+function PeoplePicker({ employees, selected, onChange }) {
+  const [search, setSearch] = useState('')
+  const filtered = employees.filter(e => !search || (e.nome || '').toLowerCase().includes(search.toLowerCase()))
+  const toggle = (id) => onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
+  const allSelected = filtered.length > 0 && filtered.every(e => selected.includes(e.id))
+  return <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', overflow: 'hidden' }}>
+    <div style={{ padding: 8, background: 'var(--surface2)', display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
+      <input style={{ ...iS, flex: 1, padding: '6px 10px', fontSize: 12 }} placeholder="🔍 Cerca dipendente..." value={search} onChange={e => setSearch(e.target.value)}/>
+      <button type="button" onClick={() => onChange(allSelected ? [] : filtered.map(e => e.id))}
+        style={{ padding: '6px 10px', fontSize: 11, background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer' }}>
+        {allSelected ? 'Deseleziona' : 'Seleziona tutti'}
+      </button>
+    </div>
+    <div style={{ maxHeight: 220, overflowY: 'auto', padding: 4 }}>
+      {filtered.map(e => {
+        const isSel = selected.includes(e.id)
+        return <label key={e.id} style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', cursor: 'pointer',
+          background: isSel ? 'var(--blue-bg)' : 'transparent', borderRadius: 6, fontSize: 13, color: 'var(--text)',
+          marginBottom: 2,
+        }}>
+          <input type="checkbox" checked={isSel} onChange={() => toggle(e.id)}/>
+          <span style={{ flex: 1 }}>{e.nome}</span>
+          {e.role && <span style={{ fontSize: 11, color: 'var(--text3)' }}>{e.role}</span>}
+        </label>
+      })}
+      {filtered.length === 0 && <div style={{ padding: 12, textAlign: 'center', color: 'var(--text3)', fontSize: 12 }}>Nessun dipendente</div>}
+    </div>
+    <div style={{ padding: '6px 12px', background: 'var(--surface2)', borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--text3)' }}>
+      {selected.length} selezionat{selected.length === 1 ? 'o' : 'i'}
+    </div>
+  </div>
+}
+
 // ─── Editor template ricorrente ───────────────────────────────────
-function TemplateEditor({ tpl, employees, sps, onClose, onSaved }) {
+function TemplateEditor({ tpl, employees, sps, knowledge = [], onClose, onSaved }) {
   const [f, setF] = useState({
     title: tpl.title || '',
     description: tpl.description || '',
@@ -409,6 +599,26 @@ function TemplateEditor({ tpl, employees, sps, onClose, onSaved }) {
     requires_photo: tpl.requires_photo || false,
     active: tpl.active !== undefined ? tpl.active : true,
   })
+  const [usedKnowledgeId, setUsedKnowledgeId] = useState(null)
+
+  const loadKnowledge = (id) => {
+    const k = knowledge.find(x => String(x.id) === String(id))
+    if (!k) return
+    setF(prev => ({
+      ...prev,
+      title: k.title,
+      description: k.description || '',
+      instructions: k.instructions || '',
+      type: k.type || 'generic',
+      priority: k.default_priority || 'media',
+      default_duration_min: k.default_duration_min || '',
+      requires_photo: !!k.requires_photo,
+      production_recipe_id: k.production_recipe_id || null,
+      production_qty: k.production_qty || '',
+      production_unit: k.production_unit || '',
+    }))
+    setUsedKnowledgeId(k.id)
+  }
 
   const save = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -425,6 +635,14 @@ function TemplateEditor({ tpl, employees, sps, onClose, onSaved }) {
   }
 
   return <Modal title={tpl.id ? '✏️ Modifica template ricorrente' : '+ Nuovo template ricorrente'} onClose={onClose} onSave={save}>
+    {!tpl.id && knowledge.length > 0 && <Field label="📚 Carica da modello (autocompila)">
+      <select style={iS} value={usedKnowledgeId || ''} onChange={e => loadKnowledge(e.target.value)}>
+        <option value="">— scegli un modello pre-compilato —</option>
+        {knowledge.map(k => <option key={k.id} value={k.id}>
+          {k.type === 'production' ? '🔪' : '📌'} {k.title}
+        </option>)}
+      </select>
+    </Field>}
     <Field label="Titolo *"><input style={iS} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/></Field>
     <Field label="Tipo">
       <select style={iS} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
@@ -480,13 +698,10 @@ function TemplateEditor({ tpl, employees, sps, onClose, onSaved }) {
     {f.assignment_kind === 'roles' && <Field label="Ruoli (es. cuoco, barista)">
       <input style={iS} value={(f.assigned_roles || []).join(', ')} onChange={e => setF({ ...f, assigned_roles: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}/>
     </Field>}
-    {f.assignment_kind === 'persons' && <Field label="Dipendenti">
-      <select multiple style={{ ...iS, minHeight: 100 }} value={f.assigned_employee_ids} onChange={e => {
-        const sel = Array.from(e.target.selectedOptions, o => o.value)
-        setF({ ...f, assigned_employee_ids: sel })
-      }}>
-        {employees.filter(emp => !f.locale || (emp.locale || '').includes(f.locale)).map(emp => <option key={emp.id} value={emp.id}>{emp.nome}</option>)}
-      </select>
+    {f.assignment_kind === 'persons' && <Field label="Dipendenti (clicca per selezionare)">
+      <PeoplePicker employees={employees.filter(emp => !f.locale || (emp.locale || '').includes(f.locale))}
+        selected={f.assigned_employee_ids}
+        onChange={ids => setF({ ...f, assigned_employee_ids: ids })}/>
     </Field>}
     <Field label="">
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
