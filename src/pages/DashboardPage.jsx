@@ -12,6 +12,7 @@ import InvoiceTab from '../components/InvoiceTab'
 import ContoEconomico from '../components/ContoEconomico'
 import IvaTab from '../components/IvaTab'
 import WidgetGrid from '../components/WidgetGrid'
+import ChecklistWidget from '../components/ChecklistWidget'
 import DailyReportSettings from '../components/DailyReportSettings'
 import SubTabsBar from '../components/SubTabsBar'
 import ImpostazioniModule from '../components/ImpostazioniModule'
@@ -617,6 +618,13 @@ export default function DashboardPage({ settings }) {
               <KPI label="Coperto medio" icon="" value={fmtD(copertoMedio)} sub={dCopertoMedio?<span style={{color:dCopertoMedio.positive?'#10B981':'#EF4444',fontSize:11,fontWeight:600}}>{dCopertoMedio.label}</span>:'incasso / coperto'} accent='#8B5CF6' trend={dCopertoMedio?.pct}/> },
           { id:'kpi.reparti', label:'Reparti attivi', element:
               <KPI label="Reparti attivi" icon="" value={depts.filter(d=>d.profit>0).length} sub="con vendite" accent='#06B6D4'/> },
+        ]}/>
+
+        {/* Widget di overview "morning briefing" — full-width, configurabili.
+            Personalizzabili come gli altri widget (drag&drop, show/hide). */}
+        <WidgetGrid tabKey="ov_full" gridStyle={{display:'grid',gridTemplateColumns:'1fr',gap:12,marginBottom:'1.25rem'}} widgets={[
+          { id:'briefing.checklist', label:'Checklist (ieri sera / oggi)', element:
+              <ChecklistWidget sps={sps}/> },
         ]}/>
 
         {/* Giorno migliore / peggiore */}
