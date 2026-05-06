@@ -185,11 +185,17 @@ export default function TimbraPage() {
       title={theme === 'dark' ? 'Tema chiaro' : 'Tema scuro'}
       aria-label="Cambia tema"
       style={{
-        position: 'absolute', top: 16, right: 16,
-        width: 36, height: 36, borderRadius: 18,
+        // Su iOS Safari la "barra" del browser sopra prende un po' di spazio:
+        // teniamo il bottone piu' lontano dal top, dentro l'area sicura.
+        position: 'absolute',
+        top: 'max(env(safe-area-inset-top, 0px), 12px)',
+        right: 16,
+        marginTop: 36,
+        width: 40, height: 40, borderRadius: 20,
         background: 'var(--surface)', border: '1px solid var(--border)',
         color: 'var(--text2)', cursor: 'pointer', zIndex: 100,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+        boxShadow: 'var(--shadow)',
       }}>
       <ThemeIcon dark={theme === 'dark'}/>
     </button>
@@ -298,13 +304,14 @@ function PinPad({ pin, onDigit, onClear, loading }) {
 }
 
 // ─── MENU AZIONI ────────────────────────────────────────────────────
-// Layout a 4 sezioni:
-//  1. TIMBRA (hero, full-width grande) — sempre presente
-//  2. OGGI COSA SI FA? — Calendario task, I miei turni
-//  3. OPERATIVITÀ — Inventario, Produzione, Consumo, Spostamento (filtrati da permessi)
-//  4. I MIEI DATI — Le mie ore, Le mie ferie
+// Layout a 4 bottoni principali (1 hero + 3 categorie collassabili):
+//  1. TIMBRA (hero piu' grande) — vai diretto
+//  2. OGGI COSA SI FA? — espande Calendario task / I miei turni
+//  3. OPERATIVITÀ — espande Inventario / Produzione / Consumo / Spostamento
+//  4. I MIEI DATI — espande Le mie ore / Le mie ferie
 function MainMenu({ employee, permissions, onChoose, onReset }) {
-  // Operativita': filtrata dai permessi (mapping permesso speciale per 'spostamenti')
+  const [expanded, setExpanded] = useState(null) // 'oggi' | 'operativita' | 'dati' | null
+
   const operativita = [
     { k: 'inventario',   label: 'Inventario',   perm: 'inventario' },
     { k: 'produzione',   label: 'Produzione',   perm: 'produzione' },
@@ -312,7 +319,6 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
     { k: 'trasferimento',label: 'Spostamento merce', perm: 'spostamenti' },
   ].filter(i => permissions[i.perm])
 
-  // Sezioni "info" sempre visibili (lettura propri dati)
   const oggi = [
     { k: 'calendario', label: 'Calendario task' },
     { k: 'miei-turni', label: 'I miei turni' },
@@ -321,6 +327,8 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
     { k: 'mie-ore',    label: 'Le mie ore' },
     { k: 'mie-ferie',  label: 'Le mie ferie' },
   ]
+
+  const toggle = (key) => setExpanded(prev => prev === key ? null : key)
 
   return <div style={{ maxWidth: 380, width: '100%' }}>
     {/* Card profilo */}
@@ -332,50 +340,52 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
       <div style={{ fontSize: 12, color: 'var(--text2)' }}>{employee.ruolo || '—'}</div>
     </div>
 
-    {/* TIMBRA hero */}
+    {/* TIMBRA: stesso stile dei sub, solo piu' grande */}
     {permissions.presenza && (
-      <button onClick={() => onChoose('presenza')}
-        style={{
-          width: '100%', padding: '28px 18px', marginBottom: 24,
-          borderRadius: 16, border: 'none',
-          background: 'var(--text)', color: 'var(--surface)',
-          fontSize: 22, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase',
-          cursor: 'pointer', boxShadow: 'var(--shadow-md)',
-        }}>
+      <button onClick={() => onChoose('presenza')} style={menuBtnHero}>
         Timbra
       </button>
     )}
 
-    {/* OGGI COSA SI FA? */}
-    <SectionTitle>Oggi cosa si fa?</SectionTitle>
-    <Grid items={oggi} onChoose={onChoose}/>
+    <CategoryButton label="Oggi cosa si fa?" expanded={expanded === 'oggi'} onToggle={() => toggle('oggi')}/>
+    {expanded === 'oggi' && <SubGrid items={oggi} onChoose={onChoose}/>}
 
-    {/* OPERATIVITÀ — solo se almeno un permesso */}
     {operativita.length > 0 && <>
-      <SectionTitle>Operatività</SectionTitle>
-      <Grid items={operativita} onChoose={onChoose}/>
+      <CategoryButton label="Operatività" expanded={expanded === 'operativita'} onToggle={() => toggle('operativita')}/>
+      {expanded === 'operativita' && <SubGrid items={operativita} onChoose={onChoose}/>}
     </>}
 
-    {/* I MIEI DATI */}
-    <SectionTitle>I miei dati</SectionTitle>
-    <Grid items={dati} onChoose={onChoose}/>
+    <CategoryButton label="I miei dati" expanded={expanded === 'dati'} onToggle={() => toggle('dati')}/>
+    {expanded === 'dati' && <SubGrid items={dati} onChoose={onChoose}/>}
 
     <button onClick={onReset} style={{ marginTop: 24, width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', color: 'var(--text3)', fontSize: 13, fontWeight: 600, cursor: 'pointer', letterSpacing: '.04em', textTransform: 'uppercase' }}>Esci</button>
   </div>
 }
 
-function SectionTitle({ children }) {
-  return <div style={{
-    fontSize: 11, fontWeight: 700, color: 'var(--text3)',
-    letterSpacing: '.1em', textTransform: 'uppercase',
-    margin: '0 4px 10px', paddingTop: 4,
-  }}>{children}</div>
+// Bottone categoria (collapsed): full-width, mostra label + chevron
+function CategoryButton({ label, expanded, onToggle }) {
+  return (
+    <button onClick={onToggle} style={{
+      ...menuBtn,
+      width: '100%',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '20px 18px',
+      marginBottom: expanded ? 8 : 12,
+    }}>
+      <span>{label}</span>
+      <span style={{ fontSize: 16, color: 'var(--text2)', fontWeight: 400 }}>{expanded ? '▾' : '▸'}</span>
+    </button>
+  )
 }
 
-function Grid({ items, onChoose }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+// Sotto-griglia espansa: 2 colonne, leggermente rientrata
+function SubGrid({ items, onChoose }) {
+  return <div style={{
+    display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
+    marginBottom: 12, padding: '0 6px 6px',
+  }}>
     {items.map(it => (
-      <button key={it.k} onClick={() => onChoose(it.k)} style={menuBtn}>
+      <button key={it.k} onClick={() => onChoose(it.k)} style={subMenuBtn}>
         {it.label}
       </button>
     ))}
@@ -396,6 +406,36 @@ const menuBtn = {
   textAlign: 'center',
   minHeight: 72,
   transition: 'background .15s, border-color .15s',
+  fontFamily: 'inherit',
+}
+
+// Bottone TIMBRA hero: stesso stile dei category buttons ma piu' grande
+// (font, padding) e con shadow per dargli importanza visiva senza colore.
+const menuBtnHero = {
+  ...menuBtn,
+  width: '100%',
+  marginBottom: 18,
+  padding: '36px 18px',
+  fontSize: 22,
+  letterSpacing: '.1em',
+  minHeight: 100,
+  boxShadow: 'var(--shadow-md)',
+}
+
+// Bottone secondario dentro le categorie espanse: piu' compatto
+const subMenuBtn = {
+  padding: '16px 10px',
+  borderRadius: 10,
+  border: '1px solid var(--border)',
+  background: 'var(--surface2)',
+  color: 'var(--text)',
+  fontSize: 12,
+  fontWeight: 600,
+  letterSpacing: '.04em',
+  textTransform: 'uppercase',
+  cursor: 'pointer',
+  textAlign: 'center',
+  minHeight: 60,
   fontFamily: 'inherit',
 }
 
