@@ -752,16 +752,11 @@ export default function InvoiceManager({ sp, sps }) {
                         const displayTot = it.totale_um ?? autoTot ?? ''
                         return <tr key={it.id} style={{ opacity: isExcluded ? 0.4 : 1, background: isExcluded ? 'rgba(239,68,68,.05)' : 'transparent' }}>
                           <td style={{ ...S.td, padding: '5px 6px' }}>
-                            {isExcluded
-                              ? <button onClick={() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, escludi_magazzino: false } : x))}
-                                  title="Escluso — click per includere"
-                                  style={{ background: 'none', border: '1px solid #EF4444', color: '#EF4444', borderRadius: 4, fontSize: 10, padding: '2px 8px', cursor: 'pointer', fontWeight: 700 }}>ESCL</button>
-                              : <select value={displayMag}
-                                  onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, magazzino: e.target.value } : x))}
-                                  style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 70, color: '#e2e8f0' }}>
-                                  {MAGAZZINI.map(m => <option key={m} value={m}>{m}</option>)}
-                                </select>
-                            }
+                            <select value={displayMag} disabled={isExcluded}
+                              onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, magazzino: e.target.value } : x))}
+                              style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 70, color: 'var(--text)', opacity: isExcluded ? 0.4 : 1 }}>
+                              {MAGAZZINI.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
                           </td>
                           {/* Descrizione fattura + Qty fatt. (read-only) */}
                           <td style={{ ...S.td, fontSize: 10, padding: '5px 6px', color: '#94a3b8', maxWidth: 200 }}>
@@ -771,9 +766,6 @@ export default function InvoiceManager({ sp, sps }) {
                                 style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#64748b', background: '#1a1f2e', padding: '2px 6px', borderRadius: 4, minWidth: 28, textAlign: 'center' }}>
                                 {it.quantita != null && it.quantita !== '' ? it.quantita : '—'}
                               </span>
-                              {!isExcluded && <button onClick={() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, escludi_magazzino: true } : x))}
-                                title="Escludi dal magazzino"
-                                style={{ background: 'none', border: '1px solid var(--border-md)', color: 'var(--text3)', cursor: 'pointer', fontSize: 11, flexShrink: 0, width: 20, height: 20, borderRadius: 4, lineHeight: 1, padding: 0, fontWeight: 700 }}>×</button>}
                             </div>
                           </td>
                           {/* Nome articolo */}
@@ -866,9 +858,21 @@ export default function InvoiceManager({ sp, sps }) {
                               setTimeout(() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, _saved: false } : x)), 1500)
                               // Aggiorna badge "X/Y" nella colonna Stato
                               loadWhStatus()
-                            }} style={{ ...iS, background: it._saved ? '#10B981' : '#F59E0B', color: '#0f1420', border: 'none', padding: '3px 8px', fontWeight: 700, fontSize: 10, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                              {it._saved ? '' : ''}
+                            }} style={{ ...iS, background: it._saved ? '#10B981' : '#F59E0B', color: '#0f1420', border: 'none', padding: '5px 12px', fontWeight: 700, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', borderRadius: 6, marginRight: 4 }}>
+                              {it._saved ? 'OK' : 'SALVA'}
                             </button>
+                            {isExcluded
+                              ? <button onClick={() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, escludi_magazzino: false } : x))}
+                                  title="Click per includere"
+                                  style={{ ...iS, background: '#EF4444', color: '#fff', border: 'none', padding: '5px 10px', fontWeight: 700, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', borderRadius: 6 }}>
+                                  ESCL
+                                </button>
+                              : <button onClick={() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, escludi_magazzino: true } : x))}
+                                  title="Escludi questa riga dal magazzino"
+                                  style={{ ...iS, background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border-md)', padding: '5px 10px', fontWeight: 600, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', borderRadius: 6 }}>
+                                  ESCLUDI
+                                </button>
+                            }
                           </td>
                         </tr>
                       })}
