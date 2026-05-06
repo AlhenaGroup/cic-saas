@@ -13,6 +13,7 @@ import ContoEconomico from '../components/ContoEconomico'
 import IvaTab from '../components/IvaTab'
 import WidgetGrid from '../components/WidgetGrid'
 import ChecklistWidget from '../components/ChecklistWidget'
+import { BriefingIeri, BriefingOggi, BriefingAttenzione } from '../components/MorningBriefing'
 import DailyReportSettings from '../components/DailyReportSettings'
 import SubTabsBar from '../components/SubTabsBar'
 import ImpostazioniModule from '../components/ImpostazioniModule'
@@ -623,8 +624,14 @@ export default function DashboardPage({ settings }) {
         {/* Widget di overview "morning briefing" — full-width, configurabili.
             Personalizzabili come gli altri widget (drag&drop, show/hide). */}
         <WidgetGrid tabKey="ov_full" gridStyle={{display:'grid',gridTemplateColumns:'1fr',gap:12,marginBottom:'1.25rem'}} widgets={[
+          { id:'briefing.ieri', label:"Ieri è andata...", element:
+              <BriefingIeri sps={sps} sp={sp}/> },
+          { id:'briefing.oggi', label:'Oggi cosa mi aspetta', element:
+              <BriefingOggi sps={sps} sp={sp}/> },
           { id:'briefing.checklist', label:'Checklist (ieri sera / oggi)', element:
               <ChecklistWidget sps={sps}/> },
+          { id:'briefing.attenzione', label:'Attenzione (allarmi)', element:
+              <BriefingAttenzione sps={sps} sp={sp}/> },
         ]}/>
 
         {/* Giorno migliore / peggiore */}
