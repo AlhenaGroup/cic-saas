@@ -195,8 +195,8 @@ export default function TimbraPage() {
     </button>
     <div style={{ textAlign: 'center', marginBottom: 16 }}>
       {/* Logo cliccabile: se sei autenticato torna al menu, altrimenti reset al PIN */}
-      <div style={{ marginBottom: 12 }}>
-        <Logo size={88} onClick={() => {
+      <div style={{ marginBottom: 14 }}>
+        <Logo size={140} onClick={() => {
           if (employee && step !== 'menu' && step !== 'pin') goTo('menu')
           else if (!employee && step !== 'pin') reset()
         }}/>
@@ -298,45 +298,105 @@ function PinPad({ pin, onDigit, onClear, loading }) {
 }
 
 // ─── MENU AZIONI ────────────────────────────────────────────────────
+// Layout a 4 sezioni:
+//  1. TIMBRA (hero, full-width grande) — sempre presente
+//  2. OGGI COSA SI FA? — Calendario task, I miei turni
+//  3. OPERATIVITÀ — Inventario, Produzione, Consumo, Spostamento (filtrati da permessi)
+//  4. I MIEI DATI — Le mie ore, Le mie ferie
 function MainMenu({ employee, permissions, onChoose, onReset }) {
-  // Azioni operative filtrate dai permessi
-  const azioni = [
-    { k: 'presenza', icon: '', label: 'Timbra presenza', color: '#10B981' },
-    { k: 'consumo', icon: '', label: 'Consumo personale', color: '#F59E0B' },
-    { k: 'trasferimento', icon: '', label: 'Spostamento merce', color: '#3B82F6' },
-    { k: 'inventario', icon: '', label: 'Inventario', color: '#8B5CF6' },
-    { k: 'produzione', icon: '', label: 'Produzione', color: '#EF4444' },
-  ].filter(i => permissions[i.k === 'trasferimento' ? 'spostamenti' : i.k])
-  // Viste info personali: sempre visibili (sola lettura dei propri dati)
-  const info = [
-    { k: 'calendario', icon: '', label: 'Calendario task', color: '#F59E0B' },
-    { k: 'miei-turni', icon: '', label: 'I miei turni', color: '#3B82F6' },
-    { k: 'mie-ore', icon: '', label: 'Le mie ore', color: '#10B981' },
-    { k: 'mie-ferie', icon: '', label: 'Le mie ferie', color: '#F97316' },
-  ]
-  const items = [...azioni, ...info]
+  // Operativita': filtrata dai permessi (mapping permesso speciale per 'spostamenti')
+  const operativita = [
+    { k: 'inventario',   label: 'Inventario',   perm: 'inventario' },
+    { k: 'produzione',   label: 'Produzione',   perm: 'produzione' },
+    { k: 'consumo',      label: 'Consumo personale', perm: 'consumo' },
+    { k: 'trasferimento',label: 'Spostamento merce', perm: 'spostamenti' },
+  ].filter(i => permissions[i.perm])
 
-  return <div style={{ maxWidth: 360, width: '100%' }}>
-    <div style={{ background: 'var(--surface)', borderRadius: 16, padding: 20, marginBottom: 16, textAlign: 'center' }}>
-      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: accent, marginBottom: 10 }}>
+  // Sezioni "info" sempre visibili (lettura propri dati)
+  const oggi = [
+    { k: 'calendario', label: 'Calendario task' },
+    { k: 'miei-turni', label: 'I miei turni' },
+  ]
+  const dati = [
+    { k: 'mie-ore',    label: 'Le mie ore' },
+    { k: 'mie-ferie',  label: 'Le mie ferie' },
+  ]
+
+  return <div style={{ maxWidth: 380, width: '100%' }}>
+    {/* Card profilo */}
+    <div style={{ background: 'var(--surface)', borderRadius: 16, padding: 20, marginBottom: 20, textAlign: 'center', border: '1px solid var(--border)' }}>
+      <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--surface2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
         {employee.nome?.charAt(0)?.toUpperCase()}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700 }}>{employee.nome}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{employee.nome}</div>
       <div style={{ fontSize: 12, color: 'var(--text2)' }}>{employee.ruolo || '—'}</div>
     </div>
-    {items.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text2)', fontSize: 13 }}>
-      Nessun permesso abilitato. Contatta l'amministratore.
-    </div>}
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-      {items.map(it => (
-        <button key={it.k} onClick={() => onChoose(it.k)}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 18px', borderRadius: 12, border: `2px solid ${it.color}`, background: 'var(--surface)', color: 'var(--text)', fontSize: 14, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', cursor: 'pointer', textAlign: 'center' }}>
-          {it.label}
-        </button>
-      ))}
-    </div>
-    <button onClick={onReset} style={{ marginTop: 16, width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '10px', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Esci</button>
+
+    {/* TIMBRA hero */}
+    {permissions.presenza && (
+      <button onClick={() => onChoose('presenza')}
+        style={{
+          width: '100%', padding: '28px 18px', marginBottom: 24,
+          borderRadius: 16, border: 'none',
+          background: 'var(--text)', color: 'var(--surface)',
+          fontSize: 22, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase',
+          cursor: 'pointer', boxShadow: 'var(--shadow-md)',
+        }}>
+        Timbra
+      </button>
+    )}
+
+    {/* OGGI COSA SI FA? */}
+    <SectionTitle>Oggi cosa si fa?</SectionTitle>
+    <Grid items={oggi} onChoose={onChoose}/>
+
+    {/* OPERATIVITÀ — solo se almeno un permesso */}
+    {operativita.length > 0 && <>
+      <SectionTitle>Operatività</SectionTitle>
+      <Grid items={operativita} onChoose={onChoose}/>
+    </>}
+
+    {/* I MIEI DATI */}
+    <SectionTitle>I miei dati</SectionTitle>
+    <Grid items={dati} onChoose={onChoose}/>
+
+    <button onClick={onReset} style={{ marginTop: 24, width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', color: 'var(--text3)', fontSize: 13, fontWeight: 600, cursor: 'pointer', letterSpacing: '.04em', textTransform: 'uppercase' }}>Esci</button>
   </div>
+}
+
+function SectionTitle({ children }) {
+  return <div style={{
+    fontSize: 11, fontWeight: 700, color: 'var(--text3)',
+    letterSpacing: '.1em', textTransform: 'uppercase',
+    margin: '0 4px 10px', paddingTop: 4,
+  }}>{children}</div>
+}
+
+function Grid({ items, onChoose }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+    {items.map(it => (
+      <button key={it.k} onClick={() => onChoose(it.k)} style={menuBtn}>
+        {it.label}
+      </button>
+    ))}
+  </div>
+}
+
+const menuBtn = {
+  padding: '20px 14px',
+  borderRadius: 12,
+  border: '1px solid var(--border)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
+  fontSize: 13,
+  fontWeight: 700,
+  letterSpacing: '.05em',
+  textTransform: 'uppercase',
+  cursor: 'pointer',
+  textAlign: 'center',
+  minHeight: 72,
+  transition: 'background .15s, border-color .15s',
+  fontFamily: 'inherit',
 }
 
 // ─── PRESENZA ───────────────────────────────────────────────────────
