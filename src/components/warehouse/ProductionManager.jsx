@@ -221,7 +221,7 @@ function SchedeTab({ sp, sps }) {
                       style={{ background: '#10B981', color: '#0f1420', border: 'none', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginRight: 4 }}>Approva</button>
                   )}
                   <button onClick={() => duplicate(r)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}>Dup</button>
-                  <button onClick={() => remove(r)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}></button>
+                  <button onClick={() => remove(r)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>×</button>
                 </td>
               </tr>
             ))}
@@ -315,7 +315,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 760 }}>
       <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>{isNew ? 'Nuova scheda produzione' : '' + r.nome}</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         {/* Anagrafica */}
@@ -399,7 +399,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
               <select value={ing.unita || ''} onChange={e => updIng(i, { unita: e.target.value })} style={{ ...iS, width: '100%', fontSize: 11 }}>
                 {['', 'KG', 'GR', 'LT', 'ML', 'CL', 'PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
               </select>
-              <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}></button>
+              <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}>×</button>
             </div>
           ))}
         </div>
@@ -816,7 +816,7 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>+ Nuovo lotto produzione</h3>
           <div style={{ fontSize: 11, color: '#64748b' }}>Crea un lotto: scarica ingredienti, carica prodotto, stampa etichetta</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         <label style={{ display: 'block', marginBottom: 10 }}>

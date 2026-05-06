@@ -124,7 +124,7 @@ export default function DailyReportSettings({ onClose }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>Resoconto giornaliero via email</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Inviato ogni mattina alle 06:00 con il riepilogo del giorno prima</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         {loading ? (
@@ -189,7 +189,7 @@ export default function DailyReportSettings({ onClose }) {
                   <select value={r.ruolo || 'imprenditore'} onChange={e => updRecipient(i, { ruolo: e.target.value })} style={{ ...iS, width: '100%' }}>
                     {RUOLI.map(x => <option key={x.v} value={x.v}>{x.l}</option>)}
                   </select>
-                  <button onClick={() => rmRecipient(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: '0 8px' }}></button>
+                  <button onClick={() => rmRecipient(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: '0 8px' }}>×</button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#94a3b8' }}>
                   <span>Sezioni:</span>

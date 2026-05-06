@@ -309,9 +309,9 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
     <div style={{ marginTop: 12 }}>
       <Card title="Presenze reali" badge={Math.round(totalHoursWeek) + 'h totali'} extra={
         <div className="m-wrap" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
+          <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>‹</button>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
-          <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
+          <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>›</button>
           <button onClick={loadAttendance} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Aggiorna</button>
           <button onClick={() => setExportModal('excel')} disabled={filteredEmps.length === 0}
             style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
@@ -632,7 +632,7 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 480 }}>
       <div style={{ padding: 18, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>{kind === 'excel' ? 'Esporta Excel' : kind === 'csv' ? 'Esporta CSV' : 'Esporta PDF'}</h3>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}></button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}>×</button>
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -808,7 +808,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>{emp.nome}</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
       <div style={{ padding: 16 }}>
@@ -874,7 +874,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
                     </>
                   )}
                   <button onClick={() => deleteRec(r.id)} title="Elimina"
-                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, padding: '2px 6px', fontWeight: 700 }}></button>
+                    style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14, padding: '2px 6px', fontWeight: 700 }}>×</button>
                 </div>
               )
             })}

@@ -755,7 +755,7 @@ export default function InvoiceManager({ sp, sps }) {
                             {isExcluded
                               ? <button onClick={() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, escludi_magazzino: false } : x))}
                                   title="Escluso — click per includere"
-                                  style={{ background: 'none', border: '1px solid #EF4444', color: '#EF4444', borderRadius: 4, fontSize: 9, padding: '2px 4px', cursor: 'pointer' }}></button>
+                                  style={{ background: 'none', border: '1px solid #EF4444', color: '#EF4444', borderRadius: 4, fontSize: 10, padding: '2px 8px', cursor: 'pointer', fontWeight: 700 }}>ESCL</button>
                               : <select value={displayMag}
                                   onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, magazzino: e.target.value } : x))}
                                   style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 70, color: '#e2e8f0' }}>
@@ -773,7 +773,7 @@ export default function InvoiceManager({ sp, sps }) {
                               </span>
                               {!isExcluded && <button onClick={() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, escludi_magazzino: true } : x))}
                                 title="Escludi dal magazzino"
-                                style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 10, flexShrink: 0 }}></button>}
+                                style={{ background: 'none', border: '1px solid var(--border-md)', color: 'var(--text3)', cursor: 'pointer', fontSize: 11, flexShrink: 0, width: 20, height: 20, borderRadius: 4, lineHeight: 1, padding: 0, fontWeight: 700 }}>×</button>}
                             </div>
                           </td>
                           {/* Nome articolo */}

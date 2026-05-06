@@ -148,9 +148,9 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
             style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
               background: viewMode === 'giorno' ? '#F59E0B' : 'transparent', color: viewMode === 'giorno' ? '#0f1420' : '#94a3b8' }}>Per giorno</button>
         </div>
-        <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
+        <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>‹</button>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
-        <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
+        <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>›</button>
         <button onClick={autoCalcPresenze} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Aggiorna presenze</button>
       </div>
     }>

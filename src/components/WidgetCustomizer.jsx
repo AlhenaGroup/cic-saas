@@ -59,7 +59,7 @@ export default function WidgetCustomizer({ tabKey, widgets, layout, onSave, onCl
           <h3 style={{ margin: 0, fontSize: 16 }}>Personalizza widget</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{visibleCount} di {items.length} visibili · trascina per riordinare</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
       <div style={{ padding: 12 }}>

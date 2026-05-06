@@ -95,9 +95,9 @@ export default function HRCalendar({ employees }) {
   return <>
     <Card title="Calendario" extra={
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <button onClick={prevMonth} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
+        <button onClick={prevMonth} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>‹</button>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 140, textAlign: 'center', textTransform: 'capitalize' }}>{monthLabel}</span>
-        <button onClick={nextMonth} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}></button>
+        <button onClick={nextMonth} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>›</button>
         <button onClick={() => { setShowForm(true); setForm(f => ({ ...f, data_inizio: todayStr, data_fine: todayStr })) }} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>+ Evento</button>
       </div>
     }>

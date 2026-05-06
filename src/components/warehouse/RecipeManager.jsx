@@ -397,7 +397,7 @@ export default function RecipeManager({ sp, sps }) {
                 <td style={{ ...S.td, fontSize: 10, color: '#64748b' }}>{prezzoDisplay}</td>
                 <td style={{ ...S.td, fontWeight: 600, fontSize: 11, color: '#F59E0B' }}>{costo > 0 ? fmtD(Math.round(costo * 10000) / 10000) : '—'}</td>
                 <td style={{ ...S.td }}>
-                  <button onClick={() => removeIngredient(idx)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}></button>
+                  <button onClick={() => removeIngredient(idx)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}>×</button>
                 </td>
               </tr>
             })}

@@ -761,7 +761,7 @@ function Modal({ title, children, onClose, onSave, saveLabel = 'Salva' }) {
     <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', padding: 24, maxWidth: 600, width: '90%', maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow-md)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h3 style={{ margin: 0, fontSize: 16, color: 'var(--text)' }}>{title}</h3>
-        <button onClick={onClose} style={{ ...btnSecondary, padding: '4px 10px' }}></button>
+        <button onClick={onClose} style={{ ...btnSecondary, padding: '4px 10px' }}>×</button>
       </div>
       <div>{children}</div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>

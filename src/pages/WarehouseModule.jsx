@@ -447,7 +447,7 @@ function ArticleEditModal({ article, onClose, onSaved }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>Modifica articolo</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Le modifiche si applicano a tutte le {rows.length} righe fattura di questo articolo</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         {/* Campi modificabili globali */}
@@ -526,7 +526,7 @@ function ArticleEditModal({ article, onClose, onSaved }) {
                         <input type="checkbox" checked={!!r.escludi_magazzino} onChange={() => toggleRowExclude(r)} style={{ cursor: 'pointer' }} />
                       </td>
                       <td style={S.td}>
-                        <button onClick={() => deleteRow(r.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}></button>
+                        <button onClick={() => deleteRow(r.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>×</button>
                       </td>
                     </tr>
                   })}

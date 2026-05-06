@@ -1726,7 +1726,7 @@ function CreaSchedaForm({ pin, locale, allArticles, onCreated, onCreatedSemilavo
               style={{ padding: '8px 4px', fontSize: 11, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}>
               {['','KG','GR','LT','ML','CL','PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
             </select>
-            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}></button>
+            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}>×</button>
           </div>
           {ing.nome_articolo?.trim() && !allArticles.find(a => a.nome.toLowerCase().trim() === ing.nome_articolo.toLowerCase().trim()) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, color: '#F59E0B' }}>
@@ -1888,7 +1888,7 @@ function CreaSemilavoratoInline({ pin, locale, preset, allArticles, onCreated, o
               style={{ padding: 8, fontSize: 10, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' }}>
               {['','KG','GR','LT','ML','PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
             </select>
-            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}></button>
+            <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}>×</button>
           </div>
         ))}
         <button onClick={addIng} style={{ width: '100%', padding: 6, background: 'transparent', border: '1px dashed var(--border)', color: '#3B82F6', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>+ Aggiungi</button>

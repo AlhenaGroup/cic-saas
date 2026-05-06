@@ -123,7 +123,7 @@ export default function ChecklistManager({ sp, sps }) {
                     {respCounts[cl.id] || 0}
                   </button>
                   <button onClick={() => duplicate(cl)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}>Duplica</button>
-                  <button onClick={() => remove(cl)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}></button>
+                  <button onClick={() => remove(cl)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>×</button>
                 </td>
               </tr>
             })}
@@ -176,7 +176,7 @@ function ResponsesViewer({ checklist, onClose }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>Risposte: {checklist.nome}</h3>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{checklist.locale} · {checklist.reparto} · {checklist.momento}</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         {loading ? (
@@ -313,7 +313,7 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
     <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720 }}>
       <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>{isNew ? 'Nuova checklist' : 'Modifica: ' + c.nome}</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
@@ -399,8 +399,8 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
                   ⋮⋮
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <button onClick={() => moveItem(it.id, -1)} disabled={i === 0} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === 0 ? 'not-allowed' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}></button>
-                  <button onClick={() => moveItem(it.id, +1)} disabled={i === c.items.length - 1} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === c.items.length - 1 ? 'not-allowed' : 'pointer', opacity: i === c.items.length - 1 ? 0.3 : 1 }}></button>
+                  <button onClick={() => moveItem(it.id, -1)} disabled={i === 0} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === 0 ? 'not-allowed' : 'pointer', opacity: i === 0 ? 0.3 : 1 }}>↑</button>
+                  <button onClick={() => moveItem(it.id, +1)} disabled={i === c.items.length - 1} style={{ ...iS, padding: '2px 6px', fontSize: 10, cursor: i === c.items.length - 1 ? 'not-allowed' : 'pointer', opacity: i === c.items.length - 1 ? 0.3 : 1 }}>↓</button>
                 </div>
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 6 }}>
                   <input value={it.label} onChange={e => updateItem(it.id, { label: e.target.value })} placeholder={`Domanda ${i + 1}`} style={{ ...iS, width: '100%' }} />
@@ -416,7 +416,7 @@ function ChecklistEditor({ checklist, allLocali, onClose, onSaved }) {
                   <input type="checkbox" checked={!!it.required} onChange={e => updateItem(it.id, { required: e.target.checked })} />
                   Obbligatoria
                 </label>
-                <button onClick={() => removeItem(it.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: 4 }}></button>
+                <button onClick={() => removeItem(it.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: 4 }}>×</button>
               </div>
             </div>
           })}

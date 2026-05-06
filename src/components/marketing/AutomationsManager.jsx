@@ -496,7 +496,7 @@ function Modal({ children, onClose, title }) {
     <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 95%)', maxHeight: '85vh', overflowY: 'auto', background: '#1a1f2e', padding: 20, borderRadius: 12, border: '1px solid #2a3042' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
         <h3 style={{ margin: 0, fontSize: 16, flex: 1 }}>{title}</h3>
-        <button onClick={onClose} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}></button>
+        <button onClick={onClose} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>×</button>
       </div>
       {children}
     </div>

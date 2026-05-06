@@ -392,7 +392,7 @@ function Modal({ title, subtitle, maxWidth = 560, onClose, children }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>{title}</h3>
           {subtitle && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>}
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>{children}</div>
     </div>

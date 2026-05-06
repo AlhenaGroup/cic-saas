@@ -327,7 +327,7 @@ function InventoryDetail({ inventory, onClose, onChange }) {
                     if (!confirm(`Eliminare "${it.nome_articolo}" dall'inventario?`)) return
                     await supabase.from('warehouse_inventory_items').delete().eq('id', it.id)
                     load()
-                  }} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}></button>}
+                  }} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>×</button>}
                 </td>
               </tr>
             })}
@@ -467,7 +467,7 @@ function Modal({ title, subtitle, maxWidth = 560, onClose, children }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>{title}</h3>
           {subtitle && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>}
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}></button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>{children}</div>
     </div>

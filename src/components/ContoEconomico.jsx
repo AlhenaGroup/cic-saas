@@ -247,10 +247,10 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <button onClick={() => setSelectedYear(y => y - 1)}
-          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}></button>
+          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>‹</button>
         <span style={{ fontSize: 14, fontWeight: 700, color: '#F59E0B', minWidth: 50, textAlign: 'center' }}>{selectedYear}</span>
         <button onClick={() => setSelectedYear(y => y + 1)}
-          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}></button>
+          style={{ ...iS, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>›</button>
       </div>
       <div className="ce-month-picker" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flex: 1 }}>
         {MESI.map((m, i) => {
