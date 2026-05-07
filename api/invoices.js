@@ -39,13 +39,15 @@ const TS_APP_VERSION = '1.0.0'
 
 // OwnerId per TS Digital. Possono essere CF persona fisica o P.IVA azienda.
 // Configurabili via env TS_OWNERS_JSON (array JSON di {cf, name}); fallback su questi.
+// NOTA: su TS Digital l'azienda "Fiorio Pinerolo 1780 di Fusca Simone" e' registrata
+// con il CF del proprietario (Simone Fusca), non con la P.IVA 12266890016. Quando
+// la P.IVA Alhena verra' registrata su TS Digital aggiungerla via TS_OWNERS_JSON.
 const TS_OWNERS = (() => {
   try {
     if (process.env.TS_OWNERS_JSON) return JSON.parse(process.env.TS_OWNERS_JSON)
   } catch {}
   return [
-    { cf: '12266890016', name: 'ALHENA GROUP' }, // P.IVA azienda — primario
-    { cf: 'FSCSMN98H12G674S', name: 'BIANCOLATTE' }, // CF Simone Fusca — fallback
+    { cf: 'FSCSMN98H12G674S', name: 'BIANCOLATTE' }, // CF Simone Fusca — owner attivo
   ]
 })()
 
