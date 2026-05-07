@@ -84,8 +84,20 @@ export default function RecipeManager({ sp, sps }) {
     setCicProducts(prods)
 
     // 2. Articoli acquistati con prezzi
-    const { data: items } = await supabase.from('warehouse_invoice_items')
-      .select('nome_articolo, unita, quantita, qty_singola, prezzo_totale, totale_um, escludi_magazzino')
+    // Pagina warehouse_invoice_items per superare il limite di 1000 di Supabase
+    // (oggi ~1374 righe; senza pagina si perdevano alcuni articoli come "Sale").
+    const items = []
+    {
+      const PAGE = 1000
+      for (let from = 0; ; from += PAGE) {
+        const { data } = await supabase.from('warehouse_invoice_items')
+          .select('nome_articolo, unita, quantita, qty_singola, prezzo_totale, totale_um, escludi_magazzino')
+          .range(from, from + PAGE - 1)
+        if (!data || data.length === 0) break
+        items.push(...data)
+        if (data.length < PAGE) break
+      }
+    }
     const artMap = {}
     ;(items || []).forEach(it => {
       if (it.escludi_magazzino || !it.nome_articolo) return

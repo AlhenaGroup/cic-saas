@@ -49,9 +49,25 @@ export default function ManualArticlesManager({ sp, sps }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: rows }, { data: items }] = await Promise.all([
+    // Pagina warehouse_invoice_items per superare il limite di 1000 di Supabase
+    // (oggi ~1374 righe; senza pagina si perdevano alcuni articoli come "Sale").
+    const fetchAllItems = async () => {
+      const all = []
+      const PAGE = 1000
+      for (let from = 0; ; from += PAGE) {
+        const { data } = await supabase.from('warehouse_invoice_items')
+          .select('nome_articolo,unita,quantita,qty_singola,totale_um,prezzo_totale,escludi_magazzino')
+          .not('nome_articolo', 'is', null)
+          .range(from, from + PAGE - 1)
+        if (!data || data.length === 0) break
+        all.push(...data)
+        if (data.length < PAGE) break
+      }
+      return all
+    }
+    const [{ data: rows }, items] = await Promise.all([
       supabase.from('manual_articles').select('*').order('nome'),
-      supabase.from('warehouse_invoice_items').select('nome_articolo,unita,quantita,qty_singola,totale_um,prezzo_totale,escludi_magazzino').not('nome_articolo', 'is', null),
+      fetchAllItems(),
     ])
     setList(rows || [])
     const priceMap = buildArticlesPriceMap(items || [])
