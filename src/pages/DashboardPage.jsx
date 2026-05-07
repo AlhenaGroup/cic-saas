@@ -486,6 +486,34 @@ export default function DashboardPage({ settings }) {
     </>
   }
 
+  // Caso staff senza alcun modulo accessibile: mostra schermata informativa,
+  // non renderizzare il contenuto di un tab non autorizzato (default 'ov').
+  if (staffPerms && TABS.length === 0) {
+    return <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,background:'var(--bg)',color:'var(--text)',fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+      <div style={{maxWidth:480,textAlign:'center'}}>
+        <h2 style={{fontSize:18,fontWeight:600,marginBottom:8}}>Nessun modulo accessibile</h2>
+        <p style={{fontSize:14,color:'var(--text2)',lineHeight:1.6,marginBottom:24}}>
+          Il tuo datore di lavoro non ti ha ancora assegnato accessi alla dashboard.
+          Contattalo per configurare i permessi.
+        </p>
+        <button onClick={() => supabase.auth.signOut()}
+          style={{background:'var(--surface)',border:'1px solid var(--border)',color:'var(--text)',padding:'8px 18px',borderRadius:6,cursor:'pointer',fontSize:13}}>
+          Esci
+        </button>
+      </div>
+    </div>
+  }
+
+  // Se sono uno staff E il tab corrente non e' nei TABS autorizzati,
+  // mostra uno spinner: l'useEffect aggiornera' tab al prossimo tick.
+  // Cosi' evito di renderizzare un tab non autorizzato (es. 'ov' di default).
+  if (staffPerms && TABS.length > 0 && !ALLOWED_TAB_KEYS.has(tab)) {
+    return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
+      <div style={{width:28,height:28,borderRadius:'50%',border:'2px solid var(--border-md)',borderTopColor:'var(--blue)',animation:'spin .7s linear infinite'}}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  }
+
   return <StaffPermsProvider value={staffPerms}><div style={{minHeight:'100vh',background:'var(--bg)',fontFamily:"'DM Sans',system-ui,sans-serif",color:'var(--text)'}}>
     <style>{`
       @keyframes spin{to{transform:rotate(360deg)}}

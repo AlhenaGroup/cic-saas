@@ -109,10 +109,31 @@ function resolvePerm(perms, modKey) {
   return null
 }
 
+// Per il livello TOP (es. "mag"): se non trovo la chiave esatta, controllo se
+// esiste almeno una sottochiave "mag.X" con valore non null. Cosi' il modulo
+// appare nella nav anche se sono stati abilitati solo alcuni sub-tab.
+// Ritorna il "miglior" valore tra le sottochiavi (rw vince su r) per gestire writeNeeded.
+function bestSubPerm(perms, topKey) {
+  if (!perms) return null
+  const prefix = topKey + '.'
+  let best = null // null < 'r' < 'rw'
+  for (const k of Object.keys(perms)) {
+    if (!k.startsWith(prefix)) continue
+    const v = perms[k]
+    if (v === 'rw') return 'rw'
+    if (v === 'r' && best == null) best = 'r'
+  }
+  return best
+}
+
 // Ritorna true se `perms` permette l'accesso al `modKey` (es. "mag" o "mag.ricette").
 // `needWrite=true` richiede "rw"; default false richiede almeno "r".
 export function canAccess(perms, modKey, needWrite = false) {
-  const v = resolvePerm(perms, modKey)
+  let v = resolvePerm(perms, modKey)
+  // Se chiave top-level e non trovo valore, controllo se almeno un sub-tab e' abilitato
+  if (v == null && !modKey.includes('.')) {
+    v = bestSubPerm(perms, modKey)
+  }
   if (v == null) return false
   if (needWrite) return v === 'rw'
   return v === 'r' || v === 'rw'
