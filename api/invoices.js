@@ -37,11 +37,17 @@ const TS_SECRET = process.env.TS_DIGITAL_SECRET || 'e4de10bd-04d5-4bfd-b91a-0a69
 const TS_APP_NAME = 'CICAnalytics'
 const TS_APP_VERSION = '1.0.0'
 
-// Codici fiscali delle aziende (ownerId per TS Digital)
-const TS_OWNERS = [
-  { cf: 'FSCSMN98H12G674S', name: 'BIANCOLATTE' },
-  // Aggiungi qui altri CF per REMEMBEER / CASA DE AMICIS se diversi
-]
+// OwnerId per TS Digital. Possono essere CF persona fisica o P.IVA azienda.
+// Configurabili via env TS_OWNERS_JSON (array JSON di {cf, name}); fallback su questi.
+const TS_OWNERS = (() => {
+  try {
+    if (process.env.TS_OWNERS_JSON) return JSON.parse(process.env.TS_OWNERS_JSON)
+  } catch {}
+  return [
+    { cf: '12266890016', name: 'ALHENA GROUP' }, // P.IVA azienda — primario
+    { cf: 'FSCSMN98H12G674S', name: 'BIANCOLATTE' }, // CF Simone Fusca — fallback
+  ]
+})()
 
 // ─── TS Digital Auth ───────────────────────────────────────────────────────
 function uuid() { return crypto.randomUUID() }
@@ -66,23 +72,31 @@ const TOKEN_TTL = 3600000 // 1h
 async function getTsToken() {
   if (_tsToken && Date.now() - _tsTokenTime < TOKEN_TTL) return _tsToken
   // Step 1: nonce
-  const nonceRes = await fetch(`${TS_AUTH_BASE}/api/v3/nonces`, {
+  const nonceUrl = `${TS_AUTH_BASE}/api/v3/nonces`
+  const nonceRes = await fetch(nonceUrl, {
     method: 'POST',
     headers: tsHeaders(),
     body: JSON.stringify({ id: TS_ID }),
   })
-  if (!nonceRes.ok) throw new Error('TS nonce failed: ' + nonceRes.status)
+  if (!nonceRes.ok) {
+    const body = await nonceRes.text().catch(() => '')
+    throw new Error(`TS auth/nonce ${nonceRes.status} (${nonceUrl}): ${body.slice(0, 200) || '(empty)'}`)
+  }
   const { nonce } = await nonceRes.json()
   // Step 2: digest = sha256(sha256(id+secret) + nonce)
   const inner = sha256(TS_ID + TS_SECRET)
   const digest = sha256(inner + nonce)
   // Step 3: token
-  const tokenRes = await fetch(`${TS_AUTH_BASE}/api/v3/tokens`, {
+  const tokenUrl = `${TS_AUTH_BASE}/api/v3/tokens`
+  const tokenRes = await fetch(tokenUrl, {
     method: 'POST',
     headers: tsHeaders(),
     body: JSON.stringify({ id: TS_ID, digest }),
   })
-  if (!tokenRes.ok) throw new Error('TS token failed: ' + tokenRes.status)
+  if (!tokenRes.ok) {
+    const body = await tokenRes.text().catch(() => '')
+    throw new Error(`TS auth/token ${tokenRes.status} (${tokenUrl}): ${body.slice(0, 200) || '(empty)'}`)
+  }
   const { accessToken } = await tokenRes.json()
   _tsToken = accessToken
   _tsTokenTime = Date.now()
@@ -98,17 +112,37 @@ async function tsListInvoices(token, ownerId, { active = false, from, continuati
     headers: { ...tsHeaders(ownerId), Authorization: `Bearer ${token}` },
   })
   if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`TS list ${res.status}: ${body.slice(0, 300)}`)
+    const body = await res.text().catch(() => '')
+    const ownerName = TS_OWNERS.find(o => o.cf === ownerId)?.name || ownerId
+    throw new Error(`TS list ${res.status} (owner=${ownerName} cf=${ownerId}): ${body.slice(0, 300) || '(empty body)'}`)
   }
   return res.json()
+}
+
+// Versione "fallback": prova ogni owner finche' uno risponde 200.
+// Utile quando non sappiamo a priori se il CF/P.IVA registrato e' quello dell'azienda
+// o del proprietario. Ritorna { resp, owner } del primo che funziona.
+async function tsListInvoicesFallback(token, opts) {
+  const errs = []
+  for (const o of TS_OWNERS) {
+    try {
+      const resp = await tsListInvoices(token, o.cf, opts)
+      return { resp, owner: o }
+    } catch (e) {
+      errs.push(`${o.name} (${o.cf}): ${e.message}`)
+    }
+  }
+  throw new Error('Nessun owner TS Digital ha risposto 200. Tentativi:\n' + errs.join('\n'))
 }
 
 async function tsDownloadInvoice(token, ownerId, hubId, format = 'XML') {
   const res = await fetch(`${TS_API_BASE}/api/v2/invoices/${hubId}/download?format=${format}`, {
     headers: { ...tsHeaders(ownerId), Authorization: `Bearer ${token}` },
   })
-  if (!res.ok) throw new Error(`TS download ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`TS download ${res.status} (hubId=${hubId}): ${body.slice(0, 200)}`)
+  }
   return res.text()
 }
 
@@ -148,17 +182,28 @@ export default async function handler(req, res) {
       case 'ts-list': {
         const { from, continuationToken: ct, ownerId: explicitOwner } = req.body
         const token = await getTsToken()
-        const owner = explicitOwner || TS_OWNERS[0]?.cf
-        const ownerName = TS_OWNERS.find(o => o.cf === owner)?.name || owner
-        const resp = await tsListInvoices(token, owner, { from, continuationToken: ct })
+        let resp, owner, ownerName
+        if (explicitOwner) {
+          // Owner specifico richiesto: usa quello, non fallback
+          resp = await tsListInvoices(token, explicitOwner, { from, continuationToken: ct })
+          owner = explicitOwner
+          ownerName = TS_OWNERS.find(o => o.cf === explicitOwner)?.name || explicitOwner
+        } else {
+          // Prova ogni owner configurato finche' uno risponde 200
+          const out = await tsListInvoicesFallback(token, { from, continuationToken: ct })
+          resp = out.resp
+          owner = out.owner.cf
+          ownerName = out.owner.name
+        }
         const invoices = resp._embedded?.invoiceList || []
-        invoices.forEach(inv => { inv._locale = ownerName })
+        invoices.forEach(inv => { inv._locale = ownerName; inv.ownerId = owner })
         return res.status(200).json({
           invoices,
           hasNext: resp.page?.hasNext || false,
           continuationToken: resp.page?.continuationToken || null,
           total: invoices.length,
           source: 'ts-digital',
+          owner: { cf: owner, name: ownerName },
         })
       }
 
