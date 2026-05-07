@@ -64,9 +64,30 @@ export default function App() {
     if (lastFetchedUserId.current === session.user.id) return
     lastFetchedUserId.current = session.user.id
     setLoadingSettings(true)
-    supabase.from('user_settings').select('*').eq('user_id', session.user.id).single()
-      .then(({ data }) => { setSettings(data); setLoadingSettings(false) })
-      .catch(() => { setSettings(null); setLoadingSettings(false) })
+    ;(async () => {
+      try {
+        // Per uno staff: leggi user_settings dell'OWNER (employees.user_id),
+        // non quelle dello staff stesso (che non esistono).
+        const isStaff = session.user.user_metadata?.staff === true
+        let ownerUserId = session.user.id
+        if (isStaff) {
+          const { data: emp } = await supabase
+            .from('employees')
+            .select('user_id')
+            .eq('auth_user_id', session.user.id)
+            .eq('stato', 'Attivo')
+            .maybeSingle()
+          if (emp?.user_id) ownerUserId = emp.user_id
+        }
+        const { data } = await supabase
+          .from('user_settings')
+          .select('*')
+          .eq('user_id', ownerUserId)
+          .maybeSingle()
+        setSettings(data)
+      } catch { setSettings(null) }
+      finally { setLoadingSettings(false) }
+    })()
   }, [session])
 
   const Spinner = () => (
