@@ -9,6 +9,7 @@ import { S, Card } from './shared/styles.jsx'
 import SubTabsBar from './SubTabsBar'
 import DailyReportSettings from './DailyReportSettings'
 import TeamAccess from './impostazioni/TeamAccess'
+import ActivityLog from './impostazioni/ActivityLog'
 import { useStaffPerms, canAccess } from '../lib/permissions'
 
 const iS = S.input
@@ -18,8 +19,9 @@ const ALL_TABS = [
   { key: 'integrazioni', label: 'Integrazioni' },
   { key: 'notifiche',    label: 'Notifiche' },
   { key: 'account',      label: 'Account' },
-  // 'team' e' visibile solo all'owner (no key in permissions)
+  // 'team' e 'audit' sono visibili solo all'owner (no key in permissions)
   { key: 'team',         label: 'Team / Accessi', ownerOnly: true },
+  { key: 'audit',        label: 'Attività',       ownerOnly: true },
 ]
 
 export default function ImpostazioniModule({ settings, sps }) {
@@ -40,6 +42,7 @@ export default function ImpostazioniModule({ settings, sps }) {
     {tab === 'notifiche'    && <NotificheTab />}
     {tab === 'account'      && <AccountTab />}
     {tab === 'team'         && <TeamAccess sps={sps} />}
+    {tab === 'audit'        && <ActivityLog />}
   </div>
 }
 
