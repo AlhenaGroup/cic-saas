@@ -246,9 +246,11 @@ export default function RecipeManager({ sp, sps }) {
   }
 
   // Aggiungi ingrediente "libero" (es. "Acqua potabile") — costo 0 €/UM, UM PZ default
+  // Flag `gratis: true` segna l'ingrediente come gratuito intenzionale: non
+  // verra' conteggiato come "mancante prezzo".
   const addFreeIngredient = (nome) => {
     if (!selected || !nome.trim()) return
-    const newIngr = [...ingredienti, { nome_articolo: nome.trim(), quantita: 0, unita: 'PZ' }]
+    const newIngr = [...ingredienti, { nome_articolo: nome.trim(), quantita: 0, unita: 'PZ', gratis: true }]
     saveRecipe(selected.name, newIngr)
     setIngredientSearch('')
   }
@@ -394,6 +396,7 @@ export default function RecipeManager({ sp, sps }) {
               } catch { prezzoDisplay = '—' }
               return <tr key={idx} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 500, fontSize: 12 }}>
+                  {ig.gratis && <span title="Articolo gratuito (costo 0)" style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(59,130,246,.15)', color: '#3B82F6', letterSpacing: '.04em', marginRight: 6 }}>GRATIS</span>}
                   {isManual && <span style={{ marginRight: 4, fontSize: 10 }} title="Semilavorato (sub-ricetta)"></span>}
                   {ig.nome_articolo}
                 </td>

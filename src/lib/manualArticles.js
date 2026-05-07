@@ -49,12 +49,15 @@ export function unitCostOf(nome, articlesPriceByName, manualByName, depth = 0, p
 }
 
 // Costo di un manual_article completo: somma ingredienti / resa
+// Gli ingredienti con `gratis: true` sono articoli a costo 0 intenzionale
+// (es. acqua potabile) e non vengono conteggiati come "missing".
 export function costOfManualArticle(art, articlesPriceByName, manualByName, depth = 0, placeholdersByName = null) {
   const resa = Number(art.resa) || 1
   let totalCost = 0
   const missing = []
   let stimaCount = 0
   for (const ingr of (art.ingredienti || [])) {
+    if (ingr.gratis) continue // articolo gratuito intenzionale: costo 0, no missing
     const base = toBaseUnit(ingr.quantita, ingr.unita)
     const r = unitCostOf(ingr.nome_articolo, articlesPriceByName, manualByName, depth + 1, placeholdersByName)
     if (r.missing && r.missing.length) missing.push(...r.missing)

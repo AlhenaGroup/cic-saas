@@ -176,6 +176,7 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
   const [saving, setSaving] = useState(false)
 
   const addIngr = () => setIngr(prev => [...prev, { nome_articolo: '', quantita: '', unita: 'KG' }])
+  const addGratisIngr = () => setIngr(prev => [...prev, { nome_articolo: '', quantita: '', unita: 'PZ', gratis: true }])
   const removeIngr = (i) => setIngr(prev => prev.filter((_, idx) => idx !== i))
   const updateIngr = (i, key, val) => setIngr(prev => prev.map((it, idx) => idx === i ? { ...it, [key]: val } : it))
 
@@ -193,7 +194,11 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
     if (!user) { alert('Sessione scaduta'); setSaving(false); return }
     const ingPulito = ingr
       .filter(i => i.nome_articolo && Number(i.quantita) > 0)
-      .map(i => ({ nome_articolo: i.nome_articolo.trim(), quantita: Number(i.quantita), unita: i.unita || 'KG' }))
+      .map(i => {
+        const out = { nome_articolo: i.nome_articolo.trim(), quantita: Number(i.quantita), unita: i.unita || 'KG' }
+        if (i.gratis) out.gratis = true
+        return out
+      })
     const payload = {
       user_id: user.id,
       nome: nome.trim(),
@@ -244,11 +249,14 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
             Ingredienti ({ingr.length})
           </div>
           {ingr.map((it, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 32px', gap: 6, marginBottom: 6 }}>
-              <input list="manual-ing-list" value={it.nome_articolo}
-                onChange={e => updateIngr(i, 'nome_articolo', e.target.value)}
-                placeholder="Articolo o altro semilavorato..."
-                style={{ ...iS, fontSize: 12 }} />
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 32px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {it.gratis && <span title="Articolo gratuito (costo 0, non conteggiato come mancante)" style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3, background: 'rgba(59,130,246,.15)', color: '#3B82F6', letterSpacing: '.04em', flexShrink: 0 }}>GRATIS</span>}
+                <input list={it.gratis ? undefined : 'manual-ing-list'} value={it.nome_articolo}
+                  onChange={e => updateIngr(i, 'nome_articolo', e.target.value)}
+                  placeholder={it.gratis ? 'Es. Acqua potabile' : 'Articolo o altro semilavorato...'}
+                  style={{ ...iS, fontSize: 12, flex: 1, minWidth: 0 }} />
+              </div>
               <input type="number" step="0.001" value={it.quantita}
                 onChange={e => updateIngr(i, 'quantita', e.target.value)}
                 placeholder="Qty"
@@ -264,6 +272,10 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
           </datalist>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <button onClick={addIngr} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ Ingrediente</button>
+            <button onClick={addGratisIngr} title="Aggiungi un articolo a costo 0 (es. acqua potabile) — non viene conteggiato come ingrediente mancante"
+              style={{ ...iS, background: 'transparent', color: '#3B82F6', border: '1px solid #3B82F6', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              + Articolo gratuito
+            </button>
           </div>
         </div>
 
