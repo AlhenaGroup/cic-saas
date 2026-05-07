@@ -21,6 +21,7 @@ import MarketingModule from './MarketingModule'
 import ReceiptDetailModal from '../components/ReceiptDetailModal'
 import AvvisiModule from '../components/AvvisiModule'
 import { useUserPlan } from '../lib/features'
+import { canAccess, isStaffSession, loadStaffEmployee, StaffPermsProvider } from '../lib/permissions'
 
 // ─── Preset periodo globali (validi per tutti i moduli) ────────────────────
 const _ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
@@ -342,14 +343,31 @@ export default function DashboardPage({ settings }) {
   const [contaSubTab, setContaSubTab] = useState('fatture')
   // Filtra in base al piano dell'utente (feature flag tab.X)
   const { features: planFeatures } = useUserPlan()
-  const TABS = planFeatures ? ALL_TABS.filter(([k]) => planFeatures.tabs.has(k)) : ALL_TABS
+  // Sessione corrente: se staff, carica permessi dal record employees
+  const [staffEmployee, setStaffEmployee] = useState(null)
+  const [staffLoaded, setStaffLoaded] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!isStaffSession(session)) { setStaffEmployee(null); setStaffLoaded(true); return }
+      const emp = await loadStaffEmployee(supabase)
+      if (!cancelled) { setStaffEmployee(emp); setStaffLoaded(true) }
+    })()
+    return () => { cancelled = true }
+  }, [])
+  const staffPerms = staffEmployee?.module_permissions || null
+  // Filtraggio: prima planFeatures (owner+staff), poi staffPerms (solo staff)
+  let TABS = planFeatures ? ALL_TABS.filter(([k]) => planFeatures.tabs.has(k)) : ALL_TABS
+  if (staffPerms) TABS = TABS.filter(([k]) => canAccess(staffPerms, k, false))
   // Tab autorizzati: top-level visibili + hidden routes raggiungibili dai sub-tabs
   const ALLOWED_TAB_KEYS = new Set([...TABS.map(([k]) => k), ...HIDDEN_TABS])
   // Se l'utente sta su un tab non piu' autorizzato (ne' visibile ne' hidden route), riporta al primo
   useEffect(() => {
     if (!planFeatures) return
+    if (staffEmployee && !staffLoaded) return // attendi caricamento staff perms
     if (TABS.length > 0 && !ALLOWED_TAB_KEYS.has(tab)) setTab(TABS[0][0])
-  }, [planFeatures, tab, TABS])
+  }, [planFeatures, tab, TABS, staffEmployee, staffLoaded])
 
   // Render del blocco Produttivita' come funzione che ritorna JSX. Viene passato a
   // HRModule come prop renderProduttivita; HRModule lo invoca quando l'utente
@@ -468,7 +486,7 @@ export default function DashboardPage({ settings }) {
     </>
   }
 
-  return <div style={{minHeight:'100vh',background:'var(--bg)',fontFamily:"'DM Sans',system-ui,sans-serif",color:'var(--text)'}}>
+  return <StaffPermsProvider value={staffPerms}><div style={{minHeight:'100vh',background:'var(--bg)',fontFamily:"'DM Sans',system-ui,sans-serif",color:'var(--text)'}}>
     <style>{`
       @keyframes spin{to{transform:rotate(360deg)}}
       tr:hover td{background:var(--surface2)}
@@ -685,7 +703,7 @@ export default function DashboardPage({ settings }) {
             { key: 'scontrini', label: 'Scontrini' },
             { key: 'cat',       label: 'Categorie' },
             { key: 'rep',       label: 'Reparti' },
-          ]}
+          ].filter(t => !staffPerms || canAccess(staffPerms, 'vendite.' + t.key, false))}
           value={vendSubTab}
           onChange={setVendSubTab}
         />
@@ -764,7 +782,7 @@ export default function DashboardPage({ settings }) {
             { key: 'fatture',   label: 'Fatture' },
             { key: 'iva',       label: 'IVA' },
             { key: 'chiusure',  label: 'Chiusure & Versamenti' },
-          ]}
+          ].filter(t => !staffPerms || canAccess(staffPerms, 'conta.' + t.key, false))}
           value={tab==='ce' ? 'ce' : tab==='bud' ? 'bud' : contaSubTab}
           onChange={(v) => {
             if (v === 'ce') { setTab('ce'); return }
@@ -1311,5 +1329,5 @@ export default function DashboardPage({ settings }) {
 
     {showDailyReport && <DailyReportSettings onClose={()=>setShowDailyReport(false)}/>}
     {openReceipt && <ReceiptDetailModal receipt={openReceipt} onClose={()=>setOpenReceipt(null)}/>}
-  </div>
+  </div></StaffPermsProvider>
 }

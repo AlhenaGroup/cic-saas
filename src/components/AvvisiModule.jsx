@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { S, Card } from './shared/styles.jsx'
 import SubTabsBar from './SubTabsBar'
+import { useStaffPerms, canAccess } from '../lib/permissions'
 
 const iS = S.input
 
@@ -106,14 +107,19 @@ const LIVELLI = {
   critical: { l: 'Critico',  color: '#EF4444', bg: 'rgba(239,68,68,.12)' },
 }
 
-const SUB_TABS = [
+const ALL_SUB_TABS = [
   { key: 'feed',       label: 'Feed avvisi' },
   { key: 'config',     label: 'Configurazione regole' },
 ]
 
 export default function AvvisiModule() {
-  // NON persistito: rientro parte dal primo sub-tab (Feed)
-  const [tab, setTab] = useState('feed')
+  const staffPerms = useStaffPerms()
+  const SUB_TABS = staffPerms ? ALL_SUB_TABS.filter(t => canAccess(staffPerms, 'avvisi.' + t.key, false)) : ALL_SUB_TABS
+  // NON persistito: rientro parte dal primo sub-tab disponibile
+  const [tab, setTab] = useState(SUB_TABS[0]?.key || 'feed')
+  useEffect(() => {
+    if (SUB_TABS.length > 0 && !SUB_TABS.some(t => t.key === tab)) setTab(SUB_TABS[0].key)
+  }, [SUB_TABS, tab])
 
   return <div>
     <SubTabsBar tabs={SUB_TABS} value={tab} onChange={setTab} />

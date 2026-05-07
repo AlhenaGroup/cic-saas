@@ -14,7 +14,9 @@ import PriceAnalysis from '../components/warehouse/PriceAnalysis'
 import ManualArticlesManager from '../components/warehouse/ManualArticlesManager'
 import ProductionManager from '../components/warehouse/ProductionManager'
 
-const TABS = [
+import { useStaffPerms, canAccess } from '../lib/permissions'
+
+const ALL_TABS = [
   { key: 'cruscotto',     label: 'Cruscotto',     icon: '' },
   { key: 'fatture',       label: 'Fatture',       icon: '' },
   { key: 'prodotti',      label: 'Prodotti',      icon: '' },
@@ -30,8 +32,13 @@ const TABS = [
 ]
 
 export default function WarehouseModule({ sp, sps, from, to }) {
-  // NON persistito: rientro parte dal primo sub-tab (Cruscotto)
-  const [tab, setTab] = useState('cruscotto')
+  const staffPerms = useStaffPerms()
+  const TABS = staffPerms ? ALL_TABS.filter(t => canAccess(staffPerms, 'mag.' + t.key, false)) : ALL_TABS
+  // NON persistito: rientro parte dal primo sub-tab disponibile
+  const [tab, setTab] = useState(TABS[0]?.key || 'cruscotto')
+  useEffect(() => {
+    if (TABS.length > 0 && !TABS.some(t => t.key === tab)) setTab(TABS[0].key)
+  }, [TABS, tab])
 
   const tabStyle = (active) => ({
     padding: '8px 14px', fontSize: 12, fontWeight: 500,

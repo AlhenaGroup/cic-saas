@@ -903,7 +903,7 @@ export default function AdminPage() {
 
   return <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'DM Sans',system-ui,sans-serif" }}>
     <div style={{ background: 'var(--surface2)', borderBottom: '1px solid #1e2636', padding: '0 1.5rem', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
-      <span style={{ fontSize: 15, fontWeight: 700 }}>Admin · CIC SaaS</span>
+      <span style={{ fontSize: 15, fontWeight: 700 }}>Admin · Convivia</span>
       <a href="/" style={{ marginLeft: 'auto', color: 'var(--text2)', fontSize: 12 }}>Torna alla dashboard</a>
       <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/')} style={{ ...iS, color: 'var(--text3)', border: '1px solid var(--border)', padding: '6px 12px', cursor: 'pointer' }}>Esci</button>
     </div>

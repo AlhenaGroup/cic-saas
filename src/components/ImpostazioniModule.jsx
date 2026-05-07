@@ -8,19 +8,30 @@ import { supabase } from '../lib/supabase'
 import { S, Card } from './shared/styles.jsx'
 import SubTabsBar from './SubTabsBar'
 import DailyReportSettings from './DailyReportSettings'
+import TeamAccess from './impostazioni/TeamAccess'
+import { useStaffPerms, canAccess } from '../lib/permissions'
 
 const iS = S.input
 
-const TABS = [
+const ALL_TABS = [
   { key: 'generale',     label: 'Generale' },
   { key: 'integrazioni', label: 'Integrazioni' },
   { key: 'notifiche',    label: 'Notifiche' },
   { key: 'account',      label: 'Account' },
+  // 'team' e' visibile solo all'owner (no key in permissions)
+  { key: 'team',         label: 'Team / Accessi', ownerOnly: true },
 ]
 
 export default function ImpostazioniModule({ settings, sps }) {
-  // NON persistito: rientro parte dal primo sub-tab (Generale)
-  const [tab, setTab] = useState('generale')
+  const staffPerms = useStaffPerms()
+  const TABS = staffPerms
+    ? ALL_TABS.filter(t => !t.ownerOnly && canAccess(staffPerms, 'imp.' + t.key, false))
+    : ALL_TABS
+  // NON persistito: rientro parte dal primo sub-tab disponibile
+  const [tab, setTab] = useState(TABS[0]?.key || 'generale')
+  useEffect(() => {
+    if (TABS.length > 0 && !TABS.some(t => t.key === tab)) setTab(TABS[0].key)
+  }, [TABS, tab])
 
   return <div>
     <SubTabsBar tabs={TABS} value={tab} onChange={setTab} />
@@ -28,6 +39,7 @@ export default function ImpostazioniModule({ settings, sps }) {
     {tab === 'integrazioni' && <IntegrazioniTab settings={settings} />}
     {tab === 'notifiche'    && <NotificheTab />}
     {tab === 'account'      && <AccountTab />}
+    {tab === 'team'         && <TeamAccess sps={sps} />}
   </div>
 }
 

@@ -12,8 +12,9 @@ import CampaignsManager from '../components/marketing/CampaignsManager'
 import ReviewsManager from '../components/marketing/ReviewsManager'
 import AutomationsManager from '../components/marketing/AutomationsManager'
 import SurveysManager from '../components/marketing/SurveysManager'
+import { useStaffPerms, canAccess } from '../lib/permissions'
 
-const SUBTABS = [
+const ALL_SUBTABS = [
   { key: 'prenotaz',   label: 'Prenotazioni' },
   { key: 'clienti',    label: 'Clienti' },
   { key: 'automazioni', label: 'Automazioni' },
@@ -26,8 +27,13 @@ const SUBTABS = [
 ]
 
 export default function MarketingModule({ sp, sps }) {
-  // NON persistito: rientro parte dal primo sub-tab (Prenotazioni)
-  const [tab, setTab] = useState('prenotaz')
+  const staffPerms = useStaffPerms()
+  const SUBTABS = staffPerms ? ALL_SUBTABS.filter(t => canAccess(staffPerms, 'mkt.' + t.key, false)) : ALL_SUBTABS
+  // NON persistito: rientro parte dal primo sub-tab disponibile
+  const [tab, setTab] = useState(SUBTABS[0]?.key || 'prenotaz')
+  useEffect(() => {
+    if (SUBTABS.length > 0 && !SUBTABS.some(t => t.key === tab)) setTab(SUBTABS[0].key)
+  }, [SUBTABS, tab])
 
   return <div>
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>

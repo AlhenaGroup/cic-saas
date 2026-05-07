@@ -8,8 +8,9 @@ import AttendanceView from '../components/hr/AttendanceView'
 import ChecklistManager from '../components/hr/ChecklistManager'
 import TaskManager from '../components/hr/TaskManager'
 import SubTabsBar from '../components/SubTabsBar'
+import { useStaffPerms, canAccess } from '../lib/permissions'
 
-const HR_SUB_TABS = [
+const HR_SUB_TABS_ALL = [
   { key: 'prod',       label: 'Produttività' },
   { key: 'dip',        label: 'Dipendenti' },
   { key: 'doc',        label: 'Documenti' },
@@ -21,8 +22,13 @@ const HR_SUB_TABS = [
 ]
 
 export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule, sp, sps, renderProduttivita }) {
-  // NON persistito: rientro parte dal primo sub-tab (Produttivita')
-  const [hrTab, setHrTab] = useState('prod')
+  const staffPerms = useStaffPerms()
+  const HR_SUB_TABS = staffPerms ? HR_SUB_TABS_ALL.filter(t => canAccess(staffPerms, 'hr.' + t.key, false)) : HR_SUB_TABS_ALL
+  // NON persistito: rientro parte dal primo sub-tab disponibile
+  const [hrTab, setHrTab] = useState(HR_SUB_TABS[0]?.key || 'prod')
+  useEffect(() => {
+    if (HR_SUB_TABS.length > 0 && !HR_SUB_TABS.some(t => t.key === hrTab)) setHrTab(HR_SUB_TABS[0].key)
+  }, [HR_SUB_TABS, hrTab])
   const [employees, setEmployees]       = useState([])
   const [empDocs, setEmpDocs]           = useState([])
   const [showEmpForm, setShowEmpForm]   = useState(false)
