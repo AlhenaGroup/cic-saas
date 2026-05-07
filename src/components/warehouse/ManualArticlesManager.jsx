@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, Card, fmtD } from '../shared/styles.jsx'
 import { costOfManualArticle, toBaseUnit } from '../../lib/manualArticles.js'
+import { listPlaceholders, createPlaceholder, normalizeName } from '../../lib/placeholders.js'
+import CreatePlaceholderModal from './CreatePlaceholderModal.jsx'
 
 const iS = S.input
 const UM_OPTS = ['KG', 'LT', 'PZ']
@@ -39,6 +41,9 @@ export default function ManualArticlesManager({ sp, sps }) {
   const [editing, setEditing] = useState(null) // null | 'new' | id
   const [articlesPrice, setArticlesPrice] = useState({})
   const [allArticleNames, setAllArticleNames] = useState([])
+  const [placeholders, setPlaceholders] = useState([])
+  // Stato editor: nome iniziale del placeholder da creare e indice ingrediente di destinazione
+  const [creatingPh, setCreatingPh] = useState(null) // null | { nome, ingrIdx }
 
   const localeName = sp === 'all' ? null : sps?.find(s => String(s.id) === String(sp))?.description || sps?.find(s => String(s.id) === String(sp))?.name || null
 
@@ -51,10 +56,15 @@ export default function ManualArticlesManager({ sp, sps }) {
     setList(rows || [])
     const priceMap = buildArticlesPriceMap(items || [])
     setArticlesPrice(priceMap)
-    // Lista nomi unici per autocomplete
+    // Placeholder articles
+    let phs = []
+    try { phs = await listPlaceholders() } catch {}
+    setPlaceholders(phs)
+    // Lista nomi unici per autocomplete (articoli + semilavorati + placeholder)
     const names = new Set()
     ;(items || []).forEach(it => { if (it.nome_articolo && !it.escludi_magazzino) names.add(it.nome_articolo.trim()) })
     ;(rows || []).forEach(r => names.add(r.nome))
+    ;(phs || []).forEach(p => names.add(p.nome))
     setAllArticleNames([...names].sort((a, b) => a.localeCompare(b)))
     setLoading(false)
   }, [])
@@ -67,6 +77,13 @@ export default function ManualArticlesManager({ sp, sps }) {
   }, [list])
 
   const filtered = localeName ? list.filter(a => !a.locale || a.locale === localeName) : list
+
+  // Mappa placeholder per nome_norm per fallback prezzo nel calcolo costo
+  const placeholdersByName = useMemo(() => {
+    const m = {}
+    ;(placeholders || []).forEach(p => { m[normalizeName(p.nome)] = p })
+    return m
+  }, [placeholders])
 
   const remove = async (id) => {
     if (!confirm('Eliminare questo semilavorato? Le ricette che lo usano avranno food cost = 0 per quell\'ingrediente.')) return
@@ -103,7 +120,7 @@ export default function ManualArticlesManager({ sp, sps }) {
           </tr></thead>
           <tbody>
             {filtered.map(a => {
-              const c = costOfManualArticle(a, articlesPrice, manualByName)
+              const c = costOfManualArticle(a, articlesPrice, manualByName, 0, placeholdersByName)
               return <tr key={a.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 600 }}>
                   {a.nome}
@@ -142,6 +159,9 @@ export default function ManualArticlesManager({ sp, sps }) {
       allArticleNames={allArticleNames}
       articlesPrice={articlesPrice}
       manualByName={manualByName}
+      placeholders={placeholders}
+      placeholdersByName={placeholdersByName}
+      onPlaceholderCreated={(p) => setPlaceholders(prev => prev.some(x => x.id === p.id) ? prev : [...prev, p])}
       sps={sps}
       defaultLocale={localeName}
       onClose={() => setEditing(null)}
@@ -150,7 +170,7 @@ export default function ManualArticlesManager({ sp, sps }) {
   </Card>
 }
 
-function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sps, defaultLocale, onClose, onSaved }) {
+function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, placeholders = [], placeholdersByName = {}, onPlaceholderCreated, sps, defaultLocale, onClose, onSaved }) {
   const [nome, setNome] = useState(article?.nome || '')
   const [unita, setUnita] = useState(article?.unita || 'KG')
   const [resa, setResa] = useState(article?.resa || '1')
@@ -164,10 +184,26 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
   const updateIngr = (i, key, val) => setIngr(prev => prev.map((it, idx) => idx === i ? { ...it, [key]: val } : it))
 
   // Preview costo durante la modifica
+  const [creatingPh, setCreatingPh] = useState(null) // { ingrIdx, nome }
   const preview = (() => {
     const fakeArt = { unita, resa: Number(resa) || 1, ingredienti: ingr.filter(i => i.nome_articolo && Number(i.quantita) > 0) }
-    return costOfManualArticle(fakeArt, articlesPrice, manualByName)
+    return costOfManualArticle(fakeArt, articlesPrice, manualByName, 0, placeholdersByName)
   })()
+
+  const handleCreatePlaceholder = async ({ nome, unita: unitaPh, prezzo_stimato, magazzino }) => {
+    try {
+      const ph = await createPlaceholder({ nome, unita: unitaPh, prezzo_stimato, magazzino })
+      onPlaceholderCreated && onPlaceholderCreated(ph)
+      // Inserisci nell'ingrediente target
+      if (creatingPh && creatingPh.ingrIdx != null) {
+        updateIngr(creatingPh.ingrIdx, 'nome_articolo', ph.nome)
+        updateIngr(creatingPh.ingrIdx, 'unita', ph.unita)
+      }
+      setCreatingPh(null)
+    } catch (e) {
+      alert('Errore creazione placeholder: ' + e.message)
+    }
+  }
 
   const submit = async () => {
     if (!nome.trim()) { alert('Nome obbligatorio'); return }
@@ -246,18 +282,35 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
           <datalist id="manual-ing-list">
             {allArticleNames.map(n => <option key={n} value={n} />)}
           </datalist>
-          <button onClick={addIngr} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ Ingrediente</button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={addIngr} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>+ Ingrediente</button>
+            <button onClick={() => {
+              // Trova il primo ingrediente vuoto, altrimenti aggiungine uno e usa quello
+              let idx = ingr.findIndex(i => !i.nome_articolo)
+              if (idx === -1) { addIngr(); idx = ingr.length }
+              setCreatingPh({ ingrIdx: idx, nome: '' })
+            }} style={{ ...iS, background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              + Articolo in attesa fattura
+            </button>
+          </div>
         </div>
 
         {/* Preview costo */}
         <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
-          <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 4 }}>Anteprima costo</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: preview.missing.length ? '#EF4444' : '#10B981' }}>
+          <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 4 }}>
+            Anteprima costo {preview.stima && <span style={{ color: '#F59E0B' }}>(stima)</span>}
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: preview.missing.length ? '#EF4444' : preview.stima ? '#F59E0B' : '#10B981' }}>
             {preview.perUnit > 0 ? fmtD(preview.perUnit) + '/' + preview.baseUm : '—'}
           </div>
           <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>
             Totale ingredienti: {fmtD(preview.totalCost || 0)} · Resa: {Number(resa || 1).toFixed(3)} {unita}
           </div>
+          {preview.stima && (
+            <div style={{ fontSize: 11, color: '#92400E', marginTop: 4 }}>
+              ≈ Costo stimato — alcuni ingredienti sono in attesa di fattura. Si aggiornerà al primo arrivo.
+            </div>
+          )}
           {preview.missing.length > 0 && <div style={{ fontSize: 11, color: '#EF4444', marginTop: 4 }}>
             Ingredienti senza prezzo: {preview.missing.join(', ')}
           </div>}
@@ -275,6 +328,7 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
         </button>
       </div>
     </div>
+    {creatingPh && <CreatePlaceholderModal initialName={creatingPh.nome} onCancel={() => setCreatingPh(null)} onCreate={handleCreatePlaceholder}/>}
   </div>
 }
 

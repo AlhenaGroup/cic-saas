@@ -23,37 +23,48 @@ export function toBaseUnit(qty, um) {
 //
 // `manualByName`: { nome { unita, resa, ingredienti } }
 // `articlesPriceByName`: { nome (lower) €/UM_base }
+// `placeholdersByName`: opzionale, { nome_norm prezzo_stimato, unita } per fallback
 //
-// Ritorna { perUnit, baseUm, missing[] } dove perUnit e' €/baseUm,
-// missing[] elenca eventuali ingredienti non trovati (prezzo 0).
-export function unitCostOf(nome, articlesPriceByName, manualByName, depth = 0) {
-  if (depth > 8) return { perUnit: 0, baseUm: 'PZ', missing: ['LOOP:' + nome] } // protezione cicli
+// Ritorna { perUnit, baseUm, missing[], stimaCount } dove perUnit e' €/baseUm,
+// missing[] elenca eventuali ingredienti non trovati (prezzo 0),
+// stimaCount conta quanti ingredienti hanno usato un prezzo stimato.
+export function unitCostOf(nome, articlesPriceByName, manualByName, depth = 0, placeholdersByName = null) {
+  if (depth > 8) return { perUnit: 0, baseUm: 'PZ', missing: ['LOOP:' + nome], stima: false } // protezione cicli
   const key = (nome || '').trim().toLowerCase()
   // Manual article ricorri
   if (manualByName[key]) {
-    return costOfManualArticle(manualByName[key], articlesPriceByName, manualByName, depth + 1)
+    return costOfManualArticle(manualByName[key], articlesPriceByName, manualByName, depth + 1, placeholdersByName)
   }
   // Articolo magazzino
   const v = articlesPriceByName[key]
-  if (v && v.perUnit > 0) return { perUnit: v.perUnit, baseUm: v.baseUm || 'PZ', missing: [] }
-  return { perUnit: 0, baseUm: 'PZ', missing: [nome] }
+  if (v && v.perUnit > 0) return { perUnit: v.perUnit, baseUm: v.baseUm || 'PZ', missing: [], stima: false }
+  // Fallback: placeholder con prezzo stimato
+  if (placeholdersByName) {
+    const ph = placeholdersByName[key]
+    if (ph && ph.prezzo_stimato != null && Number(ph.prezzo_stimato) > 0) {
+      return { perUnit: Number(ph.prezzo_stimato), baseUm: (ph.unita || 'PZ').toUpperCase(), missing: [], stima: true }
+    }
+  }
+  return { perUnit: 0, baseUm: 'PZ', missing: [nome], stima: false }
 }
 
 // Costo di un manual_article completo: somma ingredienti / resa
-export function costOfManualArticle(art, articlesPriceByName, manualByName, depth = 0) {
+export function costOfManualArticle(art, articlesPriceByName, manualByName, depth = 0, placeholdersByName = null) {
   const resa = Number(art.resa) || 1
   let totalCost = 0
   const missing = []
+  let stimaCount = 0
   for (const ingr of (art.ingredienti || [])) {
     const base = toBaseUnit(ingr.quantita, ingr.unita)
-    const { perUnit, missing: m } = unitCostOf(ingr.nome_articolo, articlesPriceByName, manualByName, depth + 1)
-    if (m && m.length) missing.push(...m)
-    totalCost += base.qty * (perUnit || 0)
+    const r = unitCostOf(ingr.nome_articolo, articlesPriceByName, manualByName, depth + 1, placeholdersByName)
+    if (r.missing && r.missing.length) missing.push(...r.missing)
+    if (r.stima) stimaCount++
+    totalCost += base.qty * (r.perUnit || 0)
   }
   // Costo per unita' base prodotta
   const baseResa = toBaseUnit(resa, art.unita)
   const perUnit = baseResa.qty > 0 ? totalCost / baseResa.qty : 0
-  return { perUnit, baseUm: baseResa.baseUm, missing, totalCost, resa: baseResa.qty }
+  return { perUnit, baseUm: baseResa.baseUm, missing, totalCost, resa: baseResa.qty, stima: stimaCount > 0, stimaCount }
 }
 
 export async function loadManualArticles() {
