@@ -19,12 +19,22 @@ export default function TeamAccess({ sps }) {
   const [editing, setEditing] = useState(null) // employee in edit (con bozza permessi)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   const load = async () => {
     setLoading(true)
-    const { data } = await supabase.from('employees')
+    setLoadError('')
+    // Provo prima con tutti i campi nuovi (auth_user_id, module_permissions);
+    // se la migration non e' applicata, ricado su select * e mostro un avviso.
+    let { data, error } = await supabase.from('employees')
       .select('id, nome, email, pin, ruolo, locale, stato, auth_user_id, module_permissions')
       .order('nome')
+    if (error) {
+      // Fallback: vecchio schema senza colonne nuove
+      const r = await supabase.from('employees').select('*').order('nome')
+      data = r.data || []
+      setLoadError('Per attivare la gestione accessi devi prima applicare la migration SQL (vedi supabase/staff-access.sql).')
+    }
     setEmployees(data || [])
     setLoading(false)
   }
@@ -50,6 +60,11 @@ export default function TeamAccess({ sps }) {
       Per ogni modulo puoi scegliere se non accessibile, in sola lettura, oppure modificabile.
       Il tab Permessi della scheda dipendente HR continua a gestire i permessi del menu /timbra (timbratura, consumo, ecc.).
     </div>
+    {loadError && (
+      <div style={{ background: 'rgba(245,158,11,.12)', border: '1px solid rgba(245,158,11,.35)', color: '#92400E', padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 12, lineHeight: 1.5 }}>
+        ⚠ {loadError}
+      </div>
+    )}
 
     {loading ? (
       <div style={{ padding: 30, textAlign: 'center', color: 'var(--text3)' }}>Caricamento…</div>
