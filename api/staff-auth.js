@@ -67,38 +67,53 @@ export default async function handler(req, res) {
     const newPassword = randomPassword()
 
     if (!authUserId) {
-      // Verifica se esiste gia' un auth.user con questa email (caso edge: stessa email
-      // gia' registrata come owner). In quel caso non procediamo per non dirottare il login.
+      // Verifica se esiste gia' un auth.user con questa email
       const existRes = await sbAdmin(`/auth/v1/admin/users?email=${encodeURIComponent(emailLow)}`)
+      let existing = null
       if (existRes.ok) {
         const existJson = await existRes.json()
-        const existing = (existJson.users || existJson || [])[0]
-        if (existing) {
-          // Email gia' registrata come owner: rifiuta. Suggerire all'imprenditore di
-          // scegliere un'email diversa per il dipendente.
+        existing = (existJson.users || existJson || [])[0]
+      }
+      if (existing) {
+        // Caso 1: l'auth.user esistente e' marcato come staff (es. tentativo precedente
+        // andato a buon fine su createUser ma fallito sull'UPDATE employees). Riusalo.
+        if (existing.user_metadata?.staff === true) {
+          authUserId = existing.id
+          // Aggiorno la password (ruota) — verra' usata subito sotto per signin
+          const updPwd = await sbAdmin(`/auth/v1/admin/users/${authUserId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ password: newPassword, user_metadata: { staff: true, employee_id: emp.id } }),
+          })
+          if (!updPwd.ok) {
+            const t = await updPwd.text().catch(() => '')
+            return res.status(500).json({ error: 'Errore reset password staff esistente: ' + t.slice(0, 200) })
+          }
+        } else {
+          // Caso 2: e' un account owner reale. Blocca per non dirottare il suo login.
           return res.status(409).json({
             error: 'Email gia' + String.fromCharCode(39) + ' registrata come account principale. Usare un' + String.fromCharCode(39) + 'altra email per questo dipendente.',
           })
         }
+      } else {
+        // Crea nuovo auth.user
+        const createRes = await sbAdmin(`/auth/v1/admin/users`, {
+          method: 'POST',
+          body: JSON.stringify({
+            email: emailLow,
+            password: newPassword,
+            email_confirm: true,
+            user_metadata: { staff: true, employee_id: emp.id },
+          }),
+        })
+        if (!createRes.ok) {
+          const t = await createRes.text().catch(() => '')
+          return res.status(500).json({ error: 'Errore creazione utente: ' + t.slice(0, 200) })
+        }
+        const created = await createRes.json()
+        authUserId = created.id || created.user?.id
+        if (!authUserId) return res.status(500).json({ error: 'auth user id mancante dopo create' })
       }
-      // Crea nuovo auth.user
-      const createRes = await sbAdmin(`/auth/v1/admin/users`, {
-        method: 'POST',
-        body: JSON.stringify({
-          email: emailLow,
-          password: newPassword,
-          email_confirm: true,
-          user_metadata: { staff: true, employee_id: emp.id },
-        }),
-      })
-      if (!createRes.ok) {
-        const t = await createRes.text().catch(() => '')
-        return res.status(500).json({ error: 'Errore creazione utente: ' + t.slice(0, 200) })
-      }
-      const created = await createRes.json()
-      authUserId = created.id || created.user?.id
-      if (!authUserId) return res.status(500).json({ error: 'auth user id mancante dopo create' })
-      // Salva auth_user_id su employees
+      // Salva auth_user_id su employees (per entrambi i casi sopra)
       const updRes = await sbAdmin(
         `/rest/v1/employees?id=eq.${encodeURIComponent(emp.id)}`,
         {
