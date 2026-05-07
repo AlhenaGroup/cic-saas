@@ -112,19 +112,19 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
           {emp.nome?.charAt(0)?.toUpperCase()}
         </div>
         <div>
-          <div style={{fontSize:18,fontWeight:700,color:'#f1f5f9'}}>{emp.nome}</div>
-          <div style={{fontSize:12,color:'#94a3b8'}}>{emp.ruolo} - {emp.locale}</div>
+          <div style={{fontSize:18,fontWeight:700,color: 'var(--text)'}}>{emp.nome}</div>
+          <div style={{fontSize:12,color: 'var(--text2)'}}>{emp.ruolo} - {emp.locale}</div>
         </div>
         <span style={S.badge(emp.stato==='Attivo'?'#10B981':'#EF4444',emp.stato==='Attivo'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)')}>{emp.stato}</span>
       </div>
       <div style={{display:'flex',gap:8}}>
         {!editing&&<button onClick={startEdit} style={{...iS,background:'#3B82F6',color:'#fff',border:'none',padding:'5px 14px',fontWeight:600,fontSize:12}}>Modifica</button>}
-        <button onClick={onClose} style={{...iS,color:'#64748b',border:'1px solid #2a3042',padding:'5px 12px',fontSize:12}}>Chiudi</button>
+        <button onClick={onClose} style={{...iS,color: 'var(--text3)',border:'1px solid var(--border)',padding:'5px 12px',fontSize:12}}>Chiudi</button>
       </div>
     </div>
 
     {/* Sub-tabs */}
-    <div style={{display:'flex',gap:4,marginBottom:16,borderBottom:'1px solid #2a3042',paddingBottom:8,flexWrap:'wrap'}}>
+    <div style={{display:'flex',gap:4,marginBottom:16,borderBottom:'1px solid var(--border)',paddingBottom:8,flexWrap:'wrap'}}>
       {[['info','Anagrafica'],['paga','Compensi'],['timeoff','Ferie/Permessi'],['ore','Banca Ore'],['consumi','Consumi'],['produzioni','Produzioni'],['permessi','Permessi app']].map(([k,l])=>
         <button key={k} onClick={()=>setSubTab(k)} style={tabStyle(k)}>{l}</button>
       )}
@@ -141,12 +141,12 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
             <input key={k} placeholder={l} value={form[k]||''} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} style={formStyle}/>
           )}
           <div style={{...formStyle,display:'flex',gap:12,alignItems:'center',padding:'8px 10px'}}>
-            <span style={{fontSize:11,color:'#64748b'}}>Locali:</span>
+            <span style={{fontSize:11,color: 'var(--text3)'}}>Locali:</span>
             {sps.map(s=>{
               const name = s.description||s.name
               const locales = (form.locale||'').split(',').filter(Boolean)
               const checked = locales.includes(name)
-              return <label key={s.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:'#e2e8f0',cursor:'pointer'}}>
+              return <label key={s.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color: 'var(--text)',cursor:'pointer'}}>
                 <input type="checkbox" checked={checked} onChange={()=>{
                   const next = checked ? locales.filter(l=>l!==name) : [...locales, name]
                   setForm(p=>({...p,locale:next.join(',')}))
@@ -161,7 +161,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
           <textarea placeholder="Note" value={form.note||''} onChange={e=>setForm(p=>({...p,note:e.target.value}))} style={{...formStyle,gridColumn:'1/4',minHeight:60}} />
           <div style={{display:'flex',gap:8}}>
             <button onClick={saveEdit} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'6px 16px',fontWeight:600}}>Salva</button>
-            <button onClick={()=>setEditing(false)} style={{...iS,color:'#64748b',border:'1px solid #2a3042',padding:'6px 12px'}}>Annulla</button>
+            <button onClick={()=>setEditing(false)} style={{...iS,color: 'var(--text3)',border:'1px solid var(--border)',padding:'6px 12px'}}>Annulla</button>
           </div>
         </div>
       ) : (
@@ -172,13 +172,13 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
             ['Data nascita',emp.data_nascita],['Data assunzione',emp.data_assunzione],['Fine contratto',emp.data_fine_contratto]
           ].map(([l,v])=>
             <div key={l}>
-              <div style={{fontSize:10,color:'#475569',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:4}}>{l}</div>
+              <div style={{fontSize:10,color: 'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:4}}>{l}</div>
               <div style={{fontSize:13,color:v?'#e2e8f0':'#475569'}}>{v||'—'}</div>
             </div>
           )}
           {emp.note&&<div style={{gridColumn:'1/4'}}>
-            <div style={{fontSize:10,color:'#475569',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:4}}>Note</div>
-            <div style={{fontSize:13,color:'#e2e8f0'}}>{emp.note}</div>
+            <div style={{fontSize:10,color: 'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:4}}>Note</div>
+            <div style={{fontSize:13,color: 'var(--text)'}}>{emp.note}</div>
           </div>}
         </div>
       )}
@@ -195,7 +195,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
       <Card title="Storico compensi" extra={
         <button onClick={()=>setShowPayForm(true)} style={{...iS,background:'#3B82F6',color:'#fff',border:'none',padding:'4px 12px',fontWeight:600,fontSize:11}}>+ Aggiungi mese</button>
       }>
-        {showPayForm&&<div style={{background:'#131825',borderRadius:8,padding:12,marginBottom:12,border:'1px solid #2a3042'}}>
+        {showPayForm&&<div style={{background: 'var(--surface2)',borderRadius:8,padding:12,marginBottom:12,border:'1px solid var(--border)'}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr 1fr',gap:8}}>
             <input type="month" value={payForm.mese} onChange={e=>setPayForm(p=>({...p,mese:e.target.value}))} style={formStyle} title="Mese"/>
             <input type="number" placeholder="Lordo €" value={payForm.retribuzione_lorda} onChange={e=>setPayForm(p=>({...p,retribuzione_lorda:e.target.value}))} style={formStyle}/>
@@ -206,23 +206,23 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
           </div>
           <div style={{display:'flex',gap:8}}>
             <button onClick={savePay} disabled={!payForm.mese} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'5px 14px',fontWeight:600,fontSize:11}}>Salva</button>
-            <button onClick={()=>setShowPayForm(false)} style={{...iS,color:'#64748b',border:'1px solid #2a3042',padding:'5px 10px',fontSize:11}}>Annulla</button>
+            <button onClick={()=>setShowPayForm(false)} style={{...iS,color: 'var(--text3)',border:'1px solid var(--border)',padding:'5px 10px',fontSize:11}}>Annulla</button>
           </div>
         </div>}
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+          <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
             {['Mese','Lordo','Netto','Costo Azienda','Ore','Straord.','Note'].map(h=><th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {payHistory.length===0&&<tr><td colSpan={7} style={{...S.td,color:'#475569',textAlign:'center',padding:16}}>Nessun dato. Aggiungi un mese.</td></tr>}
+            {payHistory.length===0&&<tr><td colSpan={7} style={{...S.td,color: 'var(--text3)',textAlign:'center',padding:16}}>Nessun dato. Aggiungi un mese.</td></tr>}
             {payHistory.map(p=><tr key={p.id}>
               <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{p.mese?.substring(0,7)}</td>
               <td style={{...S.td,fontWeight:500}}>{p.retribuzione_lorda?fmtD(p.retribuzione_lorda):'—'}</td>
               <td style={S.td}>{p.retribuzione_netta?fmtD(p.retribuzione_netta):'—'}</td>
               <td style={S.td}>{p.costo_azienda?fmtD(p.costo_azienda):'—'}</td>
-              <td style={{...S.td,color:'#94a3b8'}}>{p.ore_lavorate||'—'}</td>
-              <td style={{...S.td,color:'#94a3b8'}}>{p.ore_straordinario||'—'}</td>
-              <td style={{...S.td,color:'#64748b',fontSize:11}}>{p.note||''}</td>
+              <td style={{...S.td,color: 'var(--text2)'}}>{p.ore_lavorate||'—'}</td>
+              <td style={{...S.td,color: 'var(--text2)'}}>{p.ore_straordinario||'—'}</td>
+              <td style={{...S.td,color: 'var(--text3)',fontSize:11}}>{p.note||''}</td>
             </tr>)}
           </tbody>
         </table>
@@ -240,7 +240,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
       <Card title="Registro ferie e permessi" extra={
         <button onClick={()=>setShowTimeOffForm(true)} style={{...iS,background:'#3B82F6',color:'#fff',border:'none',padding:'4px 12px',fontWeight:600,fontSize:11}}>+ Aggiungi</button>
       }>
-        {showTimeOffForm&&<div style={{background:'#131825',borderRadius:8,padding:12,marginBottom:12,border:'1px solid #2a3042'}}>
+        {showTimeOffForm&&<div style={{background: 'var(--surface2)',borderRadius:8,padding:12,marginBottom:12,border:'1px solid var(--border)'}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr',gap:8}}>
             <select value={timeOffForm.tipo} onChange={e=>setTimeOffForm(p=>({...p,tipo:e.target.value}))} style={formStyle}>
               {['ferie','permesso','malattia','banca_ore'].map(t=><option key={t} value={t}>{t}</option>)}
@@ -254,23 +254,23 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
           </div>
           <div style={{display:'flex',gap:8}}>
             <button onClick={saveTimeOff} disabled={!timeOffForm.data_inizio||!timeOffForm.data_fine} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'5px 14px',fontWeight:600,fontSize:11}}>Salva</button>
-            <button onClick={()=>setShowTimeOffForm(false)} style={{...iS,color:'#64748b',border:'1px solid #2a3042',padding:'5px 10px',fontSize:11}}>Annulla</button>
+            <button onClick={()=>setShowTimeOffForm(false)} style={{...iS,color: 'var(--text3)',border:'1px solid var(--border)',padding:'5px 10px',fontSize:11}}>Annulla</button>
           </div>
         </div>}
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+          <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
             {['Tipo','Dal','Al','Ore','Stato',''].map(h=><th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {timeOff.length===0&&<tr><td colSpan={6} style={{...S.td,color:'#475569',textAlign:'center',padding:16}}>Nessun dato registrato.</td></tr>}
+            {timeOff.length===0&&<tr><td colSpan={6} style={{...S.td,color: 'var(--text3)',textAlign:'center',padding:16}}>Nessun dato registrato.</td></tr>}
             {timeOff.map(t=>{
               const colors = {ferie:'#F59E0B',permesso:'#3B82F6',malattia:'#EF4444',banca_ore:'#8B5CF6'}
               const statColors = {approvato:'#10B981',richiesto:'#F59E0B',rifiutato:'#EF4444'}
               return <tr key={t.id}>
                 <td style={S.td}><span style={S.badge(colors[t.tipo]||'#94a3b8',(colors[t.tipo]||'#94a3b8')+'22')}>{t.tipo}</span></td>
-                <td style={{...S.td,color:'#e2e8f0'}}>{t.data_inizio}</td>
-                <td style={{...S.td,color:'#94a3b8'}}>{t.data_fine}</td>
-                <td style={{...S.td,color:'#94a3b8'}}>{t.ore||'—'}</td>
+                <td style={{...S.td,color: 'var(--text)'}}>{t.data_inizio}</td>
+                <td style={{...S.td,color: 'var(--text2)'}}>{t.data_fine}</td>
+                <td style={{...S.td,color: 'var(--text2)'}}>{t.ore||'—'}</td>
                 <td style={S.td}><span style={S.badge(statColors[t.stato]||'#94a3b8',(statColors[t.stato]||'#94a3b8')+'22')}>{t.stato}</span></td>
                 <td style={S.td}><button onClick={()=>{if(confirm('Eliminare?'))deleteTimeOff(t.id)}} style={{background:'none',border:'none',color:'#EF4444',cursor:'pointer',fontSize:11}}>Elimina</button></td>
               </tr>
@@ -322,10 +322,10 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
         }} style={{...S.input,background:'#3B82F6',color:'#fff',border:'none',padding:'4px 12px',fontWeight:600,fontSize:11}}>+ Aggiungi ore</button>
       }>
         {dailyHours.length === 0 ? (
-          <div style={{color:'#475569',textAlign:'center',padding:16,fontSize:13}}>Nessuna timbratura registrata. Clicca "+ Aggiungi ore" per inserire manualmente.</div>
+          <div style={{color: 'var(--text3)',textAlign:'center',padding:16,fontSize:13}}>Nessuna timbratura registrata. Clicca "+ Aggiungi ore" per inserire manualmente.</div>
         ) : (
           <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+            <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
               {['Data','Entrata','Uscita','Ore','Locale',''].map(h=><th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
             <tbody>
@@ -366,15 +366,15 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
                   <td style={S.td}>
                     {d.uscita ? (
                       <input type="time" value={uscitaTime} onChange={e => updateTime(uscitaId, d.uscita, e.target.value)}
-                        style={{...S.input,width:80,fontSize:12,padding:'2px 6px',color:'#94a3b8'}} />
+                        style={{...S.input,width:80,fontSize:12,padding:'2px 6px',color: 'var(--text2)'}} />
                     ) : (
                       <button onClick={addExit} style={{...S.input,fontSize:10,padding:'2px 8px',color:'#F59E0B',border:'1px solid #F59E0B',background:'transparent'}}>+ Uscita</button>
                     )}
                   </td>
                   <td style={{...S.td,fontWeight:600,color:d.hours>0?'#e2e8f0':'#475569'}}>{d.hours>0?d.hours+'h':'—'}</td>
-                  <td style={{...S.td,color:'#64748b',fontSize:11}}>{d.locale}</td>
+                  <td style={{...S.td,color: 'var(--text3)',fontSize:11}}>{d.locale}</td>
                   <td style={S.td}>
-                    <button onClick={deleteDay} style={{background:'transparent',border:'none',color:'#475569',cursor:'pointer',fontSize:14}} title="Elimina"></button>
+                    <button onClick={deleteDay} style={{background:'transparent',border:'none',color: 'var(--text3)',cursor:'pointer',fontSize:14}} title="Elimina"></button>
                   </td>
                 </tr>
               })}
@@ -387,7 +387,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
       {/* Turni pianificati */}
       {shifts.length > 0 && <Card title="Turni pianificati">
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+          <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
             {['Settimana','Giorno','Dalle','Alle','Ore','Locale'].map(h=><th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
@@ -398,9 +398,9 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
                 <td style={{...S.td,color:'#F59E0B',fontWeight:600}}>{sh.settimana}</td>
                 <td style={{...S.td,fontWeight:500}}>{days[sh.giorno]||sh.giorno}</td>
                 <td style={{...S.td,color:'#10B981'}}>{sh.ora_inizio?.substring(0,5)}</td>
-                <td style={{...S.td,color:'#94a3b8'}}>{sh.ora_fine?.substring(0,5)}</td>
+                <td style={{...S.td,color: 'var(--text2)'}}>{sh.ora_fine?.substring(0,5)}</td>
                 <td style={{...S.td,fontWeight:600}}>{hours}h</td>
-                <td style={{...S.td,color:'#64748b',fontSize:11}}>{sh.locale}</td>
+                <td style={{...S.td,color: 'var(--text3)',fontSize:11}}>{sh.locale}</td>
               </tr>
             })}
           </tbody>
@@ -410,10 +410,10 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
 
       <Card title="Distribuzione ore (storico compensi)">
         {payHistory.length === 0 ? (
-          <div style={{color:'#475569',textAlign:'center',padding:20,fontSize:13}}>Inserisci i dati nello storico compensi per vedere la distribuzione ore.</div>
+          <div style={{color: 'var(--text3)',textAlign:'center',padding:20,fontSize:13}}>Inserisci i dati nello storico compensi per vedere la distribuzione ore.</div>
         ) : (
           <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+            <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
               {['Mese','Ore contrattuali','Ore lavorate','Straordinario','Differenza'].map(h=><th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
             <tbody>
@@ -423,7 +423,7 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
                 const diff = lavorate - contratto
                 return <tr key={p.id}>
                   <td style={{...S.td,fontWeight:600,color:'#F59E0B'}}>{p.mese?.substring(0,7)}</td>
-                  <td style={{...S.td,color:'#94a3b8'}}>{contratto.toFixed(0)}</td>
+                  <td style={{...S.td,color: 'var(--text2)'}}>{contratto.toFixed(0)}</td>
                   <td style={{...S.td,fontWeight:500}}>{lavorate||'—'}</td>
                   <td style={{...S.td,color:'#F59E0B'}}>{p.ore_straordinario||'0'}</td>
                   <td style={{...S.td,fontWeight:600,color:diff>=0?'#10B981':'#EF4444'}}>{diff>=0?'+':''}{diff.toFixed(0)}h</td>
@@ -503,11 +503,11 @@ function PermessiTab({ emp, onSaved }) {
   const renderChecklistGroup = (key, byLoc, accent) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {Object.entries(byLoc).length === 0 && (
-        <div style={{ fontSize: 11, color: '#64748b' }}>Nessuna checklist disponibile.</div>
+        <div style={{ fontSize: 11, color: 'var(--text3)' }}>Nessuna checklist disponibile.</div>
       )}
       {Object.entries(byLoc).map(([loc, list]) => (
-        <div key={loc} style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 8 }}>
-          <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>{loc}</div>
+        <div key={loc} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 8 }}>
+          <div style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>{loc}</div>
           {list.map(c => {
             const checked = (p[key] || []).includes(c.id)
             return <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 12 }}>
@@ -523,8 +523,8 @@ function PermessiTab({ emp, onSaved }) {
   )
 
   return <Card title="Permessi app dipendente" badge={Object.values(p).filter(v => v === true).length + '/5 abilitati'}>
-    <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14, lineHeight: 1.5 }}>
-      Definisci cosa puo\' fare <strong style={{ color: '#e2e8f0' }}>{emp.nome}</strong> dopo aver inserito il PIN sulla pagina di timbratura.
+    <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 14, lineHeight: 1.5 }}>
+      Definisci cosa puo\' fare <strong style={{ color: 'var(--text)' }}>{emp.nome}</strong> dopo aver inserito il PIN sulla pagina di timbratura.
       Il menu delle azioni nell\'app mobile verra\' filtrato automaticamente.
     </div>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -533,17 +533,17 @@ function PermessiTab({ emp, onSaved }) {
           <input type="checkbox" checked={!!p[it.k]} onChange={() => toggle(it.k)} style={{ marginTop: 3, accentColor: '#10B981', width: 18, height: 18 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: p[it.k] ? '#10B981' : '#e2e8f0' }}>{it.t}</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{it.d}</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{it.d}</div>
           </div>
         </label>
       ))}
     </div>
 
     {/* Checklist obbligatorie entrata/uscita */}
-    <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #2a3042' }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Checklist obbligatorie alla timbratura</div>
-      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
-        Seleziona le checklist che <strong style={{ color: '#e2e8f0' }}>{emp.nome}</strong> dovrà compilare quando timbra.
+    <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Checklist obbligatorie alla timbratura</div>
+      <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 12 }}>
+        Seleziona le checklist che <strong style={{ color: 'var(--text)' }}>{emp.nome}</strong> dovrà compilare quando timbra.
         Se lavora su più locali, seleziona la checklist di ognuno: il sistema mostrerà automaticamente quella giusta in base al locale dove sta timbrando.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -565,7 +565,7 @@ function PermessiTab({ emp, onSaved }) {
 
     <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
       <button onClick={save} disabled={saving}
-        style={{ background: '#F59E0B', color: '#0f1420', border: 'none', padding: '8px 18px', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: saving ? 'wait' : 'pointer' }}>
+        style={{ background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '8px 18px', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: saving ? 'wait' : 'pointer' }}>
         {saving ? 'Salvo...' : 'Salva permessi'}
       </button>
     </div>
@@ -637,14 +637,14 @@ function ConsumiTab({ emp }) {
       </div>
     )}
     {loading ? (
-      <div style={{ padding: 20, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+      <div style={{ padding: 20, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
     ) : consumi.length === 0 ? (
-      <div style={{ padding: 24, color: '#64748b', textAlign: 'center', fontSize: 13 }}>Nessun consumo registrato.</div>
+      <div style={{ padding: 24, color: 'var(--text3)', textAlign: 'center', fontSize: 13 }}>Nessun consumo registrato.</div>
     ) : (
       <div style={{ overflowX: 'auto', maxHeight: 460 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead style={{ position: 'sticky', top: 0, background: '#131825' }}>
-            <tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead style={{ position: 'sticky', top: 0, background: 'var(--surface2)' }}>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Data', 'Locale', 'Prodotto', 'Porzioni', 'Valore', 'Note'].map(h => <th key={h} style={S.th}>{h}</th>)}
             </tr>
           </thead>
@@ -652,15 +652,15 @@ function ConsumiTab({ emp }) {
             {consumi.map(c => {
               const dt = new Date(c.created_at)
               return <tr key={c.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                <td style={{ ...S.td, whiteSpace: 'nowrap', fontSize: 11, color: '#94a3b8' }}>
+                <td style={{ ...S.td, whiteSpace: 'nowrap', fontSize: 11, color: 'var(--text2)' }}>
                   {dt.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                  <span style={{ color: '#475569', marginLeft: 6 }}>{dt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span style={{ color: 'var(--text3)', marginLeft: 6 }}>{dt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
                 </td>
-                <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{c.locale || '—'}</td>
+                <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{c.locale || '—'}</td>
                 <td style={{ ...S.td, fontWeight: 600 }}>{c.prodotto}</td>
                 <td style={{ ...S.td, fontWeight: 700, color: '#F59E0B' }}>{c.porzioni}x</td>
                 <td style={{ ...S.td, fontWeight: 600, color: '#EF4444' }}>{c.valore_totale > 0 ? fmtD(c.valore_totale) : '—'}</td>
-                <td style={{ ...S.td, fontSize: 11, color: '#64748b', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.note || '—'}</td>
+                <td style={{ ...S.td, fontSize: 11, color: 'var(--text3)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.note || '—'}</td>
               </tr>
             })}
           </tbody>
@@ -735,14 +735,14 @@ function ProduzioniTab({ emp }) {
       </div>
     )}
     {loading ? (
-      <div style={{ padding: 20, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+      <div style={{ padding: 20, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
     ) : totLotti === 0 ? (
-      <div style={{ padding: 24, color: '#64748b', textAlign: 'center', fontSize: 13 }}>Nessun lotto registrato.</div>
+      <div style={{ padding: 24, color: 'var(--text3)', textAlign: 'center', fontSize: 13 }}>Nessun lotto registrato.</div>
     ) : (
       <div style={{ overflowX: 'auto', maxHeight: 500 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead style={{ position: 'sticky', top: 0, background: '#131825' }}>
-            <tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead style={{ position: 'sticky', top: 0, background: 'var(--surface2)' }}>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Data', 'Lotto', 'Prodotto', 'Locale', 'Quantità', 'Durata', 'Anomalie'].map(h => <th key={h} style={S.th}>{h}</th>)}
             </tr>
           </thead>
@@ -753,20 +753,20 @@ function ProduzioniTab({ emp }) {
               const recipe = recipesById[b.recipe_id]
               const anomalie = getAnomalie(b)
               return <tr key={b.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                <td style={{ ...S.td, fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                  {dt} <span style={{ color: '#64748b', marginLeft: 4 }}>{ora}</span>
+                <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)', whiteSpace: 'nowrap' }}>
+                  {dt} <span style={{ color: 'var(--text3)', marginLeft: 4 }}>{ora}</span>
                 </td>
                 <td style={{ ...S.td, fontFamily: 'monospace', color: '#3B82F6', fontWeight: 600 }}>
                   {b.lotto}
                   {b.da_mobile && <span title='Da mobile' style={{ marginLeft: 4, fontSize: 11 }}></span>}
                 </td>
                 <td style={{ ...S.td, fontWeight: 600 }}>{recipe?.nome || '—'}</td>
-                <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{b.locale_produzione}</td>
+                <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{b.locale_produzione}</td>
                 <td style={{ ...S.td, fontWeight: 600 }}>{b.quantita_prodotta} {b.unita || ''}</td>
-                <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{b.durata_minuti != null ? b.durata_minuti + ' min' : '—'}</td>
+                <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{b.durata_minuti != null ? b.durata_minuti + ' min' : '—'}</td>
                 <td style={S.td}>
                   {anomalie.length === 0 ? (
-                    <span style={{ color: '#475569', fontSize: 11 }}>—</span>
+                    <span style={{ color: 'var(--text3)', fontSize: 11 }}>—</span>
                   ) : (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                       {anomalie.map((a, i) => (

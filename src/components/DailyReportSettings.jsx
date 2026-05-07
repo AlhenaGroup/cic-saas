@@ -118,26 +118,26 @@ export default function DailyReportSettings({ onClose }) {
   }
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720 }}>
-      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 720 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 15 }}>Resoconto giornaliero via email</h3>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Inviato ogni mattina alle 06:00 con il riepilogo del giorno prima</div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Inviato ogni mattina alle 06:00 con il riepilogo del giorno prima</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         {loading ? (
-          <div style={{ padding: 30, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+          <div style={{ padding: 30, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
         ) : !hasGmail ? (
           <div style={{ padding: 16, background: 'rgba(245,158,11,.08)', border: '1px solid #F59E0B', borderRadius: 8 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#F59E0B', marginBottom: 6 }}>Gmail non connesso</div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>
               Per inviare il resoconto giornaliero serve connettere il tuo account Gmail (le email partiranno da lì).
               Cliccando sotto verrai reindirizzato a Google per autorizzare l'accesso (scope: invio email).
             </div>
             <button onClick={connectGmail}
-              style={{ padding: '10px 18px', background: '#10B981', color: '#0f1420', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              style={{ padding: '10px 18px', background: '#10B981', color: 'var(--text)', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
               Connetti Gmail
             </button>
           </div>
@@ -147,20 +147,20 @@ export default function DailyReportSettings({ onClose }) {
             <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} style={{ accentColor: '#10B981', width: 18, height: 18 }} />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: enabled ? '#10B981' : '#e2e8f0' }}>Invia il resoconto ogni mattina alle 06:00</div>
-              {lastSentAt && <div style={{ fontSize: 11, color: '#64748b' }}>Ultimo invio: {new Date(lastSentAt).toLocaleString('it-IT')}{lastError ? <span style={{ color: '#EF4444', marginLeft: 8 }}>· errori: {lastError}</span> : ''}</div>}
+              {lastSentAt && <div style={{ fontSize: 11, color: 'var(--text3)' }}>Ultimo invio: {new Date(lastSentAt).toLocaleString('it-IT')}{lastError ? <span style={{ color: '#EF4444', marginLeft: 8 }}>· errori: {lastError}</span> : ''}</div>}
             </div>
           </label>
 
           {/* Sezioni di default */}
           <div style={{ marginBottom: 18 }}>
-            <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 8 }}>Sezioni del report (default)</div>
+            <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600, marginBottom: 8 }}>Sezioni del report (default)</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
               {SECTIONS.map(s => (
                 <label key={s.v} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: 10, background: defaults[s.v] ? 'rgba(59,130,246,.06)' : '#131825', border: `1px solid ${defaults[s.v] ? '#3B82F6' : '#2a3042'}`, borderRadius: 8, cursor: 'pointer' }}>
                   <input type="checkbox" checked={!!defaults[s.v]} onChange={() => setDefaults(p => ({ ...p, [s.v]: !p[s.v] }))} style={{ marginTop: 2, accentColor: '#3B82F6' }} />
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 600, color: defaults[s.v] ? '#3B82F6' : '#e2e8f0' }}>{s.l}</div>
-                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{s.d}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{s.d}</div>
                   </div>
                 </label>
               ))}
@@ -170,20 +170,20 @@ export default function DailyReportSettings({ onClose }) {
           {/* Destinatari */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Destinatari ({recipients.length})</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>Destinatari ({recipients.length})</div>
               <button onClick={addRecipient} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
                 + Aggiungi destinatario
               </button>
             </div>
             {recipients.length === 0 && (
-              <div style={{ padding: 14, color: '#64748b', textAlign: 'center', fontSize: 12, border: '1px dashed #2a3042', borderRadius: 8 }}>
+              <div style={{ padding: 14, color: 'var(--text3)', textAlign: 'center', fontSize: 12, border: '1px dashed #2a3042', borderRadius: 8 }}>
                 Nessun destinatario. Aggiungine almeno uno.
               </div>
             )}
             {recipients.map((r, i) => {
               const customSections = r.sections != null
               const effective = r.sections || defaults
-              return <div key={i} style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 10, marginBottom: 6 }}>
+              return <div key={i} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 6 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: 6, marginBottom: 8 }}>
                   <input value={r.email || ''} onChange={e => updRecipient(i, { email: e.target.value })} placeholder="email@esempio.it" type="email" style={{ ...iS, width: '100%' }} />
                   <select value={r.ruolo || 'imprenditore'} onChange={e => updRecipient(i, { ruolo: e.target.value })} style={{ ...iS, width: '100%' }}>
@@ -191,7 +191,7 @@ export default function DailyReportSettings({ onClose }) {
                   </select>
                   <button onClick={() => rmRecipient(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13, padding: '0 8px' }}>×</button>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#94a3b8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text2)' }}>
                   <span>Sezioni:</span>
                   {customSections ? (
                     <>{SECTIONS.map(s => (
@@ -200,10 +200,10 @@ export default function DailyReportSettings({ onClose }) {
                         {s.l.replace(/\s.*$/, '')}
                       </button>
                     ))}
-                    <button onClick={() => useDefaultSections(i)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}>usa default</button></>
+                    <button onClick={() => useDefaultSections(i)} style={{ background: 'none', border: 'none', color: 'var(--text3)', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}>usa default</button></>
                   ) : (
                     <>
-                      <span style={{ color: '#64748b', fontStyle: 'italic' }}>usa il default</span>
+                      <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>usa il default</span>
                       <button onClick={() => updRecipient(i, { sections: { ...defaults } })} style={{ background: 'none', border: 'none', color: '#3B82F6', fontSize: 10, cursor: 'pointer', textDecoration: 'underline' }}>personalizza</button>
                     </>
                   )}
@@ -215,15 +215,15 @@ export default function DailyReportSettings({ onClose }) {
           {msg && <div style={{ padding: 10, background: 'rgba(16,185,129,.1)', color: '#10B981', borderRadius: 8, fontSize: 12, marginBottom: 12 }}>{msg}</div>}
           {err && <div style={{ padding: 10, background: 'rgba(239,68,68,.1)', color: '#EF4444', borderRadius: 8, fontSize: 12, marginBottom: 12 }}>{err}</div>}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
             <button onClick={testSend} disabled={sending || saving || !recipients.length}
-              style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '8px 16px', fontWeight: 700, cursor: sending ? 'wait' : 'pointer', opacity: !recipients.length ? 0.5 : 1 }}>
+              style={{ ...iS, background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '8px 16px', fontWeight: 700, cursor: sending ? 'wait' : 'pointer', opacity: !recipients.length ? 0.5 : 1 }}>
               {sending ? 'Invio…' : 'Invia ora di prova'}
             </button>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Chiudi</button>
               <button onClick={save} disabled={saving}
-                style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
+                style={{ ...iS, background: '#10B981', color: 'var(--text)', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
                 {saving ? 'Salvo…' : 'Salva'}
               </button>
             </div>

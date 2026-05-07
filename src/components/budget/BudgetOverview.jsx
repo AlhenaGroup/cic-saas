@@ -75,15 +75,15 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
 
   if (loading) {
     return <Card title="Panoramica" badge="⏳ caricamento">
-      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento dati consuntivo…</div>
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Caricamento dati consuntivo…</div>
     </Card>
   }
 
   if (!consuntivo || consuntivo.ricavi === 0) {
     return <Card title="Panoramica">
-      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>
         <div style={{ fontSize: 48, marginBottom: 14, opacity: .3 }}></div>
-        <div style={{ fontSize: 14, color: '#cbd5e1', marginBottom: 6 }}>
+        <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 6 }}>
           Nessun dato di consuntivo per {String(month).padStart(2, '0')}/{year}
         </div>
         <div style={{ fontSize: 12 }}>
@@ -104,8 +104,8 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
 
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     {/* Info header con giorni trascorsi */}
-    <div style={{ fontSize: 12, color: '#64748b' }}>
-      Giorno <strong style={{ color: '#94a3b8' }}>{daysElapsed}</strong> di <strong style={{ color: '#94a3b8' }}>{totalDays}</strong>
+    <div style={{ fontSize: 12, color: 'var(--text3)' }}>
+      Giorno <strong style={{ color: 'var(--text2)' }}>{daysElapsed}</strong> di <strong style={{ color: 'var(--text2)' }}>{totalDays}</strong>
       {' · '}
       {budget
         ? <span style={{ color: '#10B981' }}>Budget impostato</span>
@@ -177,14 +177,14 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
     {/* Due colonne: cosa va bene / cosa va male */}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
       <Card title="Cosa va bene" badge={budget ? null : 'inserisci budget'}>
-        {!budget && <div style={{ color: '#64748b', fontSize: 12 }}>Inserisci un budget nel tab <strong>Budget</strong> per vedere gli scostamenti.</div>}
-        {budget && goodHealth.length === 0 && <div style={{ color: '#64748b', fontSize: 12 }}>Nulla sopra target per ora.</div>}
+        {!budget && <div style={{ color: 'var(--text3)', fontSize: 12 }}>Inserisci un budget nel tab <strong>Budget</strong> per vedere gli scostamenti.</div>}
+        {budget && goodHealth.length === 0 && <div style={{ color: 'var(--text3)', fontSize: 12 }}>Nulla sopra target per ora.</div>}
         {budget && goodHealth.map(h => (
           <div key={h.metric} style={{
             display: 'flex', justifyContent: 'space-between', padding: '8px 0',
             borderBottom: '1px solid #1a1f2e', fontSize: 13
           }}>
-            <span style={{ color: '#cbd5e1' }}>{h.label}</span>
+            <span style={{ color: 'var(--text)' }}>{h.label}</span>
             <span style={{ color: '#10B981', fontWeight: 600 }}>
               {h.delta >= 0 ? '+' : ''}{fmtD(h.delta)} ({h.pct >= 0 ? '+' : ''}{h.pct.toFixed(1)}%)
             </span>
@@ -193,14 +193,14 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
       </Card>
 
       <Card title="Cosa sta andando male" badge={budget ? null : 'inserisci budget'}>
-        {!budget && <div style={{ color: '#64748b', fontSize: 12 }}>Inserisci un budget per rivelare le criticità.</div>}
+        {!budget && <div style={{ color: 'var(--text3)', fontSize: 12 }}>Inserisci un budget per rivelare le criticità.</div>}
         {budget && badHealth.length === 0 && <div style={{ color: '#10B981', fontSize: 12 }}>Tutto in linea con il budget. </div>}
         {budget && badHealth.map(h => (
           <div key={h.metric} style={{
             display: 'flex', justifyContent: 'space-between', padding: '8px 0',
             borderBottom: '1px solid #1a1f2e', fontSize: 13
           }}>
-            <span style={{ color: '#cbd5e1' }}>{h.label}</span>
+            <span style={{ color: 'var(--text)' }}>{h.label}</span>
             <span style={{ color: '#EF4444', fontWeight: 600 }}>
               {h.delta >= 0 ? '+' : ''}{fmtD(h.delta)} ({h.pct >= 0 ? '+' : ''}{h.pct.toFixed(1)}%)
             </span>
@@ -220,18 +220,18 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
               alignItems: 'center',
               gap: 10,
               padding: '10px 12px',
-              background: '#131825',
-              border: '1px solid #2a3042',
+              background: 'var(--surface2)',
+              border: '1px solid var(--border)',
               borderRadius: 8,
             }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#F59E0B', marginBottom: 2 }}>{s.title}</div>
-                <div style={{ fontSize: 12, color: '#94a3b8' }}>{s.action}</div>
+                <div style={{ fontSize: 12, color: 'var(--text2)' }}>{s.action}</div>
               </div>
               <button
                 onClick={() => onNavigate && onNavigate('sim', { levers: s.levers })}
                 style={{
-                  background: '#F59E0B', color: '#0f1420', border: 'none',
+                  background: '#F59E0B', color: 'var(--text)', border: 'none',
                   padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700,
                   cursor: 'pointer'
                 }}
@@ -251,7 +251,7 @@ export default function BudgetOverview({ sp, sps, year, month, onNavigate }) {
             <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
             <YAxis stroke="#64748b" fontSize={11} tickFormatter={v => (v / 1000).toFixed(0) + 'k'} />
             <Tooltip
-              contentStyle={{ background: '#0f1420', border: '1px solid #2a3042', fontSize: 12 }}
+              contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', fontSize: 12 }}
               formatter={(v) => fmtD(v)}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />

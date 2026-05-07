@@ -138,7 +138,7 @@ export default function CampaignsManager({ sp, sps }) {
   return <div style={S.card}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
       <h2 style={{ margin: 0, fontSize: 18 }}>Campagne</h2>
-      <span style={{ fontSize: 12, color: '#94a3b8' }}>· email · SMS · WhatsApp</span>
+      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· email · SMS · WhatsApp</span>
       <div style={{ flex: 1 }} />
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
@@ -147,10 +147,10 @@ export default function CampaignsManager({ sp, sps }) {
     </div>
 
     {error && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-    {loading && <div style={{ color: '#94a3b8', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Caricamento…</div>}
 
     {!loading && list.length === 0 && (
-      <div style={{ textAlign: 'center', padding: 30, color: '#64748b', fontSize: 13 }}>
+      <div style={{ textAlign: 'center', padding: 30, color: 'var(--text3)', fontSize: 13 }}>
         Nessuna campagna ancora. Crea la prima per inviare email/SMS/WhatsApp ai clienti segmentati.
       </div>
     )}
@@ -160,16 +160,16 @@ export default function CampaignsManager({ sp, sps }) {
         {list.map(c => {
           const s = STATI[c.stato] || { label: c.stato, c: '#94A3B8' }
           return <div key={c.id} onClick={() => setEditing({ ...c, segment_giorni_inattivita: c.segment_giorni_inattivita ?? '' })} style={{
-            background: '#0f1420', border: '1px solid #2a3042', borderRadius: 10, padding: 14, cursor: 'pointer',
+            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, cursor: 'pointer',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <span style={{ background: s.c + '22', color: s.c, fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999 }}>{s.label}</span>
-              <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em' }}>{c.canale}</span>
+              <span style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{c.canale}</span>
               <div style={{ flex: 1 }} />
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{c.nome}</div>
-            {c.oggetto && <div style={{ fontSize: 12, color: '#cbd5e1', marginBottom: 4 }}>{c.oggetto}</div>}
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
+            {c.oggetto && <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 4 }}>{c.oggetto}</div>}
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>
               {c.stato === 'sent' ? `Inviati ${c.inviati}/${c.destinatari_totali} · ${fmtDateTime(c.sent_at)}`
                 : c.schedule_at ? `Programmata: ${fmtDateTime(c.schedule_at)}`
                 : 'Non ancora inviata'}
@@ -196,7 +196,7 @@ export default function CampaignsManager({ sp, sps }) {
       <Field label="Nome interno"><input value={editing.nome} onChange={e => setEditing({ ...editing, nome: e.target.value })} placeholder="es. Promo dormienti aprile" style={S.input} /></Field>
 
       <div style={{ marginTop: 14 }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Canale</div>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Canale</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {CANALI.map(c => <button key={c.key} onClick={() => setEditing({ ...editing, canale: c.key })} style={tabBtn(editing.canale === c.key)}>
             <div>{c.label}</div>
@@ -270,9 +270,9 @@ export default function CampaignsManager({ sp, sps }) {
           Solo clienti col consenso marketing (GDPR)
         </label>
 
-        {audPreview && <div style={{ marginTop: 12, padding: 10, background: '#1a1f2e', borderRadius: 6 }}>
+        {audPreview && <div style={{ marginTop: 12, padding: 10, background: 'var(--surface)', borderRadius: 6 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#F59E0B' }}>{audPreview.count} destinatari</div>
-          {audPreview.sample?.length > 0 && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+          {audPreview.sample?.length > 0 && <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>
             Anteprima: {audPreview.sample.map(s => [s.nome, s.cognome].filter(Boolean).join(' ') || s.email || s.telefono).join(', ')}{audPreview.count > audPreview.sample.length ? '…' : ''}
           </div>}
         </div>}
@@ -319,19 +319,19 @@ function tabBtnSm(active) {
 }
 function Field({ label, children }) {
   return <label style={{ display: 'block' }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }
 function Section({ title, children }) {
-  return <div style={{ marginTop: 14, padding: 12, background: '#0f1420', borderRadius: 8, border: '1px solid #2a3042' }}>
+  return <div style={{ marginTop: 14, padding: 12, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
     <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>{title}</div>
     {children}
   </div>
 }
 function Drawer({ children, onClose }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(1100px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(1100px, 100%)', height: '100%', background: 'var(--surface)', padding: 20, overflowY: 'auto', borderLeft: '1px solid var(--border)' }}>
       {children}
     </div>
   </div>

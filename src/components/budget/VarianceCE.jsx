@@ -125,7 +125,7 @@ export default function VarianceCE({ sp, sps, year, month }) {
 
   if (loading) {
     return <Card title="CE scostamenti">
-      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento…</div>
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Caricamento…</div>
     </Card>
   }
 
@@ -158,7 +158,7 @@ export default function VarianceCE({ sp, sps, year, month }) {
         <tbody>
           {rows.map(r => {
             const meta = CAT_META[r.key]
-            const rowStyle = r.bold ? { borderTop: '2px solid #2a3042' } : {}
+            const rowStyle = r.bold ? { borderTop: '2px solid var(--border)' } : {}
             return <tr key={r.key} style={r.highlight ? { background: 'rgba(245,158,11,.06)' } : {}}>
               <td style={{ ...S.td, ...rowStyle, fontWeight: r.bold ? 700 : 600 }}>
                 {meta && <span style={{ color: meta.color }}></span>} {r.label}
@@ -186,12 +186,12 @@ export default function VarianceCE({ sp, sps, year, month }) {
     </div>
 
     <div style={{
-      marginTop: 14, padding: '8px 12px', background: '#131825', borderRadius: 6,
-      fontSize: 11, color: '#64748b', display: 'flex', gap: 18, flexWrap: 'wrap'
+      marginTop: 14, padding: '8px 12px', background: 'var(--surface2)', borderRadius: 6,
+      fontSize: 11, color: 'var(--text3)', display: 'flex', gap: 18, flexWrap: 'wrap'
     }}>
       <span><span style={{ color: '#10B981' }}></span> meglio del budget</span>
       <span><span style={{ color: '#EF4444' }}></span> peggio del budget</span>
-      <span><span style={{ color: '#94a3b8' }}></span> in linea (Δ &lt; 1%)</span>
+      <span><span style={{ color: 'var(--text2)' }}></span> in linea (Δ &lt; 1%)</span>
       <span style={{ marginLeft: 'auto' }}>Per ricavi/MOL "meglio" = più alto; per costi "meglio" = più basso.</span>
     </div>
   </Card>

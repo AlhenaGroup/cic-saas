@@ -190,9 +190,9 @@ function FeedTab() {
     </div>
 
     {loading ? (
-      <div style={{ padding: 30, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+      <div style={{ padding: 30, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
     ) : filtered.length === 0 ? (
-      <div style={{ padding: 40, color: '#64748b', textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
+      <div style={{ padding: 40, color: 'var(--text3)', textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
         {events.length === 0 ? <>
           Nessun avviso ancora generato.<br/>
           <span style={{ fontSize: 11 }}>Vai in <strong>Configurazione regole</strong> per attivare le regole che ti interessano. Gli avvisi compariranno qui quando il sistema le rileverà.</span>
@@ -216,12 +216,12 @@ function FeedTab() {
                 <span style={{ ...S.badge(liv.color, liv.bg), fontSize: 10 }}>{liv.l}</span>
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 10, color: '#64748b' }}>{new Date(e.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                {!e.letto && <button onClick={() => markRead(e.id)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '2px 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer' }}>Segna letto</button>}
+                <span style={{ fontSize: 10, color: 'var(--text3)' }}>{new Date(e.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                {!e.letto && <button onClick={() => markRead(e.id)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', padding: '2px 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer' }}>Segna letto</button>}
               </div>
             </div>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{e.titolo}</div>
-            {e.descrizione && <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>{e.descrizione}</div>}
+            {e.descrizione && <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>{e.descrizione}</div>}
             {e.link_url && (
               <a href={e.link_url} style={{ fontSize: 11, color: '#3B82F6', textDecoration: 'underline' }}>
                 Vedi dettaglio 
@@ -233,7 +233,7 @@ function FeedTab() {
     )}
 
     {filtered.length > 0 && (
-      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
         <button onClick={dismissAll}
           style={{ ...iS, color: '#EF4444', padding: '5px 12px', fontSize: 11, cursor: 'pointer' }}>
           Elimina tutti i {filtered.length} avvisi visibili
@@ -310,11 +310,11 @@ function ConfigTab() {
     setSaving(false); setMsg('Tutte le regole di ' + cat + ' disattivate'); setTimeout(() => setMsg(''), 2000)
   }
 
-  if (loading) return <div style={{ padding: 30, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+  if (loading) return <div style={{ padding: 30, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
 
   return <>
-    <div style={{ marginBottom: 14, padding: 14, background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.25)', borderRadius: 8, fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
-      Attiva le regole di alert che ti interessano. Per ognuna puoi scegliere la <strong style={{ color: '#e2e8f0' }}>soglia</strong> e i <strong style={{ color: '#e2e8f0' }}>canali di notifica</strong> (Dashboard = compare nel feed, Email = aggiunto al resoconto giornaliero).
+    <div style={{ marginBottom: 14, padding: 14, background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.25)', borderRadius: 8, fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>
+      Attiva le regole di alert che ti interessano. Per ognuna puoi scegliere la <strong style={{ color: 'var(--text)' }}>soglia</strong> e i <strong style={{ color: 'var(--text)' }}>canali di notifica</strong> (Dashboard = compare nel feed, Email = aggiunto al resoconto giornaliero).
       Le regole disattivate non generano avvisi e non occupano spazio.
     </div>
     {msg && <div style={{ marginBottom: 10, padding: 8, background: 'rgba(16,185,129,.1)', borderRadius: 6, color: '#10B981', fontSize: 12 }}>{msg}</div>}
@@ -346,20 +346,20 @@ function ConfigTab() {
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{rule.label}</div>
                     <span style={{ ...S.badge(liv.color, liv.bg), fontSize: 10 }}>{liv.l}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: enabled ? 10 : 0 }}>{rule.descr}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: enabled ? 10 : 0 }}>{rule.descr}</div>
                   {enabled && (
                     <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
                       {rule.thresholds.length > 0 && rule.thresholds.map(th => (
-                        <label key={th.key} style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <label key={th.key} style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6 }}>
                           {th.label}:
                           <input type='number' value={getThreshold(rule.key, th.key, th.default)}
                             onChange={e => setThreshold(rule.key, th.key, e.target.value)}
                             style={{ ...iS, width: 70, padding: '4px 6px', fontSize: 11, textAlign: 'center' }} />
-                          <span style={{ fontSize: 10, color: '#64748b' }}>{th.suffix}</span>
+                          <span style={{ fontSize: 10, color: 'var(--text3)' }}>{th.suffix}</span>
                         </label>
                       ))}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-                        <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.04em' }}>Canali:</span>
+                        <span style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Canali:</span>
                         {[
                           { v: 'dashboard', l: 'Dashboard' },
                           { v: 'email', l: 'Email' },
@@ -369,7 +369,7 @@ function ConfigTab() {
                             style={{ ...iS, padding: '3px 10px', fontSize: 10, fontWeight: 600,
                               background: sel ? '#3B82F6' : 'transparent',
                               color: sel ? '#fff' : '#94a3b8',
-                              border: sel ? 'none' : '1px solid #2a3042',
+                              border: sel ? 'none' : '1px solid var(--border)',
                               cursor: 'pointer' }}>
                             {c.l}
                           </button>

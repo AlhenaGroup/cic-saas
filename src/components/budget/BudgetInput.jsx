@@ -194,7 +194,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
 
   if (loading) {
     return <Card title="Budget">
-      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento…</div>
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Caricamento…</div>
     </Card>
   }
 
@@ -209,7 +209,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
         <button
           onClick={handleCopyPrevious}
           style={{
-            background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8',
+            background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)',
             padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer'
           }}
         >Copia mese prec.</button>
@@ -217,7 +217,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
           <button
             onClick={load}
             style={{
-              background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8',
+              background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)',
               padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer'
             }}
           >Annulla</button>
@@ -287,7 +287,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {(driver?.fields || []).map(f => (
                         <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 10, color: '#64748b' }}>{f.label}</span>
+                          <span style={{ fontSize: 10, color: 'var(--text3)' }}>{f.label}</span>
                           <input
                             type="number"
                             step={f.step || 1}
@@ -295,7 +295,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
                             onChange={e => changeField(r.category, f.key, Number(e.target.value))}
                             style={inputS}
                           />
-                          <span style={{ fontSize: 10, color: '#64748b' }}>{f.unit}</span>
+                          <span style={{ fontSize: 10, color: 'var(--text3)' }}>{f.unit}</span>
                         </div>
                       ))}
                     </div>
@@ -333,16 +333,16 @@ export default function BudgetInput({ sp, sps, year, month }) {
         </tbody>
         <tfoot>
           <tr>
-            <td style={{ ...S.td, borderTop: '2px solid #2a3042', color: '#94a3b8', fontSize: 11 }} colSpan={3}>
+            <td style={{ ...S.td, borderTop: '2px solid var(--border)', color: 'var(--text2)', fontSize: 11 }} colSpan={3}>
               Totale costi
             </td>
-            <td style={{ ...S.td, borderTop: '2px solid #2a3042', textAlign: 'right', fontWeight: 700, color: '#EF4444' }}>
+            <td style={{ ...S.td, borderTop: '2px solid var(--border)', textAlign: 'right', fontWeight: 700, color: '#EF4444' }}>
               {fmtD(totCosti)}
             </td>
-            <td style={{ ...S.td, borderTop: '2px solid #2a3042' }}/>
+            <td style={{ ...S.td, borderTop: '2px solid var(--border)' }}/>
           </tr>
           <tr>
-            <td style={{ ...S.td, fontWeight: 700, color: '#f1f5f9' }} colSpan={3}>
+            <td style={{ ...S.td, fontWeight: 700, color: 'var(--text)' }} colSpan={3}>
               MOL budget ({molPct.toFixed(1)}%)
             </td>
             <td style={{ ...S.td, textAlign: 'right', fontWeight: 800, color: mol >= 0 ? '#10B981' : '#EF4444', fontSize: 16 }}>
@@ -355,7 +355,7 @@ export default function BudgetInput({ sp, sps, year, month }) {
     </div>
 
     <div style={{ marginTop: 16 }}>
-      <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>
+      <label style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, display: 'block', marginBottom: 4 }}>
         Note del periodo
       </label>
       <textarea

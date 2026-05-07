@@ -84,20 +84,20 @@ export default function ManualArticlesManager({ sp, sps }) {
 
   return <Card title="Semilavorati" badge={loading ? '...' : filtered.length + ' voci'} extra={
     <button onClick={() => setEditing('new')}
-      style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '5px 14px', fontSize: 11, cursor: 'pointer' }}>
+      style={{ ...iS, background: '#10B981', color: 'var(--text)', fontWeight: 700, border: 'none', padding: '5px 14px', fontSize: 11, cursor: 'pointer' }}>
       + Aggiungi semilavorato
     </button>
   }>
     {loading ? (
-      <div style={{ padding: 20, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Caricamento...</div>
+      <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>Caricamento...</div>
     ) : filtered.length === 0 ? (
-      <div style={{ padding: 20, textAlign: 'center', color: '#475569', fontSize: 13 }}>
+      <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
         Nessun semilavorato. Aggiungi salse, basi, impasti che produci internamente — verranno usati come ingredienti nelle ricette.
       </div>
     ) : (
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Nome', 'Resa', 'N° ingredienti', 'Costo totale', 'Costo /UM', 'Locale', ''].map(h =>
               <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
@@ -113,18 +113,18 @@ export default function ManualArticlesManager({ sp, sps }) {
                     </div>
                   )}
                 </td>
-                <td style={{ ...S.td, color: '#94a3b8' }}>{Number(a.resa).toFixed(3)} {a.unita}</td>
-                <td style={{ ...S.td, color: '#94a3b8', textAlign: 'center' }}>{(a.ingredienti || []).length}</td>
+                <td style={{ ...S.td, color: 'var(--text2)' }}>{Number(a.resa).toFixed(3)} {a.unita}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', textAlign: 'center' }}>{(a.ingredienti || []).length}</td>
                 <td style={{ ...S.td, color: '#F59E0B' }}>{fmtD(c.totalCost)}</td>
                 <td style={{ ...S.td, fontWeight: 600, color: c.missing.length ? '#EF4444' : '#10B981' }}>
                   {c.perUnit > 0 ? fmtD(c.perUnit) + '/' + c.baseUm : '—'}
                   {c.missing.length > 0 && <span title={'Ingredienti senza prezzo: ' + c.missing.join(', ')} style={{ marginLeft: 4 }}></span>}
                 </td>
-                <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{a.locale || '—'}</td>
+                <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{a.locale || '—'}</td>
                 <td style={S.td}>
                   {a.approved === false && (
                     <button onClick={() => approva(a.id)} title="Conferma semilavorato creato da staff"
-                      style={{ background: '#10B981', color: '#0f1420', border: 'none', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginRight: 4 }}>
+                      style={{ background: '#10B981', color: 'var(--text)', border: 'none', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginRight: 4 }}>
                       Approva
                     </button>
                   )}
@@ -197,10 +197,10 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
   }
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, overflow: 'auto', padding: 24 }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720 }}>
-      <div style={{ padding: 18, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 720 }}>
+      <div style={{ padding: 18, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>{article ? 'Modifica semilavorato' : '+ Nuovo semilavorato'}</h3>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}>×</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Field label="Nome (es. Salsa Remembeer, Cipolla Caramellata)">
@@ -224,7 +224,7 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
         </div>
 
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
             Ingredienti ({ingr.length})
           </div>
           {ingr.map((it, i) => (
@@ -250,12 +250,12 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
         </div>
 
         {/* Preview costo */}
-        <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 12 }}>
-          <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>Anteprima costo</div>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+          <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 4 }}>Anteprima costo</div>
           <div style={{ fontSize: 20, fontWeight: 700, color: preview.missing.length ? '#EF4444' : '#10B981' }}>
             {preview.perUnit > 0 ? fmtD(preview.perUnit) + '/' + preview.baseUm : '—'}
           </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>
             Totale ingredienti: {fmtD(preview.totalCost || 0)} · Resa: {Number(resa || 1).toFixed(3)} {unita}
           </div>
           {preview.missing.length > 0 && <div style={{ fontSize: 11, color: '#EF4444', marginTop: 4 }}>
@@ -267,10 +267,10 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
           <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} style={{ ...iS, width: '100%', resize: 'vertical', fontFamily: 'inherit' }} />
         </Field>
       </div>
-      <div style={{ padding: 14, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-        <button onClick={onClose} disabled={saving} style={{ ...iS, color: '#94a3b8', border: '1px solid #2a3042', padding: '7px 14px', cursor: 'pointer' }}>Annulla</button>
+      <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button onClick={onClose} disabled={saving} style={{ ...iS, color: 'var(--text2)', border: '1px solid var(--border)', padding: '7px 14px', cursor: 'pointer' }}>Annulla</button>
         <button onClick={submit} disabled={saving}
-          style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 700, border: 'none', padding: '7px 18px', cursor: saving ? 'wait' : 'pointer' }}>
+          style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 700, border: 'none', padding: '7px 18px', cursor: saving ? 'wait' : 'pointer' }}>
           {saving ? 'Salvo...' : 'Salva'}
         </button>
       </div>
@@ -280,7 +280,7 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
 
 function Field({ label, children }) {
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-    <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
+    <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
     {children}
   </div>
 }

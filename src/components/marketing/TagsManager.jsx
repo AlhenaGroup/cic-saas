@@ -49,7 +49,7 @@ export default function TagsManager({ locale, onClose }) {
   }
 
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 95%)', maxHeight: '85vh', overflowY: 'auto', background: '#1a1f2e', padding: 20, borderRadius: 12, border: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 95%)', maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface)', padding: 20, borderRadius: 12, border: '1px solid var(--border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
         <h3 style={{ margin: 0, fontSize: 16, flex: 1 }}>Gestione tag · {locale}</h3>
         <button onClick={onClose} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>Chiudi</button>
@@ -59,11 +59,11 @@ export default function TagsManager({ locale, onClose }) {
 
       <div style={{ marginBottom: 14 }}>
         {tags.map(t => (
-          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid #2a3042' }}>
+          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
             <span style={{ width: 14, height: 14, background: t.colore, borderRadius: 3, flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{t.nome} {t.is_system && <span style={{ fontSize: 10, color: '#64748b', marginLeft: 6 }}>preset</span>}</div>
-              {t.descrizione && <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.descrizione}</div>}
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{t.nome} {t.is_system && <span style={{ fontSize: 10, color: 'var(--text3)', marginLeft: 6 }}>preset</span>}</div>
+              {t.descrizione && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{t.descrizione}</div>}
             </div>
             <button onClick={() => setEditing(t)} style={btn('#0f1420', '#cbd5e1', '#2a3042')}>Modifica</button>
             <button onClick={() => onDelete(t)} style={btn('#EF4444' + '22', '#EF4444', '#EF4444' + '55')}>×</button>
@@ -73,7 +73,7 @@ export default function TagsManager({ locale, onClose }) {
 
       <button onClick={() => setEditing({ nome: '', colore: '#94a3b8', descrizione: '' })} style={{ ...btn('#F59E0B', '#0f1420', '#F59E0B'), width: '100%' }}>+ Nuovo tag</button>
 
-      {editing && <div style={{ marginTop: 16, padding: 14, background: '#0f1420', borderRadius: 8, border: '1px solid #2a3042' }}>
+      {editing && <div style={{ marginTop: 16, padding: 14, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{editing.id ? 'Modifica tag' : 'Nuovo tag'}</div>
         <input placeholder="Nome (es. Vegetariano)" value={editing.nome} onChange={e => setEditing({ ...editing, nome: e.target.value })} style={{ ...S.input, width: '100%', marginBottom: 8 }} />
         <input placeholder="Descrizione (opzionale)" value={editing.descrizione || ''} onChange={e => setEditing({ ...editing, descrizione: e.target.value })} style={{ ...S.input, width: '100%', marginBottom: 8 }} />
@@ -81,7 +81,7 @@ export default function TagsManager({ locale, onClose }) {
           {SWATCHES.map(c => (
             <button key={c} onClick={() => setEditing({ ...editing, colore: c })} style={{
               width: 28, height: 28, background: c, borderRadius: 6,
-              border: editing.colore === c ? '2px solid #fff' : '1px solid #2a3042', cursor: 'pointer'
+              border: editing.colore === c ? '2px solid #fff' : '1px solid var(--border)', cursor: 'pointer'
             }} />
           ))}
         </div>

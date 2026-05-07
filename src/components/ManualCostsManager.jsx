@@ -35,21 +35,21 @@ export default function ManualCostsManager({ from, to, onChanged }) {
     badge={costs.length + ' voci · ' + fmtD(totalInPeriod) + ' nel periodo'}
     extra={
       <button onClick={() => setEditing('new')}
-        style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '5px 14px', fontSize: 11, cursor: 'pointer' }}>
+        style={{ ...iS, background: '#10B981', color: 'var(--text)', fontWeight: 700, border: 'none', padding: '5px 14px', fontSize: 11, cursor: 'pointer' }}>
         + Aggiungi costo
       </button>
     }
   >
-    {loading && <div style={{ padding: 16, textAlign: 'center', color: '#64748b', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ padding: 16, textAlign: 'center', color: 'var(--text3)', fontSize: 12 }}>Caricamento…</div>}
     {!loading && costs.length === 0 && (
-      <div style={{ padding: 20, textAlign: 'center', color: '#475569', fontSize: 13 }}>
+      <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
         Nessun costo manuale. Aggiungi affitto, utenze, assicurazioni ecc.
       </div>
     )}
     {!loading && costs.length > 0 && (
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Descrizione', 'Voce', 'Importo', 'Ricorrenza', 'Data inizio', 'Fine', 'Nel periodo', ''].map(h =>
               <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
@@ -58,13 +58,13 @@ export default function ManualCostsManager({ from, to, onChanged }) {
               const inPeriod = expandManualCost(c, from, to)
               return <tr key={c.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 500 }}>{c.label}</td>
-                <td style={{ ...S.td, fontSize: 12, color: '#94a3b8' }}>{VOCE_LABELS[c.voce] || c.voce}</td>
+                <td style={{ ...S.td, fontSize: 12, color: 'var(--text2)' }}>{VOCE_LABELS[c.voce] || c.voce}</td>
                 <td style={{ ...S.td, fontWeight: 600 }}>{fmtD(c.importo)}</td>
                 <td style={{ ...S.td, fontSize: 12, color: c.ricorrente ? '#8B5CF6' : '#64748b' }}>
                   {c.ricorrente ? CADENZE_LABELS[c.cadenza] || c.cadenza : 'Puntuale'}
                 </td>
-                <td style={{ ...S.td, fontSize: 12, color: '#94a3b8' }}>{c.data_riferimento}</td>
-                <td style={{ ...S.td, fontSize: 12, color: '#94a3b8' }}>{c.data_fine || '—'}</td>
+                <td style={{ ...S.td, fontSize: 12, color: 'var(--text2)' }}>{c.data_riferimento}</td>
+                <td style={{ ...S.td, fontSize: 12, color: 'var(--text2)' }}>{c.data_fine || '—'}</td>
                 <td style={{ ...S.td, fontWeight: 600, color: inPeriod > 0 ? '#10B981' : '#475569' }}>{fmtD(inPeriod)}</td>
                 <td style={S.td}>
                   <button onClick={() => setEditing(c.id)}
@@ -123,10 +123,10 @@ function CostForm({ cost, onClose, onSaved }) {
   }
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, overflow: 'auto', padding: 24 }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 520 }}>
-      <div style={{ padding: 18, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 520 }}>
+      <div style={{ padding: 18, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>{cost ? 'Modifica costo' : '+ Nuovo costo manuale'}</h3>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}>×</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Field label="Descrizione">
@@ -150,11 +150,11 @@ function CostForm({ cost, onClose, onSaved }) {
             <input type="checkbox" checked={ricorrente} onChange={e => setRicorrente(e.target.checked)} />
             Ricorrente
           </label>}>
-            <div style={{ fontSize: 10, color: '#64748b' }}>{ricorrente ? 'Si ripete automaticamente' : 'Una tantum'}</div>
+            <div style={{ fontSize: 10, color: 'var(--text3)' }}>{ricorrente ? 'Si ripete automaticamente' : 'Una tantum'}</div>
           </Field>
         </div>
         {ricorrente && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 12, background: '#131825', borderRadius: 8, border: '1px solid #2a3042' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: 12, background: 'var(--surface2)', borderRadius: 8, border: '1px solid var(--border)' }}>
             <Field label="Cadenza">
               <select value={cadenza} onChange={e => setCadenza(e.target.value)} style={{ ...iS, width: '100%' }}>
                 {Object.entries(CADENZE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -169,10 +169,10 @@ function CostForm({ cost, onClose, onSaved }) {
           <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} style={{ ...iS, width: '100%', resize: 'vertical', fontFamily: 'inherit' }} />
         </Field>
       </div>
-      <div style={{ padding: 14, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-        <button onClick={onClose} disabled={saving} style={{ ...iS, color: '#94a3b8', border: '1px solid #2a3042', padding: '7px 14px', cursor: 'pointer' }}>Annulla</button>
+      <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button onClick={onClose} disabled={saving} style={{ ...iS, color: 'var(--text2)', border: '1px solid var(--border)', padding: '7px 14px', cursor: 'pointer' }}>Annulla</button>
         <button onClick={submit} disabled={saving}
-          style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 700, border: 'none', padding: '7px 18px', cursor: saving ? 'wait' : 'pointer' }}>
+          style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 700, border: 'none', padding: '7px 18px', cursor: saving ? 'wait' : 'pointer' }}>
           {saving ? 'Salvo…' : 'Salva'}
         </button>
       </div>
@@ -182,7 +182,7 @@ function CostForm({ cost, onClose, onSaved }) {
 
 function Field({ label, children }) {
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-    <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
+    <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
     {children}
   </div>
 }

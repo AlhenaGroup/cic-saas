@@ -119,7 +119,7 @@ export default function AutomationsManager({ sp, sps }) {
   return <div style={S.card}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
       <h2 style={{ margin: 0, fontSize: 18 }}>Automazioni</h2>
-      <span style={{ fontSize: 12, color: '#94a3b8' }}>· workflow trigger-based</span>
+      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· workflow trigger-based</span>
       <div style={{ flex: 1 }} />
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
@@ -129,10 +129,10 @@ export default function AutomationsManager({ sp, sps }) {
     </div>
 
     {error && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-    {loading && <div style={{ color: '#94a3b8', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Caricamento…</div>}
 
     {!loading && list.length === 0 && (
-      <div style={{ textAlign: 'center', padding: 30, color: '#64748b', fontSize: 13 }}>
+      <div style={{ textAlign: 'center', padding: 30, color: 'var(--text3)', fontSize: 13 }}>
         Nessuna automazione. Crea una nuova o parti da un template ("Benvenuto", "Ci manchi 30gg", "Auguri compleanno", ecc.).
       </div>
     )}
@@ -141,7 +141,7 @@ export default function AutomationsManager({ sp, sps }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {list.map(a => {
           const trg = TRIGGERS.find(t => t.key === a.trigger_event)
-          return <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, background: '#0f1420', border: '1px solid ' + (a.attivo ? '#10B98155' : '#2a3042'), borderRadius: 8 }}>
+          return <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, background: 'var(--bg)', border: '1px solid ' + (a.attivo ? '#10B98155' : '#2a3042'), borderRadius: 8 }}>
             <button onClick={() => toggleAttivo(a)} style={{
               width: 36, height: 20, padding: 0, borderRadius: 999,
               background: a.attivo ? '#10B981' : '#2a3042',
@@ -151,7 +151,7 @@ export default function AutomationsManager({ sp, sps }) {
             </button>
             <div onClick={() => openEditor(a.id)} style={{ flex: 1, cursor: 'pointer' }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{a.nome}</div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>
+              <div style={{ fontSize: 11, color: 'var(--text2)' }}>
                 Trigger: {trg?.label || a.trigger_event} · Esecuzioni: {a.esecuzioni_totali}
                 {a.template_key && <span style={{ marginLeft: 8, color: '#F59E0B' }}>preset</span>}
               </div>
@@ -170,10 +170,10 @@ export default function AutomationsManager({ sp, sps }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {templates.map(t => (
           <div key={t.key} onClick={() => createFromTemplate(t.key)} style={{
-            padding: 14, background: '#0f1420', border: '1px solid #2a3042', borderRadius: 8, cursor: 'pointer'
+            padding: 14, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer'
           }}>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{t.nome}</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{t.descrizione}</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>{t.descrizione}</div>
           </div>
         ))}
       </div>
@@ -278,13 +278,13 @@ function AutomationEditor({ data, onClose }) {
 
     <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 14 }}>
       {/* Palette */}
-      <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 8, padding: 10 }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>Aggiungi nodo</div>
+      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 10 }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>Aggiungi nodo</div>
         {NODES.map(n => (
           <button key={n.tipo} onClick={() => addNode(n.tipo)} style={{
             display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 10px',
-            background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 6, cursor: 'pointer',
-            fontSize: 12, color: '#cbd5e1', marginBottom: 4, textAlign: 'left',
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer',
+            fontSize: 12, color: 'var(--text)', marginBottom: 4, textAlign: 'left',
           }}>
             <span style={{ fontSize: 14 }}>{n.icon}</span>
             <span style={{ flex: 1 }}>{n.label}</span>
@@ -293,7 +293,7 @@ function AutomationEditor({ data, onClose }) {
       </div>
 
       {/* Canvas (vista lineare) */}
-      <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 8, padding: 16, minHeight: 400 }}>
+      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 16, minHeight: 400 }}>
         {linearChain.map((n, i) => (
           <div key={n.id}>
             <NodeCard node={n} aut={aut} onClick={() => n.tipo !== 'trigger' && setEditingNode(n)}
@@ -302,7 +302,7 @@ function AutomationEditor({ data, onClose }) {
           </div>
         ))}
         {orphans.length > 0 && <>
-          <div style={{ marginTop: 20, padding: 8, background: '#1a1f2e', borderRadius: 6, fontSize: 11, color: '#94a3b8' }}>
+          <div style={{ marginTop: 20, padding: 8, background: 'var(--surface)', borderRadius: 6, fontSize: 11, color: 'var(--text2)' }}>
             Nodi scollegati: {orphans.length}
           </div>
           {orphans.map(n => <NodeCard key={n.id} node={n} aut={aut} onClick={() => setEditingNode(n)} onDelete={() => deleteNode(n)} />)}
@@ -321,14 +321,14 @@ function NodeCard({ node, aut, onClick, onEditTrigger, onDelete }) {
   const m = nodeMeta(node.tipo)
   const isTrigger = node.tipo === 'trigger'
   return <div onClick={onClick} style={{
-    background: '#1a1f2e', border: '1px solid ' + (isTrigger ? '#F59E0B' : '#2a3042'),
+    background: 'var(--surface)', border: '1px solid ' + (isTrigger ? '#F59E0B' : '#2a3042'),
     borderRadius: 10, padding: 12, cursor: onClick ? 'pointer' : 'default',
     display: 'flex', alignItems: 'center', gap: 12,
   }}>
     <span style={{ fontSize: 20, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', background: m.c + '22', borderRadius: 8 }}>{m.icon}</span>
     <div style={{ flex: 1 }}>
       <div style={{ fontSize: 13, fontWeight: 600 }}>{isTrigger ? `Trigger: ${TRIGGERS.find(t => t.key === aut.trigger_event)?.label || aut.trigger_event}` : m.label}</div>
-      <div style={{ fontSize: 11, color: '#94a3b8' }}>{nodeSummary(node)}</div>
+      <div style={{ fontSize: 11, color: 'var(--text2)' }}>{nodeSummary(node)}</div>
     </div>
     {!isTrigger && onDelete && <button onClick={(e) => { e.stopPropagation(); onDelete() }} style={btn('#EF4444' + '22', '#EF4444', '#EF4444' + '55')}>×</button>}
   </div>
@@ -487,13 +487,13 @@ function btn(bg, color, border) {
 }
 function Field({ label, children }) {
   return <label style={{ display: 'block' }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }
 function Modal({ children, onClose, title }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 95%)', maxHeight: '85vh', overflowY: 'auto', background: '#1a1f2e', padding: 20, borderRadius: 12, border: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 95%)', maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface)', padding: 20, borderRadius: 12, border: '1px solid var(--border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
         <h3 style={{ margin: 0, fontSize: 16, flex: 1 }}>{title}</h3>
         <button onClick={onClose} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>×</button>
@@ -504,7 +504,7 @@ function Modal({ children, onClose, title }) {
 }
 function Drawer({ children, onClose, wide = false }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: wide ? 'min(900px, 100%)' : 'min(620px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: wide ? 'min(900px, 100%)' : 'min(620px, 100%)', height: '100%', background: 'var(--surface)', padding: 20, overflowY: 'auto', borderLeft: '1px solid var(--border)' }}>
       {children}
     </div>
   </div>

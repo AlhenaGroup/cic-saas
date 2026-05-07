@@ -136,17 +136,17 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
       <Card title="Dipendenti" extra={
         <button onClick={()=>{setShowEmpForm(true);setEditEmp(null);setEmpForm({nome:'',ruolo:'',locale:'',telefono:'',email:'',pin:''})}} style={{...iS,background:'#3B82F6',color:'#fff',border:'none',padding:'5px 14px',fontWeight:600,fontSize:12}}>+ Aggiungi</button>
       }>
-        {showEmpForm&&<div style={{background:'#131825',borderRadius:8,padding:16,marginBottom:16,border:'1px solid #2a3042'}}>
+        {showEmpForm&&<div style={{background: 'var(--surface2)',borderRadius:8,padding:16,marginBottom:16,border:'1px solid var(--border)'}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
             <input placeholder="Nome *" value={empForm.nome} onChange={e=>setEmpForm(p=>({...p,nome:e.target.value}))} style={formStyle}/>
             <input placeholder="Ruolo" value={empForm.ruolo} onChange={e=>setEmpForm(p=>({...p,ruolo:e.target.value}))} style={formStyle}/>
             <div style={{...formStyle,display:'flex',gap:12,alignItems:'center',padding:'8px 10px'}}>
-              <span style={{fontSize:11,color:'#64748b'}}>Locali:</span>
+              <span style={{fontSize:11,color: 'var(--text3)'}}>Locali:</span>
               {sps.map(s=>{
                 const name = s.description||s.name
                 const locales = (empForm.locale||'').split(',').filter(Boolean)
                 const checked = locales.includes(name)
-                return <label key={s.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color:'#e2e8f0',cursor:'pointer'}}>
+                return <label key={s.id} style={{display:'flex',alignItems:'center',gap:4,fontSize:12,color: 'var(--text)',cursor:'pointer'}}>
                   <input type="checkbox" checked={checked} onChange={()=>{
                     const next = checked ? locales.filter(l=>l!==name) : [...locales, name]
                     setEmpForm(p=>({...p,locale:next.join(',')}))
@@ -160,23 +160,23 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
             <input placeholder="PIN 4 cifre" value={empForm.pin||''} onChange={e=>setEmpForm(p=>({...p,pin:e.target.value.replace(/\D/g,'').substring(0,4)}))} style={formStyle} maxLength={4}/>
             <div style={{display:'flex',gap:8}}>
               <button onClick={saveEmployee} disabled={!empForm.nome||hrLoading} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'6px 16px',fontWeight:600,flex:1}}>{editEmp?'Salva':'Aggiungi'}</button>
-              <button onClick={()=>{setShowEmpForm(false);setEditEmp(null)}} style={{...iS,color:'#64748b',border:'1px solid #2a3042',padding:'6px 12px'}}>Annulla</button>
+              <button onClick={()=>{setShowEmpForm(false);setEditEmp(null)}} style={{...iS,color: 'var(--text3)',border:'1px solid var(--border)',padding:'6px 12px'}}>Annulla</button>
             </div>
           </div>
         </div>}
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+          <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
             {['Nome','Ruolo','Locale','Telefono','Email','Stato',''].map(h=><th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {filteredEmps.length===0&&<tr><td colSpan={7} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessun dipendente. Clicca "+ Aggiungi" per inserirne uno.</td></tr>}
+            {filteredEmps.length===0&&<tr><td colSpan={7} style={{...S.td,color: 'var(--text3)',textAlign:'center',padding:20}}>Nessun dipendente. Clicca "+ Aggiungi" per inserirne uno.</td></tr>}
             {filteredEmps.map((d)=>(
               <tr key={d.id}>
                 <td style={{...S.td,fontWeight:500,color:'#3B82F6',cursor:'pointer'}} onClick={()=>setSelectedEmp(d)}>{d.nome}</td>
-                <td style={{...S.td,color:'#94a3b8'}}>{d.ruolo}</td>
-                <td style={{...S.td,fontSize:12,color:'#64748b'}}>{d.locale}</td>
-                <td style={{...S.td,fontSize:12,color:'#94a3b8'}}>{d.telefono||'—'}</td>
-                <td style={{...S.td,fontSize:12,color:'#94a3b8'}}>{d.email||'—'}</td>
+                <td style={{...S.td,color: 'var(--text2)'}}>{d.ruolo}</td>
+                <td style={{...S.td,fontSize:12,color: 'var(--text3)'}}>{d.locale}</td>
+                <td style={{...S.td,fontSize:12,color: 'var(--text2)'}}>{d.telefono||'—'}</td>
+                <td style={{...S.td,fontSize:12,color: 'var(--text2)'}}>{d.email||'—'}</td>
                 <td style={S.td}><span style={S.badge(d.stato==='Attivo'?'#10B981':'#EF4444',d.stato==='Attivo'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)')}>{d.stato==='Attivo'?'':''} {d.stato}</span></td>
                 <td style={{...S.td,whiteSpace:'nowrap'}}>
                   <button onClick={()=>{setEditEmp(d);setEmpForm({nome:d.nome,ruolo:d.ruolo||'',locale:d.locale||'',telefono:d.telefono||'',email:d.email||'',pin:d.pin||''});setShowEmpForm(true)}} style={{background:'none',border:'none',color:'#3B82F6',cursor:'pointer',fontSize:12,marginRight:8}}>Modifica</button>
@@ -194,9 +194,9 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
     {/* Documenti e scadenze */}
     <div style={{marginTop:12}}>
       <Card title="Documenti e scadenze" extra={
-        <button onClick={()=>{setShowDocForm(true);setDocForm({employee_id:employees[0]?.id||'',tipo:'Contratto',nome:'',scadenza:'',file:null})}} disabled={!employees.length} style={{...iS,background:'#F59E0B',color:'#0f1420',border:'none',padding:'5px 14px',fontWeight:600,fontSize:12}}>Carica documento</button>
+        <button onClick={()=>{setShowDocForm(true);setDocForm({employee_id:employees[0]?.id||'',tipo:'Contratto',nome:'',scadenza:'',file:null})}} disabled={!employees.length} style={{...iS,background:'#F59E0B',color: 'var(--text)',border:'none',padding:'5px 14px',fontWeight:600,fontSize:12}}>Carica documento</button>
       }>
-        {showDocForm&&<div style={{background:'#131825',borderRadius:8,padding:16,marginBottom:16,border:'1px solid #2a3042'}}>
+        {showDocForm&&<div style={{background: 'var(--surface2)',borderRadius:8,padding:16,marginBottom:16,border:'1px solid var(--border)'}}>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10}}>
             <select value={docForm.employee_id} onChange={e=>setDocForm(p=>({...p,employee_id:e.target.value}))} style={formStyle}>
               <option value="">Dipendente...</option>
@@ -209,23 +209,23 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
             <input type="date" value={docForm.scadenza} onChange={e=>setDocForm(p=>({...p,scadenza:e.target.value}))} style={formStyle} title="Scadenza"/>
           </div>
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
-            <input type="file" accept=".pdf,.jpg,.png,.doc,.docx,.xlsx,.xls" onChange={e=>setDocForm(p=>({...p,file:e.target.files[0]||null}))} style={{fontSize:12,color:'#94a3b8'}}/>
+            <input type="file" accept=".pdf,.jpg,.png,.doc,.docx,.xlsx,.xls" onChange={e=>setDocForm(p=>({...p,file:e.target.files[0]||null}))} style={{fontSize:12,color: 'var(--text2)'}}/>
             <button onClick={saveDoc} disabled={!docForm.employee_id||!docForm.nome||hrLoading} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'6px 16px',fontWeight:600}}>Salva</button>
-            <button onClick={()=>setShowDocForm(false)} style={{...iS,color:'#64748b',border:'1px solid #2a3042',padding:'6px 12px'}}>Annulla</button>
+            <button onClick={()=>setShowDocForm(false)} style={{...iS,color: 'var(--text3)',border:'1px solid var(--border)',padding:'6px 12px'}}>Annulla</button>
           </div>
         </div>}
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+          <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
             {['Dipendente','Tipo','Nome','Scadenza','File',''].map(h=><th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {filteredDocs.length===0&&<tr><td colSpan={6} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessun documento caricato.</td></tr>}
+            {filteredDocs.length===0&&<tr><td colSpan={6} style={{...S.td,color: 'var(--text3)',textAlign:'center',padding:20}}>Nessun documento caricato.</td></tr>}
             {filteredDocs.map((d)=>{
               const emp = employees.find(e=>e.id===d.employee_id)
               const g = d.scadenza ? giorniA(d.scadenza) : null
               return <tr key={d.id}>
                 <td style={{...S.td,fontWeight:500}}>{emp?.nome||'—'}</td>
-                <td style={{...S.td,color:'#94a3b8'}}>{d.tipo}</td>
+                <td style={{...S.td,color: 'var(--text2)'}}>{d.tipo}</td>
                 <td style={S.td}>{d.nome}</td>
                 <td style={S.td}>{d.scadenza?<span style={S.badge(scadColor(d.scadenza),scadBg(d.scadenza))}>{d.scadenza} ({g<0?'scaduto':g+'gg'})</span>:'—'}</td>
                 <td style={S.td}>{d.file_path?<button onClick={()=>downloadDoc(d.file_path)} style={{background:'none',border:'none',color:'#3B82F6',cursor:'pointer',fontSize:12}}>Scarica</button>:'—'}</td>

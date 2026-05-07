@@ -294,14 +294,14 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
             <canvas ref={canvasRef} />
           </div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', marginBottom: 8 }}>{qrLocale}</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12, wordBreak: 'break-all', maxWidth: 300 }}>{qrUrl}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{qrLocale}</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 12, wordBreak: 'break-all', maxWidth: 300 }}>{qrUrl}</div>
             <button onClick={() => { if (canvasRef.current) { const a = document.createElement('a'); a.download = `QR_${qrLocale}.png`; a.href = canvasRef.current.toDataURL(); a.click() } }}
               style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>Scarica PNG</button>
           </div>
         </div>
       ) : (
-        <div style={{ color: '#475569', textAlign: 'center', padding: 16, fontSize: 13 }}>Seleziona un locale per generare il QR code di timbratura.</div>
+        <div style={{ color: 'var(--text3)', textAlign: 'center', padding: 16, fontSize: 13 }}>Seleziona un locale per generare il QR code di timbratura.</div>
       )}
     </Card>
 
@@ -310,11 +310,11 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
       <Card title="Presenze reali" badge={Math.round(totalHoursWeek) + 'h totali'} extra={
         <div className="m-wrap" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>‹</button>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
           <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>›</button>
           <button onClick={loadAttendance} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Aggiorna</button>
           <button onClick={() => setExportModal('excel')} disabled={filteredEmps.length === 0}
-            style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
+            style={{ ...iS, background: '#10B981', color: 'var(--text)', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
             title="Scarica Excel di un periodo a tua scelta">Excel</button>
           <button onClick={() => setExportModal('csv')} disabled={filteredEmps.length === 0}
             style={{ ...iS, background: '#3B82F6', color: '#fff', fontWeight: 700, border: 'none', padding: '4px 12px', fontSize: 11, cursor: 'pointer' }}
@@ -325,11 +325,11 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
         </div>
       }>
         {filteredEmps.length === 0 ? (
-          <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>Nessun dipendente attivo.</div>
+          <div style={{ color: 'var(--text3)', textAlign: 'center', padding: 20, fontSize: 13 }}>Nessun dipendente attivo.</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+              <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <th style={{ ...S.th, width: 140 }}>Dipendente</th>
                 {DAYS.map(d => <th key={d} style={{ ...S.th, textAlign: 'center' }}>{d}</th>)}
                 <th style={{ ...S.th, textAlign: 'right' }}>Ore</th>
@@ -373,15 +373,15 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                             title={'Clicca per gestire le timbrature del ' + date.toLocaleDateString('it-IT')}
                             style={{
                               width: '100%', background: 'transparent', border: 'none', cursor: 'pointer',
-                              padding: 4, textAlign: 'center', color: '#e2e8f0',
+                              padding: 4, textAlign: 'center', color: 'var(--text)',
                             }}>
                             <div style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>{summaryMain}</div>
-                            {summarySub && <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>{summarySub}</div>}
+                            {summarySub && <div style={{ fontSize: 9, color: 'var(--text2)', marginTop: 1 }}>{summarySub}</div>}
                             <div style={{ fontSize: 10, color: '#F59E0B', fontWeight: 700, marginTop: 2 }}>
                               {(att.ore || 0).toFixed(2)}h
                               {(() => {
                                 const pTot = att.blocksForLocale.reduce((s, b) => s + (Number(b.pausa) || 0), 0)
-                                return pTot > 0 ? <span title={`Pausa sottratta: ${pTot} min`} style={{ marginLeft: 3, color: '#94a3b8', fontWeight: 500 }}>⏸{pTot}'</span> : null
+                                return pTot > 0 ? <span title={`Pausa sottratta: ${pTot} min`} style={{ marginLeft: 3, color: 'var(--text2)', fontWeight: 500 }}>⏸{pTot}'</span> : null
                               })()}
                               {hasMulti && <span title="Turno spezzato" style={{ marginLeft: 3, color: '#3B82F6' }}>ℹ︎</span>}
                               {att.incompleta && <span title="Timbratura incompleta" style={{ marginLeft: 3, color: '#EF4444' }}></span>}
@@ -389,7 +389,7 @@ export default function AttendanceView({ employees, shifts, sp, sps }) {
                           </button>
                         ) : (
                           <button onClick={() => setManagingDay({ emp, dayOffset: day, ds: att.ds, date })}
-                            style={{ background: 'transparent', border: '1px dashed #2a304266', borderRadius: 4, color: '#475569', cursor: 'pointer', fontSize: 10, padding: '6px 4px', width: '100%' }}
+                            style={{ background: 'transparent', border: '1px dashed #2a304266', borderRadius: 4, color: 'var(--text3)', cursor: 'pointer', fontSize: 10, padding: '6px 4px', width: '100%' }}
                             title="Aggiungi timbratura">+</button>
                         )}
                       </td>
@@ -629,10 +629,10 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
   }
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 480 }}>
-      <div style={{ padding: 18, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 480 }}>
+      <div style={{ padding: 18, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>{kind === 'excel' ? 'Esporta Excel' : kind === 'csv' ? 'Esporta CSV' : 'Esporta PDF'}</h3>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer' }}>×</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer' }}>×</button>
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -643,15 +643,15 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div>
-            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Dal</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Dal</div>
             <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ ...iS, width: '100%' }} />
           </div>
           <div>
-            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Al</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Al</div>
             <input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ ...iS, width: '100%' }} />
           </div>
         </div>
-        <div style={{ fontSize: 11, color: '#94a3b8' }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)' }}>
           {(() => {
             const d1 = new Date(from), d2 = new Date(to)
             const days = Math.round((d2 - d1) / 86400000) + 1
@@ -660,8 +660,8 @@ function ExportModal({ kind, defaultFrom, defaultTo, emps, locale, localeFilter,
         </div>
         {err && <div style={{ color: '#EF4444', fontSize: 12 }}>{err}</div>}
       </div>
-      <div style={{ padding: 14, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-        <button onClick={onClose} disabled={busy} style={{ ...iS, color: '#94a3b8', border: '1px solid #2a3042', padding: '7px 14px', cursor: 'pointer' }}>Annulla</button>
+      <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button onClick={onClose} disabled={busy} style={{ ...iS, color: 'var(--text2)', border: '1px solid var(--border)', padding: '7px 14px', cursor: 'pointer' }}>Annulla</button>
         <button onClick={run} disabled={busy || from > to}
           style={{ ...iS, background: kind === 'excel' ? '#10B981' : kind === 'csv' ? '#3B82F6' : '#EF4444', color: kind === 'excel' ? '#0f1420' : '#fff', fontWeight: 700, border: 'none', padding: '7px 18px', cursor: busy ? 'wait' : 'pointer' }}>
           {busy ? 'Esporto…' : (kind === 'excel' ? 'Scarica Excel' : kind === 'csv' ? 'Scarica CSV' : 'Apri stampa PDF')}
@@ -802,26 +802,26 @@ function DayManager({ data, allLocali, onClose, onChange }) {
   const iS = S.input
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 620 }}>
-      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 620 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 15 }}>{emp.nome}</h3>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
       <div style={{ padding: 16 }}>
         {/* Riepilogo ore per locale */}
         {Object.keys(oreByLocale).length > 0 && (
-          <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 12, marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+          <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
               Totale giornata · {(Math.floor(oreTot * 100) / 100).toFixed(2)}h
-              {pausaTot > 0 && <span style={{ marginLeft: 8, color: '#94a3b8', fontWeight: 600 }}>(pausa {pausaTot}′ sottratta)</span>}
+              {pausaTot > 0 && <span style={{ marginLeft: 8, color: 'var(--text2)', fontWeight: 600 }}>(pausa {pausaTot}′ sottratta)</span>}
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {Object.entries(oreByLocale).map(([loc, h]) => (
-                <span key={loc} style={{ fontSize: 12, color: '#e2e8f0', background: '#1a1f2e', padding: '4px 10px', borderRadius: 4 }}>
+                <span key={loc} style={{ fontSize: 12, color: 'var(--text)', background: 'var(--surface)', padding: '4px 10px', borderRadius: 4 }}>
                   {loc}: <strong style={{ color: '#F59E0B' }}>{(Math.floor(h * 100) / 100).toFixed(2)}h</strong>
                 </span>
               ))}
@@ -831,12 +831,12 @@ function DayManager({ data, allLocali, onClose, onChange }) {
 
         {/* Lista timbrature */}
         {records.length === 0 ? (
-          <div style={{ padding: 16, textAlign: 'center', color: '#64748b', fontSize: 12 }}>
+          <div style={{ padding: 16, textAlign: 'center', color: 'var(--text3)', fontSize: 12 }}>
             Nessuna timbratura per questo giorno.
           </div>
         ) : (
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Timbrature ({records.length})</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Timbrature ({records.length})</div>
             {sorted.map(r => {
               const isPausa = r.tipo === 'pausa'
               const tipoColor = r.tipo === 'entrata' ? '#10B981' : r.tipo === 'uscita' ? '#EF4444' : '#F59E0B'
@@ -884,11 +884,11 @@ function DayManager({ data, allLocali, onClose, onChange }) {
         {/* Azioni aggiungi */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button onClick={() => addRec('entrata')} disabled={saving}
-            style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12 }}>
+            style={{ ...iS, background: '#10B981', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12 }}>
             + Entrata
           </button>
           <button onClick={() => addRec('pausa')} disabled={saving}
-            style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12 }}
+            style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: saving ? 'wait' : 'pointer', fontSize: 12 }}
             title="Aggiunge una pausa tra entrata e uscita: i minuti vengono sottratti dalle ore del blocco">
             + Pausa
           </button>
@@ -903,7 +903,7 @@ function DayManager({ data, allLocali, onClose, onChange }) {
           )}
         </div>
 
-        <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5, borderTop: '1px solid #2a3042', paddingTop: 10 }}>
+        <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.5, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
           Le ore vengono calcolate abbinando <strong>entratauscita</strong> in ordine cronologico.<br/>
           Turni spezzati (es. 10-13 + 18-22) contano solo le ore effettive, non il buco tra i due.<br/>
           Ogni blocco eredita il locale dell'<strong>entrata</strong>.<br/>
@@ -911,8 +911,8 @@ function DayManager({ data, allLocali, onClose, onChange }) {
         </div>
       </div>
 
-      <div style={{ padding: 12, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={onClose} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: 'pointer' }}>Fatto</button>
+      <div style={{ padding: 12, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={onClose} style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: 'pointer' }}>Fatto</button>
       </div>
     </div>
   </div>

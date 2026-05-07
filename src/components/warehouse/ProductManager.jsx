@@ -94,7 +94,7 @@ export default function ProductManager() {
       </div>
 
       {/* Form */}
-      {showForm && <div style={{ background: '#131825', borderRadius: 8, padding: 16, marginBottom: 16, border: '1px solid #2a3042' }}>
+      {showForm && <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: 16, marginBottom: 16, border: '1px solid var(--border)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
           <input placeholder="Nome *" value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} style={formS} />
           <input placeholder="Nome standard" value={form.nome_standard} onChange={e => setForm(p => ({ ...p, nome_standard: e.target.value }))} style={formS} />
@@ -115,17 +115,17 @@ export default function ProductManager() {
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
           <button onClick={save} disabled={!form.nome || loading} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600 }}>{editProd ? 'Salva' : 'Aggiungi'}</button>
-          <button onClick={() => { setShowForm(false); setEditProd(null) }} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '6px 12px' }}>Annulla</button>
+          <button onClick={() => { setShowForm(false); setEditProd(null) }} style={{ ...iS, color: 'var(--text3)', border: '1px solid var(--border)', padding: '6px 12px' }}>Annulla</button>
         </div>
       </div>}
 
       {/* Table */}
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+        <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
           {['Nome', 'Categoria', 'Unita', 'Fornitore', 'Ultimo prezzo', 'Scorta min.', 'Attivo', ''].map(h => <th key={h} style={S.th}>{h}</th>)}
         </tr></thead>
         <tbody>
-          {filtered.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessun prodotto trovato</td></tr>}
+          {filtered.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center', padding: 20 }}>Nessun prodotto trovato</td></tr>}
           {filtered.map(p => {
             const prodAliases = aliases.filter(a => a.product_id === p.id)
             return <tr key={p.id}>
@@ -134,7 +134,7 @@ export default function ProductManager() {
                 {expandedAliases === p.id && <div style={{ marginTop: 6 }}>
                   {prodAliases.map(a => (
                     <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                      <span style={{ fontSize: 11, color: '#94a3b8' }}>{a.alias}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text2)' }}>{a.alias}</span>
                       <button onClick={() => deleteAlias(a.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 10 }}>x</button>
                     </div>
                   ))}
@@ -147,11 +147,11 @@ export default function ProductManager() {
                   {prodAliases.length} alias {expandedAliases === p.id ? '\u25B2' : '\u25BC'}
                 </button>
               </td>
-              <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{p.categoria}</td>
+              <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{p.categoria}</td>
               <td style={{ ...S.td, fontSize: 12 }}>{p.unita_misura}</td>
-              <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{p.fornitore_principale || '-'}</td>
+              <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{p.fornitore_principale || '-'}</td>
               <td style={{ ...S.td, fontWeight: 600 }}>{p.ultimo_prezzo ? fmt(p.ultimo_prezzo) : '-'}</td>
-              <td style={{ ...S.td, color: '#64748b' }}>{p.scorta_minima || '-'}</td>
+              <td style={{ ...S.td, color: 'var(--text3)' }}>{p.scorta_minima || '-'}</td>
               <td style={S.td}>
                 <button onClick={() => toggle(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: p.attivo ? '#10B981' : '#EF4444' }}>
                   {p.attivo ? 'Si' : 'No'}

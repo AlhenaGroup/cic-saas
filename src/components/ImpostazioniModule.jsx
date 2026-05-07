@@ -62,7 +62,7 @@ function GeneraleTab({ settings, sps }) {
         <Field label="Email" value={s?.company_email || '—'} />
         <Field label="Sito web" value={s?.website || '—'} />
       </div>
-      <div style={{ fontSize: 11, color: '#64748b', marginTop: 12, padding: '0 4px' }}>
+      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 12, padding: '0 4px' }}>
         I dati anagrafici possono essere modificati solo dall'admin del piano. Contatta supporto.
       </div>
     </Card>
@@ -71,17 +71,17 @@ function GeneraleTab({ settings, sps }) {
 
     <Card title="Locali" badge={(sps || []).length + ' locali attivi'}>
       {(sps || []).length === 0 ? (
-        <div style={{ padding: 20, color: '#64748b', fontSize: 13, textAlign: 'center' }}>Nessun locale configurato.</div>
+        <div style={{ padding: 20, color: 'var(--text3)', fontSize: 13, textAlign: 'center' }}>Nessun locale configurato.</div>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Nome', 'ID CiC', 'Stato'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
             {sps.map(s => (
               <tr key={s.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 600 }}>{s.description || s.name || '—'}</td>
-                <td style={{ ...S.td, fontFamily: 'monospace', color: '#94a3b8' }}>{s.id}</td>
+                <td style={{ ...S.td, fontFamily: 'monospace', color: 'var(--text2)' }}>{s.id}</td>
                 <td style={S.td}><span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Attivo</span></td>
               </tr>
             ))}
@@ -98,7 +98,7 @@ function GeneraleTab({ settings, sps }) {
         <Field label="Lingua" value="Italiano" />
         <Field label="Valuta" value="EUR (€)" />
       </div>
-      <div style={{ fontSize: 11, color: '#64748b', marginTop: 12, padding: '0 4px' }}>
+      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 12, padding: '0 4px' }}>
         Personalizzazioni multi-lingua e multi-valuta in arrivo nelle prossime release.
       </div>
     </Card>
@@ -169,14 +169,14 @@ function IntegrazioniTab({ settings }) {
   return <>
   {/* Card Re-Sync CiC */}
   <Card title="Re-Sync dati CiC" badge={settings?.cic_api_key ? 'API key OK' : 'API key mancante'}>
-    <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12, lineHeight: 1.5 }}>
+    <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, lineHeight: 1.5 }}>
       Forza la risincronizzazione dei dati POS Cassanova per un periodo specifico.
       Utile dopo importazione manuale di scontrini o se il sync notturno non ha catturato tutto.
     </div>
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-      <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Periodo:</span>
+      <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>Periodo:</span>
       <input type="date" value={syncFrom} onChange={e => setSyncFrom(e.target.value)} style={iS}/>
-      <span style={{ color: '#475569' }}>—</span>
+      <span style={{ color: 'var(--text3)' }}>—</span>
       <input type="date" value={syncTo} onChange={e => setSyncTo(e.target.value)} style={iS}/>
       <button onClick={doResync} disabled={syncing || !settings?.cic_api_key}
         style={{
@@ -203,13 +203,13 @@ function IntegrazioniTab({ settings }) {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
       {integrazioni.map(i => {
         const s = STATO[i.stato]
-        return <div key={i.id} style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14 }}>
+        return <div key={i.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <div style={{ fontSize: 13, fontWeight: 700 }}>{i.nome}</div>
             <span style={S.badge(s.c, s.bg)}>{s.l}</span>
           </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5, marginBottom: 10 }}>{i.descr}</div>
-          <div style={{ fontSize: 10, color: '#64748b', fontStyle: 'italic' }}>
+          <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 10 }}>{i.descr}</div>
+          <div style={{ fontSize: 10, color: 'var(--text3)', fontStyle: 'italic' }}>
             Configurazione dettagliata in arrivo nelle prossime release.
           </div>
         </div>
@@ -264,17 +264,17 @@ function NotifCard({ titolo, descr, stato, onClick, cta }) {
   }
   const s = STATO[stato] || STATO.planned
   const isActive = stato === 'active'
-  return <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, opacity: isActive ? 1 : 0.7 }}>
+  return <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, opacity: isActive ? 1 : 0.7 }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
       <div style={{ fontSize: 13, fontWeight: 700 }}>{titolo}</div>
       <span style={S.badge(s.c, s.bg)}>{s.l}</span>
     </div>
-    <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.5, marginBottom: 10 }}>{descr}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 10 }}>{descr}</div>
     <button onClick={onClick} disabled={!isActive}
       style={{ ...iS, padding: '5px 12px', fontSize: 11, fontWeight: 600,
         background: isActive ? '#3B82F6' : 'transparent',
         color: isActive ? '#fff' : '#475569',
-        border: isActive ? 'none' : '1px solid #2a3042',
+        border: isActive ? 'none' : '1px solid var(--border)',
         cursor: isActive ? 'pointer' : 'not-allowed' }}>
       {cta || 'Configura'}
     </button>
@@ -328,7 +328,7 @@ function AccountTab() {
       {err && <div style={{ marginTop: 10, fontSize: 12, color: '#EF4444' }}>{err}</div>}
       <div style={{ marginTop: 12 }}>
         <button onClick={changePassword} disabled={saving || !pw || !pw2}
-          style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '7px 18px', fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: (!pw || !pw2) ? 0.5 : 1 }}>
+          style={{ ...iS, background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '7px 18px', fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: (!pw || !pw2) ? 0.5 : 1 }}>
           {saving ? 'Aggiorno…' : 'Aggiorna password'}
         </button>
       </div>
@@ -337,7 +337,7 @@ function AccountTab() {
     <div style={{ marginTop: 12 }}/>
 
     <Card title="Logout">
-      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10 }}>
+      <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 10 }}>
         Disconnetti la sessione corrente da questo browser.
       </div>
       <button onClick={() => supabase.auth.signOut()}
@@ -350,7 +350,7 @@ function AccountTab() {
 
 function Field({ label, value, mono }) {
   return <div>
-    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
-    <div style={{ fontSize: 13, color: '#e2e8f0', fontFamily: mono ? 'monospace' : 'inherit', wordBreak: 'break-all' }}>{value}</div>
+    <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
+    <div style={{ fontSize: 13, color: 'var(--text)', fontFamily: mono ? 'monospace' : 'inherit', wordBreak: 'break-all' }}>{value}</div>
   </div>
 }

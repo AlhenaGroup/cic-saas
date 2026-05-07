@@ -64,13 +64,13 @@ export default function EmailBuilder({ blocks, meta, onChange }) {
 
     {/* Preview canvas */}
     <div style={{ ...paneStyle, padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', borderBottom: '1px solid #2a3042' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
         <button onClick={() => setTab('design')} style={tabBtn(tab === 'design')}>Design</button>
         <button onClick={() => setTab('html')} style={tabBtn(tab === 'html')}>HTML</button>
       </div>
       {tab === 'design' && <div style={{ flex: 1, overflowY: 'auto', background: meta?.bg_color || '#f5f5f5' }}>
         <div style={{ width: meta?.content_width || 600, maxWidth: '100%', margin: '20px auto', background: meta?.card_bg || '#fff', borderRadius: 8, overflow: 'hidden' }}>
-          {(blocks || []).length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
+          {(blocks || []).length === 0 && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text2)', fontSize: 13 }}>
             Aggiungi blocchi dalla palette a sinistra
           </div>}
           {(blocks || []).map((b, i) => (
@@ -84,13 +84,13 @@ export default function EmailBuilder({ blocks, meta, onChange }) {
           ))}
         </div>
       </div>}
-      {tab === 'html' && <textarea readOnly value={html} style={{ flex: 1, padding: 12, background: '#0f1420', color: '#cbd5e1', fontFamily: 'monospace', fontSize: 11, border: 'none', resize: 'none' }} />}
+      {tab === 'html' && <textarea readOnly value={html} style={{ flex: 1, padding: 12, background: 'var(--bg)', color: 'var(--text)', fontFamily: 'monospace', fontSize: 11, border: 'none', resize: 'none' }} />}
     </div>
 
     {/* Inspector */}
     <div style={paneStyle}>
       <div style={paneTitle}>Proprietà blocco</div>
-      {!selBlock && <div style={{ fontSize: 12, color: '#64748b' }}>Seleziona un blocco per modificarlo.</div>}
+      {!selBlock && <div style={{ fontSize: 12, color: 'var(--text3)' }}>Seleziona un blocco per modificarlo.</div>}
       {selBlock && <BlockEditor block={selBlock} onChange={(patch) => updateBlock(selBlock.id, patch)} />}
     </div>
   </div>
@@ -105,7 +105,7 @@ function BlockPreview({ block, selected, onClick, onMoveUp, onMoveDown, onDelete
   }}>
     {/* render dei singoli blocchi è approssimato qui (no tabella nidificata, solo visual) */}
     <BlockVisual block={block} />
-    {selected && <div style={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 4, background: '#1a1f2e', padding: 3, borderRadius: 6 }}>
+    {selected && <div style={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 4, background: 'var(--surface)', padding: 3, borderRadius: 6 }}>
       {onMoveUp && <button onClick={(e) => { e.stopPropagation(); onMoveUp() }} style={iconBtn}></button>}
       {onMoveDown && <button onClick={(e) => { e.stopPropagation(); onMoveDown() }} style={iconBtn}></button>}
       <button onClick={(e) => { e.stopPropagation(); onDelete() }} style={{ ...iconBtn, color: '#EF4444' }}>×</button>
@@ -123,7 +123,7 @@ function BlockVisual({ block }) {
     case 'image':
       return <div style={{ padding: '8px 24px', textAlign: 'center' }}>
         {p.src ? <img src={p.src} alt={p.alt || ''} style={{ maxWidth: '100%', display: 'block', margin: '0 auto', maxHeight: 300 }} />
-          : <div style={{ background: '#e5e7eb', padding: 30, color: '#64748b', fontSize: 12 }}>immagine vuota — imposta URL</div>}
+          : <div style={{ background: '#e5e7eb', padding: 30, color: 'var(--text3)', fontSize: 12 }}>immagine vuota — imposta URL</div>}
       </div>
     case 'button':
       return <div style={{ padding: '14px 24px', textAlign: 'center' }}>
@@ -135,7 +135,7 @@ function BlockVisual({ block }) {
       return <div style={{ height: p.height || 24 }} />
     case 'social':
       return <div style={{ padding: '14px 24px', textAlign: 'center', fontSize: 13, color: '#374151' }}>
-        {[p.facebook && 'Facebook', p.instagram && 'Instagram', p.twitter && 'X', p.tripadvisor && 'TripAdvisor', p.google && 'Google'].filter(Boolean).join(' · ') || <span style={{ color: '#94a3b8' }}>Aggiungi link social</span>}
+        {[p.facebook && 'Facebook', p.instagram && 'Instagram', p.twitter && 'X', p.tripadvisor && 'TripAdvisor', p.google && 'Google'].filter(Boolean).join(' · ') || <span style={{ color: 'var(--text2)' }}>Aggiungi link social</span>}
       </div>
     case 'footer':
       return <div style={{ padding: '18px 24px 24px', textAlign: 'center', fontSize: p.size || 11, color: p.color || '#94a3b8', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.html || ''}</div>
@@ -225,17 +225,17 @@ function AlignButtons({ value, onChange }) {
 }
 
 // ─── styles ──────────────────────────────────────────────────────────
-const paneStyle = { background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 8, padding: 12, overflowY: 'auto' }
-const paneTitle = { fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8, fontWeight: 700 }
-const paletteBtn = { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', fontSize: 12, background: '#0f1420', color: '#cbd5e1', border: '1px solid #2a3042', borderRadius: 5, cursor: 'pointer', textAlign: 'left' }
-const colorInput = { width: '100%', height: 30, padding: 0, background: 'transparent', border: '1px solid #2a3042', borderRadius: 4, cursor: 'pointer' }
-const iconBtn = { width: 24, height: 24, padding: 0, fontSize: 14, background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer' }
+const paneStyle = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, overflowY: 'auto' }
+const paneTitle = { fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8, fontWeight: 700 }
+const paletteBtn = { display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', fontSize: 12, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, cursor: 'pointer', textAlign: 'left' }
+const colorInput = { width: '100%', height: 30, padding: 0, background: 'transparent', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer' }
+const iconBtn = { width: 24, height: 24, padding: 0, fontSize: 14, background: 'transparent', border: 'none', color: 'var(--text)', cursor: 'pointer' }
 const twoCol = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }
-const chk = { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#cbd5e1', marginTop: 8 }
+const chk = { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text)', marginTop: 8 }
 
 function Field({ label, children }) {
   return <label style={{ display: 'block', marginTop: 8 }}>
-    <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 10, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }

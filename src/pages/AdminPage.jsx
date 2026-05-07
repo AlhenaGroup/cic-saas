@@ -129,15 +129,15 @@ function UsersList({ onEditUser, refreshKey }) {
     <Card title={`Utenti (${users.length})`} extra={
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
       <input placeholder="Cerca email..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...iS, width: 200 }} />
-      <button onClick={() => setShowNew(true)} style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 12px', cursor: 'pointer' }}>
+      <button onClick={() => setShowNew(true)} style={{ ...iS, background: '#10B981', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '6px 12px', cursor: 'pointer' }}>
         + Nuovo cliente
       </button>
     </div>
   }>
-    {loading && <div style={{ padding: 20, color: '#64748b' }}>Caricamento…</div>}
+    {loading && <div style={{ padding: 20, color: 'var(--text3)' }}>Caricamento…</div>}
     {!loading && (
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+        <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
           {['Email', 'Piano', 'Stato', 'Valido fino', 'Ultimo login', 'Admin', ''].map(h => <th key={h} style={S.th}>{h}</th>)}
         </tr></thead>
         <tbody>
@@ -146,7 +146,7 @@ function UsersList({ onEditUser, refreshKey }) {
               <td style={{ ...S.td, fontWeight: 500 }}>{u.email}</td>
               <td style={S.td}>
                 {u.plan ? <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>{u.plan.plan_id}</span>
-                        : <span style={{ color: '#64748b', fontSize: 11 }}>nessuno</span>}
+                        : <span style={{ color: 'var(--text3)', fontSize: 11 }}>nessuno</span>}
               </td>
               <td style={S.td}>
                 {u.plan?.active === false ? <span style={S.badge('#EF4444', 'rgba(239,68,68,.12)')}>SOSP.</span>
@@ -154,7 +154,7 @@ function UsersList({ onEditUser, refreshKey }) {
                   : u.plan ? <span style={{ color: '#10B981' }}>Attivo</span> : '—'}
               </td>
               <td style={{ ...S.td, fontSize: 12 }}>{u.plan?.valid_until || '—'}</td>
-              <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('it-IT') : '—'}</td>
+              <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('it-IT') : '—'}</td>
               <td style={S.td}>{u.admin_role ? <span style={S.badge('#8B5CF6', 'rgba(139,92,246,.15)')}>{u.admin_role}</span> : ''}</td>
               <td style={S.td}>
                 <div style={{ display: 'flex', gap: 4 }}>
@@ -183,8 +183,8 @@ function UsersList({ onEditUser, refreshKey }) {
 // lo ricrea come "nuovo componente" e React rimonta gli input perdendo il focus.
 function Field({ label, hint, children }) {
   return <label style={{ display: 'block', marginBottom: 12 }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
-      {label} {hint && <span style={{ color: '#64748b', fontWeight: 400 }}>· {hint}</span>}
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>
+      {label} {hint && <span style={{ color: 'var(--text3)', fontWeight: 400 }}>· {hint}</span>}
     </div>
     {children}
   </label>
@@ -274,20 +274,20 @@ function NewUser({ onClose, onCreated }) {
   }
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, overflow: 'auto', padding: 24 }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720, maxHeight: '92vh', overflow: 'auto' }}>
-      <div style={{ padding: 20, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 720, maxHeight: '92vh', overflow: 'auto' }}>
+      <div style={{ padding: 20, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 16 }}>+ Nuovo cliente</h3>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
             Riceverà una email per impostare la password al primo accesso
           </div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
       <div style={{ padding: 20 }}>
         {/* DATI BASE */}
-        <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 12 }}>Account</div>
           <Field label="Email del cliente *" hint="obbligatoria">
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@esempio.it" style={{ ...iS, width: '100%' }} />
@@ -308,9 +308,9 @@ function NewUser({ onClose, onCreated }) {
         </div>
 
         {/* ANAGRAFICA AZIENDA */}
-        <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981', marginBottom: 4 }}>Anagrafica azienda</div>
-          <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 12 }}>
             Tutti i campi sono opzionali e modificabili in qualsiasi momento da "Modifica utente"
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
@@ -343,9 +343,9 @@ function NewUser({ onClose, onCreated }) {
         </div>
 
         {/* INTEGRAZIONI */}
-        <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', marginBottom: 4 }}>Integrazioni esterne</div>
-          <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 12 }}>
             Tutte opzionali — puoi compilarle ora o aggiungerle dopo da "Modifica utente"
           </div>
 
@@ -360,7 +360,7 @@ function NewUser({ onClose, onCreated }) {
               </button>
             </div>
             {salesPoints.length > 0 && (
-              <div style={{ marginTop: 8, padding: 8, background: '#0a0e16', borderRadius: 4, fontSize: 11, color: '#94a3b8' }}>
+              <div style={{ marginTop: 8, padding: 8, background: '#0a0e16', borderRadius: 4, fontSize: 11, color: 'var(--text2)' }}>
                 {salesPoints.length} locali sincronizzati: {salesPoints.map(s => s.description || s.name).join(', ')}
               </div>
             )}
@@ -391,7 +391,7 @@ function NewUser({ onClose, onCreated }) {
           </Field>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
           <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
           <button onClick={submit} disabled={creating || !email} style={{ ...iS, background: creating ? '#1a1f2e' : '#10B981', color: creating ? '#94a3b8' : '#0f1420', fontWeight: 600, border: 'none', padding: '8px 22px', cursor: creating ? 'wait' : 'pointer' }}>
             {creating ? 'Creo…' : 'Crea & invita per email'}
@@ -507,14 +507,14 @@ function EditUser({ user, plans, onClose, onSaved }) {
   })
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, overflow: 'auto', padding: 24 }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 720, maxHeight: '90vh', overflow: 'auto' }}>
-      <div style={{ padding: 20, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 720, maxHeight: '90vh', overflow: 'auto' }}>
+      <div style={{ padding: 20, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>Modifica utente · {user.email}</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
       {/* Tab di sezione */}
-      <div style={{ display: 'flex', gap: 4, padding: '0 20px', borderBottom: '1px solid #2a3042', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: 4, padding: '0 20px', borderBottom: '1px solid var(--border)', overflowX: 'auto' }}>
         <button onClick={() => setSection('plan')} style={sBtn('plan')}>Piano &amp; stato</button>
         <button onClick={() => setSection('anagrafica')} style={sBtn('anagrafica')}>Anagrafica</button>
         <button onClick={() => setSection('features')} style={sBtn('features')}>Override tab</button>
@@ -524,26 +524,26 @@ function EditUser({ user, plans, onClose, onSaved }) {
       <div style={{ padding: 20 }}>
         {section === 'plan' && <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Piano</div>
+            <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Piano</div>
               <select value={planId} onChange={e => setPlanId(e.target.value)} style={{ ...iS, width: '100%' }}>
                 {plans.map(p => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
               </select>
             </label>
-            <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Stato</div>
+            <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Stato</div>
               <select value={active ? 'on' : 'off'} onChange={e => setActive(e.target.value === 'on')} style={{ ...iS, width: '100%' }}>
                 <option value="on">Attivo</option>
                 <option value="off">Sospeso</option>
               </select>
             </label>
-            <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Trial fino</div>
+            <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Trial fino</div>
               <input type="date" value={trialUntil} onChange={e => setTrialUntil(e.target.value)} style={{ ...iS, width: '100%' }} />
             </label>
-            <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Valido fino</div>
+            <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Valido fino</div>
               <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} style={{ ...iS, width: '100%' }} />
             </label>
           </div>
           <label style={{ display: 'block' }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Note interne</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Note interne</div>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} style={{ ...iS, width: '100%', resize: 'vertical' }} />
           </label>
         </>}
@@ -553,7 +553,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
             <div style={{ fontSize: 12, fontWeight: 600, color: '#10B981', marginBottom: 8 }}>Extra: tab inclusi oltre al piano</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {TAB_CATALOG.map(t => (
-                <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8', background: extraTabs.includes(t.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
+                <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text2)', background: extraTabs.includes(t.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
                   <input type="checkbox" checked={extraTabs.includes(t.key)} onChange={() => toggle(extraTabs, setExtraTabs, t.key)} />
                   {t.label}
                 </label>
@@ -564,7 +564,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
             <div style={{ fontSize: 12, fontWeight: 600, color: '#EF4444', marginBottom: 8 }}>Esclusi: tab tolti dal piano</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {TAB_CATALOG.map(t => (
-                <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8', background: excludeTabs.includes(t.key) ? 'rgba(239,68,68,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
+                <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text2)', background: excludeTabs.includes(t.key) ? 'rgba(239,68,68,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
                   <input type="checkbox" checked={excludeTabs.includes(t.key)} onChange={() => toggle(excludeTabs, setExcludeTabs, t.key)} />
                   {t.label}
                 </label>
@@ -574,36 +574,36 @@ function EditUser({ user, plans, onClose, onSaved }) {
         </>}
 
         {section === 'anagrafica' && <>
-          {!settingsLoaded && <div style={{ padding: 12, color: '#64748b' }}>Carico…</div>}
+          {!settingsLoaded && <div style={{ padding: 12, color: 'var(--text3)' }}>Carico…</div>}
           {settingsLoaded && <>
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 14 }}>
               Dati anagrafici dell'azienda cliente. Verranno mostrati nel modulo Impostazioni Generale.
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
-              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Ragione sociale</div>
+              <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Ragione sociale</div>
                 <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="es. Alhena Group SRL" style={{ ...iS, width: '100%' }} />
               </label>
-              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Telefono</div>
+              <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Telefono</div>
                 <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="" style={{ ...iS, width: '100%' }} />
               </label>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Partita IVA</div>
+              <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Partita IVA</div>
                 <input value={vatNumber} onChange={e => setVatNumber(e.target.value)} placeholder="11 cifre" style={{ ...iS, width: '100%', fontFamily: 'monospace' }} />
               </label>
-              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Codice Fiscale</div>
+              <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Codice Fiscale</div>
                 <input value={taxCode} onChange={e => setTaxCode(e.target.value.toUpperCase())} placeholder="" style={{ ...iS, width: '100%', fontFamily: 'monospace', textTransform: 'uppercase' }} />
               </label>
             </div>
             <label style={{ display: 'block', marginTop: 10 }}>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Indirizzo sede</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Indirizzo sede</div>
               <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Via, città, CAP" style={{ ...iS, width: '100%' }} />
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
-              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Email aziendale (PEC/contatto)</div>
+              <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Email aziendale (PEC/contatto)</div>
                 <input type="email" value={companyEmail} onChange={e => setCompanyEmail(e.target.value)} style={{ ...iS, width: '100%' }} />
               </label>
-              <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Sito web</div>
+              <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Sito web</div>
                 <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://" style={{ ...iS, width: '100%' }} />
               </label>
             </div>
@@ -611,10 +611,10 @@ function EditUser({ user, plans, onClose, onSaved }) {
         </>}
 
         {section === 'cic' && <>
-          {!settingsLoaded && <div style={{ padding: 12, color: '#64748b' }}>Carico…</div>}
+          {!settingsLoaded && <div style={{ padding: 12, color: 'var(--text3)' }}>Carico…</div>}
           {settingsLoaded && <>
             <label style={{ display: 'block', marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Chiave API CiC <span style={{ color: '#64748b' }}>(la trovi nel back-office Cassa in Cloud)</span></div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Chiave API CiC <span style={{ color: 'var(--text3)' }}>(la trovi nel back-office Cassa in Cloud)</span></div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input type={showApiKey ? 'text' : 'password'} value={cicApiKey} onChange={e => setCicApiKey(e.target.value)}
                   placeholder="es. 577e0bcc-f44e-4f5a-b7b6-..."
@@ -630,28 +630,28 @@ function EditUser({ user, plans, onClose, onSaved }) {
                 style={{ ...iS, background: syncingSp ? '#1a1f2e' : '#3B82F6', color: syncingSp ? '#94a3b8' : '#fff', fontWeight: 600, border: 'none', padding: '8px 14px', cursor: syncingSp ? 'wait' : 'pointer' }}>
                 {syncingSp ? 'Sincronizzo…' : 'Sincronizza locali da CiC'}
               </button>
-              <span style={{ fontSize: 11, color: '#64748b', marginLeft: 10 }}>
+              <span style={{ fontSize: 11, color: 'var(--text3)', marginLeft: 10 }}>
                 Verifica la chiave + scarica la lista locali del cliente
               </span>
             </div>
 
-            <div style={{ borderTop: '1px solid #2a3042', paddingTop: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>Locali (sales_points) sincronizzati</div>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Locali (sales_points) sincronizzati</div>
               {salesPoints.length === 0 ? (
-                <div style={{ fontSize: 11, color: '#64748b', padding: 12, background: '#0a0e16', borderRadius: 6 }}>
+                <div style={{ fontSize: 11, color: 'var(--text3)', padding: 12, background: '#0a0e16', borderRadius: 6 }}>
                   Nessun locale. Inserisci la chiave API e clicca "Sincronizza".
                 </div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+                  <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['ID', 'Descrizione', 'Nome'].map(h => <th key={h} style={S.th}>{h}</th>)}
                   </tr></thead>
                   <tbody>
                     {salesPoints.map(s => (
                       <tr key={s.id || s.description}>
-                        <td style={{ ...S.td, fontFamily: 'monospace', color: '#94a3b8' }}>{s.id}</td>
+                        <td style={{ ...S.td, fontFamily: 'monospace', color: 'var(--text2)' }}>{s.id}</td>
                         <td style={{ ...S.td, fontWeight: 500 }}>{s.description}</td>
-                        <td style={{ ...S.td, color: '#94a3b8' }}>{s.name}</td>
+                        <td style={{ ...S.td, color: 'var(--text2)' }}>{s.name}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -661,7 +661,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
           </>}
         </>}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, paddingTop: 16, borderTop: '1px solid #2a3042', marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, paddingTop: 16, borderTop: '1px solid var(--border)', marginTop: 16 }}>
           <button
             onClick={async () => {
               if (user.admin_role) { alert('Non posso eliminare un admin da qui.'); return }
@@ -678,7 +678,7 @@ function EditUser({ user, plans, onClose, onSaved }) {
           </button>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
-            <button onClick={save} disabled={saving} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
+            <button onClick={save} disabled={saving} style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
               {saving ? 'Salvo…' : 'Salva'}
             </button>
           </div>
@@ -712,12 +712,12 @@ function PlansList() {
 
   return <>
     <Card title={`Piani (${plans.length})`} extra={
-      <button onClick={newPlan} style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: 'pointer' }}>+ Nuovo piano</button>
+      <button onClick={newPlan} style={{ ...iS, background: '#10B981', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: 'pointer' }}>+ Nuovo piano</button>
     }>
-      {loading && <div style={{ padding: 20, color: '#64748b' }}>Caricamento…</div>}
+      {loading && <div style={{ padding: 20, color: 'var(--text3)' }}>Caricamento…</div>}
       {!loading && (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['ID', 'Nome', 'Prezzo/mese', 'Prezzo/anno', 'Tab', 'Widget', 'Default', ''].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
@@ -725,7 +725,7 @@ function PlansList() {
               const tabs = p.features?.tabs?.length || 0
               const wAll = (p.features?.widgets || []).includes('*')
               return <tr key={p.id}>
-                <td style={{ ...S.td, fontFamily: 'monospace', color: '#94a3b8' }}>{p.id}</td>
+                <td style={{ ...S.td, fontFamily: 'monospace', color: 'var(--text2)' }}>{p.id}</td>
                 <td style={{ ...S.td, fontWeight: 600 }}>{p.name}</td>
                 <td style={S.td}>{p.price_monthly != null ? '€ ' + p.price_monthly : '—'}</td>
                 <td style={S.td}>{p.price_yearly != null ? '€ ' + p.price_yearly : '—'}</td>
@@ -786,29 +786,29 @@ function EditPlan({ plan, onClose, onSaved }) {
   }
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, overflow: 'auto', padding: 24 }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 800, maxHeight: '90vh', overflow: 'auto' }}>
-      <div style={{ padding: 20, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 800, maxHeight: '90vh', overflow: 'auto' }}>
+      <div style={{ padding: 20, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>{plan.id ? 'Modifica' : 'Nuovo'} piano</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12, marginBottom: 16 }}>
-          <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>ID (immutabile)</div>
+          <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>ID (immutabile)</div>
             <input value={id} onChange={e => setId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} disabled={!!plan.id} style={{ ...iS, width: '100%', fontFamily: 'monospace' }} placeholder="es. starter" />
           </label>
-          <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Nome visualizzato</div>
+          <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Nome visualizzato</div>
             <input value={name} onChange={e => setName(e.target.value)} style={{ ...iS, width: '100%' }} />
           </label>
         </div>
         <label style={{ display: 'block', marginBottom: 12 }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Descrizione</div>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Descrizione</div>
           <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} style={{ ...iS, width: '100%', resize: 'vertical' }} />
         </label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
-          <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Prezzo mensile (€)</div>
+          <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Prezzo mensile (€)</div>
             <input type="number" value={priceMonthly} onChange={e => setPriceMonthly(e.target.value)} style={{ ...iS, width: '100%' }} />
           </label>
-          <label><div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Prezzo annuo (€)</div>
+          <label><div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Prezzo annuo (€)</div>
             <input type="number" value={priceYearly} onChange={e => setPriceYearly(e.target.value)} style={{ ...iS, width: '100%' }} />
           </label>
           <label style={{ display: 'flex', alignItems: 'flex-end', gap: 6, fontSize: 12 }}>
@@ -817,11 +817,11 @@ function EditPlan({ plan, onClose, onSaved }) {
           </label>
         </div>
 
-        <div style={{ borderTop: '1px solid #2a3042', paddingTop: 16, marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>Tab inclusi</div>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Tab inclusi</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {TAB_CATALOG.map(t => (
-              <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#cbd5e1', background: tabs.includes(t.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
+              <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text)', background: tabs.includes(t.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
                 <input type="checkbox" checked={tabs.includes(t.key)} onChange={() => toggle(tabs, setTabs, t.key)} />
                 {t.label}
               </label>
@@ -831,8 +831,8 @@ function EditPlan({ plan, onClose, onSaved }) {
 
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1' }}>Widget inclusi</span>
-            <label style={{ fontSize: 11, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Widget inclusi</span>
+            <label style={{ fontSize: 11, color: 'var(--text2)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <input type="checkbox" checked={allWidgets} onChange={e => setAllWidgets(e.target.checked)} />
               Tutti i widget (*)
             </label>
@@ -841,12 +841,12 @@ function EditPlan({ plan, onClose, onSaved }) {
             <div>
               {Object.entries(WIDGET_CATALOG).map(([tabKey, ws]) => (
                 <details key={tabKey} style={{ marginBottom: 6, background: '#0a0e16', borderRadius: 6, padding: 8 }}>
-                  <summary style={{ cursor: 'pointer', fontSize: 11, color: '#cbd5e1', fontWeight: 600 }}>
+                  <summary style={{ cursor: 'pointer', fontSize: 11, color: 'var(--text)', fontWeight: 600 }}>
                     {TAB_CATALOG.find(t => t.key === tabKey)?.label || tabKey} ({ws.filter(w => widgets.includes(w.key)).length}/{ws.length})
                   </summary>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                     {ws.map(w => (
-                      <label key={w.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8', background: widgets.includes(w.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
+                      <label key={w.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text2)', background: widgets.includes(w.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
                         <input type="checkbox" checked={widgets.includes(w.key)} onChange={() => toggle(widgets, setWidgets, w.key)} />
                         {w.label}
                       </label>
@@ -858,11 +858,11 @@ function EditPlan({ plan, onClose, onSaved }) {
           )}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, paddingTop: 16, borderTop: '1px solid #2a3042' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
           {plan.id ? <button onClick={del} disabled={saving} style={{ ...iS, color: '#EF4444', cursor: 'pointer', padding: '8px 14px' }}>Elimina</button> : <span/>}
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
-            <button onClick={save} disabled={saving} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
+            <button onClick={save} disabled={saving} style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
               {saving ? 'Salvo…' : 'Salva piano'}
             </button>
           </div>
@@ -889,8 +889,8 @@ export default function AdminPage() {
   }, [])
   useEffect(() => { if (isAdmin) loadPlans() }, [isAdmin, loadPlans, reloadKey])
 
-  if (loading) return <div style={{ minHeight: '100vh', background: '#0f1420', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>Verifico permessi…</div>
-  if (!isAdmin) return <div style={{ minHeight: '100vh', background: '#0f1420', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#EF4444' }}>
+  if (loading) return <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)' }}>Verifico permessi…</div>
+  if (!isAdmin) return <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#EF4444' }}>
     <div style={{ fontSize: 24, fontWeight: 700 }}>Accesso negato</div>
     <div>Solo gli admin possono entrare qui.</div>
     <a href="/" style={{ color: '#F59E0B' }}>Torna alla dashboard</a>
@@ -901,13 +901,13 @@ export default function AdminPage() {
     background: tab === t ? '#F59E0B' : 'transparent', color: tab === t ? '#0f1420' : '#64748b',
   })
 
-  return <div style={{ minHeight: '100vh', background: '#0f1420', color: '#e2e8f0', fontFamily: "'DM Sans',system-ui,sans-serif" }}>
-    <div style={{ background: '#131825', borderBottom: '1px solid #1e2636', padding: '0 1.5rem', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
+  return <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'DM Sans',system-ui,sans-serif" }}>
+    <div style={{ background: 'var(--surface2)', borderBottom: '1px solid #1e2636', padding: '0 1.5rem', height: 56, display: 'flex', alignItems: 'center', gap: 16 }}>
       <span style={{ fontSize: 15, fontWeight: 700 }}>Admin · CIC SaaS</span>
-      <a href="/" style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>Torna alla dashboard</a>
-      <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/')} style={{ ...iS, color: '#475569', border: '1px solid #2a3042', padding: '6px 12px', cursor: 'pointer' }}>Esci</button>
+      <a href="/" style={{ marginLeft: 'auto', color: 'var(--text2)', fontSize: 12 }}>Torna alla dashboard</a>
+      <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/')} style={{ ...iS, color: 'var(--text3)', border: '1px solid var(--border)', padding: '6px 12px', cursor: 'pointer' }}>Esci</button>
     </div>
-    <div style={{ background: '#131825', borderBottom: '1px solid #1e2636', padding: '0 1.5rem', display: 'flex', gap: 4 }}>
+    <div style={{ background: 'var(--surface2)', borderBottom: '1px solid #1e2636', padding: '0 1.5rem', display: 'flex', gap: 4 }}>
       <button onClick={() => setTab('users')} style={tS('users')}>Utenti</button>
       <button onClick={() => setTab('plans')} style={tS('plans')}>Piani</button>
     </div>

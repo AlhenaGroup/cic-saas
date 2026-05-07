@@ -140,7 +140,7 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
     {/* Turni settimanali */}
     <Card title="Turni settimanali" extra={
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', border: '1px solid #2a3042', borderRadius: 6, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
           <button onClick={() => setViewMode('settimana')}
             style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none',
               background: viewMode === 'settimana' ? '#F59E0B' : 'transparent', color: viewMode === 'settimana' ? '#0f1420' : '#94a3b8' }}>Per settimana</button>
@@ -149,14 +149,14 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
               background: viewMode === 'giorno' ? '#F59E0B' : 'transparent', color: viewMode === 'giorno' ? '#0f1420' : '#94a3b8' }}>Per giorno</button>
         </div>
         <button onClick={prevWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>‹</button>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', minWidth: 130, textAlign: 'center' }}>{weekLabel()}</span>
         <button onClick={nextWeek} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>›</button>
         <button onClick={autoCalcPresenze} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11, marginLeft: 8 }}>Aggiorna presenze</button>
       </div>
     }>
       {/* Form inserimento turno con tendine */}
-      <div style={{ background: '#131825', borderRadius: 8, padding: 12, marginBottom: 16, border: '1px solid #2a3042' }}>
-        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>Aggiungi turno</div>
+      <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: 12, marginBottom: 16, border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>Aggiungi turno</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={addForm.employee_id} onChange={e => setAddForm(p => ({ ...p, employee_id: e.target.value }))} style={{ ...formStyle, minWidth: 180 }}>
             <option value="">Seleziona dipendente...</option>
@@ -166,11 +166,11 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
             {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
           </select>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 11, color: '#64748b' }}>dalle</span>
+            <span style={{ fontSize: 11, color: 'var(--text3)' }}>dalle</span>
             <input type="time" value={addForm.ora_inizio} onChange={e => setAddForm(p => ({ ...p, ora_inizio: e.target.value }))} style={{ ...formStyle, width: 100 }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 11, color: '#64748b' }}>alle</span>
+            <span style={{ fontSize: 11, color: 'var(--text3)' }}>alle</span>
             <input type="time" value={addForm.ora_fine} onChange={e => setAddForm(p => ({ ...p, ora_fine: e.target.value }))} style={{ ...formStyle, width: 100 }} />
           </div>
           <button onClick={addShift} disabled={!addForm.employee_id} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>+ Aggiungi</button>
@@ -179,11 +179,11 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
 
       {/* Griglia riepilogativa */}
       {localeEmps.length === 0 ? (
-        <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>Nessun dipendente attivo per questo locale.</div>
+        <div style={{ color: 'var(--text3)', textAlign: 'center', padding: 20, fontSize: 13 }}>Nessun dipendente attivo per questo locale.</div>
       ) : viewMode === 'settimana' ? (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
               <th style={{ ...S.th, width: 140 }}>Dipendente</th>
               {DAYS.map(d => <th key={d} style={{ ...S.th, textAlign: 'center' }}>{d}</th>)}
               <th style={{ ...S.th, textAlign: 'right' }}>Ore</th>
@@ -228,37 +228,37 @@ export default function ShiftAssistant({ employees, sp, sps, staffSchedule, setS
     {/* Costi personale per CE */}
     <div style={{ marginTop: 12 }}>
       <Card title="Costi personale (Conto Economico)" extra={
-        <button onClick={() => setShowCostForm(true)} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>+ Aggiungi costo</button>
+        <button onClick={() => setShowCostForm(true)} style={{ ...iS, background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>+ Aggiungi costo</button>
       }>
-        {showCostForm && <div style={{ background: '#131825', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #2a3042' }}>
+        {showCostForm && <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid var(--border)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, alignItems: 'end' }}>
             <div>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>Mese</div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 4 }}>Mese</div>
               <input type="month" value={costMonth} onChange={e => setCostMonth(e.target.value)} style={{ ...iS, width: '100%' }} />
             </div>
             <div>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>Costo totale €</div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 4 }}>Costo totale €</div>
               <input type="number" placeholder="Costo totale" value={costForm.costo_totale} onChange={e => setCostForm(p => ({ ...p, costo_totale: e.target.value }))} style={{ ...iS, width: '100%' }} />
             </div>
             <div>
-              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>File consulente</div>
-              <input type="file" accept=".pdf,.xlsx,.xls,.csv,.doc,.docx" onChange={e => setCostFile(e.target.files[0] || null)} style={{ fontSize: 11, color: '#94a3b8' }} />
+              <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 4 }}>File consulente</div>
+              <input type="file" accept=".pdf,.xlsx,.xls,.csv,.doc,.docx" onChange={e => setCostFile(e.target.files[0] || null)} style={{ fontSize: 11, color: 'var(--text2)' }} />
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={saveCost} disabled={!costForm.costo_totale} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 14px', fontWeight: 600, fontSize: 11 }}>Salva</button>
-              <button onClick={() => setShowCostForm(false)} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '6px 10px', fontSize: 11 }}>X</button>
+              <button onClick={() => setShowCostForm(false)} style={{ ...iS, color: 'var(--text3)', border: '1px solid var(--border)', padding: '6px 10px', fontSize: 11 }}>X</button>
             </div>
           </div>
         </div>}
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Mese', 'Locale', 'Costo totale', 'Fonte', 'File'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {personnelCosts.length === 0 && <tr><td colSpan={5} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 16 }}>Nessun costo registrato. I costi inseriti qui appariranno nel Conto Economico.</td></tr>}
+            {personnelCosts.length === 0 && <tr><td colSpan={5} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center', padding: 16 }}>Nessun costo registrato. I costi inseriti qui appariranno nel Conto Economico.</td></tr>}
             {personnelCosts.map(c => <tr key={c.id}>
               <td style={{ ...S.td, fontWeight: 600, color: '#F59E0B' }}>{c.mese?.substring(0, 7)}</td>
-              <td style={{ ...S.td, color: '#94a3b8' }}>{c.locale}</td>
+              <td style={{ ...S.td, color: 'var(--text2)' }}>{c.locale}</td>
               <td style={{ ...S.td, fontWeight: 600 }}>{fmtD(c.costo_totale)}</td>
               <td style={S.td}><span style={S.badge(c.fonte === 'consulente' ? '#3B82F6' : '#10B981', c.fonte === 'consulente' ? 'rgba(59,130,246,.12)' : 'rgba(16,185,129,.12)')}>{c.fonte}</span></td>
               <td style={S.td}>{c.file_path ? <button onClick={async () => { const { data } = await supabase.storage.from('documents').createSignedUrl(c.file_path, 300); if (data?.signedUrl) window.open(data.signedUrl, '_blank') }} style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 12 }}>Scarica</button> : '—'}</td>
@@ -555,29 +555,29 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
   return <div style={{ marginTop: 12 }}>
     <Card title="Orari consigliati" badge={loading ? 'Caricamento...' : totalStaff + 'h personale'} extra={
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 11, color: '#64748b' }}>Soglia €/h:</span>
+        <span style={{ fontSize: 11, color: 'var(--text3)' }}>Soglia €/h:</span>
         <input type="number" value={soglia} onChange={e => setSoglia(Number(e.target.value) || 50)} style={{ ...iS, width: 55, textAlign: 'center', fontSize: 12 }} />
-        <button onClick={downloadExcel} style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }}>Excel</button>
+        <button onClick={downloadExcel} style={{ ...iS, background: '#10B981', color: 'var(--text)', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }}>Excel</button>
         <button onClick={downloadCsv} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }} title="Scarica CSV riepilogo orario per giorno">CSV</button>
         <button onClick={printPDF} style={{ ...iS, background: '#EF4444', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 700, fontSize: 11 }}>PDF</button>
       </div>
     }>
-      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
+      <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 8 }}>
         Basato sugli incassi della settimana precedente ({prevMonday} {prevSunday}) {localeName ? `per ${localeName}` : ''} — {daysWithData} giorni con dati
       </div>
 
       {/* Preparazioni budget */}
-      <div style={{ background: '#131825', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #2a3042' }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Budget preparazioni e pulizie</div>
-        <div style={{ fontSize: 10, color: '#64748b', marginBottom: 8 }}>Inserisci il numero di persone per ogni categoria. Le ore vengono sommate alla tabella orari consigliati.</div>
+      <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Budget preparazioni e pulizie</div>
+        <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 8 }}>Inserisci il numero di persone per ogni categoria. Le ore vengono sommate alla tabella orari consigliati.</div>
         {PREP_CATS.map(cat => {
           const hasAnyValue = HOURS.some(h => DAYS.some((_, di) => prep[`${di}-${h}-${cat.key}`] > 0))
           return <div key={cat.key} style={{ marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, cursor: 'pointer' }}
               onClick={() => { const el = document.getElementById('prep-' + cat.key); if (el) el.style.display = el.style.display === 'none' ? '' : 'none' }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: cat.color }}>{cat.icon} {cat.label}</span>
-              <span style={{ fontSize: 9, color: '#475569' }}>({cat.area})</span>
-              <span style={{ fontSize: 9, color: '#475569' }}></span>
+              <span style={{ fontSize: 9, color: 'var(--text3)' }}>({cat.area})</span>
+              <span style={{ fontSize: 9, color: 'var(--text3)' }}></span>
             </div>
             <div id={'prep-' + cat.key} style={{ display: hasAnyValue ? '' : 'none', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
@@ -586,7 +586,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
                 </tr></thead>
                 <tbody>
                   {HOURS.map(h => <tr key={h} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                    <td style={{ ...S.td, fontSize: 9, color: '#94a3b8', padding: '1px 4px' }}>{String(h).padStart(2,'0')}:00</td>
+                    <td style={{ ...S.td, fontSize: 9, color: 'var(--text2)', padding: '1px 4px' }}>{String(h).padStart(2,'0')}:00</td>
                     {DAYS.map((_, di) => <td key={di} style={{ ...S.td, padding: '1px' }}>
                       <input type="number" min="0" max="10" value={prep[`${di}-${h}-${cat.key}`] || ''}
                         onChange={e => updatePrep(di, h, cat.key, e.target.value)} placeholder="0"
@@ -607,20 +607,20 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
             </div>
           </div>
         })}
-        <div style={{ fontSize: 9, color: '#475569', marginTop: 4 }}>Clicca su una categoria per espandere/chiudere. I dati si salvano in automatico.</div>
+        <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 4 }}>Clicca su una categoria per espandere/chiudere. I dati si salvano in automatico.</div>
       </div>
 
       {loading ? <div style={{ textAlign: 'center', padding: 20, color: '#F59E0B', fontSize: 12 }}>Caricamento dati settimana precedente...</div> : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead><tr style={{ borderBottom: '2px solid #2a3042' }}>
+            <thead><tr style={{ borderBottom: '2px solid var(--border)' }}>
               <th style={{ ...S.th, width: 50 }}>Ora</th>
               {DAYS.map(d => <th key={d} style={S.th} colSpan={1}>{d}</th>)}
             </tr>
-            <tr style={{ borderBottom: '1px solid #2a3042' }}>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
               <th style={{ ...S.th, fontSize: 8 }}></th>
               {DAYS.map(d => <th key={d} style={{ ...S.th, fontSize: 8, padding: '2px' }}>
-                <span style={{ color: '#F59E0B' }}></span> <span style={{ color: '#3B82F6' }}></span> <span style={{ color: '#94a3b8' }}>Tot</span>
+                <span style={{ color: '#F59E0B' }}></span> <span style={{ color: '#3B82F6' }}></span> <span style={{ color: 'var(--text2)' }}>Tot</span>
               </th>)}
             </tr></thead>
             <tbody>
@@ -629,7 +629,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
                 const hasAny = DAYS.some((_, di) => getCell(di, h).staff > 0)
                 if (!hasAny) return null
                 return <tr key={h} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                  <td style={{ ...S.td, fontWeight: 600, color: '#e2e8f0', fontSize: 11 }}>{hStr}</td>
+                  <td style={{ ...S.td, fontWeight: 600, color: 'var(--text)', fontSize: 11 }}>{hStr}</td>
                   {DAYS.map((_, di) => {
                     const c = getCell(di, h)
                     return <td key={di} style={{ ...S.td, background: staffColor(c.staff), textAlign: 'center', padding: '2px 1px' }}>
@@ -638,20 +638,20 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
                         {c.prepSala > 0 && <span style={{ color: '#3B82F6', fontWeight: 700 }}>{c.prepSala}</span>}
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: staffTextColor(c.staff) }}>{c.staff || '—'}</div>
-                      {c.ricavi > 0 && <div style={{ fontSize: 8, color: '#64748b' }}>{Math.round(c.ricavi)}€</div>}
+                      {c.ricavi > 0 && <div style={{ fontSize: 8, color: 'var(--text3)' }}>{Math.round(c.ricavi)}€</div>}
                       {c.prepStaff > 0 && c.revenueStaff === 0 && <div style={{ fontSize: 7, color: '#8B5CF6' }}>prep</div>}
                     </td>
                   })}
                 </tr>
               })}
               {/* Riga totale */}
-              <tr style={{ borderTop: '2px solid #2a3042', background: '#131825' }}>
-                <td style={{ ...S.td, fontWeight: 700, color: '#e2e8f0' }}>TOT</td>
+              <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface2)' }}>
+                <td style={{ ...S.td, fontWeight: 700, color: 'var(--text)' }}>TOT</td>
                 {dayTotals.map((t, i) => {
                   const rev = dayRevenues[i]
                   return <td key={i} style={{ ...S.td, textAlign: 'center', padding: '6px 4px' }}>
                     <div style={{ fontWeight: 700, color: '#F59E0B', fontSize: 14, lineHeight: 1.1 }}>{t}</div>
-                    {rev > 0 && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>({fmt(rev)})</div>}
+                    {rev > 0 && <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 2 }}>({fmt(rev)})</div>}
                   </td>
                 })}
               </tr>
@@ -659,7 +659,7 @@ function SuggestedSchedule({ sp, sps, employees = [] }) {
           </table>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#64748b' }}>
+      <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: 'var(--text3)' }}>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(16,185,129,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> 1-2 persone</span>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(245,158,11,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> 3-4 persone</span>
         <span><span style={{ display: 'inline-block', width: 12, height: 12, background: 'rgba(239,68,68,.15)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> 5+ persone</span>
@@ -920,14 +920,14 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
             background: selectedDay === i ? '#F59E0B' : '#1a1f2e',
             color: selectedDay === i ? '#0f1420' : '#94a3b8' }}>{d}</button>
       ))}
-      <span style={{ marginLeft: 10, fontSize: 12, color: '#64748b', alignSelf: 'center' }}>{dayDate}</span>
+      <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--text3)', alignSelf: 'center' }}>{dayDate}</span>
       {saving && <span style={{ color: '#F59E0B', fontSize: 11, alignSelf: 'center' }}>Salvo…</span>}
     </div>
 
     {/* Legenda */}
-    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>
-      Orari mostrati dalle <strong style={{ color: '#e2e8f0' }}>12:00</strong> alle <strong style={{ color: '#8B5CF6' }}>05:00</strong> del giorno dopo (tutto contato come lavoro di questa giornata).
-      <br /><strong style={{ color: '#94a3b8' }}>Click</strong> su un'ora per attivarla/disattivarla · <strong style={{ color: '#94a3b8' }}>Doppio click</strong> per zoom a quarti d'ora.
+    <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8 }}>
+      Orari mostrati dalle <strong style={{ color: 'var(--text)' }}>12:00</strong> alle <strong style={{ color: '#8B5CF6' }}>05:00</strong> del giorno dopo (tutto contato come lavoro di questa giornata).
+      <br /><strong style={{ color: 'var(--text2)' }}>Click</strong> su un'ora per attivarla/disattivarla · <strong style={{ color: 'var(--text2)' }}>Doppio click</strong> per zoom a quarti d'ora.
     </div>
 
     {/* Griglia giornata operativa: 12:00 05:00 next day */}
@@ -935,20 +935,20 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
       <table style={{ borderCollapse: 'collapse', fontSize: 10, minWidth: 1100 }}>
         <thead>
           <tr>
-            <th style={{ padding: '4px 8px', textAlign: 'left', minWidth: 130, position: 'sticky', left: 0, background: '#1a1f2e', zIndex: 2, color: '#64748b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase' }}>Dipendente</th>
+            <th style={{ padding: '4px 8px', textAlign: 'left', minWidth: 130, position: 'sticky', left: 0, background: 'var(--surface)', zIndex: 2, color: 'var(--text3)', fontWeight: 600, fontSize: 10, textTransform: 'uppercase' }}>Dipendente</th>
             {COLS.map(c => {
               const realH = (DAY_START_HOUR + c) % 24
               const isNext = DAY_START_HOUR + c >= 24
               const isMidnight = realH === 0 && isNext
-              return <th key={c} style={{ padding: '4px 0', minWidth: 36, textAlign: 'center', color: isNext ? '#8B5CF6' : '#64748b', fontWeight: 500, fontSize: 10, borderLeft: isMidnight ? '2px solid #8B5CF6' : (c % 6 === 0 ? '1px solid #2a3042' : 'none') }}>
+              return <th key={c} style={{ padding: '4px 0', minWidth: 36, textAlign: 'center', color: isNext ? '#8B5CF6' : '#64748b', fontWeight: 500, fontSize: 10, borderLeft: isMidnight ? '2px solid #8B5CF6' : (c % 6 === 0 ? '1px solid var(--border)' : 'none') }}>
                 {String(realH).padStart(2, '0')}{isNext && <div style={{ fontSize: 8, color: '#8B5CF6', fontWeight: 700 }}>+1</div>}
               </th>
             })}
-            <th style={{ padding: '4px 10px', color: '#64748b', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', textAlign: 'right', position: 'sticky', right: 0, background: '#1a1f2e' }}>Ore</th>
+            <th style={{ padding: '4px 10px', color: 'var(--text3)', fontWeight: 600, fontSize: 10, textTransform: 'uppercase', textAlign: 'right', position: 'sticky', right: 0, background: 'var(--surface)' }}>Ore</th>
           </tr>
           {/* Riga riepilogo staff: pianificato / consigliato con alert rosso se over */}
-          <tr style={{ borderTop: '1px solid #2a3042', background: '#0f1420' }}>
-            <td style={{ padding: '4px 8px', fontSize: 10, color: '#64748b', fontWeight: 600, position: 'sticky', left: 0, background: '#0f1420', zIndex: 2, textTransform: 'uppercase', letterSpacing: '.04em' }} title="Personale pianificato / consigliato">Staff</td>
+          <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
+            <td style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text3)', fontWeight: 600, position: 'sticky', left: 0, background: 'var(--bg)', zIndex: 2, textTransform: 'uppercase', letterSpacing: '.04em' }} title="Personale pianificato / consigliato">Staff</td>
             {colStats.map(cs => {
               const realH = cs.realH
               const isNext = DAY_START_HOUR + cs.col >= 24
@@ -958,19 +958,19 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
               const col = over ? '#EF4444' : (cs.staffNow > 0 && !under ? '#10B981' : '#64748b')
               return <td key={cs.col} title={`Pianificati: ${cs.staffNow}${cs.staffRec > 0 ? ' / Consigliati: ' + cs.staffRec : ''}`}
                 style={{ padding: '3px 0', textAlign: 'center', fontSize: 9, fontWeight: 700,
-                  borderLeft: isMidnight ? '2px solid #8B5CF6' : (cs.col % 6 === 0 ? '1px solid #2a3042' : 'none'),
+                  borderLeft: isMidnight ? '2px solid #8B5CF6' : (cs.col % 6 === 0 ? '1px solid var(--border)' : 'none'),
                   color: col, background: over ? 'rgba(239,68,68,.12)' : 'transparent' }}>
-                {cs.staffNow}{cs.staffRec > 0 && <span style={{ color: '#475569', fontWeight: 400 }}>/{cs.staffRec}</span>}
+                {cs.staffNow}{cs.staffRec > 0 && <span style={{ color: 'var(--text3)', fontWeight: 400 }}>/{cs.staffRec}</span>}
               </td>
             })}
-            <td style={{ padding: '4px 10px', fontSize: 10, color: '#64748b', textAlign: 'right', position: 'sticky', right: 0, background: '#0f1420' }}>Pian. / Cons.</td>
+            <td style={{ padding: '4px 10px', fontSize: 10, color: 'var(--text3)', textAlign: 'right', position: 'sticky', right: 0, background: 'var(--bg)' }}>Pian. / Cons.</td>
           </tr>
         </thead>
         <tbody>
           {emps.map(emp => {
             const qset = empQuarters[emp.id]
             return <tr key={emp.id} style={{ borderTop: '1px solid #1a1f2e' }}>
-              <td style={{ padding: '4px 8px', fontSize: 12, fontWeight: 500, color: '#e2e8f0', position: 'sticky', left: 0, background: '#0f1420', zIndex: 1 }}>{emp.nome}</td>
+              <td style={{ padding: '4px 8px', fontSize: 12, fontWeight: 500, color: 'var(--text)', position: 'sticky', left: 0, background: 'var(--bg)', zIndex: 1 }}>{emp.nome}</td>
               {COLS.map(c => {
                 const realH = (DAY_START_HOUR + c) % 24
                 const isNext = DAY_START_HOUR + c >= 24
@@ -980,9 +980,9 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
                 const full = countOn === 4
                 const partial = countOn > 0 && countOn < 4
                 const isZoomed = zoomedHour?.empId === emp.id && zoomedHour?.col === c
-                const borderLeft = isMidnight ? '2px solid #8B5CF6' : (c % 6 === 0 ? '1px solid #2a3042' : '1px solid #1a1f2e')
+                const borderLeft = isMidnight ? '2px solid #8B5CF6' : (c % 6 === 0 ? '1px solid var(--border)' : '1px solid #1a1f2e')
                 if (isZoomed) {
-                  return <td key={c} style={{ padding: 0, borderLeft, background: '#131825' }}>
+                  return <td key={c} style={{ padding: 0, borderLeft, background: 'var(--surface2)' }}>
                     <div style={{ display: 'flex', height: 28, border: '2px solid #F59E0B' }}>
                       {qs.map((q, qi) => {
                         const on = qset.has(q)
@@ -993,7 +993,7 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
                             fontSize: 8, fontWeight: 700, cursor: 'pointer', padding: 0 }}>{label}</button>
                       })}
                     </div>
-                    <button onClick={closeZoom} style={{ width: '100%', fontSize: 8, padding: '1px', border: 'none', background: '#F59E0B', color: '#0f1420', cursor: 'pointer', fontWeight: 700 }}>× chiudi</button>
+                    <button onClick={closeZoom} style={{ width: '100%', fontSize: 8, padding: '1px', border: 'none', background: '#F59E0B', color: 'var(--text)', cursor: 'pointer', fontWeight: 700 }}>× chiudi</button>
                   </td>
                 }
                 const isOver = colStats[c]?.overstaff
@@ -1010,14 +1010,14 @@ function DailyTimelineEditor({ emps, shifts, selectedDay, setSelectedDay, weekSt
                   </span>
                 </td>
               })}
-              <td style={{ padding: '4px 10px', color: '#F59E0B', fontWeight: 700, fontSize: 12, textAlign: 'right', position: 'sticky', right: 0, background: '#0f1420' }}>{empHours(emp.id)}h</td>
+              <td style={{ padding: '4px 10px', color: '#F59E0B', fontWeight: 700, fontSize: 12, textAlign: 'right', position: 'sticky', right: 0, background: 'var(--bg)' }}>{empHours(emp.id)}h</td>
             </tr>
           })}
-          {emps.length === 0 && <tr><td colSpan={DAY_SPAN_HOURS + 2} style={{ padding: 16, textAlign: 'center', color: '#475569', fontSize: 12 }}>Nessun dipendente</td></tr>}
+          {emps.length === 0 && <tr><td colSpan={DAY_SPAN_HOURS + 2} style={{ padding: 16, textAlign: 'center', color: 'var(--text3)', fontSize: 12 }}>Nessun dipendente</td></tr>}
         </tbody>
       </table>
     </div>
-    <div style={{ marginTop: 8, fontSize: 10, color: '#64748b', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+    <div style={{ marginTop: 8, fontSize: 10, color: 'var(--text3)', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
       <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#3B82F6', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> ore del giorno</span>
       <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#8B5CF6', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> ore dopo mezzanotte (contate in questa giornata)</span>
       <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#EF4444', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} /> sovra-staffato (più persone del consigliato)</span>

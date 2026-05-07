@@ -103,13 +103,13 @@ export default function MovementsView({ sp, sps, from, to }) {
     <Card title="Storico movimenti"
       badge={`${filtered.length}/${moves.length} · ${fmtD(totValore)} valore lordo`}>
       {loading ? (
-        <div style={{ padding: 20, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+        <div style={{ padding: 20, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
       ) : filtered.length === 0 ? (
-        <div style={{ padding: 24, color: '#64748b', textAlign: 'center' }}>Nessun movimento nel periodo.</div>
+        <div style={{ padding: 24, color: 'var(--text3)', textAlign: 'center' }}>Nessun movimento nel periodo.</div>
       ) : (
         <div style={{ overflowX: 'auto', maxHeight: 600 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead style={{ position: 'sticky', top: 0, background: '#131825' }}><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            <thead style={{ position: 'sticky', top: 0, background: 'var(--surface2)' }}><tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Data', 'Tipo', 'Articolo', 'Qty', '€/UM', 'Valore', 'Locale', 'Fonte'].map(h =>
                 <th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
@@ -118,7 +118,7 @@ export default function MovementsView({ sp, sps, from, to }) {
                 const cfg = TIPO_CONFIG[m.tipo] || { l: m.tipo, c: '#94a3b8', bg: 'rgba(148,163,184,.15)', sign: '' }
                 const dt = new Date(m.created_at)
                 return <tr key={m.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                  <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)', whiteSpace: 'nowrap' }}>
                     {dt.toLocaleDateString('it-IT')} {dt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
                   </td>
                   <td style={S.td}>
@@ -128,13 +128,13 @@ export default function MovementsView({ sp, sps, from, to }) {
                   <td style={{ ...S.td, fontWeight: 600, color: cfg.c }}>
                     {cfg.sign}{fmtN(m.quantita)} {m.unita || ''}
                   </td>
-                  <td style={{ ...S.td, color: '#94a3b8' }}>{m.prezzo_unitario ? fmtD(m.prezzo_unitario) : '—'}</td>
+                  <td style={{ ...S.td, color: 'var(--text2)' }}>{m.prezzo_unitario ? fmtD(m.prezzo_unitario) : '—'}</td>
                   <td style={{ ...S.td, fontWeight: 600, color: '#F59E0B' }}>{m.valore_totale ? fmtD(m.valore_totale) : '—'}</td>
-                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
+                  <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>
                     {m.locale}{m.sub_location && m.sub_location !== 'principale' ? ' / ' + m.sub_location : ''}
-                    {m.sub_location_target && <span style={{ color: '#64748b' }}> {m.sub_location_target}</span>}
+                    {m.sub_location_target && <span style={{ color: 'var(--text3)' }}> {m.sub_location_target}</span>}
                   </td>
-                  <td style={{ ...S.td, fontSize: 11, color: '#64748b', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ ...S.td, fontSize: 11, color: 'var(--text3)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {m.riferimento_label || m.fonte}
                   </td>
                 </tr>

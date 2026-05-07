@@ -34,13 +34,13 @@ export default function WidgetGrid({ tabKey, widgets = [], gridStyle = { display
     return visible.sort((a, b) => (map[a.id]?.order ?? 999) - (map[b.id]?.order ?? 999))
   }, [allowedWidgets, layout])
 
-  if (loading) return <div style={{ padding: 12, color: '#64748b' }}>…</div>
+  if (loading) return <div style={{ padding: 12, color: 'var(--text3)' }}>…</div>
 
   return <>
     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
       <button onClick={() => setCustomizing(true)}
         title="Personalizza widget"
-        style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer', color: '#94a3b8', background: 'transparent' }}>
+        style={{ ...iS, fontSize: 11, padding: '4px 10px', cursor: 'pointer', color: 'var(--text2)', background: 'transparent' }}>
         Personalizza
       </button>
     </div>

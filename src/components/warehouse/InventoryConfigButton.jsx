@@ -58,7 +58,7 @@ export default function InventoryConfigButton({ locale, nomeArticolo, currentCon
           <h3 style={{ margin: 0, fontSize: 15, flex: 1 }}>Conteggio inventario</h3>
           <button onClick={() => setOpen(false)} style={closeBtn}></button>
         </div>
-        <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 12 }}><b>{nomeArticolo}</b></div>
+        <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 12 }}><b>{nomeArticolo}</b></div>
 
         {/* Modalità */}
         <div style={{ marginBottom: 14 }}>
@@ -115,11 +115,11 @@ export default function InventoryConfigButton({ locale, nomeArticolo, currentCon
 }
 
 const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center' }
-const modal = { width: 'min(480px, 95%)', background: '#1a1f2e', padding: 20, borderRadius: 12, border: '1px solid #2a3042', color: '#e2e8f0' }
-const closeBtn = { width: 28, height: 28, padding: 0, fontSize: 14, background: '#0f1420', color: '#cbd5e1', border: '1px solid #2a3042', borderRadius: 4, cursor: 'pointer' }
-const lab = { fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }
-const input = { fontSize: 13, padding: '6px 10px', border: '1px solid #2a3042', borderRadius: 6, background: '#0f1420', color: '#e2e8f0', outline: 'none', width: '100%' }
-const hint = { fontSize: 11, color: '#94a3b8', background: '#0f1420', padding: 10, borderRadius: 6, lineHeight: 1.5, marginTop: 8 }
+const modal = { width: 'min(480px, 95%)', background: 'var(--surface)', padding: 20, borderRadius: 12, border: '1px solid var(--border)', color: 'var(--text)' }
+const closeBtn = { width: 28, height: 28, padding: 0, fontSize: 14, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer' }
+const lab = { fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }
+const input = { fontSize: 13, padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg)', color: 'var(--text)', outline: 'none', width: '100%' }
+const hint = { fontSize: 11, color: 'var(--text2)', background: 'var(--bg)', padding: 10, borderRadius: 6, lineHeight: 1.5, marginTop: 8 }
 
 function pill(active) {
   return {

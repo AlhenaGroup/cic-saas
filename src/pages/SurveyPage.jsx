@@ -47,22 +47,22 @@ export default function SurveyPage({ token }) {
   }
 
   return <div style={{
-    minHeight: '100vh', background: '#0f1420', color: '#e2e8f0',
+    minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)',
     fontFamily: '-apple-system, system-ui, sans-serif',
     padding: 20, display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
   }}>
-    <div style={{ width: '100%', maxWidth: 600, background: '#1a1f2e', borderRadius: 14, padding: 24, border: '1px solid #2a3042' }}>
-      {loading && <div style={{ textAlign: 'center', color: '#94a3b8' }}>Caricamento…</div>}
+    <div style={{ width: '100%', maxWidth: 600, background: 'var(--surface)', borderRadius: 14, padding: 24, border: '1px solid var(--border)' }}>
+      {loading && <div style={{ textAlign: 'center', color: 'var(--text2)' }}>Caricamento…</div>}
       {error && <div style={{ textAlign: 'center', padding: 30 }}>
         <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Sondaggio non disponibile</div>
-        <div style={{ fontSize: 13, color: '#94a3b8' }}>{error}</div>
+        <div style={{ fontSize: 13, color: 'var(--text2)' }}>{error}</div>
       </div>}
 
       {survey && !done && <>
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
           <div style={{ fontSize: 12, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '.1em' }}>{survey.locale}</div>
           <h1 style={{ margin: '4px 0', fontSize: 22, fontWeight: 700 }}>{survey.nome}</h1>
-          {survey.intro && <p style={{ fontSize: 14, color: '#94a3b8', marginTop: 8 }}>{survey.intro}</p>}
+          {survey.intro && <p style={{ fontSize: 14, color: 'var(--text2)', marginTop: 8 }}>{survey.intro}</p>}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -73,7 +73,7 @@ export default function SurveyPage({ token }) {
 
         <button onClick={submit} disabled={submitting} style={{
           width: '100%', marginTop: 22, padding: '12px 16px',
-          background: submitting ? '#64748b' : '#F59E0B', color: '#0f1420',
+          background: submitting ? '#64748b' : '#F59E0B', color: 'var(--text)',
           fontSize: 15, fontWeight: 700, border: 'none', borderRadius: 8, cursor: submitting ? 'wait' : 'pointer',
         }}>{submitting ? 'Invio…' : 'Invia feedback'}</button>
       </>}
@@ -82,9 +82,9 @@ export default function SurveyPage({ token }) {
         <div style={{ fontSize: 48, marginBottom: 10 }}></div>
         <h2 style={{ margin: 0, fontSize: 20 }}>{done.thank_you}</h2>
         {done.review_link && <div style={{ marginTop: 18 }}>
-          <p style={{ fontSize: 14, color: '#94a3b8', marginBottom: 12 }}>Ci hai dato un voto fantastico — ti va di lasciarci una recensione anche su Google? Significherebbe molto per noi.</p>
+          <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 12 }}>Ci hai dato un voto fantastico — ti va di lasciarci una recensione anche su Google? Significherebbe molto per noi.</p>
           <a href={done.review_link} target="_blank" rel="noreferrer" style={{
-            display: 'inline-block', padding: '10px 18px', background: '#10B981', color: '#0f1420',
+            display: 'inline-block', padding: '10px 18px', background: '#10B981', color: 'var(--text)',
             fontWeight: 700, fontSize: 14, borderRadius: 8, textDecoration: 'none',
           }}>Lascia recensione</a>
         </div>}
@@ -109,7 +109,7 @@ function Domanda({ d, value, onChange }) {
     {d.tipo === 'longtext' && <textarea value={value || ''} onChange={e => onChange(e.target.value)} style={{ ...inputStyle, minHeight: 80, fontFamily: 'inherit', resize: 'vertical' }} />}
 
     {d.tipo === 'choice' && (d.options || []).map(opt => (
-      <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: '#0f1420', borderRadius: 6, marginBottom: 6, cursor: 'pointer', border: value === opt ? '1px solid #F59E0B' : '1px solid #2a3042' }}>
+      <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: 'var(--bg)', borderRadius: 6, marginBottom: 6, cursor: 'pointer', border: value === opt ? '1px solid #F59E0B' : '1px solid var(--border)' }}>
         <input type="radio" name={d.id} value={opt} checked={value === opt} onChange={() => onChange(opt)} />
         <span>{opt}</span>
       </label>
@@ -118,7 +118,7 @@ function Domanda({ d, value, onChange }) {
     {d.tipo === 'multichoice' && (d.options || []).map(opt => {
       const arr = Array.isArray(value) ? value : []
       const sel = arr.includes(opt)
-      return <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: '#0f1420', borderRadius: 6, marginBottom: 6, cursor: 'pointer', border: sel ? '1px solid #F59E0B' : '1px solid #2a3042' }}>
+      return <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, background: 'var(--bg)', borderRadius: 6, marginBottom: 6, cursor: 'pointer', border: sel ? '1px solid #F59E0B' : '1px solid var(--border)' }}>
         <input type="checkbox" checked={sel} onChange={() => onChange(sel ? arr.filter(x => x !== opt) : [...arr, opt])} />
         <span>{opt}</span>
       </label>
@@ -139,7 +139,7 @@ function NpsScale({ value, onChange }) {
         }}>{i}</button>
       })}
     </div>
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: '#64748b' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text3)' }}>
       <span>Per niente</span><span>Sicuramente sì</span>
     </div>
   </div>
@@ -158,6 +158,6 @@ function RatingStars({ value, onChange }) {
 }
 
 const inputStyle = {
-  width: '100%', padding: '10px 12px', background: '#0f1420', color: '#e2e8f0',
-  border: '1px solid #2a3042', borderRadius: 6, fontSize: 14, outline: 'none',
+  width: '100%', padding: '10px 12px', background: 'var(--bg)', color: 'var(--text)',
+  border: '1px solid var(--border)', borderRadius: 6, fontSize: 14, outline: 'none',
 }

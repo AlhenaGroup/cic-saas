@@ -121,7 +121,7 @@ export default function SurveysManager({ sp, sps }) {
   return <div style={S.card}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
       <h2 style={{ margin: 0, fontSize: 18 }}>Sondaggi NPS</h2>
-      <span style={{ fontSize: 12, color: '#94a3b8' }}>· post-visita + reputation routing</span>
+      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· post-visita + reputation routing</span>
       <div style={{ flex: 1 }} />
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
@@ -130,7 +130,7 @@ export default function SurveysManager({ sp, sps }) {
     </div>
 
     {error && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-    {loading && <div style={{ color: '#94a3b8', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Caricamento…</div>}
 
     {/* KPI */}
     {kpi && kpi.totale > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 14 }}>
@@ -143,16 +143,16 @@ export default function SurveysManager({ sp, sps }) {
     </div>}
 
     {/* Lista sondaggi */}
-    <h3 style={{ margin: '20px 0 10px', fontSize: 14, color: '#cbd5e1' }}>Template sondaggi</h3>
+    <h3 style={{ margin: '20px 0 10px', fontSize: 14, color: 'var(--text)' }}>Template sondaggi</h3>
     {!loading && list.length === 0 && (
-      <div style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 13, background: '#0f1420', borderRadius: 8 }}>
+      <div style={{ textAlign: 'center', padding: 24, color: 'var(--text3)', fontSize: 13, background: 'var(--bg)', borderRadius: 8 }}>
         Nessun sondaggio. Crea il primo, poi automation o cron lo invierà ai clienti dopo la visita.
       </div>
     )}
     {!loading && list.length > 0 && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
         {list.map(s => (
-          <div key={s.id} style={{ background: '#0f1420', border: '1px solid ' + (s.attivo ? '#10B98155' : '#2a3042'), borderRadius: 10, padding: 12 }}>
+          <div key={s.id} style={{ background: 'var(--bg)', border: '1px solid ' + (s.attivo ? '#10B98155' : '#2a3042'), borderRadius: 10, padding: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <span style={{
                 fontSize: 10, padding: '2px 8px', borderRadius: 999, fontWeight: 700,
@@ -161,7 +161,7 @@ export default function SurveysManager({ sp, sps }) {
               }}>{s.attivo ? 'ATTIVO' : 'OFF'}</span>
               <div style={{ fontSize: 14, fontWeight: 700, flex: 1 }}>{s.nome}</div>
             </div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>{(s.domande || []).length} domande</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 8 }}>{(s.domande || []).length} domande</div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => setEditing(s)} style={{ ...btn('#1a1f2e', '#cbd5e1', '#2a3042'), flex: 1 }}>Modifica</button>
               <button onClick={() => generateLink(s)} style={btn('#F59E0B', '#0f1420', '#F59E0B')}>Link test</button>
@@ -173,7 +173,7 @@ export default function SurveysManager({ sp, sps }) {
 
     {/* Risposte */}
     <div style={{ display: 'flex', alignItems: 'center', marginTop: 22, marginBottom: 10 }}>
-      <h3 style={{ margin: 0, fontSize: 14, color: '#cbd5e1' }}>Risposte ricevute · {responses.length}</h3>
+      <h3 style={{ margin: 0, fontSize: 14, color: 'var(--text)' }}>Risposte ricevute · {responses.length}</h3>
       <div style={{ flex: 1 }} />
       <select value={filterSurvey} onChange={e => setFilterSurvey(e.target.value)} style={{ ...S.input, padding: '5px 8px', fontSize: 12 }}>
         <option value="">Tutti i sondaggi</option>
@@ -182,7 +182,7 @@ export default function SurveysManager({ sp, sps }) {
     </div>
 
     {responses.length === 0 && (
-      <div style={{ textAlign: 'center', padding: 20, color: '#64748b', fontSize: 13, background: '#0f1420', borderRadius: 8 }}>
+      <div style={{ textAlign: 'center', padding: 20, color: 'var(--text3)', fontSize: 13, background: 'var(--bg)', borderRadius: 8 }}>
         Nessuna risposta ancora.
       </div>
     )}
@@ -190,7 +190,7 @@ export default function SurveysManager({ sp, sps }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr style={{ background: '#0f1420' }}>
+            <tr style={{ background: 'var(--bg)' }}>
               <th style={S.th}>Data</th>
               <th style={S.th}>Cliente</th>
               <th style={S.th}>Sondaggio</th>
@@ -206,12 +206,12 @@ export default function SurveysManager({ sp, sps }) {
               const noteText = r.risposte?.note || r.risposte?.commento || ''
               return <tr key={r.id}>
                 <td style={S.td}>{fmtDateTime(r.submitted_at)}</td>
-                <td style={S.td}>{c ? [c.nome, c.cognome].filter(Boolean).join(' ') : <span style={{ color: '#64748b' }}>(anonimo)</span>}</td>
+                <td style={S.td}>{c ? [c.nome, c.cognome].filter(Boolean).join(' ') : <span style={{ color: 'var(--text3)' }}>(anonimo)</span>}</td>
                 <td style={S.td}><span style={{ fontSize: 11 }}>{r.surveys?.nome || '—'}</span></td>
                 <td style={S.td}>{r.nps_score != null ? <b style={{ color: r.nps_score >= 9 ? '#10B981' : r.nps_score >= 7 ? '#F59E0B' : '#EF4444' }}>{r.nps_score}</b> : '—'}</td>
                 <td style={S.td}>{r.rating_avg != null ? <span style={{ color: '#F59E0B' }}>{r.rating_avg}</span> : '—'}</td>
                 <td style={S.td}>{r.sentiment ? <span style={{ background: SENTIMENT_COLORS[r.sentiment] + '22', color: SENTIMENT_COLORS[r.sentiment], padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700 }}>{r.sentiment}</span> : '—'}</td>
-                <td style={S.td}><div style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#cbd5e1' }}>{noteText}</div></td>
+                <td style={S.td}><div style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text)' }}>{noteText}</div></td>
               </tr>
             })}
           </tbody>
@@ -233,7 +233,7 @@ export default function SurveysManager({ sp, sps }) {
       </div>
 
       {/* Domande */}
-      <div style={{ marginTop: 14, padding: 12, background: '#0f1420', borderRadius: 8, border: '1px solid #2a3042' }}>
+      <div style={{ marginTop: 14, padding: 12, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>Domande</div>
         {(editing.domande || []).map((d, i) => (
           <div key={d.id || i} style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'flex-start' }}>
@@ -241,7 +241,7 @@ export default function SurveysManager({ sp, sps }) {
               {TIPI_DOMANDA.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>
             <input value={d.label || ''} onChange={e => updateDomanda(i, { label: e.target.value })} placeholder="Testo domanda" style={{ ...S.input, flex: 1 }} />
-            <label style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4, padding: '0 6px' }}>
+            <label style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 4, padding: '0 6px' }}>
               <input type="checkbox" checked={!!d.required} onChange={e => updateDomanda(i, { required: e.target.checked })} /> obbl.
             </label>
             <button onClick={() => deleteDomanda(i)} style={btn('#EF4444' + '22', '#EF4444', '#EF4444' + '55')}>×</button>
@@ -251,13 +251,13 @@ export default function SurveysManager({ sp, sps }) {
       </div>
 
       {/* Routing reputazione */}
-      <div style={{ marginTop: 14, padding: 12, background: '#0f1420', borderRadius: 8, border: '1px solid #2a3042' }}>
+      <div style={{ marginTop: 14, padding: 12, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>Routing reputazione</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
           <Field label="Soglia promoter (NPS)"><input type="number" min="0" max="10" value={editing.routing_soglia || 9} onChange={e => setEditing({ ...editing, routing_soglia: Number(e.target.value || 9) })} style={S.input} /></Field>
           <Field label="Link recensione (Google/TripAdvisor)"><input value={editing.routing_link_review || ''} onChange={e => setEditing({ ...editing, routing_link_review: e.target.value })} placeholder="https://g.page/..." style={S.input} /></Field>
         </div>
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>I clienti che danno NPS ≥ {editing.routing_soglia || 9} verranno invitati a lasciare una recensione pubblica.</div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>I clienti che danno NPS ≥ {editing.routing_soglia || 9} verranno invitati a lasciare una recensione pubblica.</div>
       </div>
 
       <div style={{ marginTop: 14 }}>
@@ -282,20 +282,20 @@ function btn(bg, color, border) {
 }
 function Field({ label, children }) {
   return <label style={{ display: 'block' }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }
 function KPI({ label, value, accent = '#F59E0B' }) {
-  return <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 8, padding: 12, position: 'relative', overflow: 'hidden' }}>
+  return <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, position: 'relative', overflow: 'hidden' }}>
     <div style={{ position: 'absolute', top: 0, left: 0, width: 3, height: '100%', background: accent }} />
-    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
+    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
     <div style={{ fontSize: 22, fontWeight: 700, color: accent }}>{value}</div>
   </div>
 }
 function Drawer({ children, onClose }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(640px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(640px, 100%)', height: '100%', background: 'var(--surface)', padding: 20, overflowY: 'auto', borderLeft: '1px solid var(--border)' }}>
       {children}
     </div>
   </div>

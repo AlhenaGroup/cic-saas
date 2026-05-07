@@ -68,13 +68,13 @@ export default function Forecast({ sp, sps, year, month }) {
 
   if (loading) {
     return <Card title="Forecast">
-      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento…</div>
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Caricamento…</div>
     </Card>
   }
 
   if (!consuntivo || consuntivo.ricavi === 0) {
     return <Card title="Forecast">
-      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>
         <div style={{ fontSize: 48, marginBottom: 14, opacity: .3 }}></div>
         Nessun dato di consuntivo per {String(month).padStart(2, '0')}/{year}
       </div>
@@ -85,13 +85,13 @@ export default function Forecast({ sp, sps, year, month }) {
 
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     <Card title="Proiezione fine mese">
-      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <span>
-          Giorno <strong style={{ color: '#f1f5f9' }}>{daysElapsed}</strong> di <strong style={{ color: '#f1f5f9' }}>{totalDays}</strong>
+          Giorno <strong style={{ color: 'var(--text)' }}>{daysElapsed}</strong> di <strong style={{ color: 'var(--text)' }}>{totalDays}</strong>
           {' · '}
           avanzamento <strong style={{ color: '#F59E0B' }}>{totalDays > 0 ? ((daysElapsed / totalDays) * 100).toFixed(0) : 0}%</strong>
         </span>
-        <span style={{ fontSize: 11, color: '#64748b' }}>
+        <span style={{ fontSize: 11, color: 'var(--text3)' }}>
           Le proiezioni personale restano fissate al costo mensile (non scalato).
         </span>
       </div>
@@ -99,13 +99,13 @@ export default function Forecast({ sp, sps, year, month }) {
       {/* Slider aggiustamento trend */}
       <div style={{
         padding: '12px 14px',
-        background: '#131825',
-        border: '1px solid #2a3042',
+        background: 'var(--surface2)',
+        border: '1px solid var(--border)',
         borderRadius: 8,
         marginBottom: 16,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Aggiustamento trend forecast</span>
+          <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>Aggiustamento trend forecast</span>
           <strong style={{ fontSize: 13, color: trendAdjust === 0 ? '#94a3b8' : (trendAdjust > 0 ? '#10B981' : '#EF4444') }}>
             {trendAdjust > 0 ? '+' : ''}{trendAdjust}%
           </strong>
@@ -119,7 +119,7 @@ export default function Forecast({ sp, sps, year, month }) {
           onChange={e => setTrendAdjust(Number(e.target.value))}
           style={{ width: '100%', accentColor: '#F59E0B' }}
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#475569', marginTop: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text3)', marginTop: 4 }}>
           <span>−20% (mese in rallentamento)</span>
           <span>0% (trend lineare)</span>
           <span>+20% (sprint finale)</span>
@@ -148,16 +148,16 @@ export default function Forecast({ sp, sps, year, month }) {
                 </td>
                 <td style={{ ...S.td, textAlign: 'right' }}>{fmtD(parzAny)}</td>
                 <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: meta.color }}>{fmtD(forAny)}</td>
-                <td style={{ ...S.td, textAlign: 'right', color: '#64748b' }}>+{fmtD(delta)}</td>
+                <td style={{ ...S.td, textAlign: 'right', color: 'var(--text3)' }}>+{fmtD(delta)}</td>
               </tr>
             })}
             <tr>
-              <td style={{ ...S.td, fontWeight: 700, borderTop: '2px solid #2a3042' }}>MOL ({forecast ? computeMolPct(forecast).toFixed(1) : '—'}%)</td>
-              <td style={{ ...S.td, textAlign: 'right', borderTop: '2px solid #2a3042' }}>{fmtD(computeMOL(consuntivo))}</td>
-              <td style={{ ...S.td, textAlign: 'right', borderTop: '2px solid #2a3042', fontWeight: 700, color: '#10B981', fontSize: 14 }}>
+              <td style={{ ...S.td, fontWeight: 700, borderTop: '2px solid var(--border)' }}>MOL ({forecast ? computeMolPct(forecast).toFixed(1) : '—'}%)</td>
+              <td style={{ ...S.td, textAlign: 'right', borderTop: '2px solid var(--border)' }}>{fmtD(computeMOL(consuntivo))}</td>
+              <td style={{ ...S.td, textAlign: 'right', borderTop: '2px solid var(--border)', fontWeight: 700, color: '#10B981', fontSize: 14 }}>
                 {forecast ? fmtD(computeMOL(forecast)) : '—'}
               </td>
-              <td style={{ ...S.td, textAlign: 'right', borderTop: '2px solid #2a3042', color: '#64748b' }}>
+              <td style={{ ...S.td, textAlign: 'right', borderTop: '2px solid var(--border)', color: 'var(--text3)' }}>
                 +{forecast ? fmtD(computeMOL(forecast) - computeMOL(consuntivo)) : '—'}
               </td>
             </tr>
@@ -174,7 +174,7 @@ export default function Forecast({ sp, sps, year, month }) {
             <XAxis dataKey="day" stroke="#64748b" fontSize={11} label={{ value: 'Giorno del mese', position: 'insideBottom', offset: -4, fill: '#64748b', fontSize: 11 }} />
             <YAxis stroke="#64748b" fontSize={11} tickFormatter={v => (v / 1000).toFixed(0) + 'k'} />
             <Tooltip
-              contentStyle={{ background: '#0f1420', border: '1px solid #2a3042', fontSize: 12 }}
+              contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', fontSize: 12 }}
               formatter={(v) => v != null ? fmtD(v) : '—'}
               labelFormatter={l => `Giorno ${l}`}
             />

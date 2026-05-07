@@ -593,7 +593,7 @@ export default function DashboardPage({ settings }) {
 
     <div className="m-compact" style={{padding:'1.5rem',maxWidth:1400,margin:'0 auto'}}>
       {error&&<div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.25)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#FCA5A5',marginBottom:'1.5rem'}}>{error}</div>}
-      {isEmpty&&<div style={{background:'rgba(148,163,184,.06)',border:'1px solid rgba(148,163,184,.2)',borderRadius:8,padding:'12px 16px',fontSize:13,color:'#94a3b8',marginBottom:'1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+      {isEmpty&&<div style={{background:'rgba(148,163,184,.06)',border:'1px solid rgba(148,163,184,.2)',borderRadius:8,padding:'12px 16px',fontSize:13,color: 'var(--text2)',marginBottom:'1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
         <span>Nessun dato in questo periodo. Il sync notturno potrebbe non aver ancora processato queste date.</span>
         <button onClick={forceSync} disabled={syncing} style={{...iS,background:syncing?'#1a1f2e':'#10B981',color:syncing?'#94a3b8':'#0f1420',fontWeight:600,border:'none',padding:'6px 14px',cursor:syncing?'wait':'pointer'}}>{syncing?'Sync in corso…':'Forza sync ora'}</button>
       </div>}
@@ -643,12 +643,12 @@ export default function DashboardPage({ settings }) {
               <div style={{fontSize:11,fontWeight:600,color:'#10B981',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Giorno migliore</div>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <div>
-                  <div style={{fontSize:20,fontWeight:700,color:'#f1f5f9'}}>{fmt(best.ricavi)}</div>
-                  <div style={{fontSize:12,color:'#94a3b8'}}>{new Date(best.date+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</div>
+                  <div style={{fontSize:20,fontWeight:700,color: 'var(--text)'}}>{fmt(best.ricavi)}</div>
+                  <div style={{fontSize:12,color: 'var(--text2)'}}>{new Date(best.date+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</div>
                 </div>
                 {best.coperti>0&&<div style={{textAlign:'right'}}>
-                  <div style={{fontSize:14,fontWeight:600,color:'#cbd5e1'}}>{fmtN(best.coperti)}</div>
-                  <div style={{fontSize:11,color:'#64748b'}}>coperti</div>
+                  <div style={{fontSize:14,fontWeight:600,color: 'var(--text)'}}>{fmtN(best.coperti)}</div>
+                  <div style={{fontSize:11,color: 'var(--text3)'}}>coperti</div>
                 </div>}
               </div>
             </div>
@@ -656,12 +656,12 @@ export default function DashboardPage({ settings }) {
               <div style={{fontSize:11,fontWeight:600,color:'#EF4444',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:8}}>Giorno peggiore</div>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <div>
-                  <div style={{fontSize:20,fontWeight:700,color:'#f1f5f9'}}>{fmt(worst.ricavi)}</div>
-                  <div style={{fontSize:12,color:'#94a3b8'}}>{new Date(worst.date+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</div>
+                  <div style={{fontSize:20,fontWeight:700,color: 'var(--text)'}}>{fmt(worst.ricavi)}</div>
+                  <div style={{fontSize:12,color: 'var(--text2)'}}>{new Date(worst.date+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})}</div>
                 </div>
                 {worst.coperti>0&&<div style={{textAlign:'right'}}>
-                  <div style={{fontSize:14,fontWeight:600,color:'#cbd5e1'}}>{fmtN(worst.coperti)}</div>
-                  <div style={{fontSize:11,color:'#64748b'}}>coperti</div>
+                  <div style={{fontSize:14,fontWeight:600,color: 'var(--text)'}}>{fmtN(worst.coperti)}</div>
+                  <div style={{fontSize:11,color: 'var(--text3)'}}>coperti</div>
                 </div>}
               </div>
             </div>
@@ -703,7 +703,7 @@ export default function DashboardPage({ settings }) {
         }>
           <div style={{overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+              <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
                 {['N°','Data','Apertura','Chiusura','Locale','Tavolo','Cop.','Articoli','Totale'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
@@ -717,11 +717,11 @@ export default function DashboardPage({ settings }) {
                     </td>
                     <td style={S.td}>{r.date}</td>
                     <td style={{...S.td,color:'#10B981',fontWeight:500}}>{r.time||'—'}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{r.chiusura||'—'}</td>
+                    <td style={{...S.td,color: 'var(--text2)'}}>{r.chiusura||'—'}</td>
                     <td style={S.td}>{r.locale}</td>
                     <td style={{...S.td,color:'#F59E0B'}}>{r.tavolo||'—'}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{r.coperti||'—'}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{r.items} art.</td>
+                    <td style={{...S.td,color: 'var(--text2)'}}>{r.coperti||'—'}</td>
+                    <td style={{...S.td,color: 'var(--text2)'}}>{r.items} art.</td>
                     <td style={{...S.td,fontWeight:600,color:r.isInvoice?'#8B5CF6':'#F59E0B'}}>{fmtD(r.total)}</td>
                   </tr>
                 ))}
@@ -743,7 +743,7 @@ export default function DashboardPage({ settings }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e2636" vertical={true} horizontal={false}/>
                 <XAxis type="number" tick={{fontSize:10,fill:'#475569'}} tickFormatter={v=>'€'+Math.round(v/1000)+'k'} tickLine={false} axisLine={false}/>
                 <YAxis type="category" dataKey="description" tick={{fontSize:11,fill:'#cbd5e1'}} tickLine={false} axisLine={false} width={115}/>
-                <Tooltip formatter={v=>fmt(v)} contentStyle={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,fontSize:12}}/>
+                <Tooltip formatter={v=>fmt(v)} contentStyle={{background: 'var(--surface)',border:'1px solid var(--border)',borderRadius:8,fontSize:12}}/>
                 <Bar dataKey="total" name="Ricavi" radius={[0,4,4,0]}>
                   {cats.slice(0,8).map((_,i)=><Cell key={i} fill={C[i%C.length]}/>)}
                 </Bar>
@@ -777,7 +777,7 @@ export default function DashboardPage({ settings }) {
 
       {tab==='conta' && contaSubTab==='iva'&&<IvaTab sp={sp} sps={sps} from={from} to={to}/>}
       {tab==='conta' && contaSubTab==='chiusure'&&<Card title="Chiusure & Versamenti">
-        <div style={{ padding: 30, color: '#94a3b8', textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
+        <div style={{ padding: 30, color: 'var(--text2)', textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
           Sezione in arrivo. Da definire insieme a Gianmarco: chiusure di cassa, versamenti contanti/POS/Satispay, riconciliazione con fatture e scontrini.
         </div>
       </Card>}
@@ -793,10 +793,10 @@ export default function DashboardPage({ settings }) {
               </div>
               <div style={{fontSize:26,fontWeight:700,marginBottom:4}}>{fmt(d.profit)}</div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:12}}>
-                <span style={{color:'#64748b'}}>{fmtN(d.qty||0)} pz</span>
+                <span style={{color: 'var(--text3)'}}>{fmtN(d.qty||0)} pz</span>
                 <span style={{color:'#F59E0B',fontWeight:600}}>{totale>0?(d.profit/totale*100).toFixed(1):0}%</span>
               </div>
-              <div style={{marginTop:8,height:3,background:'#0f1420',borderRadius:2}}>
+              <div style={{marginTop:8,height:3,background: 'var(--bg)',borderRadius:2}}>
                 <div style={{height:'100%',width:(totale>0?d.profit/totale*100:0)+'%',background:C[i%C.length],borderRadius:2}}/>
               </div>
             </div>
@@ -808,7 +808,7 @@ export default function DashboardPage({ settings }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2636" vertical={false}/>
               <XAxis dataKey="description" tick={{fontSize:11,fill:'#475569'}} tickLine={false} axisLine={false}/>
               <YAxis tick={{fontSize:10,fill:'#475569'}} tickFormatter={v=>'€'+Math.round(v/1000)+'k'} tickLine={false} axisLine={false} width={42}/>
-              <Tooltip formatter={v=>fmt(v)} contentStyle={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,fontSize:12}}/>
+              <Tooltip formatter={v=>fmt(v)} contentStyle={{background: 'var(--surface)',border:'1px solid var(--border)',borderRadius:8,fontSize:12}}/>
               <Bar dataKey="profit" name="Ricavi" radius={[4,4,0,0]}>
                 {depts.filter(d=>d.profit>0).map((_,i)=><Cell key={i} fill={C[i%C.length]}/>)}
               </Bar>
@@ -865,9 +865,9 @@ export default function DashboardPage({ settings }) {
             return { tipo: 'Spostamento', icon: '', severity: 'medium', color: '#3B82F6' }
           }
           if (op.includes('apertura cassetto') || op.includes('open drawer') || op.includes('cassetto')) {
-            return { tipo: 'Apertura cassetto', icon: '', severity: 'low', color: '#64748b' }
+            return { tipo: 'Apertura cassetto', icon: '', severity: 'low', color: 'var(--text3)' }
           }
-          return { tipo: log.operation || 'Altro', icon: '', severity: 'low', color: '#94a3b8' }
+          return { tipo: log.operation || 'Altro', icon: '', severity: 'low', color: 'var(--text2)' }
         }
 
         const classified = monLogs.map(log => {
@@ -900,15 +900,15 @@ export default function DashboardPage({ settings }) {
         return <>
         {/* Cookie input */}
         {showMonCookie && <div style={{ ...S.card, marginBottom: 12, borderLeft: '3px solid #F59E0B' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 8 }}>Connessione a Cassa in Cloud</div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Connessione a Cassa in Cloud</div>
+          <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12 }}>
             Per caricare i monitoring logs serve il cookie di sessione CiC. Apri <a href="https://fo.cassanova.com" target="_blank" style={{ color: '#F59E0B' }}>fo.cassanova.com</a>,
-            poi F12 Console digita: <code style={{ background: '#0f1420', padding: '2px 6px', borderRadius: 4 }}>document.cookie</code>
+            poi F12 Console digita: <code style={{ background: 'var(--bg)', padding: '2px 6px', borderRadius: 4 }}>document.cookie</code>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input value={monCookie} onChange={e => setMonCookie(e.target.value)} placeholder="Incolla il cookie..." style={{ ...iS, flex: 1 }} />
             <button onClick={() => { localStorage.setItem('cic_session_cookie', monCookie); setShowMonCookie(false); loadLogs() }} disabled={!monCookie} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 600 }}>Connetti</button>
-            <button onClick={() => setShowMonCookie(false)} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '6px 12px' }}>Chiudi</button>
+            <button onClick={() => setShowMonCookie(false)} style={{ ...iS, color: 'var(--text3)', border: '1px solid var(--border)', padding: '6px 12px' }}>Chiudi</button>
           </div>
         </div>}
 
@@ -928,14 +928,14 @@ export default function DashboardPage({ settings }) {
             { key: 'eliminazione', label: 'Eliminazioni', count: counts.eliminazioni, color: '#EF4444' },
             { key: 'sconto', label: 'Sconti', count: counts.sconti, color: '#F59E0B' },
             { key: 'spostamento', label: 'Spostamenti', count: counts.spostamenti, color: '#3B82F6' },
-            { key: 'cassetto', label: 'Cassetto', count: counts.cassetto, color: '#64748b' },
+            { key: 'cassetto', label: 'Cassetto', count: counts.cassetto, color: 'var(--text3)' },
           ].map(f => (
-            <button key={f.key} onClick={() => setMonFilter(f.key)} style={{ ...iS, padding: '4px 12px', fontSize: 11, fontWeight: monFilter === f.key ? 700 : 400, color: monFilter === f.key ? f.color : '#94a3b8', background: monFilter === f.key ? f.color + '18' : 'transparent', border: monFilter === f.key ? `1px solid ${f.color}` : '1px solid #2a3042' }}>
+            <button key={f.key} onClick={() => setMonFilter(f.key)} style={{ ...iS, padding: '4px 12px', fontSize: 11, fontWeight: monFilter === f.key ? 700 : 400, color: monFilter === f.key ? f.color : '#94a3b8', background: monFilter === f.key ? f.color + '18' : 'transparent', border: monFilter === f.key ? `1px solid ${f.color}` : '1px solid var(--border)' }}>
               {f.label} ({f.count})
             </button>
           ))}
           <div style={{ marginLeft: 'auto' }}>
-            <button onClick={loadLogs} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>
+            <button onClick={loadLogs} style={{ ...iS, background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>
               {monCookie ? 'Aggiorna' : 'Configura CiC'}
             </button>
           </div>
@@ -944,12 +944,12 @@ export default function DashboardPage({ settings }) {
         {/* Tabella */}
         <Card title="Monitoring Log" badge={monLoading ? 'Caricamento...' : filtered.length + ' operazioni'}>
           {monLoading ? <div style={{ textAlign: 'center', padding: 20, color: '#F59E0B', fontSize: 12 }}>Caricamento logs da CiC...</div> :
-          classified.length === 0 ? <div style={{ textAlign: 'center', padding: 30, color: '#475569', fontSize: 13 }}>
+          classified.length === 0 ? <div style={{ textAlign: 'center', padding: 30, color: 'var(--text3)', fontSize: 13 }}>
             {monCookie ? 'Nessuna operazione nel periodo selezionato' : 'Clicca "Configura CiC" per collegare il monitoring log'}
           </div> :
           <div style={{ overflowX: 'auto' }}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+              <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
                 {['Data','Ora','Locale','Utente','Operazione','Dettagli','Severità'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
@@ -957,7 +957,7 @@ export default function DashboardPage({ settings }) {
                   const sev = sevColors[l.severity] || sevColors.low
                   return <tr key={i} style={{ borderBottom: '1px solid #1a1f2e', background: l.severity === 'high' ? 'rgba(239,68,68,.04)' : 'transparent' }}>
                     <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600, whiteSpace: 'nowrap' }}>{l.dateStr}</td>
-                    <td style={{ ...S.td, color: '#94a3b8', whiteSpace: 'nowrap' }}>{l.timeStr}</td>
+                    <td style={{ ...S.td, color: 'var(--text2)', whiteSpace: 'nowrap' }}>{l.timeStr}</td>
                     <td style={{ ...S.td, fontSize: 12 }}>{l.locale}</td>
                     <td style={{ ...S.td, fontWeight: 500 }}>{l.utente}</td>
                     <td style={S.td}>
@@ -966,7 +966,7 @@ export default function DashboardPage({ settings }) {
                         <span style={{ fontWeight: 600, color: l.color }}>{l.tipo}</span>
                       </span>
                     </td>
-                    <td style={{ ...S.td, color: '#94a3b8', fontSize: 12, maxWidth: 400 }}>{l.dettaglio}</td>
+                    <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12, maxWidth: 400 }}>{l.dettaglio}</td>
                     <td style={S.td}><span style={S.badge(sev.c, sev.bg)}>{sev.label}</span></td>
                   </tr>
                 })}
@@ -1056,22 +1056,22 @@ export default function DashboardPage({ settings }) {
         <Card title="Fatture passive da CiC" badge={fatLoading?'Caricamento...':cicInvoices.length+' fatture'} extra={
           <div style={{display:'flex',gap:8}}>
             <input placeholder="Fornitore / N° doc..." value={fatSearch} onChange={e=>setFatSearch(e.target.value)} style={{...iS,width:200}}/>
-            <button onClick={loadCicInvoices} style={{...iS,background:'#F59E0B',color:'#0f1420',border:'none',padding:'6px 16px',fontWeight:600}}>Aggiorna</button>
+            <button onClick={loadCicInvoices} style={{...iS,background:'#F59E0B',color: 'var(--text)',border:'none',padding:'6px 16px',fontWeight:600}}>Aggiorna</button>
           </div>
         }>
           <div style={{overflowX:'auto'}}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+              <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
                 {['','Data','Fornitore','N° Doc','Tipo','Stato','Locale','XML'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
-                {cicInvoices.length===0&&!fatLoading&&<tr><td colSpan={8} style={{...S.td,color:'#475569',textAlign:'center',padding:20}}>Nessuna fattura. Clicca "Aggiorna" per caricare da CiC. Serve essere loggati su fo.cassanova.com.</td></tr>}
+                {cicInvoices.length===0&&!fatLoading&&<tr><td colSpan={8} style={{...S.td,color: 'var(--text3)',textAlign:'center',padding:20}}>Nessuna fattura. Clicca "Aggiorna" per caricare da CiC. Serve essere loggati su fo.cassanova.com.</td></tr>}
                 {filtered.slice(0,50).map((f,i)=><React.Fragment key={f.id||i}>
                   <tr onClick={()=>{setExpandedFat(expandedFat===f.id?null:f.id);if(expandedFat!==f.id){setXmlContent(null)}}} style={{cursor:'pointer',borderBottom:'1px solid #1a1f2e'}}>
-                    <td style={{...S.td,width:24,color:'#64748b'}}>{expandedFat===f.id?'':''}</td>
+                    <td style={{...S.td,width:24,color: 'var(--text3)'}}>{expandedFat===f.id?'':''}</td>
                     <td style={{...S.td,color:'#F59E0B',fontWeight:600}}>{f.date}</td>
                     <td style={{...S.td,fontWeight:500}}>{f.sender?.name||'—'}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{f.number}</td>
+                    <td style={{...S.td,color: 'var(--text2)'}}>{f.number}</td>
                     <td style={S.td}><span style={S.badge('#3B82F6','rgba(59,130,246,.12)')}>{f.doc_type||'TD01'}</span></td>
                     <td style={S.td}><span style={S.badge('#10B981','rgba(16,185,129,.12)')}>{f.current_status?.name||'—'}</span></td>
                     <td style={S.td} onClick={e=>e.stopPropagation()}>
@@ -1084,7 +1084,7 @@ export default function DashboardPage({ settings }) {
                       <button onClick={()=>downloadXml(f)} style={{background:'none',border:'none',color:'#3B82F6',cursor:'pointer',fontSize:11}}>Scarica</button>
                     </td>
                   </tr>
-                  {expandedFat===f.id&&<tr><td colSpan={8} style={{padding:'0 14px 12px 38px',background:'#131825'}}>
+                  {expandedFat===f.id&&<tr><td colSpan={8} style={{padding:'0 14px 12px 38px',background: 'var(--surface2)'}}>
                     {!xmlContent&&!xmlLoading&&<button onClick={()=>downloadXml(f)} style={{...iS,background:'#3B82F6',color:'#fff',border:'none',padding:'6px 14px',fontWeight:600,fontSize:12,marginTop:8}}>Carica dettaglio fattura (XML)</button>}
                     {xmlLoading&&<div style={{padding:12,color:'#F59E0B',fontSize:12}}>Caricamento XML...</div>}
                     {xmlContent&&xmlContent.length>100&&(()=>{
@@ -1097,13 +1097,13 @@ export default function DashboardPage({ settings }) {
                           {lines.map((l,j)=><tr key={j}>
                             <td style={{...S.td,fontSize:12,fontWeight:500,padding:'6px 8px'}}>{l.descrizione}</td>
                             <td style={{...S.td,fontSize:12,padding:'6px 8px'}}>{l.quantita}</td>
-                            <td style={{...S.td,fontSize:11,color:'#64748b',padding:'6px 8px'}}>{l.um}</td>
+                            <td style={{...S.td,fontSize:11,color: 'var(--text3)',padding:'6px 8px'}}>{l.um}</td>
                             <td style={{...S.td,fontSize:12,padding:'6px 8px'}}>{l.prezzoUnitario?Number(l.prezzoUnitario).toFixed(2)+'€':''}</td>
                             <td style={{...S.td,fontSize:12,fontWeight:600,padding:'6px 8px'}}>{l.prezzoTotale?Number(l.prezzoTotale).toFixed(2)+'€':''}</td>
-                            <td style={{...S.td,fontSize:11,color:'#94a3b8',padding:'6px 8px'}}>{l.aliquotaIVA}%</td>
+                            <td style={{...S.td,fontSize:11,color: 'var(--text2)',padding:'6px 8px'}}>{l.aliquotaIVA}%</td>
                           </tr>)}
                         </tbody>
-                      </table> : <div style={{padding:8,fontSize:12,color:'#94a3b8'}}>XML caricato ma nessuna riga trovata.</div>
+                      </table> : <div style={{padding:8,fontSize:12,color: 'var(--text2)'}}>XML caricato ma nessuna riga trovata.</div>
                     })()}
                     {xmlContent&&xmlContent.length<=100&&<div style={{padding:8,fontSize:12,color:'#EF4444'}}>{xmlContent}</div>}
                   </td></tr>}
@@ -1168,7 +1168,7 @@ export default function DashboardPage({ settings }) {
         {/* Target e soglie */}
         <div style={{...S.card,marginBottom:'1.25rem',display:'flex',alignItems:'center',gap:20,flexWrap:'wrap'}}>
           {/* Toggle Reale / Pianificato */}
-          <div style={{display:'flex',gap:0,border:'1px solid #2a3042',borderRadius:6,overflow:'hidden'}}>
+          <div style={{display:'flex',gap:0,border:'1px solid var(--border)',borderRadius:6,overflow:'hidden'}}>
             <button onClick={()=>setUseRealHours(true)}
               title={`Ore reali dalle timbrature (${(Math.floor(totOreReali*100)/100).toFixed(2)}h tot nel periodo)`}
               style={{padding:'6px 12px',fontSize:11,fontWeight:600,cursor:'pointer',border:'none',
@@ -1183,7 +1183,7 @@ export default function DashboardPage({ settings }) {
             </button>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <span style={{fontSize:12,color:'#64748b'}}>Target €/h:</span>
+            <span style={{fontSize:12,color: 'var(--text3)'}}>Target €/h:</span>
             <input type="number" value={prodTarget} onChange={e=>setProdTarget(Number(e.target.value))} style={{...iS,width:70,textAlign:'center'}}/>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -1197,7 +1197,7 @@ export default function DashboardPage({ settings }) {
           <span style={{fontSize:12,color:'#10B981'}}>Verde ≥ {sogliaYel}</span>
           {/* Media giornaliera */}
           <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:10}}>
-            <span style={{fontSize:12,color:'#64748b'}}>Media giornaliera:</span>
+            <span style={{fontSize:12,color: 'var(--text3)'}}>Media giornaliera:</span>
             <span style={{fontSize:18,fontWeight:700,color:prodColor(mediaGiorn)}}>{mediaGiorn > 0 ? mediaGiorn.toFixed(1)+' €/h' : '—'}</span>
             {mediaGiorn > 0 && <span style={{fontSize:11,fontWeight:600,color:prodColor(mediaGiorn)}}>{prodLabel(mediaGiorn)}</span>}
           </div>
@@ -1210,7 +1210,7 @@ export default function DashboardPage({ settings }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2636" vertical={false}/>
               <XAxis dataKey="ora" tick={{fontSize:10,fill:'#475569'}} tickLine={false} axisLine={false}/>
               <YAxis tick={{fontSize:10,fill:'#475569'}} tickFormatter={v=>v+'€'} tickLine={false} axisLine={false} width={42}/>
-              <Tooltip formatter={(v,name)=>name==='prodOraria'?v.toFixed(1)+' €/h':fmt(v)} contentStyle={{background:'#1a1f2e',border:'1px solid #2a3042',borderRadius:8,fontSize:12,color:'#f1f5f9'}} labelStyle={{color:'#94a3b8'}} itemStyle={{color:'#f1f5f9'}}/>
+              <Tooltip formatter={(v,name)=>name==='prodOraria'?v.toFixed(1)+' €/h':fmt(v)} contentStyle={{background: 'var(--surface)',border:'1px solid var(--border)',borderRadius:8,fontSize:12,color: 'var(--text)'}} labelStyle={{color: 'var(--text2)'}} itemStyle={{color: 'var(--text)'}}/>
               <Bar dataKey="ricavi" name="Ricavi" radius={[3,3,0,0]}>
                 {oreWithProd.filter(o=>o.ricavi>0).map((o,i)=><Cell key={i} fill={o.staff>0?prodColor(o.prodOraria):'#F59E0B'}/>)}
               </Bar>
@@ -1222,7 +1222,7 @@ export default function DashboardPage({ settings }) {
         <div style={{marginTop:12}}>
           <Card title="Dettaglio per fascia oraria" badge={useRealHours ? 'ore da timbratura' : 'ore pianificate'}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+              <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
                 {['Ora','Ricavi','Coperti','Cop./dip.','Scontrini','Persone','Ore reali','Ore piano','Ore usate','Prod. oraria','Stato'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
@@ -1234,7 +1234,7 @@ export default function DashboardPage({ settings }) {
                     <td style={{...S.td,fontWeight:600}}>{fmt(o.ricavi)}</td>
                     <td style={{...S.td,color:o.coperti>0?'#F97316':'#475569',fontWeight:o.coperti>0?700:400}} title={o.coperti>0?`${o.coperti} coperti serviti nella fascia`:''}>{o.coperti>0?o.coperti:'—'}</td>
                     <td style={{...S.td,color:o.copPerDip>0?'#A855F7':'#475569',fontWeight:o.copPerDip>0?700:400}} title={o.copPerDip>0?`${o.coperti} coperti / ${o.persone} dipendente${o.persone===1?'':'i'} = ${o.copPerDip.toFixed(1)} coperti per dipendente`:'Serve sia coperti che timbrature'}>{o.copPerDip>0?o.copPerDip.toFixed(1):'—'}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{o.scontrini}</td>
+                    <td style={{...S.td,color: 'var(--text2)'}}>{o.scontrini}</td>
                     <td style={{...S.td,color:o.persone>0?'#3B82F6':'#475569',fontWeight:o.persone>0?700:400}} title={o.persone>0?`${o.persone} dipendent${o.persone===1?'e':'i'} in turno (almeno parziale) nella fascia`:''}>{o.persone>0?o.persone:'—'}</td>
                     <td style={{...S.td,color:o.oreReali>0?'#10B981':'#475569',fontWeight:o.oreReali>0?600:400}}>{o.oreReali>0?o.oreReali.toFixed(2)+'h':'—'}</td>
                     <td style={{...S.td,color:o.orePianif>0?'#F59E0B':'#475569'}}>{o.orePianif>0?o.orePianif+'h':'—'}{mismatch&&<span title="Differenza reale/pianificato" style={{marginLeft:4,color:'#EF4444'}}></span>}</td>
@@ -1252,22 +1252,22 @@ export default function DashboardPage({ settings }) {
         {(data?.receiptDetails||[]).length>0&&<div style={{marginTop:12}}>
           <Card title="Comande del periodo" badge={fmtN((data?.receiptDetails||[]).length)+' comande'}>
             <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <thead><tr style={{borderBottom:'1px solid #2a3042'}}>
+              <thead><tr style={{borderBottom:'1px solid var(--border)'}}>
                 {['','Tavolo','Aperta','Chiusa','Coperti','Totale','Articoli','Reparto'].map(h=><th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {(data?.receiptDetails||[]).map((r,i)=><>
                   <tr key={i} onClick={()=>setExpandedReceipt(expandedReceipt===i?null:i)} style={{cursor:'pointer',borderBottom:'1px solid #1a1f2e'}}>
-                    <td style={{...S.td,width:24,color:'#64748b'}}>{expandedReceipt===i?'':''}</td>
-                    <td style={{...S.td,fontWeight:600,color:'#e2e8f0'}}>{r.tavolo||'—'}</td>
+                    <td style={{...S.td,width:24,color: 'var(--text3)'}}>{expandedReceipt===i?'':''}</td>
+                    <td style={{...S.td,fontWeight:600,color: 'var(--text)'}}>{r.tavolo||'—'}</td>
                     <td style={{...S.td,fontWeight:600,color:'#10B981'}}>{r.aperturaComanda||r.ora}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{r.chiusuraComanda||r.ora}</td>
+                    <td style={{...S.td,color: 'var(--text2)'}}>{r.chiusuraComanda||r.ora}</td>
                     <td style={{...S.td,color:'#F59E0B',fontWeight:600}}>{r.coperti||'—'}</td>
                     <td style={{...S.td,fontWeight:600}}>{fmt(r.totale)}</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{r.items?.length||0} art.</td>
-                    <td style={{...S.td,color:'#94a3b8'}}>{[...new Set(r.items?.map(it=>it.reparto).filter(Boolean))].join(', ')||'—'}</td>
+                    <td style={{...S.td,color: 'var(--text2)'}}>{r.items?.length||0} art.</td>
+                    <td style={{...S.td,color: 'var(--text2)'}}>{[...new Set(r.items?.map(it=>it.reparto).filter(Boolean))].join(', ')||'—'}</td>
                   </tr>
-                  {expandedReceipt===i&&<tr key={'d'+i}><td colSpan={8} style={{padding:'0 14px 12px 38px',background:'#131825'}}>
+                  {expandedReceipt===i&&<tr key={'d'+i}><td colSpan={8} style={{padding:'0 14px 12px 38px',background: 'var(--surface2)'}}>
                     <table style={{width:'100%',borderCollapse:'collapse'}}>
                       <thead><tr>
                         {['Prodotto','Qtà','Prezzo','Reparto'].map(h=><th key={h} style={{...S.th,fontSize:10,padding:'6px 10px'}}>{h}</th>)}
@@ -1275,9 +1275,9 @@ export default function DashboardPage({ settings }) {
                       <tbody>
                         {(r.items||[]).map((it,j)=><tr key={j}>
                           <td style={{...S.td,fontSize:12,fontWeight:500,padding:'6px 10px'}}>{it.nome}</td>
-                          <td style={{...S.td,fontSize:12,color:'#94a3b8',padding:'6px 10px'}}>{it.qty}x</td>
+                          <td style={{...S.td,fontSize:12,color: 'var(--text2)',padding:'6px 10px'}}>{it.qty}x</td>
                           <td style={{...S.td,fontSize:12,fontWeight:500,padding:'6px 10px'}}>{fmt(it.prezzo)}</td>
-                          <td style={{...S.td,fontSize:11,color:'#64748b',padding:'6px 10px'}}>{it.reparto||'—'}</td>
+                          <td style={{...S.td,fontSize:11,color: 'var(--text3)',padding:'6px 10px'}}>{it.reparto||'—'}</td>
                         </tr>)}
                       </tbody>
                     </table>

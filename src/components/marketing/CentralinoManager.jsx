@@ -129,7 +129,7 @@ export default function CentralinoManager({ sp, sps }) {
   return <div style={S.card}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
       <h2 style={{ margin: 0, fontSize: 18 }}>Centralino</h2>
-      <span style={{ fontSize: 12, color: '#94a3b8' }}>· IVR Twilio + WhatsApp + parallel ring</span>
+      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· IVR Twilio + WhatsApp + parallel ring</span>
       <div style={{ flex: 1 }} />
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
@@ -137,30 +137,30 @@ export default function CentralinoManager({ sp, sps }) {
       <button onClick={() => setShowHelp(!showHelp)} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>?</button>
     </div>
 
-    {showHelp && <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14, fontSize: 12, color: '#cbd5e1' }}>
+    {showHelp && <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14, fontSize: 12, color: 'var(--text)' }}>
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Setup centralino — passi necessari</div>
       <ol style={{ marginLeft: 20, lineHeight: 1.7 }}>
         <li>Acquistare un numero Twilio italiano (da Twilio Console) o portarne uno esistente.</li>
         <li>Configurare le variabili ambiente Vercel: <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code>, <code>TWILIO_WHATSAPP_FROM</code> (es. <code>whatsapp:+14155238886</code>).</li>
-        <li>In Twilio Console, sul numero acquistato, impostare il webhook "A CALL COMES IN" (HTTP POST) su:<br /><code style={{ background: '#1a1f2e', padding: '2px 8px', borderRadius: 4 }}>{WEBHOOK_URL}</code></li>
+        <li>In Twilio Console, sul numero acquistato, impostare il webhook "A CALL COMES IN" (HTTP POST) su:<br /><code style={{ background: 'var(--surface)', padding: '2px 8px', borderRadius: 4 }}>{WEBHOOK_URL}</code></li>
         <li>Configurare qui sotto: greeting, link prenotazione, numeri da far squillare, orari attivi.</li>
         <li>Attivare il toggle "Centralino attivo".</li>
       </ol>
     </div>}
 
     {error && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-    {loading && <div style={{ color: '#94a3b8', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Caricamento…</div>}
 
     {/* Config card */}
     {!loading && (
-      <div style={{ background: '#0f1420', border: '1px solid ' + (config?.attivo ? '#10B98155' : '#2a3042'), borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <div style={{ background: 'var(--bg)', border: '1px solid ' + (config?.attivo ? '#10B98155' : '#2a3042'), borderRadius: 10, padding: 16, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <span style={{
             fontSize: 10, padding: '3px 10px', borderRadius: 999, fontWeight: 700,
             background: config?.attivo ? '#10B98122' : '#94A3B822',
             color: config?.attivo ? '#10B981' : '#94A3B8',
           }}>{config?.attivo ? 'ATTIVO' : 'NON ATTIVO'}</span>
-          <code style={{ fontSize: 14, fontWeight: 700, background: '#1a1f2e', padding: '4px 10px', borderRadius: 4 }}>
+          <code style={{ fontSize: 14, fontWeight: 700, background: 'var(--surface)', padding: '4px 10px', borderRadius: 4 }}>
             {config?.twilio_number || '(numero non configurato)'}
           </code>
           <div style={{ flex: 1 }} />
@@ -175,7 +175,7 @@ export default function CentralinoManager({ sp, sps }) {
             <Stat label="Lingua" value={config.lingua} />
           </div>
           {config.attivo && config.twilio_number && (
-            <div style={{ marginTop: 12, padding: 10, background: '#1a1f2e', borderRadius: 6, fontSize: 11, color: '#94a3b8' }}>
+            <div style={{ marginTop: 12, padding: 10, background: 'var(--surface)', borderRadius: 6, fontSize: 11, color: 'var(--text2)' }}>
               Webhook URL da configurare in Twilio Console: <code style={{ color: '#F59E0B' }}>{WEBHOOK_URL}</code>
             </div>
           )}
@@ -198,14 +198,14 @@ export default function CentralinoManager({ sp, sps }) {
     {/* Lista chiamate */}
     <h3 style={{ margin: '20px 0 10px', fontSize: 15 }}>Ultime chiamate · {calls.length}</h3>
     {calls.length === 0 ? (
-      <div style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 13, background: '#0f1420', borderRadius: 8 }}>
+      <div style={{ textAlign: 'center', padding: 24, color: 'var(--text3)', fontSize: 13, background: 'var(--bg)', borderRadius: 8 }}>
         Nessuna chiamata registrata. Una volta configurato e attivato il centralino, le chiamate ricevute appariranno qui.
       </div>
     ) : (
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: '#0f1420' }}>
+            <tr style={{ background: 'var(--bg)' }}>
               <th style={S.th}>Data/ora</th>
               <th style={S.th}>Da</th>
               <th style={S.th}>Cliente</th>
@@ -222,13 +222,13 @@ export default function CentralinoManager({ sp, sps }) {
               return <tr key={c.id}>
                 <td style={S.td}>{fmtDateTime(c.started_at)}</td>
                 <td style={S.td}><code style={{ fontSize: 12 }}>{c.from_number}</code></td>
-                <td style={S.td}>{cust ? [cust.nome, cust.cognome].filter(Boolean).join(' ') : <span style={{ color: '#64748b' }}>—</span>}</td>
+                <td style={S.td}>{cust ? [cust.nome, cust.cognome].filter(Boolean).join(' ') : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
                 <td style={S.td}>{c.digit_pressed || '—'}</td>
                 <td style={S.td}><span style={{ background: e.c + '22', color: e.c, fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999 }}>{e.label}</span></td>
                 <td style={S.td}>{fmtDur(c.durata_sec)}</td>
                 <td style={S.td}>
                   {c.recording_url && <a href={c.recording_url} target="_blank" rel="noreferrer" style={{ color: '#F59E0B', fontSize: 11 }}>audio</a>}
-                  {c.trascrizione && <div style={{ fontSize: 11, color: '#cbd5e1', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.trascrizione}</div>}
+                  {c.trascrizione && <div style={{ fontSize: 11, color: 'var(--text)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.trascrizione}</div>}
                 </td>
               </tr>
             })}
@@ -299,17 +299,17 @@ export default function CentralinoManager({ sp, sps }) {
           </div>
 
           <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Orari attivi (vuoto = sempre)</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Orari attivi (vuoto = sempre)</div>
             {GIORNI.map(g => {
               const slots = (editing.orari_attivi || {})[g.key] || []
               return <div key={g.key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <div style={{ width: 90, fontSize: 12, color: '#94a3b8' }}>{g.label}</div>
+                <div style={{ width: 90, fontSize: 12, color: 'var(--text2)' }}>{g.label}</div>
                 {slots.map((s, i) => (
                   <span key={i} style={{ display: 'flex', gap: 2 }}>
                     <input type="time" value={s.from} onChange={e => {
                       const ns = [...slots]; ns[i] = { ...ns[i], from: e.target.value }; updateGiorno(g.key, ns)
                     }} style={{ ...S.input, padding: '4px 6px', fontSize: 12 }} />
-                    <span style={{ color: '#64748b', alignSelf: 'center' }}></span>
+                    <span style={{ color: 'var(--text3)', alignSelf: 'center' }}></span>
                     <input type="time" value={s.to} onChange={e => {
                       const ns = [...slots]; ns[i] = { ...ns[i], to: e.target.value }; updateGiorno(g.key, ns)
                     }} style={{ ...S.input, padding: '4px 6px', fontSize: 12 }} />
@@ -339,7 +339,7 @@ export default function CentralinoManager({ sp, sps }) {
         </>}
       </Section>
 
-      <div style={{ marginTop: 14, padding: 12, background: '#0f1420', borderRadius: 8 }}>
+      <div style={{ marginTop: 14, padding: 12, background: 'var(--bg)', borderRadius: 8 }}>
         <Toggle checked={!!editing.attivo} onChange={v => setEditing({ ...editing, attivo: v })} label="Centralino attivo (Twilio risponderà alle chiamate)" />
       </div>
 
@@ -359,12 +359,12 @@ function tabBtn(active) {
 }
 function Field({ label, children }) {
   return <label style={{ display: 'block' }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }
 function Section({ title, children }) {
-  return <div style={{ marginTop: 14, padding: 12, background: '#0f1420', borderRadius: 8, border: '1px solid #2a3042' }}>
+  return <div style={{ marginTop: 14, padding: 12, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
     <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>{title}</div>
     {children}
   </div>
@@ -377,20 +377,20 @@ function Toggle({ checked, onChange, label }) {
 }
 function Stat({ label, value, ok = null }) {
   return <div>
-    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>{label}</div>
+    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>{label}</div>
     <div style={{ fontSize: 13, fontWeight: 700, color: ok === false ? '#94A3B8' : ok === true ? '#10B981' : '#cbd5e1' }}>{value}</div>
   </div>
 }
 function KPI({ label, value, accent = '#F59E0B' }) {
-  return <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 8, padding: 12, position: 'relative', overflow: 'hidden' }}>
+  return <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, position: 'relative', overflow: 'hidden' }}>
     <div style={{ position: 'absolute', top: 0, left: 0, width: 3, height: '100%', background: accent }} />
-    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
+    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
     <div style={{ fontSize: 22, fontWeight: 700, color: accent }}>{value}</div>
   </div>
 }
 function Drawer({ children, onClose }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(640px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(640px, 100%)', height: '100%', background: 'var(--surface)', padding: 20, overflowY: 'auto', borderLeft: '1px solid var(--border)' }}>
       {children}
     </div>
   </div>

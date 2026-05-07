@@ -109,32 +109,32 @@ export default function PriceAnalysis() {
   // Pannello dettaglio storico — riusato sia inline (sotto Allerta) che in fondo (sotto tabella)
   const renderDetail = () => selected && (
     <Card title={'Storico prezzi: ' + selected.nome} badge={selected.storico.length + ' registrazioni'}
-      extra={<button onClick={closeDetail} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Chiudi</button>}>
+      extra={<button onClick={closeDetail} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', padding: '4px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Chiudi</button>}>
       {selected.storico.length === 0
-        ? <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Nessuno storico prezzi</div>
+        ? <div style={{ color: 'var(--text3)', fontSize: 13, textAlign: 'center', padding: 20 }}>Nessuno storico prezzi</div>
         : <>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120, marginBottom: 16, padding: '0 8px' }}>
             {(() => {
               const maxP = Math.max(...selected.storico.map(p => p.prezzo || 0), 0.01)
               return selected.storico.slice().reverse().map((p, i) => (
                 <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 9, color: '#94a3b8' }}>{fmt(p.prezzo)}</span>
+                  <span style={{ fontSize: 9, color: 'var(--text2)' }}>{fmt(p.prezzo)}</span>
                   <div style={{ width: '100%', maxWidth: 30, height: Math.max((p.prezzo / maxP) * 100, 4), background: '#F59E0B', borderRadius: 3 }} />
-                  <span style={{ fontSize: 8, color: '#475569' }}>{(p.data || '').slice(5)}</span>
+                  <span style={{ fontSize: 8, color: 'var(--text3)' }}>{(p.data || '').slice(5)}</span>
                 </div>
               ))
             })()}
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Data', 'Fornitore', 'Locale', 'Prezzo/UM'].map(h => <th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
             <tbody>
               {selected.storico.map((p, i) => (
                 <tr key={i}>
                   <td style={S.td}>{p.data}</td>
-                  <td style={{ ...S.td, color: '#94a3b8' }}>{p.fornitore}</td>
-                  <td style={{ ...S.td, color: '#94a3b8' }}>{p.locale}</td>
+                  <td style={{ ...S.td, color: 'var(--text2)' }}>{p.fornitore}</td>
+                  <td style={{ ...S.td, color: 'var(--text2)' }}>{p.locale}</td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{fmt(p.prezzo)}/{selected.unita}</td>
                 </tr>
               ))}
@@ -145,7 +145,7 @@ export default function PriceAnalysis() {
     </Card>
   )
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontSize: 13 }}>Caricamento prezzi...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: 'var(--text3)', fontSize: 13 }}>Caricamento prezzi...</div>
 
   return <>
     {alerts.length > 0 && <Card title="Allerta prezzi" badge={alerts.length + ' aumenti significativi'}>
@@ -157,16 +157,16 @@ export default function PriceAnalysis() {
               border: isSel ? '1px solid #F59E0B' : S.card.border,
               background: isSel ? 'rgba(245,158,11,.08)' : S.card.background }}
             onClick={() => selectFrom(a.nome, 'alert')}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 4 }}>{a.nome}</div>
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>{a.fornitore_principale}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{a.nome}</div>
+            <div style={{ fontSize: 12, color: 'var(--text2)' }}>{a.fornitore_principale}</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#EF4444', marginTop: 4 }}>+{a.variazione.toFixed(1)}%</div>
-            <div style={{ fontSize: 11, color: '#64748b' }}>{fmt(a.ultimo_prezzo)}/{a.unita}</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)' }}>{fmt(a.ultimo_prezzo)}/{a.unita}</div>
           </div>
         })}
       </div>
       {/* Pannello dettaglio inline quando aperto da Allerta */}
       {selected && selectedSource === 'alert' && (
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
           {renderDetail()}
         </div>
       )}
@@ -188,11 +188,11 @@ export default function PriceAnalysis() {
 
     <Card title="Analisi prezzi" badge={filtered.length + ' articoli'}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+        <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
           {['Articolo', 'Categoria', 'Fornitore principale', 'Ultimo €/UM', 'Prezzo medio', 'Var. %', 'Storico', ''].map(h => <th key={h} style={S.th}>{h}</th>)}
         </tr></thead>
         <tbody>
-          {filtered.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessun articolo trovato</td></tr>}
+          {filtered.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center', padding: 20 }}>Nessun articolo trovato</td></tr>}
           {filtered.map(a => {
             const varColor = a.variazione > 5 ? '#EF4444' : a.variazione < -5 ? '#10B981' : '#64748b'
             const isSel = selectedArt === a.nome && selectedSource === 'table'
@@ -201,26 +201,26 @@ export default function PriceAnalysis() {
                 style={{ background: isSel ? '#131825' : 'transparent', cursor: 'pointer', borderBottom: isSel ? 'none' : '1px solid #1a1f2e' }}
                 title="Clicca per vedere lo storico prezzi">
                 <td style={{ ...S.td, fontWeight: 500 }}>{a.nome}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{a.categoria}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{a.fornitore_principale}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{a.categoria}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{a.fornitore_principale}</td>
                 <td style={{ ...S.td, fontWeight: 600 }}>{a.ultimo_prezzo ? fmt(a.ultimo_prezzo) + '/' + a.unita : '-'}</td>
-                <td style={{ ...S.td, color: '#64748b' }}>{a.prezzo_medio ? fmt(a.prezzo_medio) + '/' + a.unita : '-'}</td>
+                <td style={{ ...S.td, color: 'var(--text3)' }}>{a.prezzo_medio ? fmt(a.prezzo_medio) + '/' + a.unita : '-'}</td>
                 <td style={S.td}>
                   {a.historyCount >= 2
                     ? <span style={S.badge(varColor, a.variazione > 5 ? 'rgba(239,68,68,.12)' : a.variazione < -5 ? 'rgba(16,185,129,.12)' : 'rgba(148,163,184,.1)')}>
                         {a.variazione > 0 ? '+' : ''}{a.variazione.toFixed(1)}%
                       </span>
-                    : <span style={{ color: '#475569', fontSize: 12 }}>-</span>
+                    : <span style={{ color: 'var(--text3)', fontSize: 12 }}>-</span>
                   }
                 </td>
-                <td style={{ ...S.td, color: '#64748b', fontSize: 12 }}>{a.historyCount} registrazioni</td>
+                <td style={{ ...S.td, color: 'var(--text3)', fontSize: 12 }}>{a.historyCount} registrazioni</td>
                 <td style={{ ...S.td, color: '#3B82F6', fontSize: 11, fontWeight: 600 }}>
                   {isSel ? 'Chiudi ' : 'Dettaglio '}
                 </td>
               </tr>
               {isSel && (
-                <tr style={{ background: '#0f1420' }}>
-                  <td colSpan={8} style={{ padding: 12, borderBottom: '1px solid #2a3042' }}>
+                <tr style={{ background: 'var(--bg)' }}>
+                  <td colSpan={8} style={{ padding: 12, borderBottom: '1px solid var(--border)' }}>
                     {renderDetail()}
                   </td>
                 </tr>

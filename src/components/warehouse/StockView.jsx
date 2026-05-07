@@ -76,7 +76,7 @@ export default function StockView({ sp, sps }) {
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
       {selectedLocaleName ? (
         <>
-          <strong style={{ fontSize: 12, color: '#94a3b8' }}>{selectedLocaleName}</strong>
+          <strong style={{ fontSize: 12, color: 'var(--text2)' }}>{selectedLocaleName}</strong>
           {subsForLocale.length > 1 && (
             <select value={selSub} onChange={e => setSelSub(e.target.value)} style={iS}>
               <option value="all">Tutte le sub-location</option>
@@ -88,7 +88,7 @@ export default function StockView({ sp, sps }) {
           </button>
         </>
       ) : (
-        <span style={{ fontSize: 12, color: '#64748b' }}>Seleziona un locale nell'header per filtrare</span>
+        <span style={{ fontSize: 12, color: 'var(--text3)' }}>Seleziona un locale nell'header per filtrare</span>
       )}
       <input placeholder="Cerca articolo..." value={search} onChange={e => setSearch(e.target.value)}
         style={{ ...iS, flex: 1, maxWidth: 260 }} />
@@ -110,16 +110,16 @@ export default function StockView({ sp, sps }) {
 
     <Card title={`Giacenze${selSub !== 'all' ? ' · ' + selSub : ''}`} badge={aggregated.length + ' articoli'}>
       {loading ? (
-        <div style={{ padding: 20, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+        <div style={{ padding: 20, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
       ) : aggregated.length === 0 ? (
-        <div style={{ padding: 24, color: '#64748b', textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
+        <div style={{ padding: 24, color: 'var(--text3)', textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
           Nessun articolo in magazzino.<br/>
           <span style={{ fontSize: 11 }}>I carichi vengono creati automaticamente quando importi una fattura con <strong>nome_articolo</strong> assegnato a un <strong>locale</strong>. Puoi anche fare un <strong>inventario di apertura</strong> nel tab Inventario.</span>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Articolo', 'UM', 'Quantità', '€/UM medio', 'Valore', selSub === 'all' && selectedLocaleName ? 'Sub' : null, 'Scorta min', 'Stato', ''].filter(Boolean).map(h =>
                 <th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
@@ -135,18 +135,18 @@ export default function StockView({ sp, sps }) {
                   onClick={() => setSelected(s)}
                   style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e' }}>
                   <td style={{ ...S.td, fontWeight: 500 }}>{s.nome_articolo}</td>
-                  <td style={{ ...S.td, color: '#94a3b8' }}>{s.unita || '—'}</td>
+                  <td style={{ ...S.td, color: 'var(--text2)' }}>{s.unita || '—'}</td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{fmtN(qty)}</td>
-                  <td style={{ ...S.td, color: '#94a3b8' }}>{s.prezzo_medio ? fmtD(s.prezzo_medio) : '—'}</td>
+                  <td style={{ ...S.td, color: 'var(--text2)' }}>{s.prezzo_medio ? fmtD(s.prezzo_medio) : '—'}</td>
                   <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{fmtD(valore)}</td>
                   {selSub === 'all' && selectedLocaleName && (
-                    <td style={{ ...S.td, fontSize: 10, color: '#94a3b8' }}>
+                    <td style={{ ...S.td, fontSize: 10, color: 'var(--text2)' }}>
                       {Array.isArray(s.sub_locations) ? s.sub_locations.join(' · ') : (s.sub_location || '')}
                     </td>
                   )}
-                  <td style={{ ...S.td, color: '#64748b', fontSize: 11 }}>{s.scorta_minima || '—'}</td>
+                  <td style={{ ...S.td, color: 'var(--text3)', fontSize: 11 }}>{s.scorta_minima || '—'}</td>
                   <td style={S.td}><span style={S.badge(stato.c, stato.bg)}>{stato.l}</span></td>
-                  <td style={{ ...S.td, color: '#64748b' }}></td>
+                  <td style={{ ...S.td, color: 'var(--text3)' }}></td>
                 </tr>
               })}
             </tbody>
@@ -185,7 +185,7 @@ function SubLocationConfig({ locale, map, onClose, onSaved }) {
     } catch (e) { alert(e.message); setSaving(false) }
   }
   return <Modal onClose={onClose} title={'Sub-location · ' + locale} maxWidth={480}>
-    <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10, lineHeight: 1.5 }}>
+    <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 10, lineHeight: 1.5 }}>
       Inserisci le sub-location separate da virgola. Es: <code style={{ color: '#F59E0B' }}>Bar, Cucina, Cantina</code>.<br/>
       Se lasci vuoto, il locale avrà un unico magazzino "principale".
     </div>
@@ -195,7 +195,7 @@ function SubLocationConfig({ locale, map, onClose, onSaved }) {
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
       <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
       <button onClick={save} disabled={saving}
-        style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
+        style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
         {saving ? 'Salvo…' : 'Salva'}
       </button>
     </div>
@@ -290,7 +290,7 @@ function ManualMovementModal({ locale, subLocations, onClose, onSaved }) {
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
       <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
       <button onClick={submit} disabled={saving}
-        style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
+        style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
         {saving ? 'Salvo…' : 'Salva movimento'}
       </button>
     </div>
@@ -323,16 +323,16 @@ function ArticleDetailModal({ item, locale, onClose, onChange }) {
     subtitle={`${locale}${item.sub_location && item.sub_location !== 'principale' ? ' / ' + item.sub_location : ''}`}
     maxWidth={640}>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-      <div style={{ background: '#131825', padding: 10, borderRadius: 6 }}>
-        <div style={{ fontSize: 10, color: '#64748b' }}>Giacenza</div>
+      <div style={{ background: 'var(--surface2)', padding: 10, borderRadius: 6 }}>
+        <div style={{ fontSize: 10, color: 'var(--text3)' }}>Giacenza</div>
         <div style={{ fontSize: 18, fontWeight: 700, color: '#F59E0B' }}>{fmtN(item.quantita)} {item.unita || ''}</div>
       </div>
-      <div style={{ background: '#131825', padding: 10, borderRadius: 6 }}>
-        <div style={{ fontSize: 10, color: '#64748b' }}>Valore</div>
+      <div style={{ background: 'var(--surface2)', padding: 10, borderRadius: 6 }}>
+        <div style={{ fontSize: 10, color: 'var(--text3)' }}>Valore</div>
         <div style={{ fontSize: 18, fontWeight: 700, color: '#10B981' }}>{fmtD(Number(item.quantita) * Number(item.prezzo_medio || 0))}</div>
       </div>
-      <div style={{ background: '#131825', padding: 10, borderRadius: 6 }}>
-        <div style={{ fontSize: 10, color: '#64748b' }}>€/UM medio</div>
+      <div style={{ background: 'var(--surface2)', padding: 10, borderRadius: 6 }}>
+        <div style={{ fontSize: 10, color: 'var(--text3)' }}>€/UM medio</div>
         <div style={{ fontSize: 18, fontWeight: 700 }}>{item.prezzo_medio ? fmtD(item.prezzo_medio) : '—'}</div>
       </div>
     </div>
@@ -341,19 +341,19 @@ function ArticleDetailModal({ item, locale, onClose, onChange }) {
       <div style={{ display: 'flex', gap: 6 }}>
         <input type="number" step="0.01" value={scortaMin} onChange={e => setScortaMin(e.target.value)}
           placeholder="es. 5" style={{ ...iS, flex: 1 }} />
-        <button onClick={saveScorta} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: 'pointer' }}>
+        <button onClick={saveScorta} style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: 'pointer' }}>
           Salva
         </button>
       </div>
     </Field>
 
-    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 16, marginBottom: 8 }}>
+    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 16, marginBottom: 8 }}>
       Ultimi movimenti
     </div>
     {loading ? (
-      <div style={{ padding: 12, color: '#64748b' }}>Caricamento…</div>
+      <div style={{ padding: 12, color: 'var(--text3)' }}>Caricamento…</div>
     ) : moves.length === 0 ? (
-      <div style={{ padding: 12, color: '#64748b', fontSize: 12 }}>Nessun movimento registrato.</div>
+      <div style={{ padding: 12, color: 'var(--text3)', fontSize: 12 }}>Nessun movimento registrato.</div>
     ) : (
       <div style={{ maxHeight: 300, overflowY: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
@@ -362,17 +362,17 @@ function ArticleDetailModal({ item, locale, onClose, onChange }) {
               const sign = ['carico', 'trasferimento_in', 'apertura'].includes(m.tipo) ? '+' : '−'
               const col = ['scarico', 'trasferimento_out'].includes(m.tipo) ? '#EF4444' : '#10B981'
               return <tr key={m.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                <td style={{ padding: '6px 4px', color: '#94a3b8' }}>{new Date(m.created_at).toLocaleDateString('it-IT')} {new Date(m.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</td>
+                <td style={{ padding: '6px 4px', color: 'var(--text2)' }}>{new Date(m.created_at).toLocaleDateString('it-IT')} {new Date(m.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</td>
                 <td style={{ padding: '6px 4px' }}>
                   <span style={S.badge(col, col + '22')}>{m.tipo}</span>
                 </td>
                 <td style={{ padding: '6px 4px', fontWeight: 600, color: col }}>
                   {sign}{fmtN(m.quantita)} {m.unita || ''}
                 </td>
-                <td style={{ padding: '6px 4px', fontSize: 10, color: '#64748b' }}>
+                <td style={{ padding: '6px 4px', fontSize: 10, color: 'var(--text3)' }}>
                   {m.sub_location} {m.sub_location_target ? '' + m.sub_location_target : ''}
                 </td>
-                <td style={{ padding: '6px 4px', fontSize: 10, color: '#94a3b8', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <td style={{ padding: '6px 4px', fontSize: 10, color: 'var(--text2)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {m.riferimento_label || m.note || m.fonte}
                 </td>
               </tr>
@@ -386,13 +386,13 @@ function ArticleDetailModal({ item, locale, onClose, onChange }) {
 
 function Modal({ title, subtitle, maxWidth = 560, onClose, children }) {
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth }}>
-      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth }}>
+      <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 15 }}>{title}</h3>
-          {subtitle && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>}
+          {subtitle && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{subtitle}</div>}
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>{children}</div>
     </div>
@@ -401,7 +401,7 @@ function Modal({ title, subtitle, maxWidth = 560, onClose, children }) {
 
 function Field({ label, children }) {
   return <label style={{ display: 'block', marginBottom: 10 }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>{label}</div>
     {children}
   </label>
 }

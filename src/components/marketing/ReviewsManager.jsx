@@ -159,7 +159,7 @@ export default function ReviewsManager({ sp, sps }) {
   return <div style={S.card}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
       <h2 style={{ margin: 0, fontSize: 18 }}>Recensioni</h2>
-      <span style={{ fontSize: 12, color: '#94a3b8' }}>· feed + risposta AI</span>
+      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· feed + risposta AI</span>
       <div style={{ flex: 1 }} />
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
@@ -187,17 +187,17 @@ export default function ReviewsManager({ sp, sps }) {
         <option value="">Tutte le sorgenti</option>
         {SORGENTI.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
       </select>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#cbd5e1' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text)' }}>
         <input type="checkbox" checked={onlyNoReply} onChange={e => setOnlyNoReply(e.target.checked)} />
         Solo senza risposta
       </label>
     </div>
 
     {error && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-    {loading && <div style={{ color: '#94a3b8', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Caricamento…</div>}
 
     {!loading && list.length === 0 && (
-      <div style={{ textAlign: 'center', padding: 30, color: '#64748b', fontSize: 13 }}>
+      <div style={{ textAlign: 'center', padding: 30, color: 'var(--text3)', fontSize: 13 }}>
         Nessuna recensione. Aggiungile manualmente (paste da Google/TripAdvisor) — l'AI ti aiuterà a rispondere.
       </div>
     )}
@@ -207,7 +207,7 @@ export default function ReviewsManager({ sp, sps }) {
         {list.map(r => {
           const src = SORGENTI.find(s => s.key === r.sorgente) || SORGENTI[3]
           return <div key={r.id} onClick={() => setEditing({ ...r, data_pubblicazione: r.data_pubblicazione ? new Date(r.data_pubblicazione).toISOString().slice(0, 16) : '' })} style={{
-            background: '#0f1420', border: '1px solid ' + (r.risposta ? '#2a3042' : '#F59E0B55'),
+            background: 'var(--bg)', border: '1px solid ' + (r.risposta ? '#2a3042' : '#F59E0B55'),
             borderRadius: 10, padding: 14, cursor: 'pointer'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -215,15 +215,15 @@ export default function ReviewsManager({ sp, sps }) {
               <Stars v={r.voto} />
               <span style={{ fontSize: 13, fontWeight: 600 }}>{r.autore || '(anonimo)'}</span>
               <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 11, color: '#64748b' }}>{fmtDateTime(r.data_pubblicazione)}</span>
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>{fmtDateTime(r.data_pubblicazione)}</span>
               {!r.risposta && <span style={{ background: '#F59E0B22', color: '#F59E0B', fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999 }}>DA RISPONDERE</span>}
             </div>
-            {r.testo && <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: r.risposta ? 8 : 0 }}>{r.testo}</div>}
-            {r.risposta && <div style={{ marginTop: 8, padding: 10, background: '#1a1f2e', borderRadius: 6, borderLeft: '3px solid #10B981', fontSize: 12, color: '#cbd5e1' }}>
+            {r.testo && <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: r.risposta ? 8 : 0 }}>{r.testo}</div>}
+            {r.risposta && <div style={{ marginTop: 8, padding: 10, background: 'var(--surface)', borderRadius: 6, borderLeft: '3px solid #10B981', fontSize: 12, color: 'var(--text)' }}>
               <div style={{ fontSize: 10, color: '#10B981', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Risposta · {fmtDateTime(r.risposta_at)}</div>
               {r.risposta}
             </div>}
-            {!r.risposta && r.reply_draft && <div style={{ marginTop: 8, padding: 10, background: '#1a1f2e', borderRadius: 6, borderLeft: '3px solid #F59E0B', fontSize: 12, color: '#cbd5e1' }}>
+            {!r.risposta && r.reply_draft && <div style={{ marginTop: 8, padding: 10, background: 'var(--surface)', borderRadius: 6, borderLeft: '3px solid #F59E0B', fontSize: 12, color: 'var(--text)' }}>
               <div style={{ fontSize: 10, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Bozza AI</div>
               {r.reply_draft}
             </div>}
@@ -256,7 +256,7 @@ export default function ReviewsManager({ sp, sps }) {
         </Field>
       </div>
 
-      {editing.id && <div style={{ marginTop: 14, padding: 12, background: '#0f1420', borderRadius: 8, border: '1px solid #2a3042' }}>
+      {editing.id && <div style={{ marginTop: 14, padding: 12, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '.06em' }}>Risposta</div>
           <div style={{ flex: 1 }} />
@@ -265,9 +265,9 @@ export default function ReviewsManager({ sp, sps }) {
           </button>}
         </div>
         {editing.risposta ? (
-          <div style={{ padding: 10, background: '#1a1f2e', borderRadius: 6, borderLeft: '3px solid #10B981', fontSize: 13, color: '#cbd5e1' }}>
+          <div style={{ padding: 10, background: 'var(--surface)', borderRadius: 6, borderLeft: '3px solid #10B981', fontSize: 13, color: 'var(--text)' }}>
             {editing.risposta}
-            <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>Pubblicata: {fmtDateTime(editing.risposta_at)}</div>
+            <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 6 }}>Pubblicata: {fmtDateTime(editing.risposta_at)}</div>
           </div>
         ) : (
           <textarea
@@ -278,7 +278,7 @@ export default function ReviewsManager({ sp, sps }) {
           />
         )}
         {!editing.risposta && editing.reply_draft && (
-          <div style={{ marginTop: 10, padding: 8, background: '#1a1f2e', borderRadius: 6, fontSize: 11, color: '#94a3b8' }}>
+          <div style={{ marginTop: 10, padding: 8, background: 'var(--surface)', borderRadius: 6, fontSize: 11, color: 'var(--text2)' }}>
             Quando soddisfatto, copia il testo sulla piattaforma di origine ({SORGENTI.find(s => s.key === editing.sorgente)?.label}) e clicca "Marca pubblicata".
           </div>
         )}
@@ -333,20 +333,20 @@ function btn(bg, color, border) {
 }
 function Field({ label, children }) {
   return <label style={{ display: 'block' }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }
 function KPI({ label, value, accent = '#F59E0B' }) {
-  return <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 8, padding: 12, position: 'relative', overflow: 'hidden' }}>
+  return <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, position: 'relative', overflow: 'hidden' }}>
     <div style={{ position: 'absolute', top: 0, left: 0, width: 3, height: '100%', background: accent }} />
-    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
+    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
     <div style={{ fontSize: 22, fontWeight: 700, color: accent }}>{value}</div>
   </div>
 }
 function Drawer({ children, onClose }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(640px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(640px, 100%)', height: '100%', background: 'var(--surface)', padding: 20, overflowY: 'auto', borderLeft: '1px solid var(--border)' }}>
       {children}
     </div>
   </div>

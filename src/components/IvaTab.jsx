@@ -117,8 +117,8 @@ export default function IvaTab({ sp, sps, from, to }) {
 
   return <div>
     {/* ─── Indicazione periodo (impostato dall'header globale) ───────────── */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.25rem', fontSize: 11, color: '#64748b' }}>
-      <span>Periodo IVA: <strong style={{ color: '#cbd5e1' }}>{from} {to}</strong></span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1.25rem', fontSize: 11, color: 'var(--text3)' }}>
+      <span>Periodo IVA: <strong style={{ color: 'var(--text)' }}>{from} {to}</strong></span>
       <span style={{ marginLeft: 'auto', fontSize: 10, fontStyle: 'italic' }}>
         Cambia il periodo dalla tendina nell'header in alto
       </span>
@@ -129,19 +129,19 @@ export default function IvaTab({ sp, sps, from, to }) {
       <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: saldoColor }} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: 16, alignItems: 'center' }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>IVA a debito (vendite)</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>IVA a debito (vendite)</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#EF4444' }}>{fmt(totDebitoImp)}</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>su imponibile {fmt(totDebitoImponibile)}</div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>su imponibile {fmt(totDebitoImponibile)}</div>
         </div>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>IVA a credito (acquisti)</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>IVA a credito (acquisti)</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#10B981' }}>{fmt(totCreditoImp)}</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>su imponibile {fmt(totCreditoImponibile)}</div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>su imponibile {fmt(totCreditoImponibile)}</div>
         </div>
-        <div style={{ borderLeft: '1px solid #2a3042', paddingLeft: 16 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>{saldoLabel}</div>
+        <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: 16 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>{saldoLabel}</div>
           <div style={{ fontSize: 30, fontWeight: 800, color: saldoColor, letterSpacing: '-0.02em' }}>{fmt(Math.abs(saldo))}</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
             {saldo > 0 ? 'Da versare entro il 16 del mese successivo' : saldo < 0 ? 'Riportabile a credito periodo successivo' : '—'}
           </div>
         </div>
@@ -149,11 +149,11 @@ export default function IvaTab({ sp, sps, from, to }) {
     </div>
 
     {/* ─── Loader ──────────────────────────────────────────────────────── */}
-    {loading && <div style={{ padding: 30, textAlign: 'center', color: '#64748b' }}>Calcolo IVA…</div>}
+    {loading && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text3)' }}>Calcolo IVA…</div>}
 
     {/* ─── Cards per aliquota ──────────────────────────────────────────── */}
     {!loading && aliquote.length === 0 && (
-      <div style={{ ...S.card, textAlign: 'center', color: '#64748b', padding: 30 }}>
+      <div style={{ ...S.card, textAlign: 'center', color: 'var(--text3)', padding: 30 }}>
         Nessun dato IVA in questo periodo. Verifica che ci siano scontrini in <code>{from} {to}</code>.
       </div>
     )}
@@ -166,19 +166,19 @@ export default function IvaTab({ sp, sps, from, to }) {
           const sCol = s > 0 ? '#EF4444' : s < 0 ? '#10B981' : '#94a3b8'
           return <div key={a} style={S.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Aliquota {parseFloat(a)}%</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase' }}>Aliquota {parseFloat(a)}%</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: sCol }}>{s >= 0 ? '+' : ''}{fmt(s)}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div style={{ background: '#0f1420', padding: 10, borderRadius: 6 }}>
-                <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>Debito (vendite)</div>
+              <div style={{ background: 'var(--bg)', padding: 10, borderRadius: 6 }}>
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 2 }}>Debito (vendite)</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#EF4444' }}>{fmt(d.imposta)}</div>
-                <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>imp. {fmt(d.imponibile)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>imp. {fmt(d.imponibile)}</div>
               </div>
-              <div style={{ background: '#0f1420', padding: 10, borderRadius: 6 }}>
-                <div style={{ fontSize: 10, color: '#64748b', marginBottom: 2 }}>Credito (acquisti)</div>
+              <div style={{ background: 'var(--bg)', padding: 10, borderRadius: 6 }}>
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 2 }}>Credito (acquisti)</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#10B981' }}>{fmt(c.imposta)}</div>
-                <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>imp. {fmt(c.imponibile)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>imp. {fmt(c.imponibile)}</div>
               </div>
             </div>
           </div>
@@ -188,7 +188,7 @@ export default function IvaTab({ sp, sps, from, to }) {
       {/* ─── Tabella riepilogo completa ─────────────────────────────────── */}
       <Card title="Riepilogo IVA dettagliato">
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Aliquota', 'Imp. vendite', 'IVA debito', 'Imp. acquisti', 'IVA credito', 'Saldo'].map(h =>
               <th key={h} style={S.th}>{h}</th>
             )}
@@ -210,7 +210,7 @@ export default function IvaTab({ sp, sps, from, to }) {
               </tr>
             })}
           </tbody>
-          <tfoot><tr style={{ borderTop: '2px solid #2a3042', background: '#131825' }}>
+          <tfoot><tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface2)' }}>
             <td style={{ ...S.td, fontWeight: 700 }}>Totale</td>
             <td style={{ ...S.td, fontWeight: 600 }}>{fmt(totDebitoImponibile)}</td>
             <td style={{ ...S.td, fontWeight: 700, color: '#EF4444' }}>{fmt(totDebitoImp)}</td>
@@ -227,14 +227,14 @@ export default function IvaTab({ sp, sps, from, to }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 4 }}>Manutenzione IVA</div>
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>
+          <div style={{ fontSize: 11, color: 'var(--text2)' }}>
             Le fatture importate prima dell'aggiornamento non hanno il dettaglio IVA per aliquota.
             Ricalcola scaricando di nuovo l'XML da TS Digital.
           </div>
-          {backfillMsg && <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 6 }}>{backfillMsg}</div>}
+          {backfillMsg && <div style={{ fontSize: 11, color: 'var(--text)', marginTop: 6 }}>{backfillMsg}</div>}
         </div>
         <button onClick={runBackfill} disabled={backfilling}
-          style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '8px 16px', fontWeight: 600, fontSize: 12, cursor: backfilling ? 'wait' : 'pointer', opacity: backfilling ? 0.6 : 1 }}>
+          style={{ ...iS, background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '8px 16px', fontWeight: 600, fontSize: 12, cursor: backfilling ? 'wait' : 'pointer', opacity: backfilling ? 0.6 : 1 }}>
           {backfilling ? '⏳ In corso…' : 'Aggiorna IVA fatture vecchie'}
         </button>
       </div>

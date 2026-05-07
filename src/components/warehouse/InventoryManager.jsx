@@ -42,14 +42,14 @@ export default function InventoryManager({ sp, sps }) {
         style={{ ...iS, background: selectedLocaleName ? '#10B981' : '#1a1f2e', color: selectedLocaleName ? '#0f1420' : '#64748b', fontWeight: 600, border: 'none', padding: '6px 14px', cursor: selectedLocaleName ? 'pointer' : 'not-allowed' }}>
         + Nuovo inventario
       </button>
-      {!selectedLocaleName && <span style={{ fontSize: 12, color: '#64748b' }}>Seleziona un locale nell'header</span>}
+      {!selectedLocaleName && <span style={{ fontSize: 12, color: 'var(--text3)' }}>Seleziona un locale nell'header</span>}
     </div>
 
     <Card title="Sessioni inventario" badge={inventories.length + ' totali'}>
       {loading ? (
-        <div style={{ padding: 20, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+        <div style={{ padding: 20, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
       ) : inventories.length === 0 ? (
-        <div style={{ padding: 24, color: '#64748b', textAlign: 'center', lineHeight: 1.6, fontSize: 13 }}>
+        <div style={{ padding: 24, color: 'var(--text3)', textAlign: 'center', lineHeight: 1.6, fontSize: 13 }}>
           Nessun inventario.<br/>
           <span style={{ fontSize: 11 }}>
             Il primo inventario di un locale dovrebbe essere di tipo <strong>Apertura</strong>: definisce le giacenze di partenza senza generare correzioni.<br/>
@@ -58,7 +58,7 @@ export default function InventoryManager({ sp, sps }) {
         </div>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Data', 'Locale', 'Sub', 'Tipo', 'Stato', ''].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
@@ -67,7 +67,7 @@ export default function InventoryManager({ sp, sps }) {
               return <tr key={inv.id} onClick={() => setOpenInv(inv)} style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 600 }}>{inv.data}</td>
                 <td style={S.td}>{meta.locale || '—'}</td>
-                <td style={{ ...S.td, color: '#94a3b8' }}>{meta.sub_location || 'principale'}</td>
+                <td style={{ ...S.td, color: 'var(--text2)' }}>{meta.sub_location || 'principale'}</td>
                 <td style={S.td}>
                   {meta.tipo === 'apertura'
                     ? <span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>Apertura</span>
@@ -78,7 +78,7 @@ export default function InventoryManager({ sp, sps }) {
                     ? <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Chiuso</span>
                     : <span style={S.badge('#F59E0B', 'rgba(245,158,11,.12)')}>⏳ In corso</span>}
                 </td>
-                <td style={{ ...S.td, color: '#64748b' }}></td>
+                <td style={{ ...S.td, color: 'var(--text3)' }}></td>
               </tr>
             })}
           </tbody>
@@ -142,7 +142,7 @@ function NewInventoryModal({ locale, subLocations, onClose, onCreated }) {
   }
 
   return <Modal onClose={onClose} title="+ Nuovo inventario" maxWidth={520}>
-    <Field label="Locale"><input value={locale} disabled style={{ ...iS, width: '100%', color: '#94a3b8' }} /></Field>
+    <Field label="Locale"><input value={locale} disabled style={{ ...iS, width: '100%', color: 'var(--text2)' }} /></Field>
     <Field label="Sub-location">
       <select value={sub} onChange={e => setSub(e.target.value)} style={{ ...iS, width: '100%' }}>
         {subLocations.map(sl => <option key={sl} value={sl}>{sl}</option>)}
@@ -163,7 +163,7 @@ function NewInventoryModal({ locale, subLocations, onClose, onCreated }) {
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
       <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
       <button onClick={create} disabled={creating}
-        style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: creating ? 'wait' : 'pointer' }}>
+        style={{ ...iS, background: '#10B981', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: creating ? 'wait' : 'pointer' }}>
         {creating ? 'Creo…' : 'Avanti Conta articoli'}
       </button>
     </div>
@@ -300,9 +300,9 @@ function InventoryDetail({ inventory, onClose, onChange }) {
       <div style={{ marginBottom: 14, background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 10, padding: 12 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           Articoli aggiunti dai collaboratori durante l'inventario
-          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>({userAddedItems.length})</span>
+          <span style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 500 }}>({userAddedItems.length})</span>
         </div>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 8 }}>
           Questi articoli non erano in giacenza né in fattura — alla chiusura inventario verranno creati come carichi sullo stock.
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -315,12 +315,12 @@ function InventoryDetail({ inventory, onClose, onChange }) {
               const tsStr = ts ? ts.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
               return <tr key={it.id} style={{ borderBottom: '1px solid rgba(16,185,129,.15)' }}>
                 <td style={{ ...S.td, fontWeight: 600 }}>{it.nome_articolo}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>{it.magazzino || '—'}</td>
-                <td style={{ ...S.td, color: '#94a3b8' }}>{it.unita || '—'}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', fontSize: 11 }}>{it.magazzino || '—'}</td>
+                <td style={{ ...S.td, color: 'var(--text2)' }}>{it.unita || '—'}</td>
                 <td style={{ ...S.td, fontWeight: 700, color: '#10B981' }}>{it.giacenza_reale != null ? fmtN(it.giacenza_reale) : '—'}</td>
                 <td style={{ ...S.td, fontSize: 11 }}>
                   <div style={{ color: '#3B82F6', fontWeight: 600 }}>{it.counted_by_name || '—'}</div>
-                  {tsStr && <div style={{ color: '#64748b', fontSize: 10 }}>{tsStr}</div>}
+                  {tsStr && <div style={{ color: 'var(--text3)', fontSize: 10 }}>{tsStr}</div>}
                 </td>
                 <td style={S.td}>
                   {!isChiuso && <button onClick={async () => {
@@ -344,17 +344,17 @@ function InventoryDetail({ inventory, onClose, onChange }) {
     )}
 
     {loading ? (
-      <div style={{ padding: 20, color: '#64748b' }}>Caricamento…</div>
+      <div style={{ padding: 20, color: 'var(--text3)' }}>Caricamento…</div>
     ) : items.length === 0 ? (
-      <div style={{ padding: 20, color: '#64748b', fontSize: 12 }}>
+      <div style={{ padding: 20, color: 'var(--text3)', fontSize: 12 }}>
         Nessun articolo nell'inventario. Probabilmente il locale non ha giacenze registrate.
         Per iniziare, aggiungi movimenti manuali o importa fatture con locale assegnato.
       </div>
     ) : (
       <div style={{ maxHeight: 420, overflowY: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead style={{ position: 'sticky', top: 0, background: '#131825' }}>
-            <tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead style={{ position: 'sticky', top: 0, background: 'var(--surface2)' }}>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
               {(isApertura
                 ? ['Articolo', 'UM', 'Giac. reale', 'Valore', 'Contato da']
                 : ['Articolo', 'UM', 'Teorica', 'Reale', 'Diff', 'Valore diff', 'Contato da']
@@ -383,8 +383,8 @@ function InventoryDetail({ inventory, onClose, onChange }) {
                       currentConfig={cfg} onSaved={load} />}
                   </div>
                 </td>
-                <td style={{ ...S.td, color: '#94a3b8' }}>{it.unita || '—'}</td>
-                {!isApertura && <td style={{ ...S.td, color: '#94a3b8' }}>{fmtN(teo)}</td>}
+                <td style={{ ...S.td, color: 'var(--text2)' }}>{it.unita || '—'}</td>
+                {!isApertura && <td style={{ ...S.td, color: 'var(--text2)' }}>{fmtN(teo)}</td>}
                 <td style={{ ...S.td, padding: 4 }}>
                   {isChiuso ? <span style={{ color: collabColor, fontWeight: byCollab ? 700 : 500 }}>{real}</span> : (
                     isPezzi ? (
@@ -396,7 +396,7 @@ function InventoryDetail({ inventory, onClose, onChange }) {
                           placeholder="pz"
                           style={{ ...iS, width: 50, textAlign: 'center', borderColor: byCollab ? '#3B82F6' : '#F59E0B' }}
                           title={`Pezzi chiusi (${cfg.volume_pezzo} ${it.unita || 'L'}/pz)`} />
-                        <span style={{ fontSize: 10, color: '#64748b' }}>+</span>
+                        <span style={{ fontSize: 10, color: 'var(--text3)' }}>+</span>
                         <input type="number" min="0"
                           defaultValue={it.qty_aperto != null ? it.qty_aperto : ''}
                           key={it.id + '-ap-' + (it.qty_aperto || '')}
@@ -429,9 +429,9 @@ function InventoryDetail({ inventory, onClose, onChange }) {
                   {byCollab
                     ? <div style={{ color: '#3B82F6' }}>
                         <div style={{ fontWeight: 600 }}>{it.counted_by_name}</div>
-                        {tsStr && <div style={{ color: '#64748b', fontSize: 10 }}>{tsStr}</div>}
+                        {tsStr && <div style={{ color: 'var(--text3)', fontSize: 10 }}>{tsStr}</div>}
                       </div>
-                    : <span style={{ color: '#475569' }}>—</span>}
+                    : <span style={{ color: 'var(--text3)' }}>—</span>}
                 </td>
               </tr>
             })}
@@ -441,10 +441,10 @@ function InventoryDetail({ inventory, onClose, onChange }) {
     )}
 
     {!isChiuso && (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
         <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Chiudi senza salvare</button>
         <button onClick={closeInventory} disabled={saving}
-          style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
+          style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer' }}>
           {saving ? 'Applico…' : (isApertura ? 'Conferma apertura' : 'Chiudi e correggi')}
         </button>
       </div>
@@ -453,21 +453,21 @@ function InventoryDetail({ inventory, onClose, onChange }) {
 }
 
 function KpiMini({ label, value, color = '#F59E0B' }) {
-  return <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 10 }}>
-    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
+  return <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 10 }}>
+    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
     <div style={{ fontSize: 16, fontWeight: 700, color }}>{value}</div>
   </div>
 }
 
 function Modal({ title, subtitle, maxWidth = 560, onClose, children }) {
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth }}>
-      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth }}>
+      <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 15 }}>{title}</h3>
-          {subtitle && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{subtitle}</div>}
+          {subtitle && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{subtitle}</div>}
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>{children}</div>
     </div>
@@ -476,7 +476,7 @@ function Modal({ title, subtitle, maxWidth = 560, onClose, children }) {
 
 function Field({ label, children }) {
   return <label style={{ display: 'block', marginBottom: 10 }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>{label}</div>
     {children}
   </label>
 }

@@ -162,7 +162,7 @@ export default function ReservationsManager({ sp, sps }) {
   return <div style={S.card}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
       <h2 style={{ margin: 0, fontSize: 18 }}>Prenotazioni</h2>
-      <span style={{ fontSize: 12, color: '#94a3b8' }}>· vista backoffice</span>
+      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· vista backoffice</span>
       <div style={{ flex: 1 }} />
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
@@ -179,7 +179,7 @@ export default function ReservationsManager({ sp, sps }) {
         <button onClick={() => setPreset('storico')} style={btnSm('#0f1420')}>Storico 90gg</button>
       </div>
       <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={S.input} />
-      <span style={{ color: '#64748b' }}></span>
+      <span style={{ color: 'var(--text3)' }}></span>
       <input type="date" value={to} onChange={e => setTo(e.target.value)} style={S.input} />
       <select value={statoFilter} onChange={e => setStatoFilter(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         <option value="">Tutti gli stati</option>
@@ -204,10 +204,10 @@ export default function ReservationsManager({ sp, sps }) {
     </div>}
 
     {error && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-    {loading && <div style={{ color: '#94a3b8', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Caricamento…</div>}
 
     {!loading && list.length === 0 && (
-      <div style={{ textAlign: 'center', padding: 30, color: '#64748b', fontSize: 13 }}>
+      <div style={{ textAlign: 'center', padding: 30, color: 'var(--text3)', fontSize: 13 }}>
         Nessuna prenotazione nel periodo. Crea una prenotazione manualmente o riceverai prenotazioni dal POS / web.
       </div>
     )}
@@ -216,7 +216,7 @@ export default function ReservationsManager({ sp, sps }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: '#0f1420' }}>
+            <tr style={{ background: 'var(--bg)' }}>
               <th style={S.th}>Data/ora</th>
               <th style={S.th}>Cliente</th>
               <th style={S.th}>Pax</th>
@@ -235,20 +235,20 @@ export default function ReservationsManager({ sp, sps }) {
               return <tr key={r.id} onClick={() => openExisting(r)} style={{ cursor: 'pointer' }}>
                 <td style={S.td}>{fmtDateTime(r.data_ora)}</td>
                 <td style={S.td}>
-                  <div style={{ fontWeight: 600 }}>{nome || <span style={{ color: '#64748b' }}>(senza nome)</span>}</div>
-                  {tel && <div style={{ fontSize: 11, color: '#94a3b8' }}>{tel}</div>}
+                  <div style={{ fontWeight: 600 }}>{nome || <span style={{ color: 'var(--text3)' }}>(senza nome)</span>}</div>
+                  {tel && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{tel}</div>}
                 </td>
                 <td style={S.td}>{r.pax}</td>
                 <td style={S.td}>
                   {r.sala && <div style={{ fontSize: 12 }}>{r.sala}</div>}
-                  {r.tavoli?.length > 0 && <div style={{ fontSize: 11, color: '#94a3b8' }}>{r.tavoli.join(', ')}</div>}
+                  {r.tavoli?.length > 0 && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{r.tavoli.join(', ')}</div>}
                 </td>
                 <td style={S.td}>
                   <span style={{ background: s.c + '22', color: s.c, fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999 }}>{s.label}</span>
                 </td>
-                <td style={S.td}><span style={{ fontSize: 11, color: '#94a3b8' }}>{r.source || '—'}</span></td>
+                <td style={S.td}><span style={{ fontSize: 11, color: 'var(--text2)' }}>{r.source || '—'}</span></td>
                 <td style={S.td}>
-                  <div style={{ fontSize: 11, color: '#cbd5e1', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {[r.occasione, r.allergie && `${r.allergie}`, r.note].filter(Boolean).join(' · ') || '—'}
                   </div>
                 </td>
@@ -263,34 +263,34 @@ export default function ReservationsManager({ sp, sps }) {
     {editing && <Drawer onClose={() => setEditing(null)}>
       <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>{editing.id ? 'Modifica prenotazione' : 'Nuova prenotazione'}</h3>
 
-      {editing.id && <div style={{ marginBottom: 12, padding: '8px 12px', background: '#0f1420', borderRadius: 6, fontSize: 12, color: '#94a3b8' }}>
+      {editing.id && <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--bg)', borderRadius: 6, fontSize: 12, color: 'var(--text2)' }}>
         Stato attuale: <b style={{ color: (STATI[editing.stato] || {}).c || '#cbd5e1' }}>{(STATI[editing.stato] || {}).label || editing.stato}</b>
         <div style={{ fontSize: 11, marginTop: 4 }}>Le transizioni di stato (conferma/rifiuta/lista d'attesa) avvengono dal POS.</div>
       </div>}
 
       {/* Cliente collegato o ospite */}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Cliente</div>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Cliente</div>
         {editing.customer_id ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: '#0f1420', borderRadius: 6, border: '1px solid #2a3042' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: 'var(--bg)', borderRadius: 6, border: '1px solid var(--border)' }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{editing.guest_nome || '(senza nome)'}</div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>{editing.guest_telefono} {editing.guest_email && `· ${editing.guest_email}`}</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)' }}>{editing.guest_telefono} {editing.guest_email && `· ${editing.guest_email}`}</div>
             </div>
             <button onClick={() => setEditing({ ...editing, customer_id: null })} style={btnSm('#1a1f2e')}>Scollega</button>
           </div>
         ) : (
           <>
             <input placeholder="Cerca cliente per nome, telefono..." value={custSearch} onChange={e => setCustSearch(e.target.value)} style={{ ...S.input, width: '100%', marginBottom: 6 }} />
-            {custResults.length > 0 && <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 6, marginBottom: 8 }}>
+            {custResults.length > 0 && <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, marginBottom: 8 }}>
               {custResults.map(c => (
                 <div key={c.id} onClick={() => linkCustomer(c)} style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid #1a1f2e', fontSize: 13 }}>
                   <div style={{ fontWeight: 600 }}>{[c.nome, c.cognome].filter(Boolean).join(' ') || '(senza nome)'}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.telefono || c.email || '—'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text2)' }}>{c.telefono || c.email || '—'}</div>
                 </div>
               ))}
             </div>}
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>Oppure inserisci ospite (non in anagrafica):</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 6 }}>Oppure inserisci ospite (non in anagrafica):</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <input placeholder="Nome" value={editing.guest_nome || ''} onChange={e => setEditing({ ...editing, guest_nome: e.target.value })} style={S.input} />
               <input placeholder="Telefono" value={editing.guest_telefono || ''} onChange={e => setEditing({ ...editing, guest_telefono: e.target.value })} style={S.input} />
@@ -338,27 +338,27 @@ function btn(bg, color, border) {
   return { padding: '7px 14px', fontSize: 13, fontWeight: 600, background: bg, color, border: `1px solid ${border}`, borderRadius: 6, cursor: 'pointer' }
 }
 function btnSm(bg) {
-  return { padding: '5px 10px', fontSize: 11, background: bg, color: '#cbd5e1', border: '1px solid #2a3042', borderRadius: 5, cursor: 'pointer' }
+  return { padding: '5px 10px', fontSize: 11, background: bg, color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, cursor: 'pointer' }
 }
 
 function Field({ label, children }) {
   return <label style={{ display: 'block' }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }
 
 function KPI({ label, value, accent = '#F59E0B' }) {
-  return <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 8, padding: 12, position: 'relative', overflow: 'hidden' }}>
+  return <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, position: 'relative', overflow: 'hidden' }}>
     <div style={{ position: 'absolute', top: 0, left: 0, width: 3, height: '100%', background: accent }} />
-    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
+    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{label}</div>
     <div style={{ fontSize: 22, fontWeight: 700, color: accent }}>{value}</div>
   </div>
 }
 
 function Drawer({ children, onClose }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(620px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(620px, 100%)', height: '100%', background: 'var(--surface)', padding: 20, overflowY: 'auto', borderLeft: '1px solid var(--border)' }}>
       {children}
     </div>
   </div>

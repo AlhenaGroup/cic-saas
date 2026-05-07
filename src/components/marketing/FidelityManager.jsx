@@ -128,19 +128,19 @@ export default function FidelityManager({ sp, sps }) {
     </div>
 
     {error && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-    {loading && <div style={{ color: '#94a3b8', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Caricamento…</div>}
 
     {/* Programma config */}
     {!loading && !program && (
-      <div style={{ textAlign: 'center', padding: 30, background: '#0f1420', borderRadius: 10, border: '1px dashed #2a3042' }}>
-        <div style={{ fontSize: 14, color: '#cbd5e1', marginBottom: 12 }}>Nessun programma fidelity configurato per <b>{locale}</b>.</div>
+      <div style={{ textAlign: 'center', padding: 30, background: 'var(--bg)', borderRadius: 10, border: '1px dashed #2a3042' }}>
+        <div style={{ fontSize: 14, color: 'var(--text)', marginBottom: 12 }}>Nessun programma fidelity configurato per <b>{locale}</b>.</div>
         <button onClick={openProgEditor} style={btn('#F59E0B', '#0f1420', '#F59E0B')}>Crea programma</button>
       </div>
     )}
 
     {!loading && program && (
       <>
-        <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 10, padding: 14, marginBottom: 16 }}>
+        <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 999, fontWeight: 700,
@@ -150,7 +150,7 @@ export default function FidelityManager({ sp, sps }) {
             <h3 style={{ margin: 0, fontSize: 16, flex: 1 }}>{program.nome}</h3>
             <button onClick={openProgEditor} style={btn('#1a1f2e', '#cbd5e1', '#2a3042')}>Modifica</button>
           </div>
-          {program.descrizione && <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>{program.descrizione}</div>}
+          {program.descrizione && <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>{program.descrizione}</div>}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, fontSize: 12 }}>
             <Stat label="€1 spesa" value={`${program.punti_per_euro} pt`} />
             {program.punti_visita > 0 && <Stat label="Bonus visita" value={`+${program.punti_visita} pt`} />}
@@ -168,7 +168,7 @@ export default function FidelityManager({ sp, sps }) {
         </div>
 
         {rewards.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 13, background: '#0f1420', borderRadius: 8 }}>
+          <div style={{ textAlign: 'center', padding: 24, color: 'var(--text3)', fontSize: 13, background: 'var(--bg)', borderRadius: 8 }}>
             Nessun premio configurato. Crea il primo — i clienti potranno riscattarlo dal POS.
           </div>
         )}
@@ -177,16 +177,16 @@ export default function FidelityManager({ sp, sps }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, marginBottom: 18 }}>
             {rewards.map(r => (
               <div key={r.id} onClick={() => openRewardEditor(r)} style={{
-                background: '#0f1420', border: '1px solid ' + (r.attivo ? '#10B98155' : '#2a3042'),
+                background: 'var(--bg)', border: '1px solid ' + (r.attivo ? '#10B98155' : '#2a3042'),
                 borderRadius: 10, padding: 12, cursor: 'pointer', position: 'relative'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, flex: 1 }}>{r.nome}</span>
                   <code style={{ background: '#F59E0B22', color: '#F59E0B', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>{r.punti_richiesti} pt</code>
                 </div>
-                {r.descrizione && <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>{r.descrizione}</div>}
-                <div style={{ fontSize: 12, color: '#cbd5e1' }}>{fmtPremio(r)}</div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+                {r.descrizione && <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>{r.descrizione}</div>}
+                <div style={{ fontSize: 12, color: 'var(--text)' }}>{fmtPremio(r)}</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>
                   Riscatti: {r.riscatti_totali}{r.max_riscatti_globali ? `/${r.max_riscatti_globali}` : ''}
                 </div>
                 {!r.attivo && <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, padding: '2px 6px', borderRadius: 999, background: '#94A3B822', color: '#94A3B8', fontWeight: 700 }}>OFF</span>}
@@ -199,16 +199,16 @@ export default function FidelityManager({ sp, sps }) {
         {topClients.length > 0 && (
           <>
             <h3 style={{ margin: '20px 0 10px', fontSize: 15 }}>Top clienti per saldo punti</h3>
-            <div style={{ background: '#0f1420', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--bg)', borderRadius: 8, overflow: 'hidden' }}>
               {topClients.map((tc, i) => (
                 <div key={tc.customer?.id || i} style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
                   borderBottom: i < topClients.length - 1 ? '1px solid #1a1f2e' : 'none',
                   fontSize: 13,
                 }}>
-                  <span style={{ color: '#64748b', fontFamily: 'monospace', minWidth: 24 }}>{i + 1}</span>
+                  <span style={{ color: 'var(--text3)', fontFamily: 'monospace', minWidth: 24 }}>{i + 1}</span>
                   <span style={{ flex: 1 }}>{[tc.customer?.nome, tc.customer?.cognome].filter(Boolean).join(' ') || tc.customer?.telefono || '(senza nome)'}</span>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{tc.customer?.telefono || '—'}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text2)' }}>{tc.customer?.telefono || '—'}</span>
                   <code style={{ background: '#F59E0B22', color: '#F59E0B', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>{tc.balance} pt</code>
                 </div>
               ))}
@@ -227,7 +227,7 @@ export default function FidelityManager({ sp, sps }) {
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Regole accumulo</div>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Regole accumulo</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Field label="Punti per €1 spesa"><input type="number" step="0.01" value={editingProg.punti_per_euro} onChange={e => setEditingProg({ ...editingProg, punti_per_euro: e.target.value })} style={S.input} /></Field>
           <Field label="Bonus per ogni visita"><input type="number" value={editingProg.punti_visita || 0} onChange={e => setEditingProg({ ...editingProg, punti_visita: e.target.value })} style={S.input} /></Field>
@@ -296,21 +296,21 @@ function btn(bg, color, border) {
 
 function Field({ label, children }) {
   return <label style={{ display: 'block' }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }
 
 function Stat({ label, value }) {
   return <div>
-    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>{label}</div>
+    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>{label}</div>
     <div style={{ fontSize: 14, fontWeight: 700, color: '#F59E0B' }}>{value}</div>
   </div>
 }
 
 function Drawer({ children, onClose }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 100%)', height: '100%', background: 'var(--surface)', padding: 20, overflowY: 'auto', borderLeft: '1px solid var(--border)' }}>
       {children}
     </div>
   </div>

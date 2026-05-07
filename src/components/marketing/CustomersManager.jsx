@@ -129,7 +129,7 @@ export default function CustomersManager({ sp, sps }) {
   return <div style={S.card}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
       <h2 style={{ margin: 0, fontSize: 18 }}>Clienti</h2>
-      <span style={{ fontSize: 12, color: '#94a3b8' }}>· {list.length} totali</span>
+      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· {list.length} totali</span>
       <div style={{ flex: 1 }} />
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
@@ -163,10 +163,10 @@ export default function CustomersManager({ sp, sps }) {
     </div>
 
     {error && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-    {loading && <div style={{ color: '#94a3b8', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Caricamento…</div>}
 
     {!loading && list.length === 0 && (
-      <div style={{ textAlign: 'center', padding: 30, color: '#64748b', fontSize: 13 }}>
+      <div style={{ textAlign: 'center', padding: 30, color: 'var(--text3)', fontSize: 13 }}>
         Nessun cliente trovato. Clicca "+ Nuovo cliente" per crearne uno, oppure il POS registrerà i clienti automaticamente al checkout.
       </div>
     )}
@@ -175,7 +175,7 @@ export default function CustomersManager({ sp, sps }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: '#0f1420' }}>
+            <tr style={{ background: 'var(--bg)' }}>
               <th style={S.th}>Nome</th>
               <th style={S.th}>Telefono</th>
               <th style={S.th}>Email</th>
@@ -187,7 +187,7 @@ export default function CustomersManager({ sp, sps }) {
           <tbody>
             {list.map(c => (
               <tr key={c.id} onClick={() => setEditing(c)} style={{ cursor: 'pointer' }}>
-                <td style={S.td}>{[c.nome, c.cognome].filter(Boolean).join(' ') || <span style={{ color: '#64748b' }}>(senza nome)</span>}</td>
+                <td style={S.td}>{[c.nome, c.cognome].filter(Boolean).join(' ') || <span style={{ color: 'var(--text3)' }}>(senza nome)</span>}</td>
                 <td style={S.td}>{c.telefono || '—'}</td>
                 <td style={S.td}>{c.email || '—'}</td>
                 <td style={S.td}>
@@ -196,7 +196,7 @@ export default function CustomersManager({ sp, sps }) {
                   </div>
                 </td>
                 <td style={S.td}>{fmtDate(c.last_seen_at)}</td>
-                <td style={S.td}><span style={{ fontSize: 11, color: '#94a3b8' }}>{c.source || '—'}</span></td>
+                <td style={S.td}><span style={{ fontSize: 11, color: 'var(--text2)' }}>{c.source || '—'}</span></td>
               </tr>
             ))}
           </tbody>
@@ -222,7 +222,7 @@ export default function CustomersManager({ sp, sps }) {
       <Field label="Note"><textarea value={editing.note || ''} onChange={e => setEditing({ ...editing, note: e.target.value })} style={{ ...S.input, minHeight: 60, fontFamily: 'inherit' }} /></Field>
 
       {editing.id && <div style={{ marginTop: 12 }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tag</div>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tag</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {tags.map(t => {
             const has = (editing.customer_tags || []).some(ct => ct.tag_id === t.id)
@@ -234,8 +234,8 @@ export default function CustomersManager({ sp, sps }) {
         </div>
       </div>}
 
-      <div style={{ marginTop: 16, padding: 12, background: '#0f1420', borderRadius: 8, border: '1px solid #2a3042' }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>Consensi GDPR</div>
+      <div style={{ marginTop: 16, padding: 12, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.06em' }}>Consensi GDPR</div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 6 }}>
           <input type="checkbox" checked={!!editing.gdpr_marketing} onChange={e => setEditing({ ...editing, gdpr_marketing: e.target.checked })} />
           Comunicazioni marketing (email/SMS/WhatsApp)
@@ -262,7 +262,7 @@ export default function CustomersManager({ sp, sps }) {
       <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>Ricerca avanzata</h3>
 
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tag</div>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tag</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {tags.map(t => {
             const sel = (adv.tag_ids || []).includes(t.id)
@@ -292,7 +292,7 @@ export default function CustomersManager({ sp, sps }) {
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Contatti disponibili</div>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Contatti disponibili</div>
         <TriToggle label="Email" value={adv.has_email} onChange={v => setAdv({ ...adv, has_email: v })} />
         <TriToggle label="Telefono" value={adv.has_telefono} onChange={v => setAdv({ ...adv, has_telefono: v })} />
         <TriToggle label="Consenso marketing GDPR" value={adv.gdpr_marketing} onChange={v => setAdv({ ...adv, gdpr_marketing: v })} />
@@ -327,7 +327,7 @@ function tabBtnSm(active) {
 function TriToggle({ label, value, onChange }) {
   // value: null = qualsiasi, true = solo con, false = solo senza
   return <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 13 }}>
-    <span style={{ flex: 1, color: '#cbd5e1' }}>{label}</span>
+    <span style={{ flex: 1, color: 'var(--text)' }}>{label}</span>
     <button onClick={() => onChange(null)} style={tabBtnSm(value === null)}>Qualsiasi</button>
     <button onClick={() => onChange(true)} style={tabBtnSm(value === true)}>Sì</button>
     <button onClick={() => onChange(false)} style={tabBtnSm(value === false)}>No</button>
@@ -336,14 +336,14 @@ function TriToggle({ label, value, onChange }) {
 
 function Field({ label, children }) {
   return <label style={{ display: 'block' }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }
 
 function Drawer({ children, onClose }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 100%)', height: '100%', background: 'var(--surface)', padding: 20, overflowY: 'auto', borderLeft: '1px solid var(--border)' }}>
       {children}
     </div>
   </div>

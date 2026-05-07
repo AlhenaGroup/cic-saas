@@ -81,18 +81,18 @@ export default function ReceiptDetailModal({ receipt, onClose }) {
   }
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 640 }}>
-      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 640 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 15 }}>
             {receipt.isInvoice && <span style={{ ...S.badge('#8B5CF6','rgba(139,92,246,.15)'), marginRight: 8 }}>FATT</span>}
             {receipt.id}
           </h3>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
             {receipt.date} · {receipt.locale}
           </div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
       <div style={{ padding: 20 }}>
@@ -108,18 +108,18 @@ export default function ReceiptDetailModal({ receipt, onClose }) {
 
         {/* Items */}
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
             Articoli ({items.length} righe · {totItems} pezzi)
           </div>
           {items.length === 0 ? (
-            <div style={{ padding: 14, color: '#64748b', textAlign: 'center', fontSize: 12, border: '1px dashed #2a3042', borderRadius: 8 }}>
+            <div style={{ padding: 14, color: 'var(--text3)', textAlign: 'center', fontSize: 12, border: '1px dashed #2a3042', borderRadius: 8 }}>
               Dettaglio articoli non disponibile per questa comanda.
             </div>
           ) : (
-            <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid #2a3042', borderRadius: 8 }}>
+            <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead style={{ position: 'sticky', top: 0, background: '#131825' }}>
-                  <tr style={{ borderBottom: '1px solid #2a3042' }}>
+                <thead style={{ position: 'sticky', top: 0, background: 'var(--surface2)' }}>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     <th style={{ ...S.th, fontSize: 10, textAlign: 'left' }}>Prodotto</th>
                     <th style={{ ...S.th, fontSize: 10, textAlign: 'right' }}>Qtà</th>
                     <th style={{ ...S.th, fontSize: 10, textAlign: 'right' }}>Prezzo</th>
@@ -132,9 +132,9 @@ export default function ReceiptDetailModal({ receipt, onClose }) {
                     return <tr key={idx} style={{ borderBottom: '1px solid #1a1f2e' }}>
                       <td style={{ ...S.td, fontWeight: 500 }}>
                         {it.nome || it.description || '—'}
-                        {it.reparto && <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{it.reparto}{it.categoria ? ' · ' + it.categoria : ''}</div>}
+                        {it.reparto && <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{it.reparto}{it.categoria ? ' · ' + it.categoria : ''}</div>}
                       </td>
-                      <td style={{ ...S.td, textAlign: 'right', color: '#94a3b8' }}>{it.qty || 1}</td>
+                      <td style={{ ...S.td, textAlign: 'right', color: 'var(--text2)' }}>{it.qty || 1}</td>
                       <td style={{ ...S.td, textAlign: 'right' }}>{fmt(it.prezzo || 0)}</td>
                       <td style={{ ...S.td, textAlign: 'right', fontWeight: 600 }}>{fmt(tot)}</td>
                     </tr>
@@ -146,23 +146,23 @@ export default function ReceiptDetailModal({ receipt, onClose }) {
         </div>
 
         {/* Totali */}
-        <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, color: '#94a3b8' }}>
+        <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, color: 'var(--text2)' }}>
             <span>Subtotale articoli</span><span>{fmtD(subtotale)}</span>
           </div>
           {sconto && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, color: '#10B981' }}>
             <span>Sconto</span><span>-{fmtD(sconto)}</span>
           </div>}
-          {promozioni && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, color: '#94a3b8' }}>
+          {promozioni && <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, color: 'var(--text2)' }}>
             <span>Promozioni</span><span>{Array.isArray(promozioni) ? promozioni.length : promozioni}</span>
           </div>}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700, color: receipt.isInvoice ? '#8B5CF6' : '#F59E0B', borderTop: '1px solid #2a3042', paddingTop: 10, marginTop: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700, color: receipt.isInvoice ? '#8B5CF6' : '#F59E0B', borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 6 }}>
             <span>TOTALE</span><span>{fmtD(receipt.total || 0)}</span>
           </div>
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
           <button onClick={onClose} style={{ ...S.input, padding: '8px 16px', cursor: 'pointer' }}>Chiudi</button>
           <button onClick={printReceipt}
             style={{ ...S.input, background: '#3B82F6', color: '#fff', border: 'none', padding: '8px 18px', fontWeight: 700, cursor: 'pointer' }}>
@@ -175,8 +175,8 @@ export default function ReceiptDetailModal({ receipt, onClose }) {
 }
 
 function Cell({ label, value, color = '#e2e8f0' }) {
-  return <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 10 }}>
-    <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>{label}</div>
+  return <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 10 }}>
+    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>{label}</div>
     <div style={{ fontSize: 14, fontWeight: 600, color }}>{value}</div>
   </div>
 }

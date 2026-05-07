@@ -12,7 +12,7 @@ const typeConfig = {
   'Eliminazione ordine': { icon: '', color: '#EF4444' },
   'Applicazione/Modifica Sconto': { icon: '', color: '#F59E0B' },
   'Spostamento': { icon: '', color: '#3B82F6' },
-  'Apertura Cassetto': { icon: '', color: '#64748b' },
+  'Apertura Cassetto': { icon: '', color: 'var(--text3)' },
 }
 
 export default function MonitoringTab({ events = [] }) {
@@ -23,7 +23,7 @@ export default function MonitoringTab({ events = [] }) {
   // Classifica ogni evento
   const classified = events.map(ev => {
     const tipo = ev.type || 'Altro'
-    const cfg = typeConfig[tipo] || { icon: '', color: '#94a3b8' }
+    const cfg = typeConfig[tipo] || { icon: '', color: 'var(--text2)' }
     return { ...ev, ...cfg, tipo }
   })
 
@@ -56,9 +56,9 @@ export default function MonitoringTab({ events = [] }) {
         { key: 'eliminazione', label: 'Eliminazioni', count: counts.eliminazioni, color: '#EF4444' },
         { key: 'sconto', label: 'Sconti', count: counts.sconti, color: '#F59E0B' },
         { key: 'spostamento', label: 'Spostamenti', count: counts.spostamenti, color: '#3B82F6' },
-        { key: 'cassetto', label: 'Cassetto', count: counts.cassetto, color: '#64748b' },
+        { key: 'cassetto', label: 'Cassetto', count: counts.cassetto, color: 'var(--text3)' },
       ].map(f => (
-        <button key={f.key} onClick={() => setFilter(filter === f.key ? 'tutte' : f.key)} style={{ ...iS, padding: '4px 12px', fontSize: 11, fontWeight: filter === f.key ? 700 : 400, color: filter === f.key ? f.color : '#94a3b8', background: filter === f.key ? f.color + '18' : 'transparent', border: filter === f.key ? `1px solid ${f.color}` : '1px solid #2a3042' }}>
+        <button key={f.key} onClick={() => setFilter(filter === f.key ? 'tutte' : f.key)} style={{ ...iS, padding: '4px 12px', fontSize: 11, fontWeight: filter === f.key ? 700 : 400, color: filter === f.key ? f.color : '#94a3b8', background: filter === f.key ? f.color + '18' : 'transparent', border: filter === f.key ? `1px solid ${f.color}` : '1px solid var(--border)' }}>
           {f.label} ({f.count})
         </button>
       ))}
@@ -69,15 +69,15 @@ export default function MonitoringTab({ events = [] }) {
       {classified.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 30 }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}></div>
-          <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 8 }}>Nessuna operazione sospetta nel periodo</div>
-          <div style={{ fontSize: 12, color: '#475569', maxWidth: 400, margin: '0 auto', lineHeight: 1.6 }}>
+          <div style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 8 }}>Nessuna operazione sospetta nel periodo</div>
+          <div style={{ fontSize: 12, color: 'var(--text3)', maxWidth: 400, margin: '0 auto', lineHeight: 1.6 }}>
             Le operazioni vengono rilevate automaticamente dai dati CiC: annulli/resi, sconti applicati sui prodotti, aperture cassetto, spostamenti ordini.
           </div>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Data', 'Ora', 'Locale', 'Utente', 'Operazione', 'Dettagli', 'Importo', 'Severità'].map(h => <th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
             <tbody>
@@ -85,7 +85,7 @@ export default function MonitoringTab({ events = [] }) {
                 const sev = sevColors[l.severity] || sevColors.low
                 return <tr key={i} style={{ borderBottom: '1px solid #1a1f2e', background: l.severity === 'high' ? 'rgba(239,68,68,.04)' : 'transparent' }}>
                   <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600, whiteSpace: 'nowrap' }}>{l.date || '—'}</td>
-                  <td style={{ ...S.td, color: '#94a3b8', whiteSpace: 'nowrap' }}>{l.time || '—'}</td>
+                  <td style={{ ...S.td, color: 'var(--text2)', whiteSpace: 'nowrap' }}>{l.time || '—'}</td>
                   <td style={{ ...S.td, fontSize: 12 }}>{l.locale || '—'}</td>
                   <td style={{ ...S.td, fontWeight: 500 }}>{l.user || '—'}</td>
                   <td style={S.td}>
@@ -94,7 +94,7 @@ export default function MonitoringTab({ events = [] }) {
                       <span style={{ fontWeight: 600, color: l.color }}>{l.tipo}</span>
                     </span>
                   </td>
-                  <td style={{ ...S.td, color: '#94a3b8', fontSize: 12, maxWidth: 400 }}>{l.description || '—'}</td>
+                  <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12, maxWidth: 400 }}>{l.description || '—'}</td>
                   <td style={{ ...S.td, color: '#EF4444', fontWeight: 600 }}>{l.amount ? fmtD(l.amount) : '—'}</td>
                   <td style={S.td}><span style={S.badge(sev.c, sev.bg)}>{sev.label}</span></td>
                 </tr>

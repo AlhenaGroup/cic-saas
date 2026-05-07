@@ -53,13 +53,13 @@ export default function WidgetCustomizer({ tabKey, widgets, layout, onSave, onCl
   const visibleCount = items.filter(x => x.visible).length
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, overflow: 'auto', padding: 24 }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 560, maxHeight: '90vh', overflow: 'auto' }}>
-      <div style={{ padding: 20, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 560, maxHeight: '90vh', overflow: 'auto' }}>
+      <div style={{ padding: 20, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 16 }}>Personalizza widget</h3>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{visibleCount} di {items.length} visibili · trascina per riordinare</div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>{visibleCount} di {items.length} visibili · trascina per riordinare</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
 
       <div style={{ padding: 12 }}>
@@ -82,7 +82,7 @@ export default function WidgetCustomizer({ tabKey, widgets, layout, onSave, onCl
               transition: 'all .1s',
             }}
           >
-            <span style={{ color: '#475569', fontSize: 14, lineHeight: 1 }}>⠿</span>
+            <span style={{ color: 'var(--text3)', fontSize: 14, lineHeight: 1 }}>⠿</span>
             <span style={{ flex: 1, fontSize: 12, color: item.visible ? '#e2e8f0' : '#64748b' }}>{item.label}</span>
             <button
               onClick={() => toggleVisible(item.id)}
@@ -99,11 +99,11 @@ export default function WidgetCustomizer({ tabKey, widgets, layout, onSave, onCl
         ))}
       </div>
 
-      <div style={{ padding: 16, borderTop: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-        <button onClick={reset} style={{ ...iS, padding: '8px 14px', cursor: 'pointer', color: '#94a3b8' }}>Ripristina default</button>
+      <div style={{ padding: 16, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+        <button onClick={reset} style={{ ...iS, padding: '8px 14px', cursor: 'pointer', color: 'var(--text2)' }}>Ripristina default</button>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
-          <button onClick={save} style={{ ...iS, background: '#F59E0B', color: '#0f1420', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: 'pointer' }}>Salva</button>
+          <button onClick={save} style={{ ...iS, background: '#F59E0B', color: 'var(--text)', fontWeight: 600, border: 'none', padding: '8px 20px', cursor: 'pointer' }}>Salva</button>
         </div>
       </div>
     </div>

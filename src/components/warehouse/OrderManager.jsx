@@ -113,21 +113,21 @@ export default function OrderManager() {
 
   return <>
     <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-      <button onClick={calcSuggestions} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>Calcola ordini suggeriti</button>
+      <button onClick={calcSuggestions} style={{ ...iS, background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '6px 16px', fontWeight: 600, fontSize: 12 }}>Calcola ordini suggeriti</button>
     </div>
 
     {/* Suggestions */}
     {showSuggestions && <div style={{ marginBottom: 16 }}>
       <Card title="Ordini suggeriti" badge={suggestions.length + ' prodotti'}>
-        {suggestions.length === 0 && <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Tutti i prodotti sono sopra la scorta minima</div>}
+        {suggestions.length === 0 && <div style={{ color: 'var(--text3)', fontSize: 13, textAlign: 'center', padding: 20 }}>Tutti i prodotti sono sopra la scorta minima</div>}
         {Object.entries(suggByFornitore).map(([fornitore, items]) => (
           <div key={fornitore} style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{fornitore}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{fornitore}</span>
               <button onClick={() => createOrderFromSuggestions(fornitore, items)} disabled={loading} style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>Crea ordine</button>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+              <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {['Prodotto', 'Giacenza', 'Scorta min.', 'Consumo/gg', 'Suggerito'].map(h => <th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
@@ -135,8 +135,8 @@ export default function OrderManager() {
                   <tr key={it.id}>
                     <td style={{ ...S.td, fontWeight: 500 }}>{it.nome}</td>
                     <td style={{ ...S.td, color: '#EF4444', fontWeight: 600 }}>{fmtN(it.quantita_attuale)} {it.unita_misura}</td>
-                    <td style={{ ...S.td, color: '#64748b' }}>{fmtN(it.scorta_minima)}</td>
-                    <td style={{ ...S.td, color: '#94a3b8' }}>{it.consumo_medio.toFixed(1)}</td>
+                    <td style={{ ...S.td, color: 'var(--text3)' }}>{fmtN(it.scorta_minima)}</td>
+                    <td style={{ ...S.td, color: 'var(--text2)' }}>{it.consumo_medio.toFixed(1)}</td>
                     <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{fmtN(it.quantita_suggerita)} {it.unita_misura}</td>
                   </tr>
                 ))}
@@ -150,18 +150,18 @@ export default function OrderManager() {
     {/* Orders list */}
     <Card title="Ordini" badge={orders.length}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+        <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
           {['Data', 'Fornitore', 'Stato', 'Note', ''].map(h => <th key={h} style={S.th}>{h}</th>)}
         </tr></thead>
         <tbody>
-          {orders.length === 0 && <tr><td colSpan={5} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessun ordine</td></tr>}
+          {orders.length === 0 && <tr><td colSpan={5} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center', padding: 20 }}>Nessun ordine</td></tr>}
           {orders.map(o => {
             const sc = STATUS_COLORS[o.stato] || STATUS_COLORS.bozza
             return <tr key={o.id} style={{ cursor: 'pointer', background: selected === o.id ? '#131825' : 'transparent' }} onClick={() => setSelected(selected === o.id ? null : o.id)}>
               <td style={{ ...S.td, fontWeight: 500 }}>{o.data}</td>
-              <td style={{ ...S.td, color: '#e2e8f0' }}>{o.fornitore}</td>
+              <td style={{ ...S.td, color: 'var(--text)' }}>{o.fornitore}</td>
               <td style={S.td}><span style={S.badge(sc.c, sc.bg)}>{o.stato}</span></td>
-              <td style={{ ...S.td, color: '#64748b', fontSize: 12 }}>{o.note || '-'}</td>
+              <td style={{ ...S.td, color: 'var(--text3)', fontSize: 12 }}>{o.note || '-'}</td>
               <td style={{ ...S.td, whiteSpace: 'nowrap' }}>
                 {o.stato === 'bozza' && <button onClick={e => { e.stopPropagation(); updateOrderStatus(o.id, 'inviato') }} style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11, marginRight: 6 }}>Invia</button>}
                 {o.stato === 'inviato' && <button onClick={e => { e.stopPropagation(); updateOrderStatus(o.id, 'ricevuto') }} style={{ background: 'none', border: 'none', color: '#10B981', cursor: 'pointer', fontSize: 11, marginRight: 6 }}>Ricevuto</button>}
@@ -177,25 +177,25 @@ export default function OrderManager() {
     {selected && <div style={{ marginTop: 12 }}>
       <Card title={'Dettaglio ordine: ' + (orders.find(o => o.id === selected)?.fornitore || '')} badge={orderItems.length + ' righe'}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Prodotto', 'Unita', 'Suggerita', 'Ordinata', 'Note'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {orderItems.length === 0 && <tr><td colSpan={5} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessun articolo</td></tr>}
+            {orderItems.length === 0 && <tr><td colSpan={5} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center' }}>Nessun articolo</td></tr>}
             {orderItems.map(it => {
               const prod = prodMap[it.product_id]
               const ord = orders.find(o => o.id === selected)
               return <tr key={it.id}>
                 <td style={{ ...S.td, fontWeight: 500 }}>{prod?.nome || '?'}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{prod?.unita_misura || '-'}</td>
-                <td style={{ ...S.td, color: '#64748b' }}>{fmtN(it.quantita_suggerita)}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{prod?.unita_misura || '-'}</td>
+                <td style={{ ...S.td, color: 'var(--text3)' }}>{fmtN(it.quantita_suggerita)}</td>
                 <td style={S.td}>
                   {ord?.stato === 'bozza'
                     ? <input type="number" step="0.01" value={it.quantita_ordinata ?? ''} onChange={e => updateOrderQty(it, e.target.value)} style={{ ...iS, width: 80, textAlign: 'center', padding: '3px 6px' }} />
                     : <span style={{ fontWeight: 600 }}>{fmtN(it.quantita_ordinata)}</span>
                   }
                 </td>
-                <td style={{ ...S.td, color: '#64748b', fontSize: 12 }}>{it.note || '-'}</td>
+                <td style={{ ...S.td, color: 'var(--text3)', fontSize: 12 }}>{it.note || '-'}</td>
               </tr>
             })}
           </tbody>

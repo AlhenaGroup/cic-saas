@@ -66,7 +66,7 @@ export default function ReservationsStats({ locale, from, to }) {
 
   useEffect(() => { reload() }, [reload])
 
-  if (loading) return <div style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', padding: 20 }}>Caricamento grafici…</div>
+  if (loading) return <div style={{ color: 'var(--text2)', fontSize: 12, textAlign: 'center', padding: 20 }}>Caricamento grafici…</div>
   if (!stats || stats.series_stato.length === 0) return null
 
   return <div style={{ display: 'grid', gap: 14, marginTop: 14 }}>
@@ -121,10 +121,10 @@ export default function ReservationsStats({ locale, from, to }) {
 }
 
 function ChartCard({ title, subtitle, children }) {
-  return <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 10, padding: 14 }}>
+  return <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 14 }}>
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
       <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{title}</h3>
-      {subtitle && <span style={{ fontSize: 11, color: '#64748b' }}>{subtitle}</span>}
+      {subtitle && <span style={{ fontSize: 11, color: 'var(--text3)' }}>{subtitle}</span>}
     </div>
     {children}
   </div>
@@ -137,21 +137,21 @@ function Totals({ totals, labels = {} }) {
   return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingTop: 10, borderTop: '1px solid #1a1f2e' }}>
     {entries.map(([k, v]) => (
       <div key={k} style={{
-        background: '#1a1f2e', border: '1px solid #2a3042', borderRadius: 6,
+        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6,
         padding: '4px 9px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6,
       }}>
-        <span style={{ color: '#cbd5e1' }}>{labels[k] || k}</span>
+        <span style={{ color: 'var(--text)' }}>{labels[k] || k}</span>
         <b style={{ color: '#F59E0B' }}>{v}</b>
-        <span style={{ color: '#64748b' }}>({tot > 0 ? Math.round(v / tot * 100) : 0}%)</span>
+        <span style={{ color: 'var(--text3)' }}>({tot > 0 ? Math.round(v / tot * 100) : 0}%)</span>
       </div>
     ))}
   </div>
 }
 
 const tooltipStyle = {
-  background: '#1a1f2e',
-  border: '1px solid #2a3042',
+  background: 'var(--surface)',
+  border: '1px solid var(--border)',
   borderRadius: 6,
   fontSize: 12,
-  color: '#cbd5e1',
+  color: 'var(--text)',
 }

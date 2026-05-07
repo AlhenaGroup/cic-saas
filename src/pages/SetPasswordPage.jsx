@@ -37,12 +37,12 @@ export default function SetPasswordPage({ mode = 'invite', email }) {
   }
 
   return <div style={{
-    minHeight: '100vh', background: '#0f1420', color: '#e2e8f0',
+    minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)',
     fontFamily: "'DM Sans',system-ui,sans-serif",
     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
   }}>
     <form onSubmit={submit} style={{
-      background: '#131825', border: '1px solid #2a3042', borderRadius: 16,
+      background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 16,
       padding: '36px 32px', maxWidth: 440, width: '100%',
     }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
@@ -50,11 +50,11 @@ export default function SetPasswordPage({ mode = 'invite', email }) {
         <h1 style={{ fontSize: 22, margin: '0 0 6px 0', fontWeight: 700 }}>
           {mode === 'recovery' ? 'Reimposta password' : 'Benvenuto su Convivia'}
         </h1>
-        <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
           {mode === 'recovery'
             ? 'Imposta una nuova password per il tuo account.'
             : 'Crea la password per accedere alla tua dashboard.'}
-          {email && <><br /><strong style={{ color: '#cbd5e1' }}>{email}</strong></>}
+          {email && <><br /><strong style={{ color: 'var(--text)' }}>{email}</strong></>}
         </div>
       </div>
 
@@ -69,16 +69,16 @@ export default function SetPasswordPage({ mode = 'invite', email }) {
       ) : (
         <>
           <label style={{ display: 'block', marginBottom: 12 }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Nuova password (min 8 caratteri)</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Nuova password (min 8 caratteri)</div>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} autoFocus
               required minLength={8}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', fontSize: 14 }} />
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14 }} />
           </label>
           <label style={{ display: 'block', marginBottom: 16 }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Conferma password</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Conferma password</div>
             <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
               required minLength={8}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #2a3042', background: '#0f1420', color: '#e2e8f0', fontSize: 14 }} />
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14 }} />
           </label>
           {error && (
             <div style={{

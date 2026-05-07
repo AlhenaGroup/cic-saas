@@ -163,7 +163,7 @@ export default function Simulator({ sp, sps, year, month }) {
 
   if (loading) {
     return <Card title="Simulatore">
-      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Caricamento…</div>
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Caricamento…</div>
     </Card>
   }
 
@@ -190,12 +190,12 @@ export default function Simulator({ sp, sps, year, month }) {
         <button
           onClick={handleNew}
           style={{
-            background: '#F59E0B', color: '#0f1420', border: 'none',
+            background: '#F59E0B', color: 'var(--text)', border: 'none',
             padding: '6px 14px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer'
           }}
         >Nuovo</button>
         {scenarios.length === 0 && (
-          <span style={{ fontSize: 12, color: '#64748b' }}>Nessuno scenario salvato finora.</span>
+          <span style={{ fontSize: 12, color: 'var(--text3)' }}>Nessuno scenario salvato finora.</span>
         )}
         {scenarios.map(s => (
           <button
@@ -229,7 +229,7 @@ export default function Simulator({ sp, sps, year, month }) {
         />
       </div>
 
-      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>Base di partenza</div>
+      <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, marginBottom: 6 }}>Base di partenza</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {['consuntivo', 'budget', 'forecast'].map(src => (
           <label key={src} style={{
@@ -256,11 +256,11 @@ export default function Simulator({ sp, sps, year, month }) {
       {/* Readout base values */}
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8,
-        fontSize: 11, padding: 10, background: '#131825', borderRadius: 6,
+        fontSize: 11, padding: 10, background: 'var(--surface2)', borderRadius: 6,
       }}>
         {CATS_FULL.map(k => (
           <div key={k}>
-            <div style={{ color: '#64748b', marginBottom: 2 }}>{CAT_META[k].label}</div>
+            <div style={{ color: 'var(--text3)', marginBottom: 2 }}>{CAT_META[k].label}</div>
             <div style={{ color: CAT_META[k].color, fontWeight: 700 }}>{fmtD(baseValues[k] || 0)}</div>
           </div>
         ))}
@@ -275,7 +275,7 @@ export default function Simulator({ sp, sps, year, month }) {
             key={type}
             onClick={() => addLever(type)}
             style={{
-              background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8',
+              background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)',
               padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer'
             }}
             title={meta.description}
@@ -284,7 +284,7 @@ export default function Simulator({ sp, sps, year, month }) {
       </div>
 
       {levers.length === 0 && (
-        <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center', padding: 20 }}>
+        <div style={{ color: 'var(--text3)', fontSize: 12, textAlign: 'center', padding: 20 }}>
           Aggiungi una leva per iniziare a simulare.
         </div>
       )}
@@ -294,13 +294,13 @@ export default function Simulator({ sp, sps, year, month }) {
         if (!meta) return null
         return <div key={lever.id} style={{
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-          background: '#131825', border: '1px solid #2a3042', borderRadius: 8, marginBottom: 8
+          background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8
         }}>
-          <div style={{ flex: '0 0 180px', fontSize: 12, color: '#cbd5e1', fontWeight: 600 }}>{meta.label}</div>
+          <div style={{ flex: '0 0 180px', fontSize: 12, color: 'var(--text)', fontWeight: 600 }}>{meta.label}</div>
           <div style={{ flex: 1, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {meta.fields.map(f => (
               <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 10, color: '#64748b' }}>{f.label}</span>
+                <span style={{ fontSize: 10, color: 'var(--text3)' }}>{f.label}</span>
                 <input
                   type="number"
                   step={f.step || 1}
@@ -308,7 +308,7 @@ export default function Simulator({ sp, sps, year, month }) {
                   onChange={e => updateLever(lever.id, f.key, e.target.value)}
                   style={inputS}
                 />
-                <span style={{ fontSize: 10, color: '#64748b' }}>{f.unit}</span>
+                <span style={{ fontSize: 10, color: 'var(--text3)' }}>{f.unit}</span>
               </div>
             ))}
           </div>
@@ -347,7 +347,7 @@ export default function Simulator({ sp, sps, year, month }) {
                 <td style={{ ...S.td, fontWeight: 600 }}>
                   <span style={{ color: meta.color }}></span> {meta.label}
                 </td>
-                <td style={{ ...S.td, textAlign: 'right', color: '#94a3b8' }}>{fmtD(b)}</td>
+                <td style={{ ...S.td, textAlign: 'right', color: 'var(--text2)' }}>{fmtD(b)}</td>
                 <td style={{ ...S.td, textAlign: 'right', fontWeight: 700, color: meta.color }}>{fmtD(s)}</td>
                 <td style={{ ...S.td, textAlign: 'right', color: d >= 0 ? '#10B981' : '#EF4444' }}>
                   {d >= 0 ? '+' : ''}{fmtD(d)}
@@ -364,13 +364,13 @@ export default function Simulator({ sp, sps, year, month }) {
               const dMol = sMol - bMol
               const dPct = bMol !== 0 ? (dMol / Math.abs(bMol)) * 100 : null
               return <tr style={{ background: 'rgba(16,185,129,.05)' }}>
-                <td style={{ ...S.td, borderTop: '2px solid #2a3042', fontWeight: 700 }}>MOL ({computeMolPct(simulated).toFixed(1)}%)</td>
-                <td style={{ ...S.td, borderTop: '2px solid #2a3042', textAlign: 'right', color: '#94a3b8' }}>{fmtD(bMol)}</td>
-                <td style={{ ...S.td, borderTop: '2px solid #2a3042', textAlign: 'right', fontWeight: 800, fontSize: 15, color: sMol >= 0 ? '#10B981' : '#EF4444' }}>{fmtD(sMol)}</td>
-                <td style={{ ...S.td, borderTop: '2px solid #2a3042', textAlign: 'right', color: dMol >= 0 ? '#10B981' : '#EF4444', fontWeight: 700 }}>
+                <td style={{ ...S.td, borderTop: '2px solid var(--border)', fontWeight: 700 }}>MOL ({computeMolPct(simulated).toFixed(1)}%)</td>
+                <td style={{ ...S.td, borderTop: '2px solid var(--border)', textAlign: 'right', color: 'var(--text2)' }}>{fmtD(bMol)}</td>
+                <td style={{ ...S.td, borderTop: '2px solid var(--border)', textAlign: 'right', fontWeight: 800, fontSize: 15, color: sMol >= 0 ? '#10B981' : '#EF4444' }}>{fmtD(sMol)}</td>
+                <td style={{ ...S.td, borderTop: '2px solid var(--border)', textAlign: 'right', color: dMol >= 0 ? '#10B981' : '#EF4444', fontWeight: 700 }}>
                   {dMol >= 0 ? '+' : ''}{fmtD(dMol)}
                 </td>
-                <td style={{ ...S.td, borderTop: '2px solid #2a3042', textAlign: 'right', color: dMol >= 0 ? '#10B981' : '#EF4444', fontWeight: 700 }}>
+                <td style={{ ...S.td, borderTop: '2px solid var(--border)', textAlign: 'right', color: dMol >= 0 ? '#10B981' : '#EF4444', fontWeight: 700 }}>
                   {dPct != null ? (dPct >= 0 ? '+' : '') + dPct.toFixed(1) + '%' : '—'}
                 </td>
               </tr>
@@ -381,16 +381,16 @@ export default function Simulator({ sp, sps, year, month }) {
 
       {/* Bottom KPI extra */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginTop: 14, fontSize: 11 }}>
-        <div style={{ padding: 10, background: '#131825', borderRadius: 6 }}>
-          <div style={{ color: '#64748b' }}>Break-even simulato</div>
+        <div style={{ padding: 10, background: 'var(--surface2)', borderRadius: 6 }}>
+          <div style={{ color: 'var(--text3)' }}>Break-even simulato</div>
           <div style={{ color: '#8B5CF6', fontWeight: 700, fontSize: 14, marginTop: 2 }}>{fmtD(computeBreakEven(simulated))}</div>
         </div>
-        <div style={{ padding: 10, background: '#131825', borderRadius: 6 }}>
-          <div style={{ color: '#64748b' }}>Coperti simulati</div>
+        <div style={{ padding: 10, background: 'var(--surface2)', borderRadius: 6 }}>
+          <div style={{ color: 'var(--text3)' }}>Coperti simulati</div>
           <div style={{ color: '#06B6D4', fontWeight: 700, fontSize: 14, marginTop: 2 }}>{fmtN(Math.round(simulated.coperti || 0))}</div>
         </div>
-        <div style={{ padding: 10, background: '#131825', borderRadius: 6 }}>
-          <div style={{ color: '#64748b' }}>Coperto medio</div>
+        <div style={{ padding: 10, background: 'var(--surface2)', borderRadius: 6 }}>
+          <div style={{ color: 'var(--text3)' }}>Coperto medio</div>
           <div style={{ color: '#F59E0B', fontWeight: 700, fontSize: 14, marginTop: 2 }}>{fmtD(computeCopertoMedio(simulated))}</div>
         </div>
       </div>
@@ -399,7 +399,7 @@ export default function Simulator({ sp, sps, year, month }) {
     {/* Confronto */}
     <Card title="Confronta con un altro scenario">
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
-        <span style={{ fontSize: 12, color: '#94a3b8' }}>Scenario da confrontare:</span>
+        <span style={{ fontSize: 12, color: 'var(--text2)' }}>Scenario da confrontare:</span>
         <select
           value={compareWithId}
           onChange={e => setCompareWithId(e.target.value)}
@@ -431,7 +431,7 @@ export default function Simulator({ sp, sps, year, month }) {
                 return <tr key={k}>
                   <td style={{ ...S.td, fontWeight: 600 }}><span style={{ color: meta.color }}></span> {meta.label}</td>
                   <td style={{ ...S.td, textAlign: 'right', color: meta.color }}>{fmtD(a)}</td>
-                  <td style={{ ...S.td, textAlign: 'right', color: '#94a3b8' }}>{fmtD(b)}</td>
+                  <td style={{ ...S.td, textAlign: 'right', color: 'var(--text2)' }}>{fmtD(b)}</td>
                   <td style={{ ...S.td, textAlign: 'right', color: d >= 0 ? '#10B981' : '#EF4444', fontWeight: 600 }}>
                     {d >= 0 ? '+' : ''}{fmtD(d)}
                   </td>
@@ -442,10 +442,10 @@ export default function Simulator({ sp, sps, year, month }) {
                 const bMol = Number(compareScenario.simulated_values?.mol) || computeMOL(compareScenario.simulated_values || {})
                 const d = aMol - bMol
                 return <tr style={{ background: 'rgba(16,185,129,.05)' }}>
-                  <td style={{ ...S.td, borderTop: '2px solid #2a3042', fontWeight: 700 }}>MOL</td>
-                  <td style={{ ...S.td, borderTop: '2px solid #2a3042', textAlign: 'right', color: '#10B981', fontWeight: 700 }}>{fmtD(aMol)}</td>
-                  <td style={{ ...S.td, borderTop: '2px solid #2a3042', textAlign: 'right', color: '#94a3b8', fontWeight: 700 }}>{fmtD(bMol)}</td>
-                  <td style={{ ...S.td, borderTop: '2px solid #2a3042', textAlign: 'right', color: d >= 0 ? '#10B981' : '#EF4444', fontWeight: 700 }}>
+                  <td style={{ ...S.td, borderTop: '2px solid var(--border)', fontWeight: 700 }}>MOL</td>
+                  <td style={{ ...S.td, borderTop: '2px solid var(--border)', textAlign: 'right', color: '#10B981', fontWeight: 700 }}>{fmtD(aMol)}</td>
+                  <td style={{ ...S.td, borderTop: '2px solid var(--border)', textAlign: 'right', color: 'var(--text2)', fontWeight: 700 }}>{fmtD(bMol)}</td>
+                  <td style={{ ...S.td, borderTop: '2px solid var(--border)', textAlign: 'right', color: d >= 0 ? '#10B981' : '#EF4444', fontWeight: 700 }}>
                     {d >= 0 ? '+' : ''}{fmtD(d)}
                   </td>
                 </tr>
@@ -471,7 +471,7 @@ export default function Simulator({ sp, sps, year, month }) {
         onClick={() => handleSave(true)}
         disabled={saving}
         style={{
-          background: 'transparent', border: '1px solid #2a3042', color: '#94a3b8',
+          background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)',
           padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer'
         }}
       >Salva come nuovo</button>
@@ -479,7 +479,7 @@ export default function Simulator({ sp, sps, year, month }) {
         onClick={() => handleSave(false)}
         disabled={saving}
         style={{
-          background: '#10B981', color: '#0f1420', border: 'none',
+          background: '#10B981', color: 'var(--text)', border: 'none',
           padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer'
         }}
       >{saving ? '…' : activeId ? 'Aggiorna' : 'Salva'}</button>

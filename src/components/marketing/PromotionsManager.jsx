@@ -119,7 +119,7 @@ export default function PromotionsManager({ sp, sps }) {
   return <div style={S.card}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
       <h2 style={{ margin: 0, fontSize: 18 }}>Promozioni</h2>
-      <span style={{ fontSize: 12, color: '#94a3b8' }}>· {list.length} totali · {list.filter(p => p.attivo).length} attive</span>
+      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· {list.length} totali · {list.filter(p => p.attivo).length} attive</span>
       <div style={{ flex: 1 }} />
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
@@ -128,10 +128,10 @@ export default function PromotionsManager({ sp, sps }) {
     </div>
 
     {error && <div style={{ color: '#EF4444', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-    {loading && <div style={{ color: '#94a3b8', fontSize: 12 }}>Caricamento…</div>}
+    {loading && <div style={{ color: 'var(--text2)', fontSize: 12 }}>Caricamento…</div>}
 
     {!loading && list.length === 0 && (
-      <div style={{ textAlign: 'center', padding: 30, color: '#64748b', fontSize: 13 }}>
+      <div style={{ textAlign: 'center', padding: 30, color: 'var(--text3)', fontSize: 13 }}>
         Nessuna promozione. Crea il primo codice — il POS lo riconoscerà automaticamente alla scansione.
       </div>
     )}
@@ -140,7 +140,7 @@ export default function PromotionsManager({ sp, sps }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
         {list.map(p => (
           <div key={p.id} onClick={() => setEditing(p)} style={{
-            background: '#0f1420', border: '1px solid ' + (p.attivo ? '#F59E0B55' : '#2a3042'),
+            background: 'var(--bg)', border: '1px solid ' + (p.attivo ? '#F59E0B55' : '#2a3042'),
             borderRadius: 10, padding: 14, cursor: 'pointer', position: 'relative'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -152,8 +152,8 @@ export default function PromotionsManager({ sp, sps }) {
                 color: p.attivo ? '#10B981' : '#94A3B8',
               }}>{p.attivo ? 'ATTIVA' : 'OFF'}</span>
             </div>
-            <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 6 }}>{fmtSconto(p)} {p.importo_minimo > 0 && <span style={{ color: '#64748b' }}>(min {p.importo_minimo}€)</span>}</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>{fmtValidita(p)}</div>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6 }}>{fmtSconto(p)} {p.importo_minimo > 0 && <span style={{ color: 'var(--text3)' }}>(min {p.importo_minimo}€)</span>}</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>{fmtValidita(p)}</div>
             {p.target_tag_ids?.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                 {p.target_tag_ids.map(tid => tagsById[tid] && (
@@ -164,12 +164,12 @@ export default function PromotionsManager({ sp, sps }) {
                 ))}
               </div>
             )}
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>
               Utilizzi: {p.utilizzi_totali}{p.max_utilizzi ? `/${p.max_utilizzi}` : ''}
             </div>
             <button onClick={(e) => { e.stopPropagation(); onToggle(p) }} style={{
               position: 'absolute', top: 10, right: 10, width: 16, height: 16, padding: 0,
-              background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 11,
+              background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 11,
             }} title={p.attivo ? 'Disattiva' : 'Attiva'}>{p.attivo ? '⏸' : ''}</button>
           </div>
         ))}
@@ -200,7 +200,7 @@ export default function PromotionsManager({ sp, sps }) {
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Validità temporale</div>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Validità temporale</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <Field label="Data inizio"><input type="date" value={editing.data_inizio || ''} onChange={e => setEditing({ ...editing, data_inizio: e.target.value })} style={S.input} /></Field>
           <Field label="Data fine"><input type="date" value={editing.data_fine || ''} onChange={e => setEditing({ ...editing, data_fine: e.target.value })} style={S.input} /></Field>
@@ -208,7 +208,7 @@ export default function PromotionsManager({ sp, sps }) {
           <Field label="Ora fine"><input type="time" value={editing.ora_fine || ''} onChange={e => setEditing({ ...editing, ora_fine: e.target.value })} style={S.input} /></Field>
         </div>
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>Giorni della settimana (vuoto = tutti)</div>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6 }}>Giorni della settimana (vuoto = tutti)</div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {GIORNI.map((g, i) => {
               const sel = (editing.giorni_settimana || []).includes(i)
@@ -225,7 +225,7 @@ export default function PromotionsManager({ sp, sps }) {
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Targeting (vuoto = tutti i clienti)</div>
+        <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Targeting (vuoto = tutti i clienti)</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {tags.map(t => {
             const sel = (editing.target_tag_ids || []).includes(t.id)
@@ -263,14 +263,14 @@ function btn(bg, color, border) {
 
 function Field({ label, children }) {
   return <label style={{ display: 'block' }}>
-    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
+    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</div>
     {children}
   </label>
 }
 
 function Drawer({ children, onClose }) {
   return <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }}>
-    <div onClick={e => e.stopPropagation()} style={{ width: 'min(620px, 100%)', height: '100%', background: '#1a1f2e', padding: 20, overflowY: 'auto', borderLeft: '1px solid #2a3042' }}>
+    <div onClick={e => e.stopPropagation()} style={{ width: 'min(620px, 100%)', height: '100%', background: 'var(--surface)', padding: 20, overflowY: 'auto', borderLeft: '1px solid var(--border)' }}>
       {children}
     </div>
   </div>

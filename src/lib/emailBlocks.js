@@ -17,11 +17,11 @@ export function defaultProps(type) {
     case 'header':  return { text: 'Titolo email', size: 28, color: '#111111', align: 'center', bold: true }
     case 'text':    return { html: 'Ciao {nome},\n\nScrivi qui il messaggio…', size: 14, color: '#374151', align: 'left' }
     case 'image':   return { src: '', alt: '', width: 600, link: '' }
-    case 'button':  return { text: 'Scopri di più', url: 'https://', bg: '#F59E0B', color: '#0f1420', radius: 6, padding: 12 }
+    case 'button':  return { text: 'Scopri di più', url: 'https://', bg: '#F59E0B', color: 'var(--text)', radius: 6, padding: 12 }
     case 'divider': return { color: '#e5e7eb', height: 1, margin: 12 }
     case 'spacer':  return { height: 24 }
     case 'social':  return { facebook: '', instagram: '', twitter: '', tripadvisor: '', google: '' }
-    case 'footer':  return { html: 'Ricevi questa email perché sei nostro cliente.\nCancella iscrizione: {unsubscribe}', size: 11, color: '#94a3b8' }
+    case 'footer':  return { html: 'Ricevi questa email perché sei nostro cliente.\nCancella iscrizione: {unsubscribe}', size: 11, color: 'var(--text2)' }
     default: return {}
   }
 }

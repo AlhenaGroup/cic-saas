@@ -293,7 +293,7 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
       {/* Conto Economico */}
       <Card title="Conto Economico">
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Voce', 'Importo', '% Ricavi', 'Fatture'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
@@ -316,8 +316,8 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
                     {r.voce && <span style={{ marginLeft: 6, fontSize: 10, color: isActive ? '#F59E0B' : '#64748b' }}>{isActive ? '' : ''}</span>}
                   </td>
                   <td style={{ ...S.td, fontWeight: r.bold ? 700 : 500, color: r.color || '#e2e8f0' }}>{fmt(Math.abs(r.val))}</td>
-                  <td style={{ ...S.td, color: '#64748b' }}>{pct(Math.abs(r.val), ce.ricavi)}</td>
-                  <td style={{ ...S.td, color: '#475569', fontSize: 11 }}>
+                  <td style={{ ...S.td, color: 'var(--text3)' }}>{pct(Math.abs(r.val), ce.ricavi)}</td>
+                  <td style={{ ...S.td, color: 'var(--text3)', fontSize: 11 }}>
                     {CATEGORY_RULES[r.voce] && <span style={S.badge(isActive ? '#F59E0B' : '#475569', isActive ? 'rgba(245,158,11,.12)' : 'rgba(71,85,105,.12)')}>
                       {catCounts[r.voce] || 0} prodotti
                     </span>}
@@ -327,7 +327,7 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
             })}
           </tbody>
         </table>
-        <div style={{ marginTop: 8, fontSize: 11, color: '#475569' }}>
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text3)' }}>
           Clicca su una voce per vedere tutto cio' che la compone
         </div>
       </Card>
@@ -344,18 +344,18 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
           ].map((r, i) => <Bar2 key={i} label={r.label} value={r.val} max={ce.totCosti || 1} color={r.color} pct={ce.totCosti > 0 ? (r.val / ce.totCosti * 100).toFixed(1) : 0} />)}
         </div>
         {/* F&B indicator separato */}
-        <div style={{ borderTop: '1px solid #2a3042', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em' }}>F&B (Food + Beverage)</div>
-            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 2 }}>Solo indicatore, non incluso nei costi</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>F&B (Food + Beverage)</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>Solo indicatore, non incluso nei costi</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#F97316' }}>{fbPct.toFixed(1)}%</div>
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>{fmt(fb)}</div>
+            <div style={{ fontSize: 12, color: 'var(--text2)' }}>{fmt(fb)}</div>
           </div>
         </div>
-        <div style={{ borderTop: '1px solid #2a3042', paddingTop: 12, marginTop: 12, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-          <span style={{ color: '#94a3b8' }}>MOL %</span>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+          <span style={{ color: 'var(--text2)' }}>MOL %</span>
           <span style={{ color: '#10B981', fontWeight: 700, fontSize: 16 }}>{ce.molPct?.toFixed(1)}%</span>
         </div>
       </Card>
@@ -388,15 +388,15 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
     <div style={{ marginTop: 12 }}>
       <Card title="Classificazione prodotti fatture" badge={totalItems > 0 ? totalItems + ' prodotti' : 'In attesa di fatture'} extra={
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          <button onClick={() => setActiveFilter('tutte')} style={{ ...iS, padding: '4px 10px', fontSize: 11, fontWeight: activeFilter === 'tutte' ? 700 : 400, color: activeFilter === 'tutte' ? '#F59E0B' : '#94a3b8', background: activeFilter === 'tutte' ? 'rgba(245,158,11,.1)' : 'transparent', border: activeFilter === 'tutte' ? '1px solid #F59E0B' : '1px solid #2a3042' }}>
+          <button onClick={() => setActiveFilter('tutte')} style={{ ...iS, padding: '4px 10px', fontSize: 11, fontWeight: activeFilter === 'tutte' ? 700 : 400, color: activeFilter === 'tutte' ? '#F59E0B' : '#94a3b8', background: activeFilter === 'tutte' ? 'rgba(245,158,11,.1)' : 'transparent', border: activeFilter === 'tutte' ? '1px solid #F59E0B' : '1px solid var(--border)' }}>
             Tutte ({totalItems})
           </button>
           {Object.entries(CATEGORY_RULES).map(([key, rule]) => (
-            <button key={key} onClick={() => setActiveFilter(activeFilter === key ? 'tutte' : key)} style={{ ...iS, padding: '4px 10px', fontSize: 11, fontWeight: activeFilter === key ? 700 : 400, color: activeFilter === key ? rule.color : '#94a3b8', background: activeFilter === key ? rule.bg : 'transparent', border: activeFilter === key ? `1px solid ${rule.color}` : '1px solid #2a3042' }}>
+            <button key={key} onClick={() => setActiveFilter(activeFilter === key ? 'tutte' : key)} style={{ ...iS, padding: '4px 10px', fontSize: 11, fontWeight: activeFilter === key ? 700 : 400, color: activeFilter === key ? rule.color : '#94a3b8', background: activeFilter === key ? rule.bg : 'transparent', border: activeFilter === key ? `1px solid ${rule.color}` : '1px solid var(--border)' }}>
               {rule.label.split(' ').slice(1).join(' ')} ({catCounts[key] || 0})
             </button>
           ))}
-          <button onClick={() => setActiveFilter(activeFilter === 'altro' ? 'tutte' : 'altro')} style={{ ...iS, padding: '4px 10px', fontSize: 11, fontWeight: activeFilter === 'altro' ? 700 : 400, color: activeFilter === 'altro' ? '#EF4444' : '#94a3b8', background: activeFilter === 'altro' ? 'rgba(239,68,68,.1)' : 'transparent', border: activeFilter === 'altro' ? '1px solid #EF4444' : '1px solid #2a3042' }}>
+          <button onClick={() => setActiveFilter(activeFilter === 'altro' ? 'tutte' : 'altro')} style={{ ...iS, padding: '4px 10px', fontSize: 11, fontWeight: activeFilter === 'altro' ? 700 : 400, color: activeFilter === 'altro' ? '#EF4444' : '#94a3b8', background: activeFilter === 'altro' ? 'rgba(239,68,68,.1)' : 'transparent', border: activeFilter === 'altro' ? '1px solid #EF4444' : '1px solid var(--border)' }}>
             Non class. ({catCounts.altro || 0})
           </button>
         </div>
@@ -406,8 +406,8 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
         ) : totalItems === 0 ? (
           <div style={{ padding: '2rem', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}></div>
-            <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 8 }}>Nessuna fattura nel sistema</div>
-            <div style={{ fontSize: 12, color: '#475569', maxWidth: 500, margin: '0 auto', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 8 }}>Nessuna fattura nel sistema</div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', maxWidth: 500, margin: '0 auto', lineHeight: 1.6 }}>
               Quando importerai le fatture passive (da CiC o manualmente nel modulo Magazzino Fatture),
               i prodotti verranno automaticamente classificati in <span style={{ color: '#F59E0B' }}>Food</span>,{' '}
               <span style={{ color: '#3B82F6' }}>Beverage</span>, <span style={{ color: '#8B5CF6' }}>Materiali</span>,{' '}
@@ -417,7 +417,7 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
               {Object.entries(CATEGORY_RULES).map(([key, rule]) => (
                 <div key={key} style={{ ...S.card, padding: '10px 16px', minWidth: 130, textAlign: 'center', border: `1px solid ${rule.color}33` }}>
                   <div style={{ fontSize: 11, color: rule.color, fontWeight: 600, marginBottom: 4 }}>{rule.label}</div>
-                  <div style={{ fontSize: 10, color: '#475569', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.5 }}>
                     {key === 'food' && 'Carne, pesce, frutta, verdura, latticini...'}
                     {key === 'beverage' && 'Birra, vino, spirits, bibite, succhi...'}
                     {key === 'materiali' && 'Tovaglioli, piatti, bicchieri, detersivi...'}
@@ -427,23 +427,23 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 16, padding: 12, background: '#131825', borderRadius: 8, border: '1px solid #2a3042' }}>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>Come funziona il riconoscimento automatico:</div>
+            <div style={{ marginTop: 16, padding: 12, background: 'var(--surface2)', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>Come funziona il riconoscimento automatico:</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: 11 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={S.badge('#10B981', 'rgba(16,185,129,.12)')}>Auto </span>
-                  <span style={{ color: '#94a3b8' }}>Fornitore + prodotto riconosciuti</span>
+                  <span style={{ color: 'var(--text2)' }}>Fornitore + prodotto riconosciuti</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={S.badge('#F59E0B', 'rgba(245,158,11,.12)')}>Auto ~</span>
-                  <span style={{ color: '#94a3b8' }}>Solo fornitore riconosciuto</span>
+                  <span style={{ color: 'var(--text2)' }}>Solo fornitore riconosciuto</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={S.badge('#EF4444', 'rgba(239,68,68,.12)')}>Auto ?</span>
-                  <span style={{ color: '#94a3b8' }}>Solo prodotto riconosciuto</span>
+                  <span style={{ color: 'var(--text2)' }}>Solo prodotto riconosciuto</span>
                 </div>
               </div>
-              <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>
                 Puoi sempre correggere la classificazione manualmente con il menu a tendina sulla riga del prodotto.
               </div>
             </div>
@@ -456,32 +456,32 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
                 <div key={key} onClick={() => setActiveFilter(activeFilter === key ? 'tutte' : key)}
                   style={{ padding: '8px 12px', background: activeFilter === key ? rule.bg : '#131825', borderRadius: 8, border: `1px solid ${activeFilter === key ? rule.color : '#2a3042'}`, cursor: 'pointer', textAlign: 'center', transition: 'all .2s' }}>
                   <div style={{ fontSize: 18, fontWeight: 700, color: rule.color }}>{catCounts[key] || 0}</div>
-                  <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{rule.label.split(' ').slice(1).join(' ')}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 2 }}>{rule.label.split(' ').slice(1).join(' ')}</div>
                 </div>
               ))}
               <div onClick={() => setActiveFilter(activeFilter === 'altro' ? 'tutte' : 'altro')}
                 style={{ padding: '8px 12px', background: activeFilter === 'altro' ? 'rgba(239,68,68,.1)' : '#131825', borderRadius: 8, border: `1px solid ${activeFilter === 'altro' ? '#EF4444' : '#2a3042'}`, cursor: 'pointer', textAlign: 'center', transition: 'all .2s' }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: '#EF4444' }}>{catCounts.altro || 0}</div>
-                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>Non class.</div>
+                <div style={{ fontSize: 10, color: 'var(--text2)', marginTop: 2 }}>Non class.</div>
               </div>
             </div>
 
             {/* Tabella prodotti */}
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+              <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {['Fornitore', 'Prodotto', 'Qtà', 'Prezzo', 'Categoria', 'Riconoscimento', 'Correggi'].map(h => <th key={h} style={S.th}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {filteredItems.length === 0 && filteredInvoicesNoItems.length === 0 && (
-                  <tr><td colSpan={7} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>
+                  <tr><td colSpan={7} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center', padding: 20 }}>
                     Nessun prodotto in questa categoria
                   </td></tr>
                 )}
                 {filteredItems.map((item, i) => (
                   <tr key={item.id || i} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                    <td style={{ ...S.td, fontSize: 12, color: '#94a3b8' }}>{item.warehouse_invoices?.fornitore || '—'}</td>
+                    <td style={{ ...S.td, fontSize: 12, color: 'var(--text2)' }}>{item.warehouse_invoices?.fornitore || '—'}</td>
                     <td style={{ ...S.td, fontWeight: 500 }}>{item.nome_fattura || '—'}</td>
-                    <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{item.quantita ? fmtN(item.quantita) + ' ' + (item.unita || '') : '—'}</td>
+                    <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{item.quantita ? fmtN(item.quantita) + ' ' + (item.unita || '') : '—'}</td>
                     <td style={{ ...S.td, fontWeight: 600 }}>{item.prezzo_totale ? fmtD(item.prezzo_totale) : item.prezzo_unitario ? fmtD(item.prezzo_unitario) : '—'}</td>
                     <td style={S.td}>
                       <span style={S.badge(
@@ -502,10 +502,10 @@ export default function ContoEconomico({ ce, from, to, reload, setPeriod }) {
                 ))}
                 {/* Fatture senza righe dettaglio */}
                 {filteredInvoicesNoItems.map((inv, i) => (
-                  <tr key={'inv-' + (inv.id || i)} style={{ borderBottom: '1px solid #1a1f2e', background: '#131825' }}>
-                    <td style={{ ...S.td, fontSize: 12, color: '#94a3b8' }}>{inv.fornitore}</td>
-                    <td style={{ ...S.td, fontWeight: 500, color: '#64748b', fontStyle: 'italic' }}>Fattura n° {inv.numero || '—'} del {inv.data}</td>
-                    <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>—</td>
+                  <tr key={'inv-' + (inv.id || i)} style={{ borderBottom: '1px solid #1a1f2e', background: 'var(--surface2)' }}>
+                    <td style={{ ...S.td, fontSize: 12, color: 'var(--text2)' }}>{inv.fornitore}</td>
+                    <td style={{ ...S.td, fontWeight: 500, color: 'var(--text3)', fontStyle: 'italic' }}>Fattura n° {inv.numero || '—'} del {inv.data}</td>
+                    <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>—</td>
                     <td style={{ ...S.td, fontWeight: 600 }}>{inv.totale ? fmtD(inv.totale) : '—'}</td>
                     <td style={S.td}>
                       <span style={S.badge(
@@ -600,7 +600,7 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
     title={'Dettaglio · ' + label}
     badge={fmtD(totale)}
     extra={
-      <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 13 }}>Chiudi</button>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 13 }}>Chiudi</button>
     }
   >
     {/* RICAVI */}
@@ -610,7 +610,7 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
         <KPI label="Coperti" icon="" value={fmtN(ce.coperti || 0)} accent="#F97316" />
         <KPI label="Scontrino medio" icon="" value={fmt(ce.medio || 0)} accent="#10B981" />
       </div>
-      <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8' }}>
+      <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text2)' }}>
         I ricavi vengono dagli scontrini CiC del periodo {from} {to}.
         Per il dettaglio per giorno, fascia oraria, reparto e categoria consulta il tab <strong>Panoramica</strong> e <strong>Produttività</strong>.
       </div>
@@ -629,14 +629,14 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
       {manualVoce.length > 0 && <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Costi manuali ({manualVoce.length})</div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Descrizione', 'Importo singolo', 'Cadenza', 'Nel periodo'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
             {manualVoce.map(c => (
               <tr key={c.id} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 500 }}>{c.label}</td>
-                <td style={{ ...S.td, color: '#64748b' }}>{fmtD(c.importo)}</td>
+                <td style={{ ...S.td, color: 'var(--text3)' }}>{fmtD(c.importo)}</td>
                 <td style={{ ...S.td, fontSize: 12, color: c.ricorrente ? '#8B5CF6' : '#64748b' }}>{c.ricorrente ? c.cadenza : 'Puntuale'}</td>
                 <td style={{ ...S.td, fontWeight: 600, color: '#10B981' }}>{fmtD(c._inPeriod)}</td>
               </tr>
@@ -649,14 +649,14 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
       {fornSorted.length > 0 && <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Top fornitori (da fatture)</div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Fornitore', 'Righe', 'Totale', '% voce'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
             {fornSorted.slice(0, 15).map(f => (
               <tr key={f.fornitore} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 500 }}>{f.fornitore}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{f.count}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{f.count}</td>
                 <td style={{ ...S.td, fontWeight: 600 }}>{fmtD(f.totale)}</td>
                 <td style={{ ...S.td, color: '#F59E0B' }}>{totFatt > 0 ? (f.totale / totFatt * 100).toFixed(1) + '%' : '—'}</td>
               </tr>
@@ -670,27 +670,27 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
         <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Dettaglio righe ({itemsVoce.length})</div>
         <div style={{ maxHeight: 400, overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ position: 'sticky', top: 0, background: '#1a1f2e' }}><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)' }}><tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Data', 'Fornitore', 'Descrizione', 'Qty', 'Importo'].map(h => <th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
             <tbody>
               {itemsVoce.slice(0, 500).sort((a, b) => (b.warehouse_invoices?.data || '').localeCompare(a.warehouse_invoices?.data || '')).map((it, i) => (
                 <tr key={it.id || i} style={{ borderBottom: '1px solid #1a1f2e' }}>
-                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{it.warehouse_invoices?.data || '—'}</td>
-                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{it.warehouse_invoices?.fornitore || '—'}</td>
+                  <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{it.warehouse_invoices?.data || '—'}</td>
+                  <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{it.warehouse_invoices?.fornitore || '—'}</td>
                   <td style={{ ...S.td, fontSize: 12 }}>{it.nome_fattura || '—'}</td>
-                  <td style={{ ...S.td, fontSize: 11, color: '#64748b' }}>{it.quantita ? fmtN(it.quantita) + ' ' + (it.unita || '') : '—'}</td>
+                  <td style={{ ...S.td, fontSize: 11, color: 'var(--text3)' }}>{it.quantita ? fmtN(it.quantita) + ' ' + (it.unita || '') : '—'}</td>
                   <td style={{ ...S.td, fontWeight: 600, fontSize: 12 }}>{fmtD(Math.abs(Number(it.prezzo_totale) || 0))}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {itemsVoce.length > 500 && <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>Mostrate le prime 500 righe su {itemsVoce.length}</div>}
+        {itemsVoce.length > 500 && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8 }}>Mostrate le prime 500 righe su {itemsVoce.length}</div>}
       </div>}
 
       {itemsVoce.length === 0 && manualVoce.length === 0 && (
-        <div style={{ padding: 20, textAlign: 'center', color: '#475569' }}>
+        <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>
           Nessun dato nel periodo selezionato per questa voce.
         </div>
       )}
@@ -698,7 +698,7 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
 
     {/* TOTALE COSTI */}
     {voce === 'totCosti' && <div>
-      <div style={{ marginBottom: 12, fontSize: 13, color: '#94a3b8' }}>Somma di tutti i costi (fatture + manuali + personnel):</div>
+      <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text2)' }}>Somma di tutti i costi (fatture + manuali + personnel):</div>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           {[
@@ -712,13 +712,13 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
             <tr key={i} style={{ borderBottom: '1px solid #1a1f2e' }}>
               <td style={S.td}>{lbl}</td>
               <td style={{ ...S.td, fontWeight: 600, color: '#EF4444' }}>{fmtD(val)}</td>
-              <td style={{ ...S.td, color: '#64748b' }}>{pct(val, ce.totCosti)}</td>
+              <td style={{ ...S.td, color: 'var(--text3)' }}>{pct(val, ce.totCosti)}</td>
             </tr>
           ))}
-          <tr style={{ background: '#131825', fontWeight: 700 }}>
+          <tr style={{ background: 'var(--surface2)', fontWeight: 700 }}>
             <td style={S.td}>── TOTALE</td>
             <td style={{ ...S.td, color: '#EF4444' }}>{fmtD(ce.totCosti)}</td>
-            <td style={{ ...S.td, color: '#64748b' }}>{pct(ce.totCosti, ce.ricavi)}</td>
+            <td style={{ ...S.td, color: 'var(--text3)' }}>{pct(ce.totCosti, ce.ricavi)}</td>
           </tr>
         </tbody>
       </table>
@@ -726,7 +726,7 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
 
     {/* MOL */}
     {voce === 'mol' && <div>
-      <div style={{ marginBottom: 12, fontSize: 13, color: '#94a3b8' }}>MOL = Ricavi − Totale costi:</div>
+      <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text2)' }}>MOL = Ricavi − Totale costi:</div>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           <tr style={{ borderBottom: '1px solid #1a1f2e' }}>
@@ -737,7 +737,7 @@ function DrillPanel({ voce, ce, from, to, categorizedItems, categorizedInvoices,
             <td style={S.td}>── Totale costi</td>
             <td style={{ ...S.td, fontWeight: 600, color: '#EF4444' }}>− {fmtD(ce.totCosti)}</td>
           </tr>
-          <tr style={{ background: '#131825', fontWeight: 700 }}>
+          <tr style={{ background: 'var(--surface2)', fontWeight: 700 }}>
             <td style={S.td}>MOL</td>
             <td style={{ ...S.td, color: ce.mol >= 0 ? '#10B981' : '#EF4444' }}>{fmtD(ce.mol)}</td>
           </tr>

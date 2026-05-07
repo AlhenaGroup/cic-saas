@@ -142,7 +142,7 @@ export default function WarehouseDashboard() {
 
   useEffect(() => { load() }, [load])
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontSize: 13 }}>Caricamento cruscotto...</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: 'var(--text3)', fontSize: 13 }}>Caricamento cruscotto...</div>
 
   return <>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
@@ -155,17 +155,17 @@ export default function WarehouseDashboard() {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
       <Card title="Prodotti sotto scorta" badge={critici.length}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Prodotto', 'Categoria', 'Giacenza', 'Scorta min.'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {critici.length === 0 && <tr><td colSpan={4} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessun prodotto sotto scorta</td></tr>}
+            {critici.length === 0 && <tr><td colSpan={4} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center' }}>Nessun prodotto sotto scorta</td></tr>}
             {critici.map(p => (
               <tr key={p.id}>
                 <td style={{ ...S.td, fontWeight: 500 }}>{p.nome}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{p.categoria}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{p.categoria}</td>
                 <td style={{ ...S.td, color: '#EF4444', fontWeight: 600 }}>{fmtN(p.quantita)} {p.unita_misura}</td>
-                <td style={{ ...S.td, color: '#64748b' }}>{fmtN(p.scorta_minima)} {p.unita_misura}</td>
+                <td style={{ ...S.td, color: 'var(--text3)' }}>{fmtN(p.scorta_minima)} {p.unita_misura}</td>
               </tr>
             ))}
           </tbody>
@@ -174,16 +174,16 @@ export default function WarehouseDashboard() {
 
       <Card title="Aumenti prezzo recenti" badge={prezziUp.length}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Prodotto', 'Precedente', 'Attuale', 'Var. %'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {prezziUp.length === 0 && <tr><td colSpan={4} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessun aumento significativo</td></tr>}
+            {prezziUp.length === 0 && <tr><td colSpan={4} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center' }}>Nessun aumento significativo</td></tr>}
             {prezziUp.map(p => (
               <tr key={p.id}>
                 <td style={{ ...S.td, fontWeight: 500 }}>{p.nome}</td>
-                <td style={{ ...S.td, color: '#94a3b8' }}>{fmt(p.prev)}</td>
-                <td style={{ ...S.td, color: '#f1f5f9' }}>{fmt(p.last)}</td>
+                <td style={{ ...S.td, color: 'var(--text2)' }}>{fmt(p.prev)}</td>
+                <td style={{ ...S.td, color: 'var(--text)' }}>{fmt(p.last)}</td>
                 <td style={S.td}><span style={S.badge('#EF4444', 'rgba(239,68,68,.12)')}>+{p.variazione.toFixed(1)}%</span></td>
               </tr>
             ))}
@@ -202,21 +202,21 @@ export default function WarehouseDashboard() {
           { label: 'Prezzi anomali (>20% var.)', items: alerts.prezziAnomali, color: '#EAB308', bg: 'rgba(234,179,8,.12)', render: p => `${p.nome} (${fmt(p.ultimo_prezzo)} vs media ${fmt(p.prezzo_medio)}, ${p.variazione?.toFixed(0)}%)` },
           { label: 'Unita incoerenti', items: alerts.unitaIncoerenti, color: '#EAB308', bg: 'rgba(234,179,8,.12)', render: p => `${p.nome} (${p.unita_misura} / ${p.unita_acquisto}, fatt. conv. = ${p.fattore_conversione || 1})` },
         ].map(alert => (
-          <div key={alert.label} style={{ marginBottom: 12, padding: 10, background: '#131825', borderRadius: 8, border: `1px solid ${alert.items.length > 0 ? alert.color : '#2a3042'}33` }}>
+          <div key={alert.label} style={{ marginBottom: 12, padding: 10, background: 'var(--surface2)', borderRadius: 8, border: `1px solid ${alert.items.length > 0 ? alert.color : '#2a3042'}33` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: alert.items.length > 0 ? 8 : 0 }}>
               <span style={S.badge(alert.color, alert.bg)}>{alert.items.length}</span>
-              <span style={{ fontSize: 13, color: '#e2e8f0', fontWeight: 500 }}>{alert.label}</span>
+              <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>{alert.label}</span>
             </div>
             {alert.items.slice(0, 5).map((p, i) => (
-              <div key={p.id || i} style={{ fontSize: 12, color: '#94a3b8', padding: '2px 0 2px 28px' }}>
+              <div key={p.id || i} style={{ fontSize: 12, color: 'var(--text2)', padding: '2px 0 2px 28px' }}>
                 {alert.render(p)}
               </div>
             ))}
-            {alert.items.length > 5 && <div style={{ fontSize: 11, color: '#475569', padding: '2px 0 0 28px' }}>...e altri {alert.items.length - 5}</div>}
+            {alert.items.length > 5 && <div style={{ fontSize: 11, color: 'var(--text3)', padding: '2px 0 0 28px' }}>...e altri {alert.items.length - 5}</div>}
           </div>
         ))}
         {(alerts.negative.length + alerts.critiche.length + alerts.senzaRicetta.length + alerts.prezziAnomali.length + alerts.unitaIncoerenti.length) === 0 &&
-          <div style={{ textAlign: 'center', padding: 20, color: '#475569', fontSize: 13 }}>Nessuna anomalia rilevata</div>
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--text3)', fontSize: 13 }}>Nessuna anomalia rilevata</div>
         }
       </Card>
     </div>

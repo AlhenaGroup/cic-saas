@@ -303,7 +303,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
       <div style={{ display: 'flex', gap: 6 }}>
         <button onClick={() => { if (fileInputRef.current) fileInputRef.current.click() }}
           disabled={uploading}
-          style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '6px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+          style={{ ...iS, background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '6px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
         >{uploading ? '...' : 'Seleziona file'}</button>
         <input
           type="file"
@@ -333,7 +333,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
         />
       </div>
     }>
-      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
+      <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>
         Seleziona una o piu fatture, DDT o note di credito (XML, CSV, PDF). Le righe verranno salvate nel magazzino.
       </div>
 
@@ -348,11 +348,11 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
 
       {uploadPreviews.length > 0 && (
         <div style={{ border: '1px solid #F59E0B', borderRadius: 8, overflow: 'hidden', marginBottom: 8 }}>
-          <div style={{ background: '#F59E0B', color: '#0f1420', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ background: '#F59E0B', color: 'var(--text)', padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 700, fontSize: 13 }}>{uploadPreviews.length} fatture da importare</span>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => { setUploadPreviews([]); setUploadMsg(null) }}
-                style={{ background: 'rgba(0,0,0,.2)', border: 'none', color: '#0f1420', padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Annulla tutte</button>
+                style={{ background: 'rgba(0,0,0,.2)', border: 'none', color: 'var(--text)', padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Annulla tutte</button>
               <button onClick={async () => {
                 setUploading(true); setUploadMsg(null)
                 const { data: { user } } = await supabase.auth.getUser()
@@ -382,43 +382,43 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                   : { ok: true, text: `${saved} fatture salvate con ${totalRows} righe (visibili in Magazzino Fatture)` })
                 setUploading(false)
               }} disabled={uploading}
-                style={{ background: '#0f1420', border: 'none', color: '#10B981', padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                style={{ background: 'var(--bg)', border: 'none', color: '#10B981', padding: '4px 14px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
               >{uploading ? 'Salvataggio...' : 'Salva tutte'}</button>
             </div>
           </div>
           {uploadPreviews.map(preview => {
             const selRows = preview.righe.filter(r => r.selected)
             const selTot = selRows.reduce((s, r) => s + (Number(r.prezzo_totale) || 0), 0)
-            return <div key={preview._id} style={{ borderTop: '1px solid #2a3042' }}>
+            return <div key={preview._id} style={{ borderTop: '1px solid var(--border)' }}>
               <div onClick={() => setUploadPreviews(prev => prev.map(p => p._id === preview._id ? { ...p, _expanded: !p._expanded } : p))}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#131825', cursor: 'pointer' }}>
-                <span style={{ color: '#64748b', fontSize: 12 }}>{preview._expanded ? '' : ''}</span>
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--surface2)', cursor: 'pointer' }}>
+                <span style={{ color: 'var(--text3)', fontSize: 12 }}>{preview._expanded ? '' : ''}</span>
                 <span style={S.badge(preview.format === 'PDF' ? '#F59E0B' : '#10B981', preview.format === 'PDF' ? 'rgba(245,158,11,.15)' : 'rgba(16,185,129,.15)')}>{preview.format}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', flex: 1 }}>{preview.fornitore || preview._filename || '—'}</span>
-                <span style={{ fontSize: 12, color: '#94a3b8' }}>{preview.numero ? `N. ${preview.numero}` : ''}</span>
-                <span style={{ fontSize: 12, color: '#94a3b8' }}>{preview.data}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{preview.fornitore || preview._filename || '—'}</span>
+                <span style={{ fontSize: 12, color: 'var(--text2)' }}>{preview.numero ? `N. ${preview.numero}` : ''}</span>
+                <span style={{ fontSize: 12, color: 'var(--text2)' }}>{preview.data}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B' }}>{fmt(selTot)}</span>
-                <span style={{ fontSize: 11, color: '#64748b' }}>{selRows.length} righe</span>
+                <span style={{ fontSize: 11, color: 'var(--text3)' }}>{selRows.length} righe</span>
                 <button onClick={e => { e.stopPropagation(); setUploadPreviews(prev => prev.filter(p => p._id !== preview._id)) }}
                   style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 14 }}>×</button>
               </div>
               {preview._expanded && (
-                <div style={{ padding: '12px 14px', background: '#0f1420' }}>
+                <div style={{ padding: '12px 14px', background: 'var(--bg)' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) auto', gap: 8, marginBottom: 10 }}>
                     <div>
-                      <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Fornitore</label>
+                      <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 2 }}>Fornitore</label>
                       <input value={preview.fornitore} onChange={e => setUploadPreviews(prev => prev.map(p => p._id === preview._id ? { ...p, fornitore: e.target.value } : p))} style={{ ...iS, width: '100%', marginBottom: 8 }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Data</label>
+                      <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 2 }}>Data</label>
                       <input type="date" value={preview.data} onChange={e => setUploadPreviews(prev => prev.map(p => p._id === preview._id ? { ...p, data: e.target.value } : p))} style={{ ...iS, width: '100%', marginBottom: 8 }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Numero</label>
+                      <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 2 }}>Numero</label>
                       <input value={preview.numero} onChange={e => setUploadPreviews(prev => prev.map(p => p._id === preview._id ? { ...p, numero: e.target.value } : p))} style={{ ...iS, width: '100%', marginBottom: 8 }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Tipo</label>
+                      <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 2 }}>Tipo</label>
                       <select value={preview.tipo_doc} onChange={e => setUploadPreviews(prev => prev.map(p => p._id === preview._id ? { ...p, tipo_doc: e.target.value } : p))} style={{ ...iS, width: '100%', marginBottom: 8 }}>
                         <option value="fattura">Fattura</option><option value="nota_credito">Nota di credito</option><option value="ddt">DDT</option>
                       </select>
@@ -426,7 +426,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                   </div>
                   <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+                      <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
                         <th style={{ ...S.th, width: 30 }}></th><th style={S.th}>Descrizione</th><th style={S.th}>Qty</th><th style={S.th}>UM</th><th style={S.th}>P. unit.</th><th style={S.th}>Totale</th>
                       </tr></thead>
                       <tbody>
@@ -435,7 +435,7 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                             <td style={S.td}><input type="checkbox" checked={r.selected} onChange={() => setUploadPreviews(prev => prev.map(p => p._id === preview._id ? { ...p, righe: p.righe.map((rr, j) => j === i ? { ...rr, selected: !rr.selected } : rr) } : p))} style={{ accentColor: '#F59E0B' }} /></td>
                             <td style={{ ...S.td, fontSize: 12, maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nome_fattura}</td>
                             <td style={{ ...S.td, fontSize: 12 }}>{r.quantita || '—'}</td>
-                            <td style={{ ...S.td, fontSize: 12, color: '#64748b' }}>{r.unita || '—'}</td>
+                            <td style={{ ...S.td, fontSize: 12, color: 'var(--text3)' }}>{r.unita || '—'}</td>
                             <td style={{ ...S.td, fontSize: 12 }}>{r.prezzo_unitario ? fmt(r.prezzo_unitario) : '—'}</td>
                             <td style={{ ...S.td, fontSize: 12, fontWeight: 600 }}>{fmt(r.prezzo_totale)}</td>
                           </tr>
@@ -462,11 +462,11 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
     }>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Importo', 'Stato', 'Locale', 'XML'].map(h => <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {tsFiltered.length === 0 && !tsLoading && <tr><td colSpan={9} style={{ ...S.td, color: '#475569', textAlign: 'center', padding: 20 }}>Nessuna fattura nel periodo selezionato.</td></tr>}
+            {tsFiltered.length === 0 && !tsLoading && <tr><td colSpan={9} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center', padding: 20 }}>Nessuna fattura nel periodo selezionato.</td></tr>}
             {[...tsPaginated].sort((a, b) => (b.docDate || '').localeCompare(a.docDate || '')).map((f, i) => {
               const isExpanded = expandedTs === f.hubId
               const isNotaCredito = f.detail?.td === 'TD04' || f.detail?.td === 'TD05'
@@ -484,10 +484,10 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                   } catch {} finally { setTsXmlLoading(false) }
                 }}
                 style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: isExpanded ? '#131825' : (isNotaCredito ? 'rgba(16,185,129,.04)' : 'transparent') }}>
-                <td style={{ ...S.td, width: 24, color: '#64748b' }}>{isExpanded ? '' : ''}</td>
+                <td style={{ ...S.td, width: 24, color: 'var(--text3)' }}>{isExpanded ? '' : ''}</td>
                 <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{f.docDate}</td>
                 <td style={{ ...S.td, fontWeight: 500 }}>{f.senderName || '—'}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{f.docId || '—'}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{f.docId || '—'}</td>
                 <td style={S.td}><span style={S.badge(
                   isNotaCredito ? '#10B981' : '#3B82F6',
                   isNotaCredito ? 'rgba(16,185,129,.12)' : 'rgba(59,130,246,.12)'
@@ -513,11 +513,11 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                   <button onClick={() => downloadTsXml(f)} style={{ background: 'none', border: 'none', color: '#3B82F6', cursor: 'pointer', fontSize: 11 }}>XML</button>
                 </td>
               </tr>
-              {isExpanded && <tr key={'ts-d-' + (f.hubId || i)}><td colSpan={9} style={{ padding: '8px 14px 12px 38px', background: '#131825' }}>
+              {isExpanded && <tr key={'ts-d-' + (f.hubId || i)}><td colSpan={9} style={{ padding: '8px 14px 12px 38px', background: 'var(--surface2)' }}>
                 {tsXmlLoading && <div style={{ padding: 12, color: '#F59E0B', fontSize: 12 }}>Caricamento righe...</div>}
                 {expandedLines.length > 0 && <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 12, color: '#64748b' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text3)' }}>
                       {expandedLines.length} righe — locale default: <strong style={{ color: '#F59E0B' }}>{tsLocaleMap[f.hubId] || 'non assegnato'}</strong>
                     </span>
                     <button onClick={() => saveTsXmlFile(f)} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>Scarica XML</button>
@@ -533,13 +533,13 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                         return <tr key={j} style={{ background: isOverridden ? 'rgba(245,158,11,.06)' : 'transparent' }}>
                           <td style={{ ...S.td, fontSize: 12, fontWeight: 500, padding: '6px 8px' }}>{l.descrizione}</td>
                           <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{l.quantita}</td>
-                          <td style={{ ...S.td, fontSize: 11, color: '#64748b', padding: '6px 8px' }}>{l.um}</td>
+                          <td style={{ ...S.td, fontSize: 11, color: 'var(--text3)', padding: '6px 8px' }}>{l.um}</td>
                           <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{l.prezzoUnitario ? Number(l.prezzoUnitario).toFixed(2) + ' €' : ''}</td>
                           <td style={{ ...S.td, fontSize: 12, fontWeight: 600, padding: '6px 8px' }}>{l.prezzoTotale ? Number(l.prezzoTotale).toFixed(2) + ' €' : ''}</td>
-                          <td style={{ ...S.td, fontSize: 11, color: '#94a3b8', padding: '6px 8px' }}>{l.aliquotaIVA}%</td>
+                          <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)', padding: '6px 8px' }}>{l.aliquotaIVA}%</td>
                           <td style={{ ...S.td, padding: '6px 8px' }} onClick={e => e.stopPropagation()}>
                             <select value={itemLocale} onChange={e => setTsItemLocale(f.hubId, j, e.target.value)}
-                              style={{ ...iS, fontSize: 10, padding: '2px 4px', width: 110, background: isOverridden ? 'rgba(245,158,11,.2)' : '#0f1420', color: '#e2e8f0' }}>
+                              style={{ ...iS, fontSize: 10, padding: '2px 4px', width: 110, background: isOverridden ? 'rgba(245,158,11,.2)' : '#0f1420', color: 'var(--text)' }}>
                               <option value="">— default —</option>
                               <option value="Alhena Group">Alhena Group</option>
                               {sps.map(s => <option key={s.id} value={s.description || s.name}>{s.description || s.name}</option>)}
@@ -550,8 +550,8 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
                     </tbody>
                   </table>
                 </>}
-                {!tsXmlLoading && expandedLines.length === 0 && tsXmlContent && <div style={{ padding: 8, fontSize: 12, color: '#94a3b8' }}>Nessuna riga trovata nel XML.</div>}
-                {!tsXmlLoading && !tsXmlContent && <div style={{ padding: 8, fontSize: 12, color: '#64748b' }}>Caricamento...</div>}
+                {!tsXmlLoading && expandedLines.length === 0 && tsXmlContent && <div style={{ padding: 8, fontSize: 12, color: 'var(--text2)' }}>Nessuna riga trovata nel XML.</div>}
+                {!tsXmlLoading && !tsXmlContent && <div style={{ padding: 8, fontSize: 12, color: 'var(--text3)' }}>Caricamento...</div>}
               </td></tr>}
               </>
             })}
@@ -565,8 +565,8 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
           <button onClick={() => setTsPage(p => Math.max(0, p - 1))} disabled={safePage === 0}
             style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: safePage === 0 ? 'not-allowed' : 'pointer',
               background: safePage === 0 ? '#1a1f2e' : '#3B82F6', color: safePage === 0 ? '#475569' : '#fff', border: 'none' }}>Precedente</button>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>
-            Pagina <strong style={{ color: '#e2e8f0' }}>{safePage + 1}/{totalPages}</strong>
+          <span style={{ fontSize: 12, color: 'var(--text2)' }}>
+            Pagina <strong style={{ color: 'var(--text)' }}>{safePage + 1}/{totalPages}</strong>
             {' · '}{tsFiltered.length} fatture {selectedLocaleName ? `su ${selectedLocaleName}` : 'totali'}
           </span>
           <button onClick={() => setTsPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}
@@ -578,8 +578,8 @@ export default function InvoiceTab({ sp, sps, from, to, fatSearch, setFatSearch 
           <button onClick={() => loadTsPage(tsPage - 1)} disabled={tsPage === 0 || tsLoading}
             style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: tsPage === 0 ? 'not-allowed' : 'pointer',
               background: tsPage === 0 ? '#1a1f2e' : '#3B82F6', color: tsPage === 0 ? '#475569' : '#fff', border: 'none' }}>Precedente</button>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>
-            Pagina <strong style={{ color: '#e2e8f0' }}>{tsPage + 1}</strong>
+          <span style={{ fontSize: 12, color: 'var(--text2)' }}>
+            Pagina <strong style={{ color: 'var(--text)' }}>{tsPage + 1}</strong>
             {' · '}{tsInvoices.length} fatture
             {tsAllLoading && <span style={{ marginLeft: 8, color: '#F59E0B' }}>⟳ caricamento completo…</span>}
           </span>

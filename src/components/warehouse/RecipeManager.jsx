@@ -274,10 +274,10 @@ export default function RecipeManager({ sp, sps }) {
           </select>
         </div>
       }>
-        {loading && <div style={{ padding: 20, textAlign: 'center', color: '#64748b' }}>Caricamento...</div>}
+        {loading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>Caricamento...</div>}
         <div style={{ maxHeight: selected ? 500 : 600, overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Prodotto', 'Reparto', 'Prezzo', 'Venduti', 'FC', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 9 }}>{h}</th>)}
             </tr></thead>
             <tbody>
@@ -290,13 +290,13 @@ export default function RecipeManager({ sp, sps }) {
                   onClick={() => { setSaveStatus('idle'); setSaveError(''); setSelected(selected?.name === p.name ? null : p) }}
                   style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: selected?.name === p.name ? '#131825' : 'transparent' }}>
                   <td style={{ ...S.td, fontWeight: 600, fontSize: 12 }}>{p.name}</td>
-                  <td style={{ ...S.td, fontSize: 10, color: '#94a3b8' }}>{p.reparto}</td>
+                  <td style={{ ...S.td, fontSize: 10, color: 'var(--text2)' }}>{p.reparto}</td>
                   <td style={{ ...S.td, fontSize: 11 }}>{fmtD(p.avgPrice)}</td>
-                  <td style={{ ...S.td, fontSize: 11, color: '#64748b' }}>{fmtN(p.qty)}</td>
+                  <td style={{ ...S.td, fontSize: 11, color: 'var(--text3)' }}>{fmtN(p.qty)}</td>
                   <td style={{ ...S.td, fontSize: 11 }}>
                     {hasRecipe
                       ? <span style={{ color: pct > 35 ? '#EF4444' : pct > 25 ? '#F59E0B' : '#10B981', fontWeight: 600 }}>{pct}%</span>
-                      : <span style={{ color: '#475569', fontSize: 10 }}>—</span>}
+                      : <span style={{ color: 'var(--text3)', fontSize: 10 }}>—</span>}
                   </td>
                   <td style={{ ...S.td, fontSize: 10 }}>
                     {hasRecipe ? <span style={{ color: '#10B981' }}></span> : null}
@@ -314,7 +314,7 @@ export default function RecipeManager({ sp, sps }) {
       <Card title={`Ricetta: ${selected.name}`} extra={
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {saveStatus === 'saving' && (
-            <span style={{ fontSize: 11, color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: 4 }}>⏳ Salvando…</span>
+            <span style={{ fontSize: 11, color: 'var(--text2)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>⏳ Salvando…</span>
           )}
           {saveStatus === 'saved' && (
             <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>Salvato</span>
@@ -322,32 +322,32 @@ export default function RecipeManager({ sp, sps }) {
           {saveStatus === 'error' && (
             <span title={saveError} style={{ fontSize: 11, color: '#EF4444', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help' }}>Errore</span>
           )}
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>{selected.reparto} · {fmtD(selected.avgPrice)}</span>
+          <span style={{ fontSize: 11, color: 'var(--text2)' }}>{selected.reparto} · {fmtD(selected.avgPrice)}</span>
         </div>
       }>
         {/* KPI food cost */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
-          <div style={{ padding: 10, background: '#131825', borderRadius: 6 }}>
-            <div style={{ fontSize: 10, color: '#64748b' }}>Food Cost</div>
+          <div style={{ padding: 10, background: 'var(--surface2)', borderRadius: 6 }}>
+            <div style={{ fontSize: 10, color: 'var(--text3)' }}>Food Cost</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#F59E0B', marginTop: 2 }}>{fmtD(foodCost)}</div>
           </div>
-          <div style={{ padding: 10, background: '#131825', borderRadius: 6 }}>
-            <div style={{ fontSize: 10, color: '#64748b' }}>FC %</div>
+          <div style={{ padding: 10, background: 'var(--surface2)', borderRadius: 6 }}>
+            <div style={{ fontSize: 10, color: 'var(--text3)' }}>FC %</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: fcPct > 35 ? '#EF4444' : fcPct > 25 ? '#F59E0B' : '#10B981', marginTop: 2 }}>{fcPct}%</div>
           </div>
-          <div style={{ padding: 10, background: '#131825', borderRadius: 6 }}>
-            <div style={{ fontSize: 10, color: '#64748b' }}>MOL</div>
+          <div style={{ padding: 10, background: 'var(--surface2)', borderRadius: 6 }}>
+            <div style={{ fontSize: 10, color: 'var(--text3)' }}>MOL</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#10B981', marginTop: 2 }}>{fmtD(selected.avgPrice - foodCost)}</div>
           </div>
         </div>
 
         {/* Tabella ingredienti */}
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Articolo', 'Qty', 'UM', '€/UM', 'Costo', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 9 }}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {ingredienti.length === 0 && <tr><td colSpan={6} style={{ ...S.td, color: '#475569', textAlign: 'center', fontSize: 12 }}>Nessun ingrediente. Cerca e aggiungi articoli.</td></tr>}
+            {ingredienti.length === 0 && <tr><td colSpan={6} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center', fontSize: 12 }}>Nessun ingrediente. Cerca e aggiungi articoli.</td></tr>}
             {ingredienti.map((ig, idx) => {
               if (!ig || !ig.nome_articolo) return null
               const key = (ig.nome_articolo || '').toLowerCase()
@@ -385,7 +385,7 @@ export default function RecipeManager({ sp, sps }) {
                 </td>
                 <td style={{ ...S.td, padding: '4px 6px' }}>
                   <select value={igUm} onChange={e => updateIngredient(idx, 'unita', e.target.value)}
-                    style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, color: '#e2e8f0' }}>
+                    style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, color: 'var(--text)' }}>
                     <option value="KG">KG</option>
                     <option value="g">g</option>
                     <option value="LT">LT</option>
@@ -394,14 +394,14 @@ export default function RecipeManager({ sp, sps }) {
                     <option value="PZ">PZ</option>
                   </select>
                 </td>
-                <td style={{ ...S.td, fontSize: 10, color: '#64748b' }}>{prezzoDisplay}</td>
+                <td style={{ ...S.td, fontSize: 10, color: 'var(--text3)' }}>{prezzoDisplay}</td>
                 <td style={{ ...S.td, fontWeight: 600, fontSize: 11, color: '#F59E0B' }}>{costo > 0 ? fmtD(Math.round(costo * 10000) / 10000) : '—'}</td>
                 <td style={{ ...S.td }}>
                   <button onClick={() => removeIngredient(idx)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 12 }}>×</button>
                 </td>
               </tr>
             })}
-            {ingredienti.length > 0 && <tr style={{ borderTop: '2px solid #2a3042' }}>
+            {ingredienti.length > 0 && <tr style={{ borderTop: '2px solid var(--border)' }}>
               <td colSpan={4} style={{ ...S.td, fontWeight: 700, textAlign: 'right', fontSize: 12 }}>Totale Food Cost</td>
               <td style={{ ...S.td, fontWeight: 700, fontSize: 13, color: '#F59E0B' }}>{fmtD(foodCost)}</td>
               <td />
@@ -410,14 +410,14 @@ export default function RecipeManager({ sp, sps }) {
         </table>
 
         {/* Aggiungi ingrediente */}
-        <div style={{ background: '#131825', borderRadius: 8, padding: 12, border: '1px solid #2a3042' }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>Aggiungi articolo alla ricetta:</div>
+        <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: 12, border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 6 }}>Aggiungi articolo alla ricetta:</div>
           <input placeholder="Cerca articolo o semilavorato..." value={ingredientSearch}
             onChange={e => setIngredientSearch(e.target.value)}
             style={{ ...iS, fontSize: 12, padding: '6px 10px', width: '100%', marginBottom: 6 }} />
           {filteredArticles.slice(0, 12).map(a => (
             <div key={a.nome + (a.isManual ? ':m' : '')} onClick={() => addIngredient(a.nome)}
-              style={{ padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid #1a1f2e', fontSize: 12, color: '#e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              style={{ padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid #1a1f2e', fontSize: 12, color: 'var(--text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 500 }}>
                 {a.isManual && <span style={{ marginRight: 4, fontSize: 10 }} title="Semilavorato"></span>}
                 {a.nome}
@@ -426,7 +426,7 @@ export default function RecipeManager({ sp, sps }) {
             </div>
           ))}
           {ingredientSearch.length >= 2 && filteredArticles.length === 0 && (
-            <div style={{ padding: 8, fontSize: 11, color: '#475569' }}>Nessun articolo trovato. Associa prima gli articoli nelle fatture.</div>
+            <div style={{ padding: 8, fontSize: 11, color: 'var(--text3)' }}>Nessun articolo trovato. Associa prima gli articoli nelle fatture.</div>
           )}
         </div>
       </Card>

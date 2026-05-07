@@ -99,11 +99,11 @@ export default function BudgetModule({ sp, sps, from, to }) {
       gap: 10,
       marginBottom: 14
     }}>
-      <div style={{ fontSize: 12, color: '#64748b' }}>
-        <strong style={{ color: '#94a3b8' }}>{localeName}</strong>
+      <div style={{ fontSize: 12, color: 'var(--text3)' }}>
+        <strong style={{ color: 'var(--text2)' }}>{localeName}</strong>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Periodo budget:</span>
+        <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>Periodo budget:</span>
         <select value={month} onChange={e => setMonth(Number(e.target.value))} style={inputS}>
           {MONTH_LABELS.map((lbl, i) => (
             <option key={i + 1} value={i + 1}>{lbl}</option>
@@ -128,12 +128,12 @@ export default function BudgetModule({ sp, sps, from, to }) {
       <Card title={current[1]} badge="In sviluppo">
         <div style={{ padding: '32px 8px', textAlign: 'center' }}>
           <div style={{ fontSize: 56, marginBottom: 14, opacity: .3 }}>{bigIcon}</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#cbd5e1', marginBottom: 8 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
             {shortTitle}
           </div>
           <div style={{
             fontSize: 12,
-            color: '#64748b',
+            color: 'var(--text3)',
             maxWidth: 520,
             margin: '0 auto',
             lineHeight: 1.5

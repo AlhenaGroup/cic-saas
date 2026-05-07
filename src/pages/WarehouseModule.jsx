@@ -167,13 +167,13 @@ function ProdottiCiC({ sp, sps }) {
         <div style={{ position: 'absolute', bottom: 28, left: 8, fontSize: 10, color: '#EF4444', fontWeight: 600, opacity: 0.8 }}>Basso vendente / Basso margine</div>
         <div style={{ position: 'absolute', bottom: 28, right: 8, fontSize: 10, color: '#3B82F6', fontWeight: 600, opacity: 0.8, textAlign: 'right' }}>Basso vendente / Alto margine</div>
         {/* Assi label */}
-        <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: '#475569' }}>Margine alto</div>
-        <div style={{ position: 'absolute', top: '50%', left: 4, transform: 'translateY(-50%) rotate(-90deg)', fontSize: 9, color: '#475569', transformOrigin: 'left center' }}>Vendite </div>
+        <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: 'var(--text3)' }}>Margine alto</div>
+        <div style={{ position: 'absolute', top: '50%', left: 4, transform: 'translateY(-50%) rotate(-90deg)', fontSize: 9, color: 'var(--text3)', transformOrigin: 'left center' }}>Vendite </div>
         <SRC>
           <ScatterChart margin={{ top: 30, right: 20, bottom: 25, left: 20 }}>
             <SX type="number" dataKey="y" name="Margine €" stroke="#2a3042" fontSize={9} tick={{ fill: '#475569' }} />
             <SY type="number" dataKey="x" name="Qty vendute" stroke="#2a3042" fontSize={9} tick={{ fill: '#475569' }} />
-            <ST contentStyle={{ background: '#0f1420', border: '1px solid #2a3042', fontSize: 11, zIndex: 10 }}
+            <ST contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', fontSize: 11, zIndex: 10 }}
               formatter={(v, name) => [name === 'Qty vendute' ? fmtN(v) : fmtD(v), name]}
               labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ''} />
             <Scatter data={matrixData} nameKey="name">
@@ -190,8 +190,8 @@ function ProdottiCiC({ sp, sps }) {
         {SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
       </select>
     }>
-      {loading && <div style={{ padding: 20, textAlign: 'center', color: '#64748b' }}>Caricamento...</div>}
-      {!loading && products.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#475569' }}>Nessun dato vendite.</div>}
+      {loading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>Caricamento...</div>}
+      {!loading && products.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>Nessun dato vendite.</div>}
       {sorted.length > 0 && <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
           <KPI label="Prodotti" icon="" value={products.length} accent="#F59E0B" />
@@ -200,19 +200,19 @@ function ProdottiCiC({ sp, sps }) {
         </div>
         <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Nome', 'Reparto', 'Categoria', 'Prezzo vendita', 'Qty vendute', 'Incasso tot.', 'Costo', 'MOL', 'FC%'].map(h => <th key={h} style={{ ...S.th, fontSize: 10 }}>{h}</th>)}
           </tr></thead>
           <tbody>
             {sorted.map((p, i) => (
               <tr key={i} style={{ borderBottom: '1px solid #1a1f2e' }}>
                 <td style={{ ...S.td, fontWeight: 600, fontSize: 12 }}>{p.name}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>{p.reparto}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', fontSize: 11 }}>{p.reparto}</td>
                 <td style={{ ...S.td, color: '#8B5CF6', fontSize: 11 }}>{p.categoria}</td>
                 <td style={{ ...S.td, fontWeight: 500 }}>{fmtD(p.avgPrice)}</td>
                 <td style={S.td}>{fmtN(p.qty)}</td>
                 <td style={{ ...S.td, fontWeight: 600, color: '#10B981' }}>{fmtD(p.revenue)}</td>
-                <td style={{ ...S.td, color: '#64748b' }}>{p.costo > 0 ? fmtD(p.costo) : <span style={{ color: '#475569', fontSize: 10 }}>da ricette</span>}</td>
+                <td style={{ ...S.td, color: 'var(--text3)' }}>{p.costo > 0 ? fmtD(p.costo) : <span style={{ color: 'var(--text3)', fontSize: 10 }}>da ricette</span>}</td>
                 <td style={{ ...S.td, fontWeight: 600, color: p.mol > 0 ? '#10B981' : '#EF4444' }}>{p.costo > 0 ? fmtD(p.mol) : '—'}</td>
                 <td style={{ ...S.td, fontWeight: 600, color: p.fcPct > 35 ? '#EF4444' : p.fcPct > 25 ? '#F59E0B' : '#10B981' }}>{p.costo > 0 ? p.fcPct.toFixed(1) + '%' : '—'}</td>
               </tr>
@@ -323,8 +323,8 @@ function ArticoliTab({ sp, sps }) {
       </select>
     </div>
   }>
-    {loading && <div style={{ padding: 20, textAlign: 'center', color: '#64748b' }}>Caricamento...</div>}
-    {!loading && articles.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#475569' }}>Nessun articolo. Importa e associa le fatture nel tab Fatture.</div>}
+    {loading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>Caricamento...</div>}
+    {!loading && articles.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>Nessun articolo. Importa e associa le fatture nel tab Fatture.</div>}
     {filtered.length > 0 && <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
         <KPI label="Articoli" icon="" value={totArticoli} accent="#F59E0B" />
@@ -333,7 +333,7 @@ function ArticoliTab({ sp, sps }) {
       </div>
       <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+        <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
           {['Nome articolo', 'Mag.', 'UM', 'Fornitori', 'Acquisti', 'Tot. qty', '€/UM medio', 'Ultimo €/UM', 'Spesa tot.', 'Ultimo acq.'].map(h => <th key={h} style={{ ...S.th, fontSize: 9 }}>{h}</th>)}
         </tr></thead>
         <tbody>
@@ -352,14 +352,14 @@ function ArticoliTab({ sp, sps }) {
                 a.magazzino === 'beverage' ? '#3B82F6' : a.magazzino === 'food' ? '#F59E0B' : a.magazzino === 'materiali' ? '#8B5CF6' : a.magazzino === 'attrezzatura' ? '#10B981' : '#64748b',
                 a.magazzino === 'beverage' ? 'rgba(59,130,246,.12)' : a.magazzino === 'food' ? 'rgba(245,158,11,.12)' : a.magazzino === 'materiali' ? 'rgba(139,92,246,.12)' : a.magazzino === 'attrezzatura' ? 'rgba(16,185,129,.12)' : 'rgba(100,116,139,.12)'
               )}>{a.magazzino}</span></td>
-              <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{a.unita}</td>
-              <td style={{ ...S.td, fontSize: 10, color: '#94a3b8', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.fornitori}</td>
+              <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{a.unita}</td>
+              <td style={{ ...S.td, fontSize: 10, color: 'var(--text2)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.fornitori}</td>
               <td style={{ ...S.td, fontSize: 11, textAlign: 'center' }}>{a.acquisti}</td>
               <td style={{ ...S.td, fontSize: 11, fontWeight: 500 }}>{a.totUm > 0 ? (Number.isInteger(a.totUm) ? a.totUm : a.totUm.toFixed(1)) : fmtN(a.totQty)} {a.unita}</td>
               <td style={{ ...S.td, fontSize: 11, color: '#F59E0B' }}>{a.prezzoMedio > 0 ? fmtD(Math.round(a.prezzoMedio * 100) / 100) + '/' + a.unita : '—'}</td>
               <td style={{ ...S.td, fontSize: 11, color: a.ultimoPrezzo > a.prezzoMedio * 1.1 ? '#EF4444' : '#10B981' }}>{a.ultimoPrezzo > 0 ? fmtD(Math.round(a.ultimoPrezzo * 100) / 100) + '/' + a.unita : '—'}</td>
               <td style={{ ...S.td, fontWeight: 600, fontSize: 11 }}>{fmtD(a.totSpesa)}</td>
-              <td style={{ ...S.td, fontSize: 10, color: '#64748b' }}>{a.ultimaData}</td>
+              <td style={{ ...S.td, fontSize: 10, color: 'var(--text3)' }}>{a.ultimaData}</td>
             </tr>
           ))}
         </tbody>
@@ -441,30 +441,30 @@ function ArticleEditModal({ article, onClose, onSaved }) {
   const UNIT_OPTIONS = ['', 'PZ', 'KG', 'LT', 'GR', 'ML', 'CONF', 'CASSA']
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 800 }}>
-      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 800 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 15 }}>Modifica articolo</h3>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Le modifiche si applicano a tutte le {rows.length} righe fattura di questo articolo</div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Le modifiche si applicano a tutte le {rows.length} righe fattura di questo articolo</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         {/* Campi modificabili globali */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
           <label style={{ display: 'block' }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Nome articolo</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Nome articolo</div>
             <input value={nome} onChange={e => setNome(e.target.value)}
               style={{ ...S.input, width: '100%' }} />
           </label>
           <label style={{ display: 'block' }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Magazzino</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Magazzino</div>
             <select value={magazzino} onChange={e => setMagazzino(e.target.value)} style={{ ...S.input, width: '100%' }}>
               {MAG_OPTIONS.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
             </select>
           </label>
           <label style={{ display: 'block' }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Unità di misura</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Unità di misura</div>
             <select value={unita} onChange={e => setUnita(e.target.value)} style={{ ...S.input, width: '100%' }}>
               {UNIT_OPTIONS.map(u => <option key={u} value={u}>{u || '—'}</option>)}
             </select>
@@ -486,7 +486,7 @@ function ArticleEditModal({ article, onClose, onSaved }) {
             style={{ cursor: 'pointer' }} />
           <span style={{ color: touchedEscludiStaff ? '#F59E0B' : '#94a3b8' }}>
             Nascondi dall'inventario dei collaboratori
-            <span style={{ fontSize: 10, marginLeft: 6, color: '#64748b' }}>· l'articolo non comparirà nell'inventario fatto dal mobile (resta nelle viste admin)</span>
+            <span style={{ fontSize: 10, marginLeft: 6, color: 'var(--text3)' }}>· l'articolo non comparirà nell'inventario fatto dal mobile (resta nelle viste admin)</span>
             {touchedEscludiStaff && <span style={{ fontSize: 10, marginLeft: 6, color: '#F59E0B' }}>· verrà aggiornato</span>}
           </span>
         </label>
@@ -494,19 +494,19 @@ function ArticleEditModal({ article, onClose, onSaved }) {
         {err && <div style={{ color: '#EF4444', fontSize: 12, marginTop: 10 }}>{err}</div>}
 
         {/* Tabella righe fattura */}
-        <div style={{ marginTop: 14, borderTop: '1px solid #2a3042', paddingTop: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', marginBottom: 8 }}>
+        <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginBottom: 8 }}>
             Righe fattura ({rows.length})
           </div>
           {loadingRows ? (
-            <div style={{ padding: 20, color: '#64748b', textAlign: 'center', fontSize: 12 }}>Caricamento…</div>
+            <div style={{ padding: 20, color: 'var(--text3)', textAlign: 'center', fontSize: 12 }}>Caricamento…</div>
           ) : rows.length === 0 ? (
-            <div style={{ padding: 20, color: '#64748b', textAlign: 'center', fontSize: 12 }}>Nessuna riga.</div>
+            <div style={{ padding: 20, color: 'var(--text3)', textAlign: 'center', fontSize: 12 }}>Nessuna riga.</div>
           ) : (
             <div style={{ maxHeight: 320, overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                <thead style={{ position: 'sticky', top: 0, background: '#131825' }}>
-                  <tr style={{ borderBottom: '1px solid #2a3042' }}>
+                <thead style={{ position: 'sticky', top: 0, background: 'var(--surface2)' }}>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['Data', 'Fornitore', 'Locale', 'Qty', 'UM', '€/UM', 'Tot.', 'Escl.', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 10 }}>{h}</th>)}
                   </tr>
                 </thead>
@@ -516,10 +516,10 @@ function ArticleEditModal({ article, onClose, onSaved }) {
                     const prezzoUM = totalUnita > 0 ? Math.abs(Number(r.prezzo_totale || 0)) / totalUnita : 0
                     return <tr key={r.id} style={{ borderBottom: '1px solid #1a1f2e', opacity: r.escludi_magazzino ? 0.5 : 1 }}>
                       <td style={{ ...S.td, fontSize: 10 }}>{r.warehouse_invoices?.data || '—'}</td>
-                      <td style={{ ...S.td, fontSize: 10, color: '#94a3b8', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.warehouse_invoices?.fornitore || '—'}</td>
-                      <td style={{ ...S.td, fontSize: 10, color: '#94a3b8' }}>{r.warehouse_invoices?.locale || '—'}</td>
+                      <td style={{ ...S.td, fontSize: 10, color: 'var(--text2)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.warehouse_invoices?.fornitore || '—'}</td>
+                      <td style={{ ...S.td, fontSize: 10, color: 'var(--text2)' }}>{r.warehouse_invoices?.locale || '—'}</td>
                       <td style={{ ...S.td, fontSize: 10 }}>{r.quantita}</td>
-                      <td style={{ ...S.td, fontSize: 10, color: '#94a3b8' }}>{r.unita || '—'}</td>
+                      <td style={{ ...S.td, fontSize: 10, color: 'var(--text2)' }}>{r.unita || '—'}</td>
                       <td style={{ ...S.td, fontSize: 10, color: '#F59E0B' }}>{prezzoUM > 0 ? fmtD(Math.round(prezzoUM * 10000) / 10000) : '—'}</td>
                       <td style={{ ...S.td, fontSize: 10, fontWeight: 600 }}>{fmtD(Math.abs(Number(r.prezzo_totale || 0)))}</td>
                       <td style={{ ...S.td, textAlign: 'center' }}>
@@ -536,10 +536,10 @@ function ArticleEditModal({ article, onClose, onSaved }) {
           )}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
           <button onClick={onClose} style={{ ...S.input, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
           <button onClick={save} disabled={saving || !nome.trim()}
-            style={{ ...S.input, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer', opacity: saving || !nome.trim() ? 0.5 : 1 }}>
+            style={{ ...S.input, background: '#10B981', color: 'var(--text)', fontWeight: 700, border: 'none', padding: '8px 20px', cursor: saving ? 'wait' : 'pointer', opacity: saving || !nome.trim() ? 0.5 : 1 }}>
             {saving ? 'Salvo…' : 'Salva modifiche globali'}
           </button>
         </div>

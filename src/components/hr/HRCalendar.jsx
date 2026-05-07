@@ -96,13 +96,13 @@ export default function HRCalendar({ employees }) {
     <Card title="Calendario" extra={
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button onClick={prevMonth} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>‹</button>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', minWidth: 140, textAlign: 'center', textTransform: 'capitalize' }}>{monthLabel}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', minWidth: 140, textAlign: 'center', textTransform: 'capitalize' }}>{monthLabel}</span>
         <button onClick={nextMonth} style={{ ...iS, padding: '4px 10px', fontSize: 12 }}>›</button>
-        <button onClick={() => { setShowForm(true); setForm(f => ({ ...f, data_inizio: todayStr, data_fine: todayStr })) }} style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>+ Evento</button>
+        <button onClick={() => { setShowForm(true); setForm(f => ({ ...f, data_inizio: todayStr, data_fine: todayStr })) }} style={{ ...iS, background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '4px 12px', fontWeight: 600, fontSize: 11 }}>+ Evento</button>
       </div>
     }>
       {/* Form nuovo evento */}
-      {showForm && <div style={{ background: '#131825', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #2a3042' }}>
+      {showForm && <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid var(--border)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 8 }}>
           <input placeholder="Titolo *" value={form.titolo} onChange={e => setForm(p => ({ ...p, titolo: e.target.value }))} style={formStyle} />
           <input type="date" value={form.data_inizio} onChange={e => setForm(p => ({ ...p, data_inizio: e.target.value }))} style={formStyle} title="Dal" />
@@ -120,13 +120,13 @@ export default function HRCalendar({ employees }) {
             {employees.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
           </select>
           <button onClick={saveEvent} disabled={!form.titolo || !form.data_inizio} style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '5px 14px', fontWeight: 600, fontSize: 11 }}>Salva</button>
-          <button onClick={() => setShowForm(false)} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '5px 10px', fontSize: 11 }}>Annulla</button>
+          <button onClick={() => setShowForm(false)} style={{ ...iS, color: 'var(--text3)', border: '1px solid var(--border)', padding: '5px 10px', fontSize: 11 }}>Annulla</button>
         </div>
       </div>}
 
       {/* Griglia calendario */}
       <div className="hr-calendar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
-        {DAYS_HEADER.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: '#475569', fontWeight: 600, padding: '4px 0', textTransform: 'uppercase' }}>{d}</div>)}
+        {DAYS_HEADER.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'var(--text3)', fontWeight: 600, padding: '4px 0', textTransform: 'uppercase' }}>{d}</div>)}
         {days.map((d, i) => {
           const ds = d.toISOString().split('T')[0]
           const isCurrentMonth = d.getMonth() === month
@@ -144,7 +144,7 @@ export default function HRCalendar({ employees }) {
               fontSize: 9, padding: '1px 4px', borderRadius: 3, marginBottom: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
               background: (TYPE_COLORS[e.tipo] || '#475569') + '22', color: TYPE_COLORS[e.tipo] || '#94a3b8'
             }}>{e.titolo}</div>)}
-            {evts.length > 3 && <div style={{ fontSize: 9, color: '#64748b' }}>+{evts.length - 3}</div>}
+            {evts.length > 3 && <div style={{ fontSize: 9, color: 'var(--text3)' }}>+{evts.length - 3}</div>}
           </div>
         })}
       </div>
@@ -154,7 +154,7 @@ export default function HRCalendar({ employees }) {
     {selectedDay && <div style={{ marginTop: 12 }}>
       <Card title={selectedDay.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} badge={selectedDayEvents.length + ' eventi'}>
         {selectedDayEvents.length === 0 ? (
-          <div style={{ color: '#475569', textAlign: 'center', padding: 16, fontSize: 13 }}>Nessun evento per questo giorno.</div>
+          <div style={{ color: 'var(--text3)', textAlign: 'center', padding: 16, fontSize: 13 }}>Nessun evento per questo giorno.</div>
         ) : (
           <div>
             {selectedDayEvents.map(e => {
@@ -163,8 +163,8 @@ export default function HRCalendar({ employees }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 4, height: 32, borderRadius: 2, background: URGENCY_COLORS[e.urgenza] || '#94a3b8' }} />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#e2e8f0' }}>{e.titolo}</div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{e.titolo}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)' }}>
                       {e.tipo && <span style={S.badge(TYPE_COLORS[e.tipo] || '#94a3b8', (TYPE_COLORS[e.tipo] || '#94a3b8') + '22')}>{e.tipo}</span>}
                       {emp && <span style={{ marginLeft: 6 }}>{emp.nome}</span>}
                       {e.descrizione && <span style={{ marginLeft: 6 }}>— {e.descrizione}</span>}
@@ -180,7 +180,7 @@ export default function HRCalendar({ employees }) {
     </div>}
 
     {/* Legenda colori */}
-    <div style={{ marginTop: 12, display: 'flex', gap: 16, fontSize: 11, color: '#64748b' }}>
+    <div style={{ marginTop: 12, display: 'flex', gap: 16, fontSize: 11, color: 'var(--text3)' }}>
       {Object.entries(TYPE_COLORS).map(([k, c]) => <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />{k}
       </div>)}

@@ -632,7 +632,7 @@ export default function InvoiceManager({ sp, sps }) {
             style={{ ...iS, fontSize: 11, padding: '4px 26px 4px 10px', width: 220 }} />
           {tsAllLoading && searchNorm && <span style={{ position: 'absolute', right: 22, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#F59E0B' }} title="Caricamento tutte le pagine in corso...">⟳</span>}
           {searchQuery && <button onClick={() => setSearchQuery('')}
-            style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 12, padding: '2px 6px' }}
+            style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 12, padding: '2px 6px' }}
             title="Pulisci"></button>}
         </div>
         {['tutte', 'da_associare', 'complete'].map(f => (
@@ -648,7 +648,7 @@ export default function InvoiceManager({ sp, sps }) {
       </div>
     }>
       {tsFiltered.length === 0 && !tsLoading && (
-        <div style={{ color: '#475569', textAlign: 'center', padding: 20, fontSize: 13 }}>
+        <div style={{ color: 'var(--text3)', textAlign: 'center', padding: 20, fontSize: 13 }}>
           {selectedLocaleName
             ? `Nessuna fattura assegnata a ${selectedLocaleName}. Assegna le fatture dal tab Fatture.`
             : 'Nessuna fattura assegnata. Vai al tab Fatture per assegnare le fatture ai locali.'}
@@ -656,7 +656,7 @@ export default function InvoiceManager({ sp, sps }) {
       )}
 
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        {tsFiltered.length > 0 && <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+        {tsFiltered.length > 0 && <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
           {['', 'Data', 'Fornitore', 'N° Doc', 'Tipo', 'Importo', 'Locale', 'Stato'].map(h => <th key={h} style={S.th}>{h}</th>)}
         </tr></thead>}
         <tbody>
@@ -666,13 +666,13 @@ export default function InvoiceManager({ sp, sps }) {
             return <><tr key={f.hubId || i}
               onClick={() => handleExpand(f.hubId)}
               style={{ cursor: 'pointer', borderBottom: '1px solid #1a1f2e', background: isExp ? '#131825' : 'transparent' }}>
-              <td style={{ ...S.td, width: 24, color: '#64748b' }}>{isExp ? '' : ''}</td>
+              <td style={{ ...S.td, width: 24, color: 'var(--text3)' }}>{isExp ? '' : ''}</td>
               <td style={{ ...S.td, color: '#F59E0B', fontWeight: 600 }}>{f.docDate}</td>
               <td style={{ ...S.td, fontWeight: 500 }}>{f.senderName || '—'}</td>
-              <td style={{ ...S.td, color: '#94a3b8', fontSize: 12 }}>{f.docId || '—'}</td>
+              <td style={{ ...S.td, color: 'var(--text2)', fontSize: 12 }}>{f.docId || '—'}</td>
               <td style={S.td}><span style={S.badge('#3B82F6', 'rgba(59,130,246,.12)')}>{f.detail?.td || 'TD01'}</span></td>
               <td style={{ ...S.td, fontWeight: 600 }}>{f.detail?.totalAmount != null ? fmt(f.detail.totalAmount) : '—'}</td>
-              <td style={{ ...S.td, fontSize: 12, color: '#94a3b8' }}>{locale}</td>
+              <td style={{ ...S.td, fontSize: 12, color: 'var(--text2)' }}>{locale}</td>
               <td style={S.td}>{(() => {
                 const key = (f.docId || '') + '||' + (f.senderName || '')
                 const st = whStatus[key]
@@ -683,7 +683,7 @@ export default function InvoiceManager({ sp, sps }) {
             </tr>
 
             {/* Expanded: righe XML o warehouse items con match */}
-            {isExp && <tr key={'exp-' + f.hubId}><td colSpan={8} style={{ padding: '12px 14px 12px 38px', background: '#131825' }}>
+            {isExp && <tr key={'exp-' + f.hubId}><td colSpan={8} style={{ padding: '12px 14px 12px 38px', background: 'var(--surface2)' }}>
 
               {/* Se non ancora importato in warehouse: mostra XML + bottone importa */}
               {!whInvoice && !loading && (
@@ -693,7 +693,7 @@ export default function InvoiceManager({ sp, sps }) {
                     const lines = parseXmlLines(xmlContent)
                     return <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, color: '#64748b' }}>{lines.length} righe nel XML</span>
+                        <span style={{ fontSize: 12, color: 'var(--text3)' }}>{lines.length} righe nel XML</span>
                         <button onClick={() => importToWarehouse(f)}
                           style={{ ...iS, background: '#10B981', color: '#fff', border: 'none', padding: '6px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                         >Importa nel magazzino per match prodotti</button>
@@ -706,10 +706,10 @@ export default function InvoiceManager({ sp, sps }) {
                           {lines.map((l, j) => <tr key={j}>
                             <td style={{ ...S.td, fontSize: 12, fontWeight: 500, padding: '6px 8px' }}>{l.descrizione}</td>
                             <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{l.quantita}</td>
-                            <td style={{ ...S.td, fontSize: 11, color: '#64748b', padding: '6px 8px' }}>{l.um}</td>
+                            <td style={{ ...S.td, fontSize: 11, color: 'var(--text3)', padding: '6px 8px' }}>{l.um}</td>
                             <td style={{ ...S.td, fontSize: 12, padding: '6px 8px' }}>{l.prezzoUnitario ? Number(l.prezzoUnitario).toFixed(2) + ' €' : ''}</td>
                             <td style={{ ...S.td, fontSize: 12, fontWeight: 600, padding: '6px 8px' }}>{l.prezzoTotale ? Number(l.prezzoTotale).toFixed(2) + ' €' : ''}</td>
-                            <td style={{ ...S.td, fontSize: 11, color: '#94a3b8', padding: '6px 8px' }}>{l.aliquotaIVA}%</td>
+                            <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)', padding: '6px 8px' }}>{l.aliquotaIVA}%</td>
                           </tr>)}
                         </tbody>
                       </table>}
@@ -729,11 +729,11 @@ export default function InvoiceManager({ sp, sps }) {
 
                   <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+                    <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
                       {['Mag.', 'Descrizione fattura + Qty fatt.', 'Nome articolo', 'Qty + Tipo', 'Q.Sing. + UM', '€/UM', 'Tot. €', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 8, padding: '4px 3px' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
-                      {items.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: '#475569', textAlign: 'center' }}>Nessuna riga</td></tr>}
+                      {items.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center' }}>Nessuna riga</td></tr>}
                       {items.map(it => {
                         const suggestion = suggestFromDescription(it.nome_fattura, it.unita)
                         const rule = itemRules[normalizePattern(it.nome_fattura)]
@@ -759,11 +759,11 @@ export default function InvoiceManager({ sp, sps }) {
                             </select>
                           </td>
                           {/* Descrizione fattura + Qty fatt. (read-only) */}
-                          <td style={{ ...S.td, fontSize: 10, padding: '5px 6px', color: '#94a3b8', maxWidth: 200 }}>
+                          <td style={{ ...S.td, fontSize: 10, padding: '5px 6px', color: 'var(--text2)', maxWidth: 200 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.nome_fattura}</span>
                               <span title="Quantità dalla fattura (non modificabile)"
-                                style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#64748b', background: '#1a1f2e', padding: '2px 6px', borderRadius: 4, minWidth: 28, textAlign: 'center' }}>
+                                style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: 'var(--text3)', background: 'var(--surface)', padding: '2px 6px', borderRadius: 4, minWidth: 28, textAlign: 'center' }}>
                                 {it.quantita != null && it.quantita !== '' ? it.quantita : '—'}
                               </span>
                             </div>
@@ -786,7 +786,7 @@ export default function InvoiceManager({ sp, sps }) {
                               />
                               <select value={displayTipo}
                                 onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, tipo_confezione: e.target.value } : x))}
-                                style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 72, color: '#e2e8f0' }}>
+                                style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 72, color: 'var(--text)' }}>
                                 <option value="">—</option>
                                 {TIPI_CONFEZIONE.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
@@ -803,7 +803,7 @@ export default function InvoiceManager({ sp, sps }) {
                               />
                               <select value={displayUm}
                                 onChange={e => setItems(prev => prev.map(x => x.id === it.id ? { ...x, unita: e.target.value } : x))}
-                                style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 42, color: '#e2e8f0' }}>
+                                style={{ ...iS, fontSize: 9, padding: '2px 2px', width: 42, color: 'var(--text)' }}>
                                 <option value="">—</option>
                                 <option value="KG">KG</option>
                                 <option value="LT">LT</option>
@@ -812,7 +812,7 @@ export default function InvoiceManager({ sp, sps }) {
                             </div>
                           </td>
                           {/* €/UM = prezzo_totale / qty_fatt / qty / q_sing */}
-                          <td style={{ ...S.td, fontSize: 10, padding: '4px 4px', color: '#64748b' }} title="prezzo_totale ÷ Qty fatt. ÷ Qty ÷ Q.Sing.">{(() => {
+                          <td style={{ ...S.td, fontSize: 10, padding: '4px 4px', color: 'var(--text3)' }} title="prezzo_totale ÷ Qty fatt. ÷ Qty ÷ Q.Sing.">{(() => {
                             const qFatt = parseFloat(it.quantita) || 0
                             const qty = parseFloat(it.totale_um) || 0
                             const qSing2 = parseFloat(it.qty_singola ?? displayQtySing) || 0
@@ -858,7 +858,7 @@ export default function InvoiceManager({ sp, sps }) {
                               setTimeout(() => setItems(prev => prev.map(x => x.id === it.id ? { ...x, _saved: false } : x)), 1500)
                               // Aggiorna badge "X/Y" nella colonna Stato
                               loadWhStatus()
-                            }} style={{ ...iS, background: it._saved ? '#10B981' : '#F59E0B', color: '#0f1420', border: 'none', padding: '5px 12px', fontWeight: 700, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', borderRadius: 6, marginRight: 4 }}>
+                            }} style={{ ...iS, background: it._saved ? '#10B981' : '#F59E0B', color: 'var(--text)', border: 'none', padding: '5px 12px', fontWeight: 700, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap', borderRadius: 6, marginRight: 4 }}>
                               {it._saved ? 'OK' : 'SALVA'}
                             </button>
                             {isExcluded
@@ -881,17 +881,17 @@ export default function InvoiceManager({ sp, sps }) {
                   </div>
 
                   {/* Match modal */}
-                  {matchingItem && <div style={{ background: '#0f1420', borderRadius: 8, padding: 14, marginTop: 10, border: '1px solid #F59E0B' }}>
-                    <div style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 6 }}>Abbina "{matchingItem.nome_fattura}" a un prodotto:</div>
+                  {matchingItem && <div style={{ background: 'var(--bg)', borderRadius: 8, padding: 14, marginTop: 10, border: '1px solid #F59E0B' }}>
+                    <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: 6 }}>Abbina "{matchingItem.nome_fattura}" a un prodotto:</div>
                     <input placeholder="Cerca prodotto..." value={matchSearch} onChange={e => searchProducts(e.target.value)} style={{ ...formS, maxWidth: 300 }} autoFocus />
                     {matchResults.map(p => (
-                      <div key={p.id} onClick={() => confirmMatch(matchingItem, p)} style={{ padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid #2a3042', fontSize: 12, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div key={p.id} onClick={() => confirmMatch(matchingItem, p)} style={{ padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontWeight: 500 }}>{p.nome}</span>
-                        <span style={{ color: '#64748b', fontSize: 10 }}>({p.categoria} - {p.unita_misura})</span>
+                        <span style={{ color: 'var(--text3)', fontSize: 10 }}>({p.categoria} - {p.unita_misura})</span>
                         {p.matchedVia === 'alias' && <span style={S.badge('#8B5CF6', 'rgba(139,92,246,.12)')}>alias</span>}
                       </div>
                     ))}
-                    <button onClick={() => setMatchingItem(null)} style={{ ...iS, color: '#64748b', border: '1px solid #2a3042', padding: '3px 10px', marginTop: 6, fontSize: 10 }}>Annulla</button>
+                    <button onClick={() => setMatchingItem(null)} style={{ ...iS, color: 'var(--text3)', border: '1px solid var(--border)', padding: '3px 10px', marginTop: 6, fontSize: 10 }}>Annulla</button>
                   </div>}
                 </>
               )}
@@ -908,8 +908,8 @@ export default function InvoiceManager({ sp, sps }) {
           <button onClick={() => setTsPage(p => Math.max(0, p - 1))} disabled={safePage === 0}
             style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: safePage === 0 ? 'not-allowed' : 'pointer',
               background: safePage === 0 ? '#1a1f2e' : '#3B82F6', color: safePage === 0 ? '#475569' : '#fff', border: 'none' }}>Precedente</button>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>
-            Pagina <strong style={{ color: '#e2e8f0' }}>{safePage + 1}/{totalPages}</strong>
+          <span style={{ fontSize: 12, color: 'var(--text2)' }}>
+            Pagina <strong style={{ color: 'var(--text)' }}>{safePage + 1}/{totalPages}</strong>
             {' · '}{tsFiltered.length} assegnate su {tsAllInvoices.length}
           </span>
           <button onClick={() => setTsPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}
@@ -922,8 +922,8 @@ export default function InvoiceManager({ sp, sps }) {
           <button onClick={() => loadTsPage(tsPage - 1)} disabled={tsPage === 0 || tsLoading}
             style={{ ...iS, padding: '6px 16px', fontSize: 12, fontWeight: 600, cursor: tsPage === 0 ? 'not-allowed' : 'pointer',
               background: tsPage === 0 ? '#1a1f2e' : '#3B82F6', color: tsPage === 0 ? '#475569' : '#fff', border: 'none' }}>Precedente</button>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>
-            Pagina <strong style={{ color: '#e2e8f0' }}>{tsPage + 1}</strong>
+          <span style={{ fontSize: 12, color: 'var(--text2)' }}>
+            Pagina <strong style={{ color: 'var(--text)' }}>{tsPage + 1}</strong>
             {' · '}{tsFiltered.length} assegnate su {tsInvoices.length}
             {tsAllLoading && <span style={{ marginLeft: 8, color: '#F59E0B' }}>⟳ caricamento completo…</span>}
           </span>
@@ -933,7 +933,7 @@ export default function InvoiceManager({ sp, sps }) {
         </div>
       ))}
       {/* Hint ricerca globale */}
-      {searchNorm && <div style={{ marginTop: 14, padding: '8px 12px', fontSize: 11, color: '#94a3b8', textAlign: 'center', background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 6 }}>
+      {searchNorm && <div style={{ marginTop: 14, padding: '8px 12px', fontSize: 11, color: 'var(--text2)', textAlign: 'center', background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 6 }}>
         {tsAllLoading
           ? '⟳ Carico tutte le pagine in background, attendi qualche secondo…'
           : tsAllInvoices

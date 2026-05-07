@@ -93,7 +93,7 @@ export default function ProductionManager({ sp, sps }) {
 
 function PlaceholderTab({ title, msg }) {
   return <Card title={title}>
-    <div style={{ padding: 24, color: '#94a3b8', fontSize: 13, lineHeight: 1.6, textAlign: 'center' }}>
+    <div style={{ padding: 24, color: 'var(--text2)', fontSize: 13, lineHeight: 1.6, textAlign: 'center' }}>
       <div style={{ fontSize: 32, marginBottom: 12 }}></div>
       {msg}
     </div>
@@ -153,7 +153,7 @@ function SchedeTab({ sp, sps }) {
       shelf_life_days: 3, resa_quantita: '', resa_unita: 'KG', attivo: true,
       checklist_haccp_template: [], richiede_foto: false, durata_attesa_minuti: '',
     })}
-      style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '6px 14px', cursor: 'pointer' }}>
+      style={{ ...iS, background: '#10B981', color: 'var(--text)', fontWeight: 700, border: 'none', padding: '6px 14px', cursor: 'pointer' }}>
       + Nuova scheda
     </button>
   }>
@@ -167,9 +167,9 @@ function SchedeTab({ sp, sps }) {
     </div>
 
     {loading ? (
-      <div style={{ padding: 24, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+      <div style={{ padding: 24, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
     ) : recipes.length === 0 ? (
-      <div style={{ padding: 30, color: '#64748b', textAlign: 'center', lineHeight: 1.6 }}>
+      <div style={{ padding: 30, color: 'var(--text3)', textAlign: 'center', lineHeight: 1.6 }}>
         Nessuna scheda produzione.<br/>
         <span style={{ fontSize: 12 }}>
           Le schede sono i "template" delle preparazioni interne (es. tiramisù, farinata, salse).<br/>
@@ -179,7 +179,7 @@ function SchedeTab({ sp, sps }) {
     ) : (
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+          <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
             {['Nome', 'Produzione', 'Destinazione', 'Resa', 'Conservazione', 'Shelf life', 'Allergeni', 'Stato', ''].map(h =>
               <th key={h} style={S.th}>{h}</th>)}
           </tr></thead>
@@ -196,18 +196,18 @@ function SchedeTab({ sp, sps }) {
                   )}
                 </td>
                 <td style={S.td}>{r.locale_produzione}</td>
-                <td style={{ ...S.td, color: '#94a3b8' }}>{r.locale_destinazione || '—'}</td>
+                <td style={{ ...S.td, color: 'var(--text2)' }}>{r.locale_destinazione || '—'}</td>
                 <td style={S.td}>{r.resa_quantita ? `${r.resa_quantita} ${r.resa_unita || ''}` : '—'}</td>
-                <td style={{ ...S.td, color: '#94a3b8', fontSize: 11 }}>{r.conservazione || '—'}</td>
-                <td style={{ ...S.td, color: '#94a3b8' }}>{r.shelf_life_days ? r.shelf_life_days + 'gg' : '—'}</td>
+                <td style={{ ...S.td, color: 'var(--text2)', fontSize: 11 }}>{r.conservazione || '—'}</td>
+                <td style={{ ...S.td, color: 'var(--text2)' }}>{r.shelf_life_days ? r.shelf_life_days + 'gg' : '—'}</td>
                 <td style={S.td}>
                   <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                     {(r.allergeni || []).slice(0, 5).map(a => {
                       const meta = ALLERGENI_BY_KEY[a]
                       return meta ? <span key={a} title={meta.l} style={{ fontSize: 11 }}>{meta.ico}</span> : null
                     })}
-                    {(r.allergeni || []).length > 5 && <span style={{ color: '#64748b', fontSize: 10 }}>+{(r.allergeni || []).length - 5}</span>}
-                    {(r.allergeni || []).length === 0 && <span style={{ color: '#475569', fontSize: 10 }}>—</span>}
+                    {(r.allergeni || []).length > 5 && <span style={{ color: 'var(--text3)', fontSize: 10 }}>+{(r.allergeni || []).length - 5}</span>}
+                    {(r.allergeni || []).length === 0 && <span style={{ color: 'var(--text3)', fontSize: 10 }}>—</span>}
                   </div>
                 </td>
                 <td style={S.td}>
@@ -218,9 +218,9 @@ function SchedeTab({ sp, sps }) {
                 <td style={S.td} onClick={e => e.stopPropagation()}>
                   {r.approved === false && (
                     <button onClick={() => approva(r)} title="Conferma scheda creata da staff"
-                      style={{ background: '#10B981', color: '#0f1420', border: 'none', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginRight: 4 }}>Approva</button>
+                      style={{ background: '#10B981', color: 'var(--text)', border: 'none', padding: '3px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', marginRight: 4 }}>Approva</button>
                   )}
-                  <button onClick={() => duplicate(r)} style={{ background: 'none', border: '1px solid #2a3042', color: '#94a3b8', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}>Dup</button>
+                  <button onClick={() => duplicate(r)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}>Dup</button>
                   <button onClick={() => remove(r)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }}>×</button>
                 </td>
               </tr>
@@ -312,27 +312,27 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
   }
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 760 }}>
-      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 760 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>{isNew ? 'Nuova scheda produzione' : '' + r.nome}</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         {/* Anagrafica */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
           <label>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Nome</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Nome</div>
             <input value={r.nome || ''} onChange={e => update('nome', e.target.value)} placeholder="es. Tiramisù" style={{ ...iS, width: '100%' }} />
           </label>
           <label>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Locale produzione</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Locale produzione</div>
             <select value={r.locale_produzione || ''} onChange={e => update('locale_produzione', e.target.value)} style={{ ...iS, width: '100%' }}>
               <option value="">—</option>
               {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </label>
           <label>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Locale destinazione (opz.)</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Locale destinazione (opz.)</div>
             <select value={r.locale_destinazione || ''} onChange={e => update('locale_destinazione', e.target.value)} style={{ ...iS, width: '100%' }}>
               <option value="">— uguale a produzione —</option>
               {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
@@ -342,32 +342,32 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
           <label>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Resa quantità</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Resa quantità</div>
             <input type="number" step="0.001" value={r.resa_quantita ?? ''} onChange={e => update('resa_quantita', e.target.value)} style={{ ...iS, width: '100%' }} />
           </label>
           <label>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>UM resa</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>UM resa</div>
             <select value={r.resa_unita || ''} onChange={e => update('resa_unita', e.target.value)} style={{ ...iS, width: '100%' }}>
               {['KG', 'GR', 'LT', 'ML', 'PZ', 'PORZIONI'].map(u => <option key={u} value={u}>{u}</option>)}
             </select>
           </label>
           <label>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Conservazione</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Conservazione</div>
             <input value={r.conservazione || ''} onChange={e => update('conservazione', e.target.value)} placeholder="+4°C frigo" style={{ ...iS, width: '100%' }} />
           </label>
           <label>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Shelf life (gg)</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Shelf life (gg)</div>
             <input type="number" value={r.shelf_life_days ?? ''} onChange={e => update('shelf_life_days', e.target.value)} style={{ ...iS, width: '100%' }} />
           </label>
         </div>
 
         {/* Ingredienti */}
-        <div style={{ borderTop: '1px solid #2a3042', paddingTop: 14, marginBottom: 14 }}>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginBottom: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <div style={{ fontSize: 13, fontWeight: 600 }}>Ingredienti ({(r.ingredienti || []).length})</div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={autoDetectFromIngredients}
-                style={{ ...iS, background: '#F59E0B', color: '#0f1420', border: 'none', padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                style={{ ...iS, background: '#F59E0B', color: 'var(--text)', border: 'none', padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
                 title="Rileva allergeni dai nomi degli ingredienti">
                 Auto-allergeni
               </button>
@@ -378,7 +378,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
             </div>
           </div>
           {(r.ingredienti || []).length === 0 && (
-            <div style={{ padding: 12, color: '#64748b', textAlign: 'center', fontSize: 12, border: '1px dashed #2a3042', borderRadius: 8 }}>
+            <div style={{ padding: 12, color: 'var(--text3)', textAlign: 'center', fontSize: 12, border: '1px dashed #2a3042', borderRadius: 8 }}>
               Aggiungi gli ingredienti che servono per produrre questo articolo.
             </div>
           )}
@@ -405,9 +405,9 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
         </div>
 
         {/* Allergeni */}
-        <div style={{ borderTop: '1px solid #2a3042', paddingTop: 14, marginBottom: 14 }}>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-            Allergeni dichiarati <span style={{ fontSize: 11, color: '#64748b', fontWeight: 400 }}>(Reg. UE 1169/2011)</span>
+            Allergeni dichiarati <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 400 }}>(Reg. UE 1169/2011)</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {ALLERGENI.map(a => {
@@ -424,23 +424,23 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
 
         {/* Procedimento */}
         <label style={{ display: 'block', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Procedimento (opz.)</div>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Procedimento (opz.)</div>
           <textarea value={r.procedimento || ''} onChange={e => update('procedimento', e.target.value)}
             placeholder="Es. 1) Montare i tuorli con lo zucchero. 2) Aggiungere il mascarpone. 3) Inzuppare i savoiardi nel caffè. CCP: temperatura conservazione +4°C max."
             rows={4} style={{ ...iS, width: '100%', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
         </label>
 
         {/* Configurazione mobile produzione */}
-        <div style={{ borderTop: '1px solid #2a3042', paddingTop: 14, marginTop: 14, marginBottom: 14 }}>
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 14, marginBottom: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Configurazione mobile (per dipendenti)</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <label>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Durata attesa (min)</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Durata attesa (min)</div>
               <input type="number" value={r.durata_attesa_minuti ?? ''} onChange={e => update('durata_attesa_minuti', e.target.value)}
                 placeholder="es. 30" style={{ ...iS, width: '100%' }} />
-              <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>Mostrato come riferimento al dipendente</div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>Mostrato come riferimento al dipendente</div>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#e2e8f0', cursor: 'pointer', padding: '20px 0 0' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text)', cursor: 'pointer', padding: '20px 0 0' }}>
               <input type="checkbox" checked={!!r.richiede_foto} onChange={e => update('richiede_foto', e.target.checked)} />
               Richiedi foto del prodotto finito
             </label>
@@ -448,20 +448,20 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
           {/* Checklist HACCP */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>Checklist HACCP <span style={{ color: '#64748b' }}>(domande OK/KO da compilare durante la produzione)</span></div>
+              <div style={{ fontSize: 11, color: 'var(--text2)' }}>Checklist HACCP <span style={{ color: 'var(--text3)' }}>(domande OK/KO da compilare durante la produzione)</span></div>
               <button onClick={() => update('checklist_haccp_template', [...(r.checklist_haccp_template || []), { id: crypto.randomUUID(), label: '', required: true }])}
                 style={{ ...iS, background: '#3B82F6', color: '#fff', border: 'none', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
                 + Domanda
               </button>
             </div>
             {(r.checklist_haccp_template || []).length === 0 && (
-              <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>Nessuna domanda. Esempi: "Temperatura cottura corretta", "Attrezzatura sanificata", "Conservazione coperta".</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>Nessuna domanda. Esempi: "Temperatura cottura corretta", "Attrezzatura sanificata", "Conservazione coperta".</div>
             )}
             {(r.checklist_haccp_template || []).map((it, i) => (
               <div key={it.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 6, marginBottom: 4 }}>
                 <input value={it.label} onChange={e => update('checklist_haccp_template', r.checklist_haccp_template.map((x, idx) => idx === i ? { ...x, label: e.target.value } : x))}
                   placeholder={`Domanda ${i + 1}`} style={{ ...iS, width: '100%' }} />
-                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text2)' }}>
                   <input type="checkbox" checked={!!it.required} onChange={e => update('checklist_haccp_template', r.checklist_haccp_template.map((x, idx) => idx === i ? { ...x, required: e.target.checked } : x))} />
                   Obbl.
                 </label>
@@ -472,17 +472,17 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
           </div>
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#94a3b8', cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text2)', cursor: 'pointer' }}>
           <input type="checkbox" checked={!!r.attivo} onChange={e => update('attivo', e.target.checked)} />
           Scheda attiva (i dipendenti possono usarla per nuovi lotti)
         </label>
 
         {err && <div style={{ color: '#EF4444', fontSize: 12, marginTop: 12 }}>{err}</div>}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #2a3042' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
           <button onClick={onClose} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
           <button onClick={save} disabled={saving}
-            style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
+            style={{ ...iS, background: '#10B981', color: 'var(--text)', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
             {saving ? 'Salvo…' : 'Salva scheda'}
           </button>
         </div>
@@ -571,12 +571,12 @@ function LottiTab({ sp, sps }) {
 
   return <Card title="Lotti produzione" badge={`${filtered.length}/${batches.length}`} extra={
     <button onClick={() => setCreating({ recipe: null })} disabled={recipes.length === 0}
-      style={{ ...iS, background: '#10B981', color: '#0f1420', fontWeight: 700, border: 'none', padding: '6px 14px', cursor: recipes.length ? 'pointer' : 'not-allowed', opacity: recipes.length ? 1 : 0.5 }}>
+      style={{ ...iS, background: '#10B981', color: 'var(--text)', fontWeight: 700, border: 'none', padding: '6px 14px', cursor: recipes.length ? 'pointer' : 'not-allowed', opacity: recipes.length ? 1 : 0.5 }}>
       + Nuovo lotto
     </button>
   }>
     {recipes.length === 0 ? (
-      <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
+      <div style={{ padding: 30, color: 'var(--text3)', textAlign: 'center', fontSize: 13 }}>
         Per creare lotti devi prima definire delle <strong>Schede produzione</strong> (tab Schede).
       </div>
     ) : <>
@@ -600,15 +600,15 @@ function LottiTab({ sp, sps }) {
       </div>
 
       {loading ? (
-        <div style={{ padding: 24, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+        <div style={{ padding: 24, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
       ) : batches.length === 0 ? (
-        <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
+        <div style={{ padding: 30, color: 'var(--text3)', textAlign: 'center', fontSize: 13 }}>
           Nessun lotto prodotto. Click "+ Nuovo lotto" per registrarne uno.
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Lotto', 'Prodotto', 'Data', 'Scadenza', 'Locale', 'Quantità', 'Durata', 'Operatore', 'Anomalie', 'Stato', ''].map(h =>
                 <th key={h} style={S.th}>{h}</th>)}
             </tr></thead>
@@ -624,7 +624,7 @@ function LottiTab({ sp, sps }) {
                     {b.da_mobile && <span title="Creato da mobile (dipendente)" style={{ marginLeft: 4, fontSize: 11 }}></span>}
                   </td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{b.recipe_id ? (recipes.find(r => r.id === b.recipe_id)?.nome || '—') : '—'}</td>
-                  <td style={{ ...S.td, fontSize: 11 }}>{b.data_produzione} <span style={{ color: '#64748b' }}>{(b.ora_produzione || '').slice(0, 5)}</span></td>
+                  <td style={{ ...S.td, fontSize: 11 }}>{b.data_produzione} <span style={{ color: 'var(--text3)' }}>{(b.ora_produzione || '').slice(0, 5)}</span></td>
                   <td style={{ ...S.td, color: isScaduto ? '#EF4444' : (giorniMancanti != null && giorniMancanti <= 1 ? '#F59E0B' : '#94a3b8') }}>
                     {b.data_scadenza || '—'}
                     {giorniMancanti != null && b.stato === 'attivo' && (
@@ -634,17 +634,17 @@ function LottiTab({ sp, sps }) {
                   <td style={{ ...S.td, fontSize: 11 }}>
                     {b.locale_produzione}
                     {b.locale_destinazione && b.locale_destinazione !== b.locale_produzione && (
-                      <div style={{ color: '#64748b' }}>{b.locale_destinazione}</div>
+                      <div style={{ color: 'var(--text3)' }}>{b.locale_destinazione}</div>
                     )}
                   </td>
                   <td style={{ ...S.td, fontWeight: 600 }}>{b.quantita_prodotta} {b.unita || ''}</td>
-                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
+                  <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>
                     {b.durata_minuti != null ? `${b.durata_minuti} min` : '—'}
                   </td>
-                  <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{b.operatore_nome || '—'}</td>
+                  <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{b.operatore_nome || '—'}</td>
                   <td style={S.td}>
                     {anomalie.length === 0 ? (
-                      <span style={{ color: '#475569', fontSize: 11 }}>—</span>
+                      <span style={{ color: 'var(--text3)', fontSize: 11 }}>—</span>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {anomalie.map((a, i) => (
@@ -663,7 +663,7 @@ function LottiTab({ sp, sps }) {
                   </td>
                   <td style={S.td}>
                     <button onClick={() => printEtichetta([b], recipes.find(r => r.id === b.recipe_id))}
-                      style={{ background: 'none', border: '1px solid #2a3042', color: '#3B82F6', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}
+                      style={{ background: 'none', border: '1px solid var(--border)', color: '#3B82F6', padding: '3px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer', marginRight: 4 }}
                       title="Stampa etichetta PDF (1 lotto)"></button>
                     {b.stato !== 'annullato' && (
                       <button onClick={() => annulla(b)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 11 }} title="Annulla lotto"></button>
@@ -810,17 +810,17 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
   }
 
   return <div className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 200, padding: 24, overflow: 'auto' }}>
-    <div style={{ background: '#0f1420', border: '1px solid #2a3042', borderRadius: 12, width: '100%', maxWidth: 640 }}>
-      <div style={{ padding: 16, borderBottom: '1px solid #2a3042', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 640 }}>
+      <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 15 }}>+ Nuovo lotto produzione</h3>
-          <div style={{ fontSize: 11, color: '#64748b' }}>Crea un lotto: scarica ingredienti, carica prodotto, stampa etichetta</div>
+          <div style={{ fontSize: 11, color: 'var(--text3)' }}>Crea un lotto: scarica ingredienti, carica prodotto, stampa etichetta</div>
         </div>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
       </div>
       <div style={{ padding: 20 }}>
         <label style={{ display: 'block', marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Scheda produzione</div>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Scheda produzione</div>
           <select value={recipeId} onChange={e => setRecipeId(e.target.value)} style={{ ...iS, width: '100%' }}>
             <option value="">— scegli scheda —</option>
             {recipes.map(r => <option key={r.id} value={r.id}>{r.nome} ({r.locale_produzione})</option>)}
@@ -828,8 +828,8 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
         </label>
 
         {recipe && <>
-          <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12 }}>
-            <div style={{ color: '#94a3b8', marginBottom: 6 }}>Da scheda:</div>
+          <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12 }}>
+            <div style={{ color: 'var(--text2)', marginBottom: 6 }}>Da scheda:</div>
             <div><strong>{recipe.ingredienti?.length || 0} ingredienti</strong> · resa attesa: <strong>{recipe.resa_quantita} {recipe.resa_unita}</strong> · shelf life: <strong>{recipe.shelf_life_days}gg</strong></div>
             {recipe.allergeni?.length > 0 && (
               <div style={{ marginTop: 6 }}>Allergeni: {recipe.allergeni.map(a => ALLERGENI_BY_KEY[a]?.l || a).join(', ')}</div>
@@ -838,11 +838,11 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10, marginBottom: 10 }}>
             <label>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Quantità prodotta</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Quantità prodotta</div>
               <input type="number" step="0.001" value={qty} onChange={e => setQty(e.target.value)} style={{ ...iS, width: '100%' }} />
             </label>
             <label>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>UM</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>UM</div>
               <select value={unita} onChange={e => setUnita(e.target.value)} style={{ ...iS, width: '100%' }}>
                 {['', 'KG', 'GR', 'LT', 'ML', 'PZ', 'PORZIONI'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
               </select>
@@ -851,28 +851,28 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
             <label>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Data produzione</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Data produzione</div>
               <input type="date" value={data} onChange={e => setData(e.target.value)} style={{ ...iS, width: '100%' }} />
             </label>
             <label>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Ora</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Ora</div>
               <input type="time" value={oraOra} onChange={e => setOraOra(e.target.value)} style={{ ...iS, width: '100%' }} />
             </label>
             <label>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Scadenza</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Scadenza</div>
               <input type="date" value={scadenza} onChange={e => setScadenza(e.target.value)} style={{ ...iS, width: '100%' }} />
             </label>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <label>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Locale produzione</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Locale produzione</div>
               <select value={localeProd} onChange={e => setLocaleProd(e.target.value)} style={{ ...iS, width: '100%' }}>
                 {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </label>
             <label>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Locale destinazione</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Locale destinazione</div>
               <select value={localeDest} onChange={e => setLocaleDest(e.target.value)} style={{ ...iS, width: '100%' }}>
                 <option value="">— uguale a produzione —</option>
                 {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
@@ -881,7 +881,7 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
           </div>
 
           <label style={{ display: 'block', marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Operatore (chi sta producendo)</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Operatore (chi sta producendo)</div>
             <input list="emp-list" value={operatoreNome} onChange={e => setOperatoreNome(e.target.value)}
               placeholder="Nome dipendente" style={{ ...iS, width: '100%' }} />
             <datalist id="emp-list">
@@ -890,7 +890,7 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
           </label>
 
           <label style={{ display: 'block', marginBottom: 14 }}>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Note (opz.)</div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 4 }}>Note (opz.)</div>
             <input value={note} onChange={e => setNote(e.target.value)} placeholder="Es. sostituito panna con mascarpone, doppia dose..." style={{ ...iS, width: '100%' }} />
           </label>
 
@@ -906,7 +906,7 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <button onClick={onClose} disabled={creating} style={{ ...iS, padding: '8px 16px', cursor: 'pointer' }}>Annulla</button>
             <button onClick={submit} disabled={creating}
-              style={{ ...iS, background: '#10B981', color: '#0f1420', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
+              style={{ ...iS, background: '#10B981', color: 'var(--text)', border: 'none', padding: '8px 20px', fontWeight: 700, cursor: creating ? 'wait' : 'pointer' }}>
               {creating ? 'Creo lotto…' : 'Conferma e crea lotto'}
             </button>
           </div>
@@ -1036,24 +1036,24 @@ function TracciabilitaTab({ sp, sps }) {
       style={{ ...iS, width: '100%', marginBottom: 12 }} />
 
     {loading ? (
-      <div style={{ padding: 24, color: '#64748b', textAlign: 'center' }}>Caricamento…</div>
+      <div style={{ padding: 24, color: 'var(--text3)', textAlign: 'center' }}>Caricamento…</div>
     ) : filtered.length === 0 ? (
-      <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 13 }}>
+      <div style={{ padding: 30, color: 'var(--text3)', textAlign: 'center', fontSize: 13 }}>
         Nessun lotto trovato. Crea un primo lotto nella tab "Lotti".
       </div>
     ) : (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
         {/* Lista lotti */}
-        <div style={{ maxHeight: 540, overflowY: 'auto', borderRight: '1px solid #2a3042', paddingRight: 8 }}>
+        <div style={{ maxHeight: 540, overflowY: 'auto', borderRight: '1px solid var(--border)', paddingRight: 8 }}>
           {filtered.map(b => {
             const sel = selected?.id === b.id
             return <button key={b.id} onClick={() => openBatch(b)}
               style={{ width: '100%', textAlign: 'left', padding: '10px 12px', marginBottom: 4,
                 background: sel ? 'rgba(59,130,246,.12)' : '#131825',
                 border: `1px solid ${sel ? '#3B82F6' : '#2a3042'}`,
-                borderRadius: 8, cursor: 'pointer', color: '#e2e8f0' }}>
+                borderRadius: 8, cursor: 'pointer', color: 'var(--text)' }}>
               <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color: '#3B82F6' }}>{b.lotto}</div>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{b.data_produzione} · {b.locale_produzione}</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{b.data_produzione} · {b.locale_produzione}</div>
             </button>
           })}
         </div>
@@ -1061,13 +1061,13 @@ function TracciabilitaTab({ sp, sps }) {
         {/* Dettaglio + timeline */}
         <div style={{ maxHeight: 540, overflowY: 'auto' }}>
           {!selected ? (
-            <div style={{ padding: 30, color: '#64748b', textAlign: 'center', fontSize: 12 }}>
+            <div style={{ padding: 30, color: 'var(--text3)', textAlign: 'center', fontSize: 12 }}>
               Seleziona un lotto per vedere la tracciabilità
             </div>
           ) : <>
-            <div style={{ background: '#131825', border: '1px solid #2a3042', borderRadius: 8, padding: 14, marginBottom: 14 }}>
+            <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14 }}>
               <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#3B82F6', fontSize: 14 }}>{selected.lotto}</div>
-              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>
                 {selected.data_produzione} {(selected.ora_produzione || '').slice(0, 5)} · {selected.locale_produzione}
                 {selected.locale_destinazione && selected.locale_destinazione !== selected.locale_produzione && ` ${selected.locale_destinazione}`}
               </div>
@@ -1080,10 +1080,10 @@ function TracciabilitaTab({ sp, sps }) {
                 Ingredienti origine (one step back)
               </div>
               {(selected.ingredienti_usati || []).length === 0 ? (
-                <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>Nessun ingrediente registrato.</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>Nessun ingrediente registrato.</div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+                  <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['Articolo', 'Quantità', 'Ultima fattura'].map(h => <th key={h} style={S.th}>{h}</th>)}
                   </tr></thead>
                   <tbody>
@@ -1093,8 +1093,8 @@ function TracciabilitaTab({ sp, sps }) {
                       return <tr key={idx} style={{ borderBottom: '1px solid #1a1f2e' }}>
                         <td style={{ ...S.td, fontWeight: 600 }}>{i.nome_articolo}</td>
                         <td style={{ ...S.td }}>{i.quantita} {i.unita || ''}</td>
-                        <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>
-                          {last ? <>{last.data} · {last.fornitore}{last.numero ? ` (#${last.numero})` : ''}</> : <span style={{ color: '#475569' }}>—</span>}
+                        <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>
+                          {last ? <>{last.data} · {last.fornitore}{last.numero ? ` (#${last.numero})` : ''}</> : <span style={{ color: 'var(--text3)' }}>—</span>}
                         </td>
                       </tr>
                     })}
@@ -1109,10 +1109,10 @@ function TracciabilitaTab({ sp, sps }) {
                 Movimenti generati (one step forward)
               </div>
               {movements.length === 0 ? (
-                <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>Nessun movimento collegato.</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>Nessun movimento collegato.</div>
               ) : (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead><tr style={{ borderBottom: '1px solid #2a3042' }}>
+                  <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['Tipo', 'Articolo', 'Quantità', 'Locale'].map(h => <th key={h} style={S.th}>{h}</th>)}
                   </tr></thead>
                   <tbody>
@@ -1124,7 +1124,7 @@ function TracciabilitaTab({ sp, sps }) {
                         </td>
                         <td style={{ ...S.td, fontWeight: 600 }}>{m.nome_articolo}</td>
                         <td style={{ ...S.td }}>{Number(m.quantita).toFixed(2)} {m.unita || ''}</td>
-                        <td style={{ ...S.td, fontSize: 11, color: '#94a3b8' }}>{m.locale}{m.sub_location_target ? ` ${m.sub_location_target}` : ''}</td>
+                        <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{m.locale}{m.sub_location_target ? ` ${m.sub_location_target}` : ''}</td>
                       </tr>
                     })}
                   </tbody>

@@ -11,7 +11,7 @@ export const CAT_META = {
   beverage:  { label: 'Beverage',   color: '#3B82F6', sign: 'negative' },
   materiali: { label: 'Materiali',  color: '#8B5CF6', sign: 'negative' },
   personale: { label: 'Personale',  color: '#EC4899', sign: 'negative' },
-  struttura: { label: 'Struttura',  color: '#64748b', sign: 'negative' },
+  struttura: { label: 'Struttura',  color: 'var(--text3)', sign: 'negative' },
 }
 
 // ─── Driver standard ───────────────────────────────────────────────────────
