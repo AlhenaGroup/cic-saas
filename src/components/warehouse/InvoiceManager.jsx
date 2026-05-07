@@ -852,12 +852,6 @@ export default function InvoiceManager({ sp, sps }) {
                                     qty_default: totToSave,
                                   }, { onConflict: 'user_id,nome_fattura_pattern' })
                                   setItemRules(prev => ({ ...prev, [key]: { nome_articolo_default: nameToSave, unita_default: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione_default: tipoToSave, qty_singola_default: qSingToSave, qty_default: totToSave } }))
-                                  // Auto-aggancio placeholder in attesa fattura: se esiste un
-                                  // placeholder con stesso nome normalizzato, marcalo agganciato.
-                                  try {
-                                    const { tryAutoLink } = await import('../../lib/placeholders.js')
-                                    await tryAutoLink(nameToSave)
-                                  } catch {}
                                 }
                               }
                               setItems(prev => prev.map(x => x.id === it.id ? { ...x, nome_articolo: nameToSave, unita: umToSave, magazzino: magToSave, escludi_magazzino: exclToSave, tipo_confezione: tipoToSave, qty_singola: qSingToSave, totale_um: totToSave, stato_match: 'abbinato', _saved: true } : x))

@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, Card, fmt, fmtD, fmtN } from '../shared/styles.jsx'
-import { listPlaceholders, createPlaceholder, normalizeName, findPlaceholderByName } from '../../lib/placeholders.js'
-import CreatePlaceholderModal from './CreatePlaceholderModal.jsx'
 
 const iS = S.input
 
@@ -18,10 +16,6 @@ export default function RecipeManager({ sp, sps }) {
   const [articles, setArticles] = useState([])
   // Semilavorati (manual_articles) — ingredienti prodotti internamente
   const [manualArticles, setManualArticles] = useState([])
-  // Placeholder articles ("in attesa fattura") — usabili come ingredienti
-  const [placeholders, setPlaceholders] = useState([])
-  // Stato modale "Crea placeholder"
-  const [creatingPh, setCreatingPh] = useState(null) // null | { nome }
   // Ricette salvate
   const [recipes, setRecipes] = useState({}) // nome_prodotto recipe
   const [loading, setLoading] = useState(false)
@@ -48,7 +42,6 @@ export default function RecipeManager({ sp, sps }) {
       setCicProducts(cached.cicProducts)
       setArticles(cached.articles)
       setManualArticles(cached.manualArticles || [])
-      setPlaceholders(cached.placeholders || [])
       setRecipes(cached.recipes)
       setLoading(false)
       return
@@ -120,11 +113,6 @@ export default function RecipeManager({ sp, sps }) {
     const { data: mans } = await supabase.from('manual_articles').select('*')
     setManualArticles(mans || [])
 
-    // 2.6. Placeholder articles ("in attesa fattura")
-    let phs = []
-    try { phs = await listPlaceholders() } catch {}
-    setPlaceholders(phs)
-
     // 3. Ricette salvate
     const { data: recs } = await supabase.from('recipes').select('*')
     const recMap = {}
@@ -132,7 +120,7 @@ export default function RecipeManager({ sp, sps }) {
     setRecipes(recMap)
 
     // Salva in cache per evitare refetch al prossimo mount
-    MEM_CACHE[cacheKey] = { cicProducts: prods, articles: arts, manualArticles: mans || [], placeholders: phs, recipes: recMap, ts: Date.now() }
+    MEM_CACHE[cacheKey] = { cicProducts: prods, articles: arts, manualArticles: mans || [], recipes: recMap, ts: Date.now() }
 
     setLoading(false)
   }, [sp, selectedLocaleName])
@@ -178,7 +166,7 @@ export default function RecipeManager({ sp, sps }) {
   // Costo unitario di un singolo ingrediente (€/UM_base):
   //  - se e' un semilavorato ricorre sulla sub-ricetta (somma costi / resa)
   //  - altrimenti cerca prezzo medio in articles (warehouse_invoice_items)
-  //  - fallback: prezzo_stimato del placeholder (se presente)
+  //  - se l'ingrediente non e' in articoli (es. "Acqua potabile") torna 0
   const ingrUnitCost = (nome, depth = 0) => {
     if (depth > 8) return 0 // protezione cicli
     const key = (nome || '').trim().toLowerCase()
@@ -194,26 +182,8 @@ export default function RecipeManager({ sp, sps }) {
     }
     const art = articles.find(a => a.nome.toLowerCase() === key)
     if (art && art.prezzoMedio > 0) return art.prezzoMedio
-    // Fallback: placeholder con prezzo stimato (articolo "in attesa di fattura")
-    const ph = findPlaceholderByName(placeholders, nome)
-    if (ph && ph.prezzo_stimato != null && Number(ph.prezzo_stimato) > 0) {
-      return Number(ph.prezzo_stimato)
-    }
     return 0
   }
-
-  // Indica se la ricetta contiene almeno un ingrediente che usa un prezzo stimato
-  // o un articolo non ancora associato (food cost = stima, non definitivo)
-  const hasStimaInRicetta = useMemo(() => {
-    if (!ingredienti?.length) return false
-    return ingredienti.some(ig => {
-      const k = (ig.nome_articolo || '').trim().toLowerCase()
-      if (manualByName[k]) return false // semilavorato: il flag si propaga ricorsivamente in calcCost
-      const art = articles.find(a => a.nome.toLowerCase() === k)
-      if (art && art.prezzoMedio > 0) return false
-      return true // non in articoli (placeholder o senza prezzo)
-    })
-  }, [ingredienti, articles, manualArticles, placeholders])
 
   // Calcolo food cost con conversione unità (include semilavorati)
   const calcCost = (ingr) => {
@@ -262,39 +232,25 @@ export default function RecipeManager({ sp, sps }) {
     }
   }
 
-  // Aggiungi ingrediente
+  // Aggiungi ingrediente esistente (articolo magazzino o semilavorato)
   const addIngredient = (artNome) => {
     if (!selected) return
-    // Cerca articolo (fattura) > semilavorato > placeholder
     const art = articles.find(a => a.nome === artNome)
     const man = manualArticles.find(m => m.nome === artNome)
-    const ph = placeholders.find(p => p.nome === artNome)
-    if (!art && !man && !ph) return
-    const nome = art ? art.nome : man ? man.nome : ph.nome
-    const unita = art ? art.unita : man ? man.unita : ph.unita
+    if (!art && !man) return
+    const nome = art ? art.nome : man.nome
+    const unita = art ? art.unita : man.unita
     const newIngr = [...ingredienti, { nome_articolo: nome, quantita: 0, unita }]
     saveRecipe(selected.name, newIngr)
     setIngredientSearch('')
   }
 
-  // Crea un nuovo placeholder e poi aggiungilo all'ingrediente
-  const handleCreatePlaceholder = async ({ nome, unita, prezzo_stimato, magazzino }) => {
-    try {
-      const ph = await createPlaceholder({ nome, unita, prezzo_stimato, magazzino, locale: selectedLocaleName })
-      setPlaceholders(prev => prev.some(p => p.id === ph.id) ? prev : [...prev, ph])
-      // Invalida cache cosi al prossimo refresh ricarica
-      const cacheKey = String(sp || 'all')
-      if (MEM_CACHE[cacheKey]) delete MEM_CACHE[cacheKey]
-      // Aggiungi ingrediente
-      if (selected) {
-        const newIngr = [...ingredienti, { nome_articolo: ph.nome, quantita: 0, unita: ph.unita }]
-        await saveRecipe(selected.name, newIngr)
-      }
-      setCreatingPh(null)
-      setIngredientSearch('')
-    } catch (e) {
-      alert('Errore creazione placeholder: ' + e.message)
-    }
+  // Aggiungi ingrediente "libero" (es. "Acqua potabile") — costo 0 €/UM, UM PZ default
+  const addFreeIngredient = (nome) => {
+    if (!selected || !nome.trim()) return
+    const newIngr = [...ingredienti, { nome_articolo: nome.trim(), quantita: 0, unita: 'PZ' }]
+    saveRecipe(selected.name, newIngr)
+    setIngredientSearch('')
   }
 
   // Aggiorna campo ingrediente e salva
@@ -309,8 +265,7 @@ export default function RecipeManager({ sp, sps }) {
     saveRecipe(selected.name, newIngr)
   }
 
-  // Articoli filtrati per ricerca ingrediente: include articoli magazzino, semilavorati
-  // e placeholder ("in attesa fattura"), con flag per la UI.
+  // Articoli filtrati per ricerca ingrediente: include articoli magazzino e semilavorati
   const allSelectable = [
     ...articles.map(a => ({ nome: a.nome, unita: a.unita, prezzoMedio: a.prezzoMedio, kind: 'art' })),
     ...manualArticles.map(m => ({
@@ -319,20 +274,14 @@ export default function RecipeManager({ sp, sps }) {
       prezzoMedio: ingrUnitCost(m.nome),
       kind: 'man',
     })),
-    ...placeholders.map(p => ({
-      nome: p.nome,
-      unita: p.unita,
-      prezzoMedio: Number(p.prezzo_stimato) || 0,
-      kind: 'placeholder',
-      agganciato: !!p.agganciato_a,
-    })),
   ]
   const filteredArticles = ingredientSearch.length >= 2
     ? allSelectable.filter(a => a.nome.toLowerCase().includes(ingredientSearch.toLowerCase()) && !ingredienti.some(ig => ig.nome_articolo.toLowerCase() === a.nome.toLowerCase()))
     : []
   // Verifica se la stringa cercata matcha esattamente (case-insensitive) un articolo gia' esistente
+  const normalizeStr = (s) => String(s || '').toLowerCase().trim().replace(/\s+/g, ' ')
   const exactMatch = ingredientSearch.length >= 2
-    ? allSelectable.find(a => normalizeName(a.nome) === normalizeName(ingredientSearch))
+    ? allSelectable.find(a => normalizeStr(a.nome) === normalizeStr(ingredientSearch))
     : null
 
   const conRicetta = cicProducts.filter(p => recipes[p.name] && (recipes[p.name].ingredienti || []).length > 0).length
@@ -402,14 +351,9 @@ export default function RecipeManager({ sp, sps }) {
         </div>
       }>
         {/* KPI food cost */}
-        {hasStimaInRicetta && (
-          <div style={{ background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.3)', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#92400E', marginBottom: 8 }}>
-            ≈ Food cost stimato — la ricetta contiene articoli in attesa di fattura. Quando arriveranno le fatture il calcolo si aggiornera' automaticamente.
-          </div>
-        )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
           <div style={{ padding: 10, background: 'var(--surface2)', borderRadius: 6 }}>
-            <div style={{ fontSize: 10, color: 'var(--text3)' }}>Food Cost {hasStimaInRicetta && <span style={{ color: '#F59E0B' }}>(stima)</span>}</div>
+            <div style={{ fontSize: 10, color: 'var(--text3)' }}>Food Cost</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#F59E0B', marginTop: 2 }}>{fmtD(foodCost)}</div>
           </div>
           <div style={{ padding: 10, background: 'var(--surface2)', borderRadius: 6 }}>
@@ -497,8 +441,8 @@ export default function RecipeManager({ sp, sps }) {
             onChange={e => setIngredientSearch(e.target.value)}
             style={{ ...iS, fontSize: 12, padding: '6px 10px', width: '100%', marginBottom: 6 }} />
           {filteredArticles.slice(0, 12).map(a => {
-            const tag = a.kind === 'man' ? 'SEM' : a.kind === 'placeholder' ? (a.agganciato ? 'PH' : 'IN ATTESA') : null
-            const tagColor = a.kind === 'man' ? '#10B981' : a.kind === 'placeholder' ? '#F59E0B' : 'var(--text3)'
+            const tag = a.kind === 'man' ? 'SEM' : null
+            const tagColor = a.kind === 'man' ? '#10B981' : 'var(--text3)'
             return (
               <div key={a.nome + ':' + a.kind} onClick={() => addIngredient(a.nome)}
                 style={{ padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -510,28 +454,16 @@ export default function RecipeManager({ sp, sps }) {
               </div>
             )
           })}
-          {/* "+ Crea placeholder" se nome cercato non matcha esattamente nessun articolo */}
+          {/* Aggiungi articolo libero a costo 0 (es. "Acqua potabile") */}
           {ingredientSearch.length >= 2 && !exactMatch && (
-            <div onClick={() => setCreatingPh({ nome: ingredientSearch })}
-              style={{ padding: '8px 10px', cursor: 'pointer', borderTop: filteredArticles.length > 0 ? '1px solid var(--border-md)' : 'none', fontSize: 12, color: 'var(--blue-text)', background: 'var(--blue-bg)', borderRadius: 0 }}>
-              + Aggiungi <strong>"{ingredientSearch}"</strong> come articolo in attesa fattura
+            <div onClick={() => addFreeIngredient(ingredientSearch)}
+              style={{ padding: '8px 10px', cursor: 'pointer', borderTop: filteredArticles.length > 0 ? '1px solid var(--border)' : 'none', fontSize: 12, color: '#3B82F6' }}>
+              + Aggiungi <strong>"{ingredientSearch}"</strong> a costo 0 €
             </div>
-          )}
-          {ingredientSearch.length >= 2 && filteredArticles.length === 0 && !exactMatch && (
-            <div style={{ padding: 8, fontSize: 11, color: 'var(--text3)' }}>Articolo non in fatture o semilavorati. Crea un placeholder col bottone qui sopra: la ricetta sara' valida e quando arrivera' la fattura il prezzo si aggiornera' da solo.</div>
           )}
         </div>
       </Card>
     </div>}
-
-    {/* Modal Crea placeholder */}
-    {creatingPh && (
-      <CreatePlaceholderModal
-        initialName={creatingPh.nome}
-        onCancel={() => setCreatingPh(null)}
-        onCreate={handleCreatePlaceholder}
-      />
-    )}
   </div>
 }
 

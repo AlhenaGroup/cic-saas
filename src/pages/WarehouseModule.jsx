@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
-import { listPlaceholders, deletePlaceholder, updatePlaceholder } from '../lib/placeholders.js'
 import { ScatterChart, Scatter, XAxis as SX, YAxis as SY, Tooltip as ST, ResponsiveContainer as SRC, Cell } from 'recharts'
 import { S, Card, KPI, fmt, fmtD, fmtN } from '../components/shared/styles.jsx'
 import WarehouseDashboard from '../components/warehouse/WarehouseDashboard'
@@ -239,13 +238,11 @@ const MAG_FILTERS = ['tutti', 'food', 'beverage', 'materiali', 'attrezzatura', '
 
 function ArticoliTab({ sp, sps }) {
   const [articles, setArticles] = useState([])
-  const [placeholders, setPlaceholders] = useState([])
   const [loading, setLoading] = useState(false)
   const [sortBy, setSortBy] = useState('name_asc')
   const [magFilter, setMagFilter] = useState('tutti')
   const [search, setSearch] = useState('')
   const [editingArticle, setEditingArticle] = useState(null)
-  const [showPlaceholders, setShowPlaceholders] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -292,12 +289,6 @@ function ArticoliTab({ sp, sps }) {
       ultimoPrezzo: a.prezzi.length > 0 ? a.prezzi[a.prezzi.length - 1] : 0,
     }))
     setArticles(list)
-    // Carica placeholder e calcola se ognuno e' "agganciato" (matcha un articolo reale)
-    let phs = []
-    try { phs = await listPlaceholders() } catch {}
-    const articleNames = new Set(list.map(a => a.nome.toLowerCase().trim()))
-    phs = phs.map(p => ({ ...p, _matchedReal: articleNames.has((p.nome || '').toLowerCase().trim()) }))
-    setPlaceholders(phs)
     setLoading(false)
   }, [])
 
@@ -333,55 +324,6 @@ function ArticoliTab({ sp, sps }) {
     </div>
   }>
     {loading && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>Caricamento...</div>}
-
-    {/* Sezione placeholder "in attesa fattura" */}
-    {!loading && placeholders.length > 0 && (() => {
-      const inAttesa = placeholders.filter(p => !p._matchedReal)
-      if (inAttesa.length === 0) return null
-      return (
-        <div style={{ background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.25)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
-          <div onClick={() => setShowPlaceholders(v => !v)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', textTransform: 'uppercase', letterSpacing: '.05em' }}>Articoli in attesa di fattura</div>
-              <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
-                {inAttesa.length} articol{inAttesa.length === 1 ? 'o' : 'i'} usat{inAttesa.length === 1 ? 'o' : 'i'} in ricette/semilavorati ma non ancora trovat{inAttesa.length === 1 ? 'o' : 'i'} in nessuna fattura.
-              </div>
-            </div>
-            <span style={{ fontSize: 14, color: 'var(--text2)' }}>{showPlaceholders ? '▾' : '▸'}</span>
-          </div>
-          {showPlaceholders && (
-            <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
-              {inAttesa.map(p => (
-                <div key={p.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{p.nome}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>
-                    {p.unita} · {p.magazzino || '—'}
-                    {p.prezzo_stimato != null && <> · stimato {fmtD(Number(p.prezzo_stimato))}/{p.unita}</>}
-                  </div>
-                  <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-                    <button onClick={async () => {
-                      const v = prompt(`Aggiorna prezzo stimato per "${p.nome}" (${p.unita}). Lascia vuoto per rimuovere:`, p.prezzo_stimato || '')
-                      if (v === null) return
-                      try {
-                        await updatePlaceholder(p.id, { prezzo_stimato: v === '' ? null : Number(v) })
-                        await load()
-                      } catch (e) { alert('Errore: ' + e.message) }
-                    }} style={{ ...S.input, padding: '3px 8px', fontSize: 10, border: '1px solid var(--border)', cursor: 'pointer' }}>Prezzo</button>
-                    <button onClick={async () => {
-                      if (!confirm(`Eliminare il placeholder "${p.nome}"? Le ricette che lo usano avranno costo 0 per quell'ingrediente.`)) return
-                      try {
-                        await deletePlaceholder(p.id)
-                        await load()
-                      } catch (e) { alert('Errore: ' + e.message) }
-                    }} style={{ ...S.input, padding: '3px 8px', fontSize: 10, color: '#EF4444', border: '1px solid var(--border)', cursor: 'pointer' }}>Elimina</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )
-    })()}
 
     {!loading && articles.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>Nessun articolo. Importa e associa le fatture nel tab Fatture.</div>}
     {filtered.length > 0 && <>
