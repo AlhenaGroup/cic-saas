@@ -67,12 +67,15 @@ export default async function handler(req, res) {
     const newPassword = randomPassword()
 
     if (!authUserId) {
-      // Verifica se esiste gia' un auth.user con questa email
-      const existRes = await sbAdmin(`/auth/v1/admin/users?email=${encodeURIComponent(emailLow)}`)
+      // Verifica se esiste gia' un auth.user con questa email.
+      // NB: Supabase admin API ?email= NON filtra davvero — ritorna sempre la lista
+      // completa paginata. Quindi devo cercare esplicitamente per email nel risultato.
+      const existRes = await sbAdmin(`/auth/v1/admin/users?per_page=1000`)
       let existing = null
       if (existRes.ok) {
         const existJson = await existRes.json()
-        existing = (existJson.users || existJson || [])[0]
+        const users = existJson.users || (Array.isArray(existJson) ? existJson : [])
+        existing = users.find(u => (u.email || '').toLowerCase() === emailLow)
       }
       if (existing) {
         // Caso 1: l'auth.user esistente e' marcato come staff (es. tentativo precedente
