@@ -564,9 +564,63 @@ function LottiTab({ sp, sps }) {
   }
 
   const annulla = async (b) => {
-    if (!confirm(`Annullare il lotto ${b.lotto}? I movimenti magazzino NON vengono ripristinati automaticamente.`)) return
-    await supabase.from('production_batches').update({ stato: 'annullato' }).eq('id', b.id)
-    load()
+    if (b.stato === 'annullato') {
+      alert('Lotto già annullato.')
+      return
+    }
+    if (!confirm(`Annullare il lotto ${b.lotto}?\n\nVerranno ripristinati i movimenti magazzino:\n- ingredienti riaccreditati (carico inverso dello scarico)\n- prodotto finito riscaricato (scarico inverso del carico)\n\nL'operazione è tracciata e visibile nello storico movimenti.`)) return
+
+    try {
+      // 1. Trova TUTTI i movimenti originali del lotto (link via production_batch_id, fallback riferimento_id)
+      let { data: movs } = await supabase.from('article_movement')
+        .select('*').eq('production_batch_id', b.id)
+      if (!movs || movs.length === 0) {
+        const { data: byRef } = await supabase.from('article_movement')
+          .select('*').eq('riferimento_id', b.id).eq('fonte', 'produzione')
+        movs = byRef || []
+      }
+
+      if (movs.length === 0) {
+        // Nessun movimento trovato — solo cambio stato (es. lotto creato manualmente senza scarichi)
+        await supabase.from('production_batches').update({ stato: 'annullato' }).eq('id', b.id)
+        load()
+        return
+      }
+
+      // 2. Per ogni movimento originale crea il suo inverso
+      // scarico -> carico, carico -> scarico, trasferimento_out/in -> idem invertiti
+      const inverseTipo = {
+        scarico: 'carico',
+        carico: 'scarico',
+        trasferimento_out: 'trasferimento_in',
+        trasferimento_in: 'trasferimento_out',
+      }
+      for (const m of movs) {
+        const tipoInv = inverseTipo[m.tipo]
+        if (!tipoInv) continue // skip apertura/correzione: non si invertono
+        try {
+          await applyMovement({
+            locale: m.locale, subLocation: m.sub_location,
+            nomeArticolo: m.nome_articolo,
+            tipo: tipoInv, quantita: m.quantita, unita: m.unita,
+            prezzoUnitario: m.prezzo_unitario,
+            fonte: 'annullamento_produzione',
+            riferimentoId: b.id,
+            riferimentoLabel: `Annullamento lotto ${b.lotto}`,
+          })
+        } catch (e) {
+          console.warn('[annulla rollback]', m.nome_articolo, m.tipo, '→', tipoInv, e.message)
+        }
+      }
+
+      // 3. Cambia stato del batch
+      await supabase.from('production_batches').update({ stato: 'annullato' }).eq('id', b.id)
+      load()
+      alert(`Lotto ${b.lotto} annullato. ${movs.length} movimenti magazzino ripristinati.`)
+    } catch (e) {
+      console.error('[annulla lotto]', e)
+      alert('Errore annullamento: ' + e.message)
+    }
   }
 
   return <Card title="Lotti produzione" badge={`${filtered.length}/${batches.length}`} extra={
