@@ -14,12 +14,14 @@ import IvaTab from '../components/IvaTab'
 import WidgetGrid from '../components/WidgetGrid'
 import ChecklistWidget from '../components/ChecklistWidget'
 import TaskWidget from '../components/TaskWidget'
+import HaccpScadenzeWidget from '../components/HaccpScadenzeWidget'
 import ChiusureView from '../components/ChiusureView'
 import { BriefingIeri, BriefingOggi, BriefingAttenzione } from '../components/MorningBriefing'
 import DailyReportSettings from '../components/DailyReportSettings'
 import SubTabsBar from '../components/SubTabsBar'
 import ImpostazioniModule from '../components/ImpostazioniModule'
 import MarketingModule from './MarketingModule'
+import HaccpModule from './HaccpModule'
 import ReceiptDetailModal from '../components/ReceiptDetailModal'
 import AvvisiModule from '../components/AvvisiModule'
 import { useUserPlan } from '../lib/features'
@@ -332,7 +334,7 @@ export default function DashboardPage({ settings }) {
   // CE/Budget/Produttivita' sono routes interne (raggiungibili via sub-tabs Contabilita' / HR)
   // Avvisi resta nel piano feature flag (puo' apparire o no a seconda del piano)
   const ALL_TABS=[['ov','Panoramica'],['conta','Contabilità'],['vendite','Vendite'],['mag','Magazzino'],['hr','HR'],
-              ['mkt','Marketing'],['avvisi','Avvisi'],['imp','Impostazioni']]
+              ['haccp','HACCP'],['mkt','Marketing'],['avvisi','Avvisi'],['imp','Impostazioni']]
   // Tabs interne (non visibili in barra ma raggiungibili da sub-tabs):
   // 'ce'   da Contabilita' sub-tab Conto Economico
   // 'bud'  da Contabilita' sub-tab Budget
@@ -680,6 +682,8 @@ export default function DashboardPage({ settings }) {
               <ChecklistWidget sps={sps}/> },
           { id:'briefing.task', label:'Task (oggi / settimana)', element:
               <TaskWidget sps={sps}/> },
+          { id:'briefing.haccp', label:'HACCP (documenti in scadenza)', element:
+              <HaccpScadenzeWidget/> },
           { id:'briefing.attenzione', label:'Attenzione (allarmi)', element:
               <BriefingAttenzione sps={sps} sp={sp}/> },
         ]}/>
@@ -1345,6 +1349,9 @@ export default function DashboardPage({ settings }) {
 
       {/* ── MARKETING / CRM ── */}
       {tab==='mkt'&&<MarketingModule sp={sp} sps={sps}/>}
+
+      {/* ── HACCP ── */}
+      {tab==='haccp'&&<HaccpModule sps={sps} sp={sp}/>}
 
       {/* ── AVVISI ── */}
       {tab==='avvisi'&&<AvvisiModule/>}

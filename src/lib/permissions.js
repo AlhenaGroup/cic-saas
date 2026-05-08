@@ -20,6 +20,7 @@ export const MODULES = [
   ['vendite', 'Vendite'],
   ['mag', 'Magazzino'],
   ['hr', 'HR'],
+  ['haccp', 'HACCP'],
   ['mkt', 'Marketing'],
   ['avvisi', 'Avvisi'],
   ['imp', 'Impostazioni'],
@@ -79,6 +80,13 @@ export const SUB_TABS = {
   avvisi: [
     ['feed', 'Feed'],
     ['config', 'Configurazione'],
+  ],
+  haccp: [
+    ['documenti', 'Documenti aziendali'],
+    ['corsi', 'Corsi & Attestati'],
+    ['registri', 'Registri autocontrollo'],
+    ['lotti', 'Lotti produzione'],
+    ['ispezioni', 'QR ispezioni'],
   ],
   imp: [
     ['generale', 'Generale'],
