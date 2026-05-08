@@ -18,21 +18,27 @@ export function toBaseUnit(qty, um) {
 }
 
 // Costo €/UM di un singolo ingrediente:
-//   - se `nome_articolo` corrisponde a un manual_article ricorre sulla sub-ricetta
+//   - se `nome_articolo` corrisponde a un manual_article (ed e' diverso da `parentKey`)
+//     ricorre sulla sub-ricetta
 //   - altrimenti cerca prezzo medio in `articlesPriceByName` (mappa nome€/UM)
+//   - se il nome dell'ingrediente coincide col semilavorato che lo contiene
+//     (caso comune: semilavorato "Salsa Yogurt" che usa la salsa yogurt comprata
+//     come base + altri ingredienti), salta il manualByName e va dritto in fattura
+//     per evitare la ricorsione infinita.
 //
 // `manualByName`: { nome { unita, resa, ingredienti } }
 // `articlesPriceByName`: { nome (lower) €/UM_base }
 // `placeholdersByName`: opzionale, { nome_norm prezzo_stimato, unita } per fallback
+// `parentKey`: nome (lower) del semilavorato chiamante, per evitare self-reference
 //
 // Ritorna { perUnit, baseUm, missing[], stimaCount } dove perUnit e' €/baseUm,
 // missing[] elenca eventuali ingredienti non trovati (prezzo 0),
 // stimaCount conta quanti ingredienti hanno usato un prezzo stimato.
-export function unitCostOf(nome, articlesPriceByName, manualByName, depth = 0, placeholdersByName = null) {
+export function unitCostOf(nome, articlesPriceByName, manualByName, depth = 0, placeholdersByName = null, parentKey = null) {
   if (depth > 8) return { perUnit: 0, baseUm: 'PZ', missing: ['LOOP:' + nome], stima: false } // protezione cicli
   const key = (nome || '').trim().toLowerCase()
-  // Manual article ricorri
-  if (manualByName[key]) {
+  // Manual article ricorri (ma solo se non e' lo stesso semilavorato che ci ha chiamato)
+  if (manualByName[key] && key !== parentKey) {
     return costOfManualArticle(manualByName[key], articlesPriceByName, manualByName, depth + 1, placeholdersByName)
   }
   // Articolo magazzino
@@ -56,10 +62,11 @@ export function costOfManualArticle(art, articlesPriceByName, manualByName, dept
   let totalCost = 0
   const missing = []
   let stimaCount = 0
+  const parentKey = (art?.nome || '').trim().toLowerCase() // per saltare self-reference
   for (const ingr of (art.ingredienti || [])) {
     if (ingr.gratis) continue // articolo gratuito intenzionale: costo 0, no missing
     const base = toBaseUnit(ingr.quantita, ingr.unita)
-    const r = unitCostOf(ingr.nome_articolo, articlesPriceByName, manualByName, depth + 1, placeholdersByName)
+    const r = unitCostOf(ingr.nome_articolo, articlesPriceByName, manualByName, depth + 1, placeholdersByName, parentKey)
     if (r.missing && r.missing.length) missing.push(...r.missing)
     if (r.stima) stimaCount++
     totalCost += base.qty * (r.perUnit || 0)
