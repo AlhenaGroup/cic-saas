@@ -71,7 +71,7 @@ export default function ChiusureView({ from, to, sps = [] }) {
     try {
       const [{ data: cl }, { data: ds }, { data: ck }, { data: rsp }] = await Promise.all([
         supabase.from('closures').select('*').gte('data', from).lte('data', to),
-        supabase.from('daily_stats').select('date,salespoint_name,revenue,bill_count').gte('date', from).lte('date', to),
+        supabase.from('daily_stats').select('date,salespoint_name,revenue,bill_count,receipt_details').gte('date', from).lte('date', to),
         supabase.from('attendance_checklists').select('id,locale,momento,items').eq('momento', 'uscita').eq('attivo', true),
         supabase.from('attendance_checklist_responses').select('checklist_id,locale,created_at,risposte,skipped').gte('created_at', from + 'T00:00:00').lte('created_at', to + 'T23:59:59'),
       ])
@@ -94,6 +94,7 @@ export default function ChiusureView({ from, to, sps = [] }) {
   }, [from, to])
 
   // Per ogni locale × data, costruisce riga con valori effettivi (override > checklist > daily_stats)
+  // CORRISPETTIVO = solo scontrini fiscali (non fatture); FATTURE = sum di receipt_details con isInvoice=true
   const buildRow = useCallback((locale, dateStr) => {
     const cl = closures.find(c => c.locale === locale && c.data === dateStr)
     const ds = dailyStats.find(d => d.salespoint_name === locale && d.date === dateStr)
@@ -101,8 +102,28 @@ export default function ChiusureView({ from, to, sps = [] }) {
     const dayResponses = responses.filter(r => r.locale === locale && r.created_at?.startsWith(dateStr))
     const fromChecklist = extractFromChecklist(dayResponses, cklUscita)
 
-    const corrispettivo = cl?.corrispettivo != null ? Number(cl.corrispettivo) : (ds?.revenue ?? null)
-    const fatture = cl?.fatture_emesse != null ? Number(cl.fatture_emesse) : null
+    // Suddivisione automatica scontrini vs fatture da receipt_details
+    let corrAuto = null, fatAuto = null
+    if (ds) {
+      const rd = Array.isArray(ds.receipt_details) ? ds.receipt_details : []
+      if (rd.length > 0) {
+        let sc = 0, inv = 0
+        for (const r of rd) {
+          const t = Number(r.totale) || 0
+          if (r.isInvoice) inv += t
+          else sc += t
+        }
+        corrAuto = sc
+        fatAuto = inv
+      } else {
+        // Fallback: nessun receipt_details, usa revenue come corrispettivo
+        corrAuto = Number(ds.revenue) || 0
+        fatAuto = 0
+      }
+    }
+
+    const corrispettivo = cl?.corrispettivo != null ? Number(cl.corrispettivo) : corrAuto
+    const fatture = cl?.fatture_emesse != null ? Number(cl.fatture_emesse) : fatAuto
     const pos = cl?.pos != null ? Number(cl.pos) : (fromChecklist.pos)
     const satispay = cl?.satispay != null ? Number(cl.satispay) : (fromChecklist.satispay)
 
@@ -116,9 +137,9 @@ export default function ChiusureView({ from, to, sps = [] }) {
       locale, data: dateStr,
       corrispettivo, fatture_emesse: fatture, pos, satispay, contanti,
       // Origine dei dati per UI
-      sourceCorr: cl?.corrispettivo != null ? 'manuale' : (ds ? 'cassa' : null),
-      sourceFat: cl?.fatture_emesse != null ? 'manuale' : null,
-      sourcePos: cl?.pos != null ? 'manuale' : (fromChecklist.pos != null ? 'checklist' : null),
+      sourceCorr: cl?.corrispettivo != null ? 'manuale' : (corrAuto != null ? 'cassa' : null),
+      sourceFat:  cl?.fatture_emesse != null ? 'manuale' : (fatAuto != null && fatAuto > 0 ? 'cassa' : null),
+      sourcePos:  cl?.pos != null ? 'manuale' : (fromChecklist.pos != null ? 'checklist' : null),
       sourceSaty: cl?.satispay != null ? 'manuale' : (fromChecklist.satispay != null ? 'checklist' : null),
     }
   }, [closures, dailyStats, checklists, responses])
@@ -175,12 +196,38 @@ export default function ChiusureView({ from, to, sps = [] }) {
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     {error && <div style={{ background: 'var(--red-bg)', color: 'var(--red-text)', padding: '10px 14px', borderRadius: 8, fontSize: 13 }}>{error}</div>}
 
+    <Legend/>
+
     {localesAvail.map(loc => (
       <ClosureTable key={loc} title={loc} rows={allRows[loc] || []} editable
         savingKey={saving} onEdit={(field, dateStr, val) => upsertCell(loc, dateStr, field, val)}/>
     ))}
 
     {localesAvail.length > 1 && <ClosureTable title="TOTALE (tutti i locali)" rows={totalRows} editable={false} accent="#10B981"/>}
+  </div>
+}
+
+const SOURCE_COLOR = {
+  cassa:     '#3B82F6',  // blu = dato auto dal gestionale di cassa CiC
+  checklist: '#10B981',  // verde = dato auto da checklist chiusura
+  manuale:   '#F59E0B',  // arancione = override manuale dell'imprenditore
+  calc:      'var(--text3)',
+}
+
+function Legend() {
+  const items = [
+    { c: SOURCE_COLOR.cassa,     l: 'Da cassa (CiC)' },
+    { c: SOURCE_COLOR.checklist, l: 'Da checklist chiusura' },
+    { c: SOURCE_COLOR.manuale,   l: 'Modificato manualmente' },
+  ]
+  return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, padding: '10px 14px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}>
+    <strong style={{ color: 'var(--text2)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.04em' }}>Origine dato</strong>
+    {items.map(it => (
+      <span key={it.l} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ width: 14, height: 14, borderRadius: 3, border: '2px solid ' + it.c, background: it.c + '15' }}/>
+        <span style={{ color: 'var(--text2)' }}>{it.l}</span>
+      </span>
+    ))}
   </div>
 }
 
@@ -257,6 +304,8 @@ function ClosureTable({ title, rows, editable, onEdit, savingKey, accent }) {
 function EditableCell({ value, onCommit, sourceFlag }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  const sourceColor = SOURCE_COLOR[sourceFlag]
+  const sourceLabel = sourceFlag === 'cassa' ? 'Da cassa (CiC)' : sourceFlag === 'checklist' ? 'Da checklist' : sourceFlag === 'manuale' ? 'Modificato manualmente' : 'Click per inserire'
   if (editing) {
     return <input
       autoFocus value={draft} type="text" inputMode="decimal"
@@ -266,15 +315,21 @@ function EditableCell({ value, onCommit, sourceFlag }) {
         if (e.key === 'Enter') { e.target.blur() }
         if (e.key === 'Escape') { setEditing(false) }
       }}
-      style={{ ...S.input, fontSize: 12, padding: '4px 6px', width: '100%', minWidth: 70, textAlign: 'right' }}
+      style={{ ...S.input, fontSize: 12, padding: '4px 6px', width: '100%', minWidth: 70, textAlign: 'right', border: '2px solid #3B82F6' }}
     />
   }
   const display = value == null ? null : fmtD(Number(value) || 0)
-  const flagColor = sourceFlag === 'manuale' ? '#F59E0B' : sourceFlag === 'cassa' ? '#3B82F6' : sourceFlag === 'checklist' ? '#10B981' : null
   return <button onClick={() => { setDraft(value == null ? '' : String(value)); setEditing(true) }}
-    title={sourceFlag ? `Origine: ${sourceFlag}` : 'Click per inserire'}
-    style={{ width: '100%', padding: '4px 6px', textAlign: 'right', background: 'transparent', border: '1px dashed var(--border)', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: display ? 'var(--text)' : 'var(--text3)', position: 'relative' }}>
+    title={sourceLabel}
+    style={{
+      width: '100%', padding: '4px 6px', textAlign: 'right',
+      background: sourceColor ? sourceColor + '12' : 'transparent',
+      border: '2px solid ' + (sourceColor || 'var(--border)'),
+      borderStyle: sourceColor ? 'solid' : 'dashed',
+      borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12,
+      color: display ? 'var(--text)' : 'var(--text3)',
+      fontWeight: sourceFlag === 'manuale' ? 700 : 500,
+    }}>
     {display || '—'}
-    {flagColor && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: 3, background: flagColor }}/>}
   </button>
 }
