@@ -164,6 +164,9 @@ export default function TaskWidget({ sps = [] }) {
   </div>
 }
 
+// Default reparti se l'owner non ne ha personalizzati
+const DEFAULT_AREAS = ['Amministrazione', 'Sala', 'Cucina', 'Bar', 'Produzione', 'Magazzino', 'Pulizia', 'Manutenzione', 'Rifiuti', 'Sicurezza', 'Marketing', 'Altro']
+
 // ─── Quick-create modale: task al volo dalla Panoramica ─────────────
 function QuickCreateModal({ sps, employees, onClose, onCreated }) {
   const allLocali = (sps || []).map(s => s.description || s.name).filter(Boolean)
@@ -172,6 +175,7 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
     title: '',
     tipo: 'compito',
     priority: 'media',
+    area: '',
     due_date: todayStr,
     due_time: '',
     duration_min: '',
@@ -190,6 +194,54 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
   })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+
+  // Reparti personalizzati: uniqi tra DEFAULT_AREAS e quelli salvati in user_settings.task_areas
+  const [customAreas, setCustomAreas] = useState([])
+  const [showAddArea, setShowAddArea] = useState(false)
+  const [newAreaText, setNewAreaText] = useState('')
+  useEffect(() => {
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.from('user_settings').select('task_areas').eq('user_id', user.id).maybeSingle()
+      const arr = Array.isArray(data?.task_areas) ? data.task_areas : []
+      setCustomAreas(arr.filter(Boolean))
+    })()
+  }, [])
+  const allAreas = useMemo(() => {
+    const s = new Set([...DEFAULT_AREAS, ...customAreas])
+    return [...s]
+  }, [customAreas])
+
+  const addArea = async () => {
+    const t = newAreaText.trim()
+    if (!t) return
+    if (allAreas.some(a => a.toLowerCase() === t.toLowerCase())) {
+      setNewAreaText('')
+      setShowAddArea(false)
+      setF(prev => ({ ...prev, area: t }))
+      return
+    }
+    const next = [...customAreas, t]
+    setCustomAreas(next)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      // upsert su user_settings (potrebbe non esistere ancora un row con questa colonna popolata)
+      await supabase.from('user_settings').update({ task_areas: next }).eq('user_id', user.id)
+    }
+    setF(prev => ({ ...prev, area: t }))
+    setNewAreaText('')
+    setShowAddArea(false)
+  }
+  const removeArea = async (areaName) => {
+    if (!customAreas.includes(areaName)) return // non si può rimuovere un default
+    if (!confirm(`Rimuovere il reparto "${areaName}"? (Le task gia' create con questo reparto restano invariate.)`)) return
+    const next = customAreas.filter(a => a !== areaName)
+    setCustomAreas(next)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) await supabase.from('user_settings').update({ task_areas: next }).eq('user_id', user.id)
+    if (f.area === areaName) setF(prev => ({ ...prev, area: '' }))
+  }
 
   // Ruoli disponibili (da employees attivi)
   const rolesAvail = useMemo(() => {
@@ -224,6 +276,7 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
           description: f.description || null,
           instructions: f.instructions || null,
           tipo: f.tipo,
+          area: f.area || null,
           type: 'generic',
           priority: f.priority,
           recurrence: f.recurrence,
@@ -249,6 +302,7 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
           description: f.description || null,
           instructions: f.instructions || null,
           tipo: f.tipo,
+          area: f.area || null,
           type: 'generic',
           priority: f.priority,
           due_date: f.due_date,
@@ -313,6 +367,53 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
                 <button key={v} type="button" onClick={() => setF({ ...f, priority: v })} style={tapBtn(f.priority === v, c)}>{l}</button>
               ))}
             </div>
+          </Field>
+
+          <Field label="Reparto">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {allAreas.map(a => {
+                const checked = f.area === a
+                const isCustom = customAreas.includes(a)
+                return <button key={a} type="button" onClick={() => setF({ ...f, area: checked ? '' : a })}
+                  onContextMenu={isCustom ? (e) => { e.preventDefault(); removeArea(a) } : undefined}
+                  title={isCustom ? 'Tap per selezionare · Tieni premuto/right-click per rimuovere' : 'Tap per selezionare'}
+                  style={{
+                    padding: '12px 16px', fontSize: 14, borderRadius: 999, fontWeight: 600,
+                    border: '2px solid ' + (checked ? 'var(--text)' : 'var(--border)'),
+                    background: checked ? 'var(--text)' : 'transparent',
+                    color: checked ? 'var(--surface)' : 'var(--text2)',
+                    cursor: 'pointer', minHeight: 44,
+                  }}>{a}</button>
+              })}
+              {!showAddArea && (
+                <button type="button" onClick={() => setShowAddArea(true)}
+                  style={{
+                    padding: '12px 16px', fontSize: 14, borderRadius: 999, fontWeight: 700,
+                    border: '2px dashed var(--blue)',
+                    background: 'transparent', color: 'var(--blue)',
+                    cursor: 'pointer', minHeight: 44,
+                  }}>+ Aggiungi categoria</button>
+              )}
+              {showAddArea && (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flex: '1 1 100%' }}>
+                  <input style={{ ...inpL, flex: 1 }} placeholder="Nome reparto (es. Igiene, IT, Sicurezza)" value={newAreaText} onChange={e => setNewAreaText(e.target.value)} autoFocus
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addArea() } }}/>
+                  <button type="button" onClick={addArea}
+                    style={{ padding: '12px 18px', fontSize: 14, fontWeight: 700, background: 'var(--text)', color: 'var(--surface)', border: 'none', borderRadius: 12, cursor: 'pointer', minHeight: 48 }}>
+                    Aggiungi
+                  </button>
+                  <button type="button" onClick={() => { setShowAddArea(false); setNewAreaText('') }}
+                    style={{ padding: '12px 14px', fontSize: 14, background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: 12, cursor: 'pointer', minHeight: 48 }}>
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
+            {customAreas.length > 0 && !showAddArea && (
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6, fontStyle: 'italic' }}>
+                Suggerimento: tieni premuto (o tasto destro) su un reparto personalizzato per rimuoverlo.
+              </div>
+            )}
           </Field>
 
           {!f.is_recurring && (
@@ -525,6 +626,7 @@ function TaskDetailModal({ data, employees, onClose }) {
               <div style={{ fontSize: 11, color: 'var(--text2)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <span>{new Date(t.due_date+'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}{t.due_time ? ' ' + t.due_time.substring(0, 5) : ''}</span>
                 {t.locale && <span>{t.locale}</span>}
+                {t.area && <span style={{ fontWeight: 600, color: 'var(--blue-text)' }}>· {t.area}</span>}
                 <span>→ {assignees}</span>
               </div>
               {t.description && <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 6, opacity: 0.85 }}>{t.description}</div>}

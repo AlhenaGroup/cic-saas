@@ -30,6 +30,21 @@ ALTER TABLE public.tasks
 ALTER TABLE public.task_templates
   ADD COLUMN IF NOT EXISTS is_delegable boolean NOT NULL DEFAULT true;
 
+-- 2c) Area / reparto operativo: amministrazione, cucina, sala, produzione,
+-- rifiuti, manutenzione, pulizia, magazzino, ecc. Personalizzabile per owner
+-- via user_settings.task_areas (array di stringhe).
+ALTER TABLE public.tasks
+  ADD COLUMN IF NOT EXISTS area text;
+
+ALTER TABLE public.task_templates
+  ADD COLUMN IF NOT EXISTS area text;
+
+ALTER TABLE public.task_knowledge
+  ADD COLUMN IF NOT EXISTS area text;
+
+ALTER TABLE public.user_settings
+  ADD COLUMN IF NOT EXISTS task_areas jsonb NOT NULL DEFAULT '[]'::jsonb;
+
 -- Constraint: valore tra i 3 ammessi
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tasks_tipo_check') THEN

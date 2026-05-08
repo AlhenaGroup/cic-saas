@@ -464,6 +464,7 @@ function TaskEditor({ task, employees, sps, knowledge = [], onClose, onSaved }) 
     instructions: task.instructions || '',
     type: task.type || 'generic',
     tipo: task.tipo || 'compito',
+    area: task.area || '',
     is_delegable: task.is_delegable !== undefined ? task.is_delegable : true,
     priority: task.priority || 'media',
     due_date: task.due_date || new Date().toISOString().split('T')[0],
@@ -560,6 +561,12 @@ function TaskEditor({ task, employees, sps, knowledge = [], onClose, onSaved }) 
       <select style={iS} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
         <option value="generic">Generica</option><option value="production">Produzione</option>
       </select>
+    </Field>
+    <Field label="Reparto (es. Cucina, Sala, Manutenzione…)">
+      <input style={iS} list="task-areas-list" placeholder="Reparto" value={f.area} onChange={e => setF({ ...f, area: e.target.value })}/>
+      <datalist id="task-areas-list">
+        {['Amministrazione','Sala','Cucina','Bar','Produzione','Magazzino','Pulizia','Manutenzione','Rifiuti','Sicurezza','Marketing','Altro'].map(a => <option key={a} value={a}/>)}
+      </datalist>
     </Field>
     {f.type === 'production' && <>
       <Field label="Ricetta">
@@ -668,6 +675,7 @@ function TemplateEditor({ tpl, employees, sps, knowledge = [], onClose, onSaved 
     instructions: tpl.instructions || '',
     type: tpl.type || 'generic',
     tipo: tpl.tipo || 'compito',
+    area: tpl.area || '',
     is_delegable: tpl.is_delegable !== undefined ? tpl.is_delegable : true,
     priority: tpl.priority || 'media',
     recurrence: tpl.recurrence || 'weekly',
