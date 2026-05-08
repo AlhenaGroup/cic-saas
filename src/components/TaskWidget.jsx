@@ -271,67 +271,70 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
     } catch (e) { setErr(e.message); setSaving(false) }
   }
 
+  // Mobile-first: tap target grandi (44px+), input grossi, padding generoso.
+  // Su PC stessi controlli ma con maxWidth comodo. Niente densità a 2 colonne:
+  // tutto in stack verticale per massima leggibilità su entrambi.
+  const inpL = { ...inp, padding: '12px 14px', fontSize: 16, minHeight: 48 }
+  const lblL = { ...lbl, fontSize: 12, marginBottom: 6 }
+  const tapBtn = (active, color) => ({
+    flex: 1, padding: '12px 8px', fontSize: 14, fontWeight: 600,
+    border: '2px solid ' + (active ? color : 'var(--border)'),
+    background: active ? color + '22' : 'transparent',
+    color: active ? color : 'var(--text2)',
+    borderRadius: 10, cursor: 'pointer', minHeight: 48,
+  })
   return (
-    <div onClick={onClose} className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, padding: 16, overflow: 'auto' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 16, maxWidth: 580, width: '100%', boxShadow: 'var(--shadow-md)', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--surface)', borderRadius: '16px 16px 0 0' }}>
-          <h3 style={{ margin: 0, fontSize: 15, color: 'var(--text)' }}>Nuova task al volo</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--text2)', cursor: 'pointer', padding: 4 }}>×</button>
+    <div onClick={onClose} className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, padding: 0, overflow: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 0, maxWidth: 600, width: '100%', boxShadow: 'var(--shadow-md)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Header sticky */}
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2 }}>
+          <h3 style={{ margin: 0, fontSize: 17, color: 'var(--text)', fontWeight: 700 }}>Nuova task</h3>
+          <button onClick={onClose} aria-label="Chiudi"
+            style={{ background: 'var(--surface2)', border: 'none', width: 36, height: 36, borderRadius: 18, fontSize: 22, color: 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
 
-        <div style={{ padding: 16, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Body — tutto in colonna single per massima leggibilità su iPhone */}
+        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 18, flex: 1 }}>
           <Field label="Titolo *">
-            <input style={inp} placeholder='es. "Pulire frigo bar prima del servizio"' value={f.title} onChange={e => setF({ ...f, title: e.target.value })} autoFocus/>
+            <input style={inpL} placeholder='es. "Pulire frigo bar"' value={f.title} onChange={e => setF({ ...f, title: e.target.value })} autoFocus/>
           </Field>
 
           <Field label="Categoria">
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
               {[['compito','Compito','#3B82F6'],['problema','Problema','#EF4444'],['scadenza','Scadenza','#F59E0B']].map(([v,l,c]) => (
-                <button key={v} type="button" onClick={() => setF({ ...f, tipo: v })}
-                  style={{
-                    flex: 1, padding: '8px 10px', fontSize: 12, fontWeight: 600,
-                    border: '1px solid ' + (f.tipo === v ? c : 'var(--border)'),
-                    background: f.tipo === v ? c + '22' : 'transparent',
-                    color: f.tipo === v ? c : 'var(--text2)',
-                    borderRadius: 8, cursor: 'pointer',
-                  }}>{l}</button>
+                <button key={v} type="button" onClick={() => setF({ ...f, tipo: v })} style={tapBtn(f.tipo === v, c)}>{l}</button>
               ))}
             </div>
           </Field>
 
           <Field label="Priorità">
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
               {[['bassa','Bassa','var(--text3)'],['media','Media','#3B82F6'],['alta','Alta','#F59E0B'],['urgente','Urgente','#EF4444']].map(([v,l,c]) => (
-                <button key={v} type="button" onClick={() => setF({ ...f, priority: v })}
-                  style={{
-                    flex: 1, padding: '6px 8px', fontSize: 11, fontWeight: 600,
-                    border: '1px solid ' + (f.priority === v ? c : 'var(--border)'),
-                    background: f.priority === v ? c + '22' : 'transparent',
-                    color: f.priority === v ? c : 'var(--text2)',
-                    borderRadius: 8, cursor: 'pointer',
-                  }}>{l}</button>
+                <button key={v} type="button" onClick={() => setF({ ...f, priority: v })} style={tapBtn(f.priority === v, c)}>{l}</button>
               ))}
             </div>
           </Field>
 
           {!f.is_recurring && (
             <Field label="Quando">
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input type="date" style={inp} value={f.due_date} onChange={e => setF({ ...f, due_date: e.target.value })}/>
-                <input type="time" style={inp} value={f.due_time} onChange={e => setF({ ...f, due_time: e.target.value })}/>
-                <input style={{ ...inp, width: 80 }} placeholder="Min" value={f.duration_min} onChange={e => setF({ ...f, duration_min: e.target.value })}/>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input type="date" style={inpL} value={f.due_date} onChange={e => setF({ ...f, due_date: e.target.value })}/>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="time" style={{ ...inpL, flex: 1 }} value={f.due_time} onChange={e => setF({ ...f, due_time: e.target.value })}/>
+                  <input style={{ ...inpL, flex: '0 0 90px' }} placeholder="Min" inputMode="numeric" value={f.duration_min} onChange={e => setF({ ...f, duration_min: e.target.value })}/>
+                </div>
               </div>
             </Field>
           )}
 
           <Field label="Locale">
-            <select style={inp} value={f.locale} onChange={e => setF({ ...f, locale: e.target.value, assigned_employee_ids: [] })}>
+            <select style={inpL} value={f.locale} onChange={e => setF({ ...f, locale: e.target.value, assigned_employee_ids: [] })}>
               {allLocali.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </Field>
 
           <Field label="Assegna a">
-            <select style={inp} value={f.assignment_kind} onChange={e => setF({ ...f, assignment_kind: e.target.value, assigned_employee_ids: [], assigned_roles: [] })}>
+            <select style={inpL} value={f.assignment_kind} onChange={e => setF({ ...f, assignment_kind: e.target.value, assigned_employee_ids: [], assigned_roles: [] })}>
               <option value="persons">Persone specifiche</option>
               <option value="roles">Ruoli</option>
               <option value="team">Tutto il team</option>
@@ -339,77 +342,63 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
           </Field>
 
           {f.assignment_kind === 'persons' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto', padding: 8, border: '1px solid var(--border)', borderRadius: 8 }}>
-              {empsForLocale.length === 0 && <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>Nessun dipendente in questo locale.</div>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface2)' }}>
+              {empsForLocale.length === 0 && <div style={{ fontSize: 13, color: 'var(--text3)', fontStyle: 'italic', padding: 8 }}>Nessun dipendente in questo locale.</div>}
               {empsForLocale.map(e => {
                 const checked = f.assigned_employee_ids.includes(e.id)
-                return <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, background: checked ? 'var(--surface2)' : 'transparent' }}>
+                return <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 15, color: 'var(--text)', cursor: 'pointer', padding: '12px 12px', borderRadius: 8, background: checked ? 'var(--blue-bg)' : 'var(--surface)', border: '1px solid ' + (checked ? 'var(--blue)' : 'var(--border)'), minHeight: 48 }}>
                   <input type="checkbox" checked={checked} onChange={() => {
                     const next = checked ? f.assigned_employee_ids.filter(x => x !== e.id) : [...f.assigned_employee_ids, e.id]
                     setF({ ...f, assigned_employee_ids: next })
-                  }}/>
-                  {e.nome}{e.ruolo ? <span style={{ color: 'var(--text3)', fontSize: 11 }}> · {e.ruolo}</span> : null}
+                  }} style={{ width: 20, height: 20 }}/>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <strong>{e.nome}</strong>
+                    {e.ruolo ? <span style={{ color: 'var(--text3)', fontSize: 12, marginLeft: 6 }}>{e.ruolo}</span> : null}
+                  </span>
                 </label>
               })}
             </div>
           )}
 
           {f.assignment_kind === 'roles' && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {rolesAvail.map(r => {
                 const checked = f.assigned_roles.includes(r)
                 return <button key={r} type="button" onClick={() => {
                   const next = checked ? f.assigned_roles.filter(x => x !== r) : [...f.assigned_roles, r]
                   setF({ ...f, assigned_roles: next })
                 }} style={{
-                  padding: '6px 12px', fontSize: 12, borderRadius: 999,
-                  border: '1px solid ' + (checked ? 'var(--text)' : 'var(--border)'),
+                  padding: '12px 18px', fontSize: 14, borderRadius: 999, fontWeight: 600,
+                  border: '2px solid ' + (checked ? 'var(--text)' : 'var(--border)'),
                   background: checked ? 'var(--text)' : 'transparent',
                   color: checked ? 'var(--surface)' : 'var(--text2)',
-                  cursor: 'pointer',
+                  cursor: 'pointer', minHeight: 44,
                 }}>{r}</button>
               })}
-              {rolesAvail.length === 0 && <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>Nessun ruolo configurato.</div>}
+              {rolesAvail.length === 0 && <div style={{ fontSize: 13, color: 'var(--text3)', fontStyle: 'italic' }}>Nessun ruolo configurato.</div>}
             </div>
           )}
 
           <Field label="Descrizione (opzionale)">
-            <textarea style={{ ...inp, minHeight: 50 }} placeholder="A cosa serve questa task" value={f.description} onChange={e => setF({ ...f, description: e.target.value })}/>
+            <textarea style={{ ...inpL, minHeight: 80 }} placeholder="A cosa serve" value={f.description} onChange={e => setF({ ...f, description: e.target.value })}/>
           </Field>
 
           <Field label="Istruzioni (opzionale)">
-            <textarea style={{ ...inp, minHeight: 60 }} placeholder="Passo-passo come si fa" value={f.instructions} onChange={e => setF({ ...f, instructions: e.target.value })}/>
+            <textarea style={{ ...inpL, minHeight: 100 }} placeholder="Passo-passo come si fa" value={f.instructions} onChange={e => setF({ ...f, instructions: e.target.value })}/>
           </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
-              <input type="checkbox" checked={f.is_delegable} onChange={e => setF({ ...f, is_delegable: e.target.checked })}/>
-              <div>
-                <div style={{ fontWeight: 600, color: 'var(--text)' }}>Delegabile</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)' }}>Il manager può smistarla a un sottoposto</div>
-              </div>
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
-              <input type="checkbox" checked={f.requires_photo} onChange={e => setF({ ...f, requires_photo: e.target.checked })}/>
-              <div>
-                <div style={{ fontWeight: 600, color: 'var(--text)' }}>Richiede foto</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)' }}>Al completamento</div>
-              </div>
-            </label>
-          </div>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
-            <input type="checkbox" checked={f.is_recurring} onChange={e => setF({ ...f, is_recurring: e.target.checked })}/>
-            <div>
-              <div style={{ fontWeight: 600, color: 'var(--text)' }}>Ricorrente</div>
-              <div style={{ fontSize: 11, color: 'var(--text3)' }}>Crea automaticamente istanze nel calendario</div>
-            </div>
-          </label>
+          {/* Opzioni: ognuna è una grossa riga toggle */}
+          <ToggleRow checked={f.is_delegable} onChange={v => setF({ ...f, is_delegable: v })}
+            title="Delegabile" sub="Il manager può smistarla a un sottoposto"/>
+          <ToggleRow checked={f.requires_photo} onChange={v => setF({ ...f, requires_photo: v })}
+            title="Richiede foto" sub="Al completamento il dipendente deve allegare una foto"/>
+          <ToggleRow checked={f.is_recurring} onChange={v => setF({ ...f, is_recurring: v })}
+            title="Ricorrente" sub="Si ripete nel calendario (giornaliera, settimanale, ecc.)" highlight/>
 
           {f.is_recurring && (
-            <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Field label="Frequenza">
-                <select style={inp} value={f.recurrence} onChange={e => setF({ ...f, recurrence: e.target.value })}>
+                <select style={inpL} value={f.recurrence} onChange={e => setF({ ...f, recurrence: e.target.value })}>
                   <option value="daily">Ogni giorno</option>
                   <option value="weekdays">Giorni feriali (Lun-Ven)</option>
                   <option value="weekly">Settimanale</option>
@@ -417,9 +406,12 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
                   <option value="monthly">Mensile</option>
                 </select>
               </Field>
+              <Field label="Orario (opzionale)">
+                <input type="time" style={inpL} value={f.due_time} onChange={e => setF({ ...f, due_time: e.target.value })}/>
+              </Field>
               {(f.recurrence === 'weekly' || f.recurrence === 'biweekly') && (
                 <Field label="Giorni della settimana">
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
                     {[1,2,3,4,5,6,0].map(dow => {
                       const dayN = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'][dow]
                       const checked = f.days_of_week.includes(dow)
@@ -427,11 +419,11 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
                         const next = checked ? f.days_of_week.filter(d => d !== dow) : [...f.days_of_week, dow]
                         setF({ ...f, days_of_week: next })
                       }} style={{
-                        padding: '6px 8px', fontSize: 11, borderRadius: 6,
-                        border: '1px solid ' + (checked ? 'var(--text)' : 'var(--border)'),
+                        padding: '12px 2px', fontSize: 12, borderRadius: 8, fontWeight: 700,
+                        border: '2px solid ' + (checked ? 'var(--text)' : 'var(--border)'),
                         background: checked ? 'var(--text)' : 'transparent',
                         color: checked ? 'var(--surface)' : 'var(--text2)',
-                        cursor: 'pointer', flex: 1, fontWeight: 600,
+                        cursor: 'pointer', minHeight: 44,
                       }}>{dayN}</button>
                     })}
                   </div>
@@ -439,25 +431,44 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
               )}
               {f.recurrence === 'monthly' && (
                 <Field label="Giorno del mese">
-                  <input type="number" min={1} max={31} style={inp} value={f.day_of_month} onChange={e => setF({ ...f, day_of_month: Number(e.target.value) })}/>
+                  <input type="number" min={1} max={31} inputMode="numeric" style={inpL} value={f.day_of_month} onChange={e => setF({ ...f, day_of_month: Number(e.target.value) })}/>
                 </Field>
               )}
-              <Field label="Orario (opzionale)">
-                <input type="time" style={inp} value={f.due_time} onChange={e => setF({ ...f, due_time: e.target.value })}/>
-              </Field>
             </div>
           )}
 
-          {err && <div style={{ background: 'var(--red-bg)', color: 'var(--red-text)', padding: 10, borderRadius: 8, fontSize: 13 }}>{err}</div>}
+          {err && <div style={{ background: 'var(--red-bg)', color: 'var(--red-text)', padding: 12, borderRadius: 10, fontSize: 14 }}>{err}</div>}
         </div>
 
-        <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onClose} disabled={saving} style={btnSec}>Annulla</button>
-          <button onClick={save} disabled={saving} style={btnPri}>{saving ? 'Salvo…' : 'Crea task'}</button>
+        {/* Footer sticky con bottoni grossi */}
+        <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', gap: 10, position: 'sticky', bottom: 0, background: 'var(--surface)' }}>
+          <button onClick={onClose} disabled={saving}
+            style={{ flex: 1, padding: '14px 16px', fontSize: 15, fontWeight: 600, background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: 12, cursor: 'pointer', minHeight: 50 }}>
+            Annulla
+          </button>
+          <button onClick={save} disabled={saving}
+            style={{ flex: 2, padding: '14px 16px', fontSize: 15, fontWeight: 700, background: 'var(--text)', color: 'var(--surface)', border: 'none', borderRadius: 12, cursor: 'pointer', minHeight: 50 }}>
+            {saving ? 'Salvo…' : 'Crea task'}
+          </button>
         </div>
       </div>
     </div>
   )
+}
+
+function ToggleRow({ checked, onChange, title, sub, highlight }) {
+  return <label style={{
+    display: 'flex', alignItems: 'center', gap: 14, padding: 14,
+    background: highlight && checked ? 'var(--blue-bg)' : 'var(--surface2)',
+    border: '1px solid ' + (highlight && checked ? 'var(--blue)' : 'var(--border)'),
+    borderRadius: 12, cursor: 'pointer', minHeight: 60,
+  }}>
+    <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ width: 22, height: 22, flexShrink: 0 }}/>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{title}</div>
+      <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{sub}</div>
+    </div>
+  </label>
 }
 
 function Field({ label, children }) {
