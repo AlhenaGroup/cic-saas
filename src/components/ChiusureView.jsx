@@ -229,29 +229,30 @@ export default function ChiusureView({ from, to, sps = [] }) {
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     {error && <div style={{ background: 'var(--red-bg)', color: 'var(--red-text)', padding: '10px 14px', borderRadius: 8, fontSize: 13 }}>{error}</div>}
 
-    {/* Filtro locale */}
+    {/* Filtro locale: i locali a sinistra, TOTALE a destra come tab separato */}
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
       <span style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 600, marginRight: 4 }}>Locale:</span>
       {localesAvail.map(loc => {
-        const active = view === loc || (!localesAvail.includes(view) && loc === localesAvail[0])
+        const active = view === loc || (view !== '__totale__' && !localesAvail.includes(view) && loc === localesAvail[0])
         return <ViewBtn key={loc} label={loc} active={active} onClick={() => setView(loc)}/>
       })}
+      {localesAvail.length > 1 && <>
+        <div style={{ flex: 1 }}/>
+        <ViewBtn label="TOTALE" active={view === '__totale__'} onClick={() => setView('__totale__')} accent="#10B981"/>
+      </>}
     </div>
 
     <Legend/>
 
-    {/* Tabella del locale selezionato (default: primo locale) */}
-    {(() => {
+    {/* Vista: TOTALE oppure tabella locale selezionato */}
+    {view === '__totale__' ? (
+      <ClosureTable title="TOTALE — tutti i locali aggregati" rows={totalRows} editable={false} accent="#10B981"/>
+    ) : (() => {
       const selected = localesAvail.includes(view) ? view : localesAvail[0]
       if (!selected) return null
       return <ClosureTable title={selected} rows={allRows[selected] || []} editable
         savingKey={saving} onEdit={(field, dateStr, val) => upsertCell(selected, dateStr, field, val)}/>
     })()}
-
-    {/* Tabella TOTALE sempre alla fine — somma di tutte le righe locale per data */}
-    {localesAvail.length > 0 && (
-      <ClosureTable title={localesAvail.length > 1 ? 'TOTALE — tutti i locali aggregati' : 'TOTALE'} rows={totalRows} editable={false} accent="#10B981"/>
-    )}
   </div>
 }
 
