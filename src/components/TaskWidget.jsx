@@ -338,19 +338,19 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
     borderRadius: 10, cursor: 'pointer', minHeight: 48,
   })
   return (
-    <div onClick={onClose} className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, padding: 0, overflow: 'auto' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 0, maxWidth: 600, width: '100%', boxShadow: 'var(--shadow-md)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-        {/* Header sticky */}
-        <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2 }}>
+    <div onClick={onClose} className="m-modal-fullscreen" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'stretch', justifyContent: 'center', zIndex: 1000, padding: 0, overflow: 'hidden' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 0, maxWidth: 600, width: '100%', boxShadow: 'var(--shadow-md)', height: '100dvh', maxHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', flexShrink: 0 }}>
           <h3 style={{ margin: 0, fontSize: 17, color: 'var(--text)', fontWeight: 700 }}>Nuova task</h3>
           <button onClick={onClose} aria-label="Chiudi"
             style={{ background: 'var(--surface2)', border: 'none', width: 36, height: 36, borderRadius: 18, fontSize: 22, color: 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
 
-        {/* Body — tutto in colonna single per massima leggibilità su iPhone */}
-        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 18, flex: 1 }}>
+        {/* Body scrollabile interno (footer e header restano fissi) */}
+        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 18, flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <Field label="Titolo *">
-            <input style={inpL} placeholder='es. "Pulire frigo bar"' value={f.title} onChange={e => setF({ ...f, title: e.target.value })} autoFocus/>
+            <input style={inpL} placeholder='es. "Pulire frigo bar"' value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/>
           </Field>
 
           <Field label="Categoria">
@@ -541,8 +541,8 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
           {err && <div style={{ background: 'var(--red-bg)', color: 'var(--red-text)', padding: 12, borderRadius: 10, fontSize: 14 }}>{err}</div>}
         </div>
 
-        {/* Footer sticky con bottoni grossi */}
-        <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', gap: 10, position: 'sticky', bottom: 0, background: 'var(--surface)' }}>
+        {/* Footer fisso in basso (flex-shrink: 0 nel container flex column) */}
+        <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', gap: 10, background: 'var(--surface)', flexShrink: 0, paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
           <button onClick={onClose} disabled={saving}
             style={{ flex: 1, padding: '14px 16px', fontSize: 15, fontWeight: 600, background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: 12, cursor: 'pointer', minHeight: 50 }}>
             Annulla
