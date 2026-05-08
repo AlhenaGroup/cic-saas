@@ -337,8 +337,14 @@ export default function ReservationsManager({ sp, sps }) {
 function btn(bg, color, border) {
   return { padding: '7px 14px', fontSize: 13, fontWeight: 600, background: bg, color, border: `1px solid ${border}`, borderRadius: 6, cursor: 'pointer' }
 }
-function btnSm(bg) {
-  return { padding: '5px 10px', fontSize: 11, background: bg, color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, cursor: 'pointer' }
+function btnSm(active) {
+  // active = true (o stringa accent come "#F59E0B"): bottone evidenziato
+  // active = false / "#0f1420" / undefined: bottone neutro theme-aware
+  const isActive = active === true || (typeof active === 'string' && active !== '#0f1420')
+  if (isActive) {
+    return { padding: '5px 10px', fontSize: 11, fontWeight: 600, background: '#F59E0B', color: '#0f1420', border: '1px solid #F59E0B', borderRadius: 5, cursor: 'pointer' }
+  }
+  return { padding: '5px 10px', fontSize: 11, fontWeight: 500, background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 5, cursor: 'pointer' }
 }
 
 function Field({ label, children }) {
