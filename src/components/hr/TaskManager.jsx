@@ -285,59 +285,199 @@ function KnowledgeEditor({ kn, sps, onClose, onSaved }) {
   </Modal>
 }
 
-// ─── Calendario settimanale ─────────────────────────────────────────
+// ─── Calendario multi-vista (Giorno / Settimana / Mese / Anno) ──────
 function CalendarView({ tasks, weekStart, setWeekStart, onTaskClick, employees }) {
-  const days = useMemo(() => {
-    const arr = []
-    const start = new Date(weekStart)
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(start); d.setDate(d.getDate() + i)
-      arr.push(d.toISOString().split('T')[0])
-    }
-    return arr
-  }, [weekStart])
+  const [view, setView] = useState(() => localStorage.getItem('hr_task_cal_view') || 'settimana')
+  useEffect(() => { localStorage.setItem('hr_task_cal_view', view) }, [view])
 
-  const tasksByDay = useMemo(() => {
-    const m = {}
-    days.forEach(d => m[d] = [])
-    tasks.forEach(t => { if (m[t.due_date]) m[t.due_date].push(t) })
-    return m
-  }, [tasks, days])
+  // Cursore: data di riferimento (per settimana = lunedì, per altri = primo giorno del periodo)
+  const cursor = useMemo(() => new Date(weekStart + 'T00:00:00'), [weekStart])
+  const todayStr = new Date().toISOString().split('T')[0]
+  const ymd = (d) => d.toISOString().split('T')[0]
 
-  const moveWeek = (n) => {
-    const d = new Date(weekStart); d.setDate(d.getDate() + n * 7)
-    setWeekStart(d.toISOString().split('T')[0])
+  // Naviga avanti/indietro in base alla vista
+  const move = (n) => {
+    const d = new Date(cursor)
+    if (view === 'giorno') d.setDate(d.getDate() + n)
+    else if (view === 'settimana') d.setDate(d.getDate() + n * 7)
+    else if (view === 'mese') d.setMonth(d.getMonth() + n)
+    else if (view === 'anno') d.setFullYear(d.getFullYear() + n)
+    setWeekStart(ymd(d))
+  }
+  const goToday = () => {
+    const d = new Date()
+    if (view === 'settimana') d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+    if (view === 'mese') d.setDate(1)
+    if (view === 'anno') { d.setMonth(0); d.setDate(1) }
+    setWeekStart(ymd(d))
   }
 
+  // Etichetta del periodo
+  const periodLabel = useMemo(() => {
+    const d = cursor
+    if (view === 'giorno') return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    if (view === 'settimana') {
+      const end = new Date(d); end.setDate(end.getDate() + 6)
+      return `Settimana del ${d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })} – ${end.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}`
+    }
+    if (view === 'mese') return d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })
+    if (view === 'anno') return String(d.getFullYear())
+    return ''
+  }, [cursor, view])
+
+  // Index task per giorno
+  const tasksByDay = useMemo(() => {
+    const m = {}
+    tasks.forEach(t => { if (!m[t.due_date]) m[t.due_date] = []; m[t.due_date].push(t) })
+    return m
+  }, [tasks])
+
+  // Etichette navigazione (più chiare in base alla vista)
+  const prevLabel = view === 'giorno' ? 'Giorno prec.' : view === 'settimana' ? 'Sett. prec.' : view === 'mese' ? 'Mese prec.' : 'Anno prec.'
+  const nextLabel = view === 'giorno' ? 'Giorno succ.' : view === 'settimana' ? 'Sett. succ.' : view === 'mese' ? 'Mese succ.' : 'Anno succ.'
+
   return <div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-      <button onClick={() => moveWeek(-1)} style={btnSecondary}></button>
-      <strong style={{ fontSize: 14, color: 'var(--text)' }}>
-        Settimana del {new Date(weekStart).toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })}
-      </strong>
-      <button onClick={() => moveWeek(1)} style={btnSecondary}></button>
-      <button onClick={() => {
-        const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
-        setWeekStart(d.toISOString().split('T')[0])
-      }} style={btnSecondary}>Oggi</button>
+    {/* Toolbar: nav + selettore vista */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+      <button onClick={() => move(-1)} style={btnSecondary} title={prevLabel}>◀ {prevLabel}</button>
+      <strong style={{ fontSize: 14, color: 'var(--text)', flex: '1 1 200px', textAlign: 'center', textTransform: 'capitalize' }}>{periodLabel}</strong>
+      <button onClick={() => move(1)} style={btnSecondary} title={nextLabel}>{nextLabel} ▶</button>
+      <button onClick={goToday} style={btnSecondary} title="Salta a oggi">Oggi</button>
+      <div style={{ display: 'flex', gap: 0, marginLeft: 'auto', background: 'var(--surface2)', borderRadius: 8, padding: 2 }}>
+        {[['giorno','Giorno'],['settimana','Settimana'],['mese','Mese'],['anno','Anno']].map(([v, l]) => (
+          <button key={v} onClick={() => setView(v)}
+            style={{
+              padding: '6px 12px', fontSize: 12, fontWeight: 600,
+              background: view === v ? 'var(--surface)' : 'transparent',
+              color: view === v ? 'var(--text)' : 'var(--text2)',
+              border: 'none', borderRadius: 6, cursor: 'pointer',
+              boxShadow: view === v ? 'var(--shadow)' : 'none',
+            }}>{l}</button>
+        ))}
+      </div>
     </div>
 
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
-      {days.map(d => {
-        const dt = new Date(d)
-        const isToday = d === new Date().toISOString().split('T')[0]
-        return <div key={d} style={{
+    {view === 'giorno' && <DayView day={ymd(cursor)} tasks={tasksByDay[ymd(cursor)] || []} todayStr={todayStr} onTaskClick={onTaskClick} employees={employees}/>}
+    {view === 'settimana' && <WeekView start={cursor} tasksByDay={tasksByDay} todayStr={todayStr} onTaskClick={onTaskClick} employees={employees}/>}
+    {view === 'mese' && <MonthView cursor={cursor} tasksByDay={tasksByDay} todayStr={todayStr} onTaskClick={onTaskClick} onJumpToDay={(d) => { setView('giorno'); setWeekStart(d) }} employees={employees}/>}
+    {view === 'anno' && <YearView cursor={cursor} tasksByDay={tasksByDay} onJumpToMonth={(d) => { setView('mese'); setWeekStart(d) }}/>}
+  </div>
+}
+
+function DayView({ day, tasks, todayStr, onTaskClick, employees }) {
+  const dt = new Date(day + 'T12:00:00')
+  const isToday = day === todayStr
+  const sorted = [...tasks].sort((a, b) => (a.due_time || 'zz').localeCompare(b.due_time || 'zz'))
+  return <div style={{ background: 'var(--surface)', border: '2px solid ' + (isToday ? 'var(--blue)' : 'var(--border)'), borderRadius: 'var(--radius-control)', padding: 16, minHeight: 300 }}>
+    <div style={{ fontSize: 13, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 12, fontWeight: 700, letterSpacing: '.04em' }}>
+      {dt.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })} · {sorted.length} task
+    </div>
+    {sorted.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: 'var(--text3)', fontSize: 13, fontStyle: 'italic' }}>Nessuna task in questo giorno.</div>}
+    {sorted.map(t => <TaskCard key={t.id} task={t} onClick={() => onTaskClick(t)} employees={employees}/>)}
+  </div>
+}
+
+function WeekView({ start, tasksByDay, todayStr, onTaskClick, employees }) {
+  const days = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start); d.setDate(d.getDate() + i)
+    days.push(d.toISOString().split('T')[0])
+  }
+  return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 8 }}>
+    {days.map(d => {
+      const dt = new Date(d + 'T12:00:00')
+      const isToday = d === todayStr
+      const dayTasks = tasksByDay[d] || []
+      return <div key={d} style={{
+        background: 'var(--surface)', border: '1px solid ' + (isToday ? 'var(--blue)' : 'var(--border)'),
+        borderRadius: 'var(--radius-control)', padding: 10, minHeight: 200,
+      }}>
+        <div style={{ fontSize: 11, color: isToday ? 'var(--blue)' : 'var(--text3)', textTransform: 'uppercase', marginBottom: 8, fontWeight: 700 }}>
+          {DAY_NAMES[(dt.getDay() + 7) % 7]} {dt.getDate()}/{dt.getMonth() + 1}
+        </div>
+        {dayTasks.map(t => <TaskCard key={t.id} task={t} compact onClick={() => onTaskClick(t)} employees={employees}/>)}
+        {dayTasks.length === 0 && <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>—</div>}
+      </div>
+    })}
+  </div>
+}
+
+function MonthView({ cursor, tasksByDay, todayStr, onTaskClick, onJumpToDay, employees }) {
+  // Costruisci griglia 6 settimane partendo dal lunedì della prima settimana del mese
+  const year = cursor.getFullYear(), month = cursor.getMonth()
+  const firstOfMonth = new Date(year, month, 1)
+  const offset = (firstOfMonth.getDay() + 6) % 7 // lun=0
+  const gridStart = new Date(year, month, 1 - offset)
+  const cells = []
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart); d.setDate(d.getDate() + i)
+    cells.push(d)
+  }
+  return <div>
+    {/* Header giorni settimana */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+      {['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(d => (
+        <div key={d} style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', fontWeight: 700, textAlign: 'center', padding: '4px 0' }}>{d}</div>
+      ))}
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+      {cells.map(d => {
+        const ymd = d.toISOString().split('T')[0]
+        const isCurrentMonth = d.getMonth() === month
+        const isToday = ymd === todayStr
+        const dayTasks = tasksByDay[ymd] || []
+        return <div key={ymd} onClick={() => onJumpToDay(ymd)} style={{
           background: 'var(--surface)', border: '1px solid ' + (isToday ? 'var(--blue)' : 'var(--border)'),
-          borderRadius: 'var(--radius-control)', padding: 10, minHeight: 200,
+          borderRadius: 6, padding: 6, minHeight: 90, opacity: isCurrentMonth ? 1 : 0.4, cursor: 'pointer',
         }}>
-          <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 8, fontWeight: 600 }}>
-            {DAY_NAMES[(dt.getDay() + 7) % 7]} {dt.getDate()}/{dt.getMonth() + 1}
-          </div>
-          {tasksByDay[d]?.map(t => <TaskCard key={t.id} task={t} compact onClick={() => onTaskClick(t)} employees={employees}/>)}
-          {tasksByDay[d]?.length === 0 && <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>—</div>}
+          <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? 'var(--blue)' : 'var(--text2)', marginBottom: 4 }}>{d.getDate()}</div>
+          {dayTasks.slice(0, 3).map(t => {
+            const c = PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.media
+            return <div key={t.id} onClick={(e) => { e.stopPropagation(); onTaskClick(t) }}
+              style={{ background: c.bg, color: c.fg, padding: '2px 5px', borderRadius: 4, fontSize: 10, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'pointer', fontWeight: 600 }}>
+              {t.due_time?.substring(0, 5) || ''} {t.title}
+            </div>
+          })}
+          {dayTasks.length > 3 && <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600 }}>+{dayTasks.length - 3} altri</div>}
         </div>
       })}
     </div>
+  </div>
+}
+
+function YearView({ cursor, tasksByDay, onJumpToMonth }) {
+  const year = cursor.getFullYear()
+  const monthsInfo = []
+  for (let m = 0; m < 12; m++) {
+    const start = new Date(year, m, 1)
+    const end = new Date(year, m + 1, 0)
+    let count = 0, problemi = 0, scaduteCount = 0
+    const today = new Date().toISOString().split('T')[0]
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const k = d.toISOString().split('T')[0]
+      const list = tasksByDay[k] || []
+      count += list.length
+      problemi += list.filter(t => t.tipo === 'problema').length
+      scaduteCount += list.filter(t => k < today && t.status !== 'fatta' && t.status !== 'saltata').length
+    }
+    monthsInfo.push({ m, count, problemi, scaduteCount, ymd: start.toISOString().split('T')[0] })
+  }
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre']
+  return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+    {monthsInfo.map(({ m, count, problemi, scaduteCount, ymd }) => (
+      <button key={m} onClick={() => onJumpToMonth(ymd)} style={{
+        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8,
+        padding: 14, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit',
+      }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{monthNames[m]}</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: count > 0 ? 'var(--text)' : 'var(--text3)' }}>{count}</div>
+        <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.04em', marginTop: 2 }}>task totali</div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+          {problemi > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3, background: 'rgba(239,68,68,.15)', color: '#EF4444' }}>{problemi} problemi</span>}
+          {scaduteCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 3, background: 'rgba(245,158,11,.15)', color: '#B45309' }}>{scaduteCount} scadute</span>}
+        </div>
+      </button>
+    ))}
   </div>
 }
 
