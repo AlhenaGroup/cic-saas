@@ -203,7 +203,8 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
     ;(async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const { data } = await supabase.from('user_settings').select('task_areas').eq('user_id', user.id).maybeSingle()
+      const { data, error } = await supabase.from('user_settings').select('task_areas').eq('user_id', user.id).maybeSingle()
+      if (error) return // colonna non ancora creata: ignora silenziosamente
       const arr = Array.isArray(data?.task_areas) ? data.task_areas : []
       setCustomAreas(arr.filter(Boolean))
     })()
@@ -226,7 +227,8 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
     setCustomAreas(next)
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      // upsert su user_settings (potrebbe non esistere ancora un row con questa colonna popolata)
+      // Persistenza su user_settings.task_areas — best-effort: se la colonna non
+      // esiste ancora (DDL non applicata) salviamo solo in memoria locale.
       await supabase.from('user_settings').update({ task_areas: next }).eq('user_id', user.id)
     }
     setF(prev => ({ ...prev, area: t }))
@@ -239,7 +241,10 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
     const next = customAreas.filter(a => a !== areaName)
     setCustomAreas(next)
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) await supabase.from('user_settings').update({ task_areas: next }).eq('user_id', user.id)
+    if (user) {
+      // best-effort
+      await supabase.from('user_settings').update({ task_areas: next }).eq('user_id', user.id)
+    }
     if (f.area === areaName) setF(prev => ({ ...prev, area: '' }))
   }
 
@@ -267,10 +272,31 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
     }
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
+    // Helper: tenta INSERT, se fallisce con "column X does not exist" (Postgres 42703)
+    // riprova rimuovendo le colonne nuove non ancora aggiunte alla tabella.
+    const safeInsert = async (table, payload) => {
+      let body = { ...payload }
+      const optionalCols = ['tipo', 'area', 'is_delegable']
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const { error } = await supabase.from(table).insert(body)
+        if (!error) return
+        // Postgres error 42703: undefined column. Estrai nome dalla msg e rimuovilo dal payload.
+        if (error.code === '42703' || /column .* does not exist/i.test(error.message || '')) {
+          const m = (error.message || '').match(/column "?([a-z_]+)"? does not exist/i)
+          const col = m ? m[1] : null
+          if (col && col in body) { delete body[col]; continue }
+          // Fallback: rimuovi tutte le opzionali e ritenta una volta sola
+          let removed = false
+          for (const c of optionalCols) { if (c in body) { delete body[c]; removed = true } }
+          if (removed) continue
+        }
+        throw error
+      }
+      throw new Error('Impossibile inserire: troppe colonne mancanti. Applica la migration SQL hierarchy-tasks.sql.')
+    }
     try {
       if (f.is_recurring) {
-        // Salva come task_template ricorrente — l'API genera le istanze al cron
-        const tpl = {
+        await safeInsert('task_templates', {
           user_id: user.id,
           title: f.title.trim(),
           description: f.description || null,
@@ -292,11 +318,9 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
           requires_photo: f.requires_photo,
           is_delegable: f.is_delegable,
           active: true,
-        }
-        const { error } = await supabase.from('task_templates').insert(tpl)
-        if (error) throw error
+        })
       } else {
-        const t = {
+        await safeInsert('tasks', {
           user_id: user.id,
           title: f.title.trim(),
           description: f.description || null,
@@ -317,12 +341,10 @@ function QuickCreateModal({ sps, employees, onClose, onCreated }) {
           is_delegable: f.is_delegable,
           status: 'da_fare',
           assigned_by_id: null,
-        }
-        const { error } = await supabase.from('tasks').insert(t)
-        if (error) throw error
+        })
       }
       onCreated()
-    } catch (e) { setErr(e.message); setSaving(false) }
+    } catch (e) { setErr(e.message || String(e)); setSaving(false) }
   }
 
   // Mobile-first: tap target grandi (44px+), input grossi, padding generoso.
