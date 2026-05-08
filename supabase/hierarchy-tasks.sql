@@ -23,6 +23,13 @@ ALTER TABLE public.task_templates
 ALTER TABLE public.task_knowledge
   ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'compito';
 
+-- 2b) Delegabilita': se false, il manager con task_dispatch non puo' riassegnarla
+ALTER TABLE public.tasks
+  ADD COLUMN IF NOT EXISTS is_delegable boolean NOT NULL DEFAULT true;
+
+ALTER TABLE public.task_templates
+  ADD COLUMN IF NOT EXISTS is_delegable boolean NOT NULL DEFAULT true;
+
 -- Constraint: valore tra i 3 ammessi
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='tasks_tipo_check') THEN

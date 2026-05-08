@@ -229,7 +229,8 @@ function TaskDetail({ pin, task, onBack, canDispatch, onDispatch }) {
         {completing ? 'Completamento…' : 'Fatto'}
       </button>
 
-      {canDispatch && <button onClick={onDispatch} style={btnSecondary}>Smista a sottoposti</button>}
+      {canDispatch && task.is_delegable !== false && <button onClick={onDispatch} style={btnSecondary}>Smista a sottoposti</button>}
+      {canDispatch && task.is_delegable === false && <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic', textAlign: 'center', padding: '6px 0' }}>Task non delegabile</div>}
     </>}
 
     {isDone && <div style={{ background: 'rgba(16,185,129,.15)', color: '#10B981', padding: '12px 16px', borderRadius: 10, fontSize: 13, marginBottom: 10 }}>

@@ -317,6 +317,9 @@ export default async function handler(req, res) {
         const tasks = await sbQuery(`tasks?id=eq.${task_id}&user_id=eq.${v.emp.user_id}&select=*&limit=1`);
         if (!tasks?.[0]) return res.status(404).json({ error: 'Task non trovata' });
         const parent = tasks[0];
+        if (parent.is_delegable === false) {
+          return res.status(403).json({ error: 'Task non delegabile: deve essere svolta da chi e\' assegnata.' });
+        }
 
         const childRows = employee_ids.map(empId => ({
           user_id: v.emp.user_id,

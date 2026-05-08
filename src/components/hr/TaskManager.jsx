@@ -464,6 +464,7 @@ function TaskEditor({ task, employees, sps, knowledge = [], onClose, onSaved }) 
     instructions: task.instructions || '',
     type: task.type || 'generic',
     tipo: task.tipo || 'compito',
+    is_delegable: task.is_delegable !== undefined ? task.is_delegable : true,
     priority: task.priority || 'media',
     due_date: task.due_date || new Date().toISOString().split('T')[0],
     due_time: task.due_time || '',
@@ -615,6 +616,12 @@ function TaskEditor({ task, employees, sps, knowledge = [], onClose, onSaved }) 
         Foto obbligatoria al completamento
       </label>
     </Field>
+    <Field label="">
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)' }}>
+        <input type="checkbox" checked={f.is_delegable} onChange={e => setF({ ...f, is_delegable: e.target.checked })}/>
+        <span><strong>Delegabile</strong> — il manager pu&ograve; smistarla a un sottoposto. Disabilita per task che devono restare a chi le hai assegnate.</span>
+      </label>
+    </Field>
   </Modal>
 }
 
@@ -661,6 +668,7 @@ function TemplateEditor({ tpl, employees, sps, knowledge = [], onClose, onSaved 
     instructions: tpl.instructions || '',
     type: tpl.type || 'generic',
     tipo: tpl.tipo || 'compito',
+    is_delegable: tpl.is_delegable !== undefined ? tpl.is_delegable : true,
     priority: tpl.priority || 'media',
     recurrence: tpl.recurrence || 'weekly',
     days_of_week: tpl.days_of_week || [],
@@ -800,6 +808,12 @@ function TemplateEditor({ tpl, employees, sps, knowledge = [], onClose, onSaved 
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
         <input type="checkbox" checked={f.requires_photo} onChange={e => setF({ ...f, requires_photo: e.target.checked })}/>
         Foto obbligatoria al completamento
+      </label>
+    </Field>
+    <Field label="">
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+        <input type="checkbox" checked={f.is_delegable} onChange={e => setF({ ...f, is_delegable: e.target.checked })}/>
+        <span><strong>Delegabile</strong> &mdash; il manager pu&ograve; smistarla a un sottoposto.</span>
       </label>
     </Field>
     <Field label="">
