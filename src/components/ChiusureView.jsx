@@ -1,0 +1,280 @@
+// Chiusure & Versamenti
+// Una tabella per locale + tabella totale aggregata.
+// Colonne: Data | Corrispettivo | Fatture | POS | Satispay | Contanti
+//
+// Sorgenti:
+// - corrispettivo: daily_stats.revenue (auto, modificabile via override in closures)
+// - fatture_emesse: manuale (closures.fatture_emesse)
+// - pos / satispay: prima tenta da attendance_checklist_responses (label "pos"/"satispay"
+//   nel jsonb risposte), altrimenti manuale (closures.pos / .satispay)
+// - contanti: calcolato = corrispettivo + fatture - pos - satispay
+//
+// Edit inline su tutte le celle eccetto Contanti (calcolato).
+
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { supabase } from '../lib/supabase'
+import { S, Card, fmtD } from './shared/styles.jsx'
+
+const COLS = [
+  { k: 'data',           label: 'Data',          editable: false },
+  { k: 'corrispettivo',  label: 'Corrispettivo', editable: true,  source: 'cassa' },
+  { k: 'fatture_emesse', label: 'Fatture',       editable: true,  source: 'manuale' },
+  { k: 'pos',            label: 'POS',           editable: true,  source: 'checklist' },
+  { k: 'satispay',       label: 'Satispay',      editable: true,  source: 'checklist' },
+  { k: 'contanti',       label: 'Contanti',      editable: false, source: 'calc' },
+]
+
+const ymd = (d) => d.toISOString().split('T')[0]
+const parseEur = (v) => {
+  if (v == null || v === '') return 0
+  const s = String(v).replace(',', '.').replace(/[^\d.\-]/g, '')
+  return Number(s) || 0
+}
+
+// Estrae POS/Satispay da risposte checklist (best-effort, cerca chiavi/label che contengono pos/satispay)
+function extractFromChecklist(responses, checklist) {
+  if (!responses?.length) return { pos: null, satispay: null }
+  const items = Array.isArray(checklist?.items) ? checklist.items : []
+  let pos = null, satispay = null
+  for (const r of responses) {
+    if (r.skipped) continue
+    const ans = r.risposte || {}
+    for (const it of items) {
+      const label = (it.label || '').toLowerCase()
+      const id = String(it.id || '')
+      const v = ans[id]
+      if (v == null || v === '') continue
+      if (pos == null && /\bpos\b|carta|bancomat/i.test(label)) {
+        const n = parseEur(v); if (n > 0 || v !== '0') pos = n
+      }
+      if (satispay == null && /satispay|saty/i.test(label)) {
+        const n = parseEur(v); if (n > 0 || v !== '0') satispay = n
+      }
+    }
+  }
+  return { pos, satispay }
+}
+
+export default function ChiusureView({ from, to, sps = [] }) {
+  const [closures, setClosures] = useState([])
+  const [dailyStats, setDailyStats] = useState([])
+  const [checklists, setChecklists] = useState([])
+  const [responses, setResponses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(null) // 'locale|data' chiave riga in salvataggio
+  const [error, setError] = useState('')
+
+  const localesAvail = useMemo(() => (sps || []).map(s => s.description || s.name).filter(Boolean), [sps])
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    try {
+      const [{ data: cl }, { data: ds }, { data: ck }, { data: rsp }] = await Promise.all([
+        supabase.from('closures').select('*').gte('data', from).lte('data', to),
+        supabase.from('daily_stats').select('date,salespoint_name,revenue,bill_count').gte('date', from).lte('date', to),
+        supabase.from('attendance_checklists').select('id,locale,momento,items').eq('momento', 'uscita').eq('attivo', true),
+        supabase.from('attendance_checklist_responses').select('checklist_id,locale,created_at,risposte,skipped').gte('created_at', from + 'T00:00:00').lte('created_at', to + 'T23:59:59'),
+      ])
+      setClosures(cl || [])
+      setDailyStats(ds || [])
+      setChecklists(ck || [])
+      setResponses(rsp || [])
+    } catch (e) { setError(e.message) }
+    setLoading(false)
+  }, [from, to])
+  useEffect(() => { load() }, [load])
+
+  // Genera lista date (incluse) tra from e to
+  const dates = useMemo(() => {
+    const out = []
+    const start = new Date(from + 'T00:00:00')
+    const end = new Date(to + 'T00:00:00')
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) out.push(ymd(d))
+    return out
+  }, [from, to])
+
+  // Per ogni locale × data, costruisce riga con valori effettivi (override > checklist > daily_stats)
+  const buildRow = useCallback((locale, dateStr) => {
+    const cl = closures.find(c => c.locale === locale && c.data === dateStr)
+    const ds = dailyStats.find(d => d.salespoint_name === locale && d.date === dateStr)
+    const cklUscita = checklists.find(c => c.locale === locale)
+    const dayResponses = responses.filter(r => r.locale === locale && r.created_at?.startsWith(dateStr))
+    const fromChecklist = extractFromChecklist(dayResponses, cklUscita)
+
+    const corrispettivo = cl?.corrispettivo != null ? Number(cl.corrispettivo) : (ds?.revenue ?? null)
+    const fatture = cl?.fatture_emesse != null ? Number(cl.fatture_emesse) : null
+    const pos = cl?.pos != null ? Number(cl.pos) : (fromChecklist.pos)
+    const satispay = cl?.satispay != null ? Number(cl.satispay) : (fromChecklist.satispay)
+
+    const corrN = corrispettivo || 0
+    const fatN = fatture || 0
+    const posN = pos || 0
+    const satyN = satispay || 0
+    const contanti = corrN + fatN - posN - satyN
+
+    return {
+      locale, data: dateStr,
+      corrispettivo, fatture_emesse: fatture, pos, satispay, contanti,
+      // Origine dei dati per UI
+      sourceCorr: cl?.corrispettivo != null ? 'manuale' : (ds ? 'cassa' : null),
+      sourceFat: cl?.fatture_emesse != null ? 'manuale' : null,
+      sourcePos: cl?.pos != null ? 'manuale' : (fromChecklist.pos != null ? 'checklist' : null),
+      sourceSaty: cl?.satispay != null ? 'manuale' : (fromChecklist.satispay != null ? 'checklist' : null),
+    }
+  }, [closures, dailyStats, checklists, responses])
+
+  const upsertCell = async (locale, dateStr, field, value) => {
+    const num = value === '' || value == null ? null : parseEur(value)
+    setSaving(locale + '|' + dateStr)
+    setError('')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const existing = closures.find(c => c.locale === locale && c.data === dateStr)
+      if (existing) {
+        const { data, error } = await supabase.from('closures')
+          .update({ [field]: num, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+          .select()
+        if (error) throw error
+        setClosures(prev => prev.map(c => c.id === existing.id ? (data?.[0] || c) : c))
+      } else {
+        const row = { user_id: user.id, locale, data: dateStr, [field]: num }
+        const { data, error } = await supabase.from('closures').insert(row).select()
+        if (error) throw error
+        if (data?.[0]) setClosures(prev => [...prev, data[0]])
+      }
+    } catch (e) { setError(e.message) }
+    setSaving(null)
+  }
+
+  // Tabelle per ogni locale + totale aggregato
+  const allRows = useMemo(() => {
+    const m = {}
+    for (const loc of localesAvail) m[loc] = dates.map(d => buildRow(loc, d))
+    return m
+  }, [localesAvail, dates, buildRow])
+
+  const totalRows = useMemo(() => {
+    return dates.map(d => {
+      let corr = 0, fat = 0, pos = 0, saty = 0
+      let hasCorr = false, hasFat = false, hasPos = false, hasSaty = false
+      for (const loc of localesAvail) {
+        const r = allRows[loc]?.find(x => x.data === d)
+        if (!r) continue
+        if (r.corrispettivo != null) { corr += Number(r.corrispettivo) || 0; hasCorr = true }
+        if (r.fatture_emesse != null) { fat += Number(r.fatture_emesse) || 0; hasFat = true }
+        if (r.pos != null) { pos += Number(r.pos) || 0; hasPos = true }
+        if (r.satispay != null) { saty += Number(r.satispay) || 0; hasSaty = true }
+      }
+      return { data: d, corrispettivo: hasCorr ? corr : null, fatture_emesse: hasFat ? fat : null, pos: hasPos ? pos : null, satispay: hasSaty ? saty : null, contanti: corr + fat - pos - saty }
+    })
+  }, [dates, localesAvail, allRows])
+
+  if (loading) return <Card title="Chiusure & Versamenti"><div style={{ padding: 30, textAlign: 'center', color: 'var(--text3)' }}>Caricamento…</div></Card>
+
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    {error && <div style={{ background: 'var(--red-bg)', color: 'var(--red-text)', padding: '10px 14px', borderRadius: 8, fontSize: 13 }}>{error}</div>}
+
+    {localesAvail.map(loc => (
+      <ClosureTable key={loc} title={loc} rows={allRows[loc] || []} editable
+        savingKey={saving} onEdit={(field, dateStr, val) => upsertCell(loc, dateStr, field, val)}/>
+    ))}
+
+    {localesAvail.length > 1 && <ClosureTable title="TOTALE (tutti i locali)" rows={totalRows} editable={false} accent="#10B981"/>}
+  </div>
+}
+
+function ClosureTable({ title, rows, editable, onEdit, savingKey, accent }) {
+  // Totali colonna (somma dei valori non-null)
+  const totals = useMemo(() => {
+    const t = { corrispettivo: 0, fatture_emesse: 0, pos: 0, satispay: 0, contanti: 0 }
+    for (const r of rows) {
+      t.corrispettivo += Number(r.corrispettivo) || 0
+      t.fatture_emesse += Number(r.fatture_emesse) || 0
+      t.pos += Number(r.pos) || 0
+      t.satispay += Number(r.satispay) || 0
+      t.contanti += Number(r.contanti) || 0
+    }
+    return t
+  }, [rows])
+
+  return <Card title={title} accent={accent}>
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border)' }}>
+            {COLS.map(c => <th key={c.k} style={{ ...S.th, fontSize: 10 }}>{c.label}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => {
+            const rowKey = r.data
+            const isSaving = savingKey === (title + '|' + r.data)
+            return <tr key={rowKey} style={{ borderBottom: '1px solid var(--border)', opacity: isSaving ? 0.6 : 1 }}>
+              <td style={{ ...S.td, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {new Date(r.data + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+              </td>
+              {COLS.slice(1).map(c => {
+                const val = r[c.k]
+                const isContanti = c.k === 'contanti'
+                const sourceFlag = c.k === 'corrispettivo' ? r.sourceCorr
+                                 : c.k === 'fatture_emesse' ? r.sourceFat
+                                 : c.k === 'pos' ? r.sourcePos
+                                 : c.k === 'satispay' ? r.sourceSaty
+                                 : null
+                if (!editable || isContanti || !onEdit) {
+                  return <td key={c.k} style={{ ...S.td, fontWeight: isContanti ? 700 : 500, color: isContanti ? '#10B981' : 'var(--text)' }}>
+                    {val == null ? <span style={{ color: 'var(--text3)' }}>—</span> : fmtD(Number(val) || 0)}
+                  </td>
+                }
+                return <td key={c.k} style={{ ...S.td, padding: '4px 6px', position: 'relative' }}>
+                  <EditableCell value={val} onCommit={(v) => onEdit(c.k, r.data, v)} sourceFlag={sourceFlag}/>
+                </td>
+              })}
+            </tr>
+          })}
+          {rows.length === 0 && <tr><td colSpan={COLS.length} style={{ ...S.td, textAlign: 'center', color: 'var(--text3)', padding: 20, fontStyle: 'italic' }}>Nessun giorno nel periodo</td></tr>}
+        </tbody>
+        {rows.length > 0 && <tfoot>
+          <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface2)' }}>
+            <td style={{ ...S.td, fontWeight: 700, fontSize: 11 }}>TOTALE</td>
+            <td style={{ ...S.td, fontWeight: 700 }}>{fmtD(totals.corrispettivo)}</td>
+            <td style={{ ...S.td, fontWeight: 700 }}>{fmtD(totals.fatture_emesse)}</td>
+            <td style={{ ...S.td, fontWeight: 700 }}>{fmtD(totals.pos)}</td>
+            <td style={{ ...S.td, fontWeight: 700 }}>{fmtD(totals.satispay)}</td>
+            <td style={{ ...S.td, fontWeight: 800, color: '#10B981' }}>{fmtD(totals.contanti)}</td>
+          </tr>
+        </tfoot>}
+      </table>
+    </div>
+    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 8, fontStyle: 'italic' }}>
+      Contanti = Corrispettivo + Fatture − POS − Satispay. Click su una cella per modificarla. I valori dal gestionale di cassa o dalla checklist
+      sono auto-popolati se disponibili; ogni override viene salvato e ha priorità.
+    </div>
+  </Card>
+}
+
+function EditableCell({ value, onCommit, sourceFlag }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  if (editing) {
+    return <input
+      autoFocus value={draft} type="text" inputMode="decimal"
+      onChange={e => setDraft(e.target.value)}
+      onBlur={() => { onCommit(draft); setEditing(false) }}
+      onKeyDown={e => {
+        if (e.key === 'Enter') { e.target.blur() }
+        if (e.key === 'Escape') { setEditing(false) }
+      }}
+      style={{ ...S.input, fontSize: 12, padding: '4px 6px', width: '100%', minWidth: 70, textAlign: 'right' }}
+    />
+  }
+  const display = value == null ? null : fmtD(Number(value) || 0)
+  const flagColor = sourceFlag === 'manuale' ? '#F59E0B' : sourceFlag === 'cassa' ? '#3B82F6' : sourceFlag === 'checklist' ? '#10B981' : null
+  return <button onClick={() => { setDraft(value == null ? '' : String(value)); setEditing(true) }}
+    title={sourceFlag ? `Origine: ${sourceFlag}` : 'Click per inserire'}
+    style={{ width: '100%', padding: '4px 6px', textAlign: 'right', background: 'transparent', border: '1px dashed var(--border)', borderRadius: 4, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: display ? 'var(--text)' : 'var(--text3)', position: 'relative' }}>
+    {display || '—'}
+    {flagColor && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: 3, background: flagColor }}/>}
+  </button>
+}

@@ -14,6 +14,7 @@ import IvaTab from '../components/IvaTab'
 import WidgetGrid from '../components/WidgetGrid'
 import ChecklistWidget from '../components/ChecklistWidget'
 import TaskWidget from '../components/TaskWidget'
+import ChiusureView from '../components/ChiusureView'
 import { BriefingIeri, BriefingOggi, BriefingAttenzione } from '../components/MorningBriefing'
 import DailyReportSettings from '../components/DailyReportSettings'
 import SubTabsBar from '../components/SubTabsBar'
@@ -825,11 +826,7 @@ export default function DashboardPage({ settings }) {
       </>}
 
       {tab==='conta' && contaSubTab==='iva'&&<IvaTab sp={sp} sps={sps} from={from} to={to}/>}
-      {tab==='conta' && contaSubTab==='chiusure'&&<Card title="Chiusure & Versamenti">
-        <div style={{ padding: 30, color: 'var(--text2)', textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>
-          Sezione in arrivo. Da definire insieme a Gianmarco: chiusure di cassa, versamenti contanti/POS/Satispay, riconciliazione con fatture e scontrini.
-        </div>
-      </Card>}
+      {tab==='conta' && contaSubTab==='chiusure'&&<ChiusureView from={from} to={to} sps={sps}/>}
 
       {/* ── REPARTI ── */}
       {tab==='vendite' && vendSubTab==='rep'&&<>
