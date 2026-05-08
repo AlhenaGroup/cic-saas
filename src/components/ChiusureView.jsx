@@ -248,9 +248,9 @@ export default function ChiusureView({ from, to, sps = [] }) {
         savingKey={saving} onEdit={(field, dateStr, val) => upsertCell(selected, dateStr, field, val)}/>
     })()}
 
-    {/* Tabella TOTALE sempre alla fine (visibile solo se piu' locali) */}
-    {localesAvail.length > 1 && (
-      <ClosureTable title="TOTALE — tutti i locali aggregati" rows={totalRows} editable={false} accent="#10B981"/>
+    {/* Tabella TOTALE sempre alla fine — somma di tutte le righe locale per data */}
+    {localesAvail.length > 0 && (
+      <ClosureTable title={localesAvail.length > 1 ? 'TOTALE — tutti i locali aggregati' : 'TOTALE'} rows={totalRows} editable={false} accent="#10B981"/>
     )}
   </div>
 }
