@@ -13,6 +13,7 @@ import ContoEconomico from '../components/ContoEconomico'
 import IvaTab from '../components/IvaTab'
 import WidgetGrid from '../components/WidgetGrid'
 import ChecklistWidget from '../components/ChecklistWidget'
+import TaskWidget from '../components/TaskWidget'
 import { BriefingIeri, BriefingOggi, BriefingAttenzione } from '../components/MorningBriefing'
 import DailyReportSettings from '../components/DailyReportSettings'
 import SubTabsBar from '../components/SubTabsBar'
@@ -676,6 +677,8 @@ export default function DashboardPage({ settings }) {
               <BriefingOggi sps={sps} sp={sp}/> },
           { id:'briefing.checklist', label:'Checklist (ieri sera / oggi)', element:
               <ChecklistWidget sps={sps}/> },
+          { id:'briefing.task', label:'Task (oggi / settimana)', element:
+              <TaskWidget sps={sps}/> },
           { id:'briefing.attenzione', label:'Attenzione (allarmi)', element:
               <BriefingAttenzione sps={sps} sp={sp}/> },
         ]}/>
