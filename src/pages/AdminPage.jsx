@@ -821,7 +821,7 @@ function EditPlan({ plan, onClose, onSaved }) {
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Tab inclusi</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {TAB_CATALOG.map(t => (
-              <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text)', background: tabs.includes(t.key) ? 'rgba(16,185,129,.15)' : '#1a1f2e', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
+              <label key={t.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text)', background: tabs.includes(t.key) ? 'rgba(16,185,129,.15)' : 'var(--surface2)', padding: '4px 8px', borderRadius: 4, cursor: 'pointer' }}>
                 <input type="checkbox" checked={tabs.includes(t.key)} onChange={() => toggle(tabs, setTabs, t.key)} />
                 {t.label}
               </label>
