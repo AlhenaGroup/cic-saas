@@ -102,11 +102,23 @@ export default function TaskManager({ sp, sps, employees }) {
       await supabase.from('task_templates').delete().eq('id', id)
       await load()
     }} />}
-    {tab === 'modelli' && <KnowledgeView knowledge={knowledge} onAdd={() => setEditingKn({})} onEdit={setEditingKn} onDelete={async (id) => {
-      if (!confirm('Eliminare il modello?')) return
-      await supabase.from('task_knowledge').delete().eq('id', id)
-      await load()
-    }} />}
+    {tab === 'modelli' && <KnowledgeView
+      knowledge={knowledge}
+      sps={sps}
+      onAdd={() => setEditingKn({})}
+      onEdit={setEditingKn}
+      onDuplicate={(k) => {
+        // Apri editor con tutti i campi precompilati ma senza id (sara' un nuovo record)
+        const { id, created_at, updated_at, usage_count, ...rest } = k
+        setEditingKn({ ...rest, title: (k.title || '') + ' (copia)' })
+      }}
+      onDelete={async (k) => {
+        // Conta istanze ricorrenti che usano questo modello (production_recipe_id non e' attualmente collegato a knowledge,
+        // ma se in futuro lo aggiungiamo qui c'e' la verifica). Per ora chiediamo conferma sintetica.
+        if (!confirm(`Eliminare il modello "${k.title}"?\n\nLe task gia' create da questo modello restano. Solo il modello viene rimosso.`)) return
+        await supabase.from('task_knowledge').delete().eq('id', k.id)
+        await load()
+      }} />}
 
     {editingTask && <TaskEditor task={editingTask} employees={employees} sps={sps} knowledge={knowledge} onClose={() => setEditingTask(null)} onSaved={() => { setEditingTask(null); load() }}/>}
     {editingTpl && <TemplateEditor tpl={editingTpl} employees={employees} sps={sps} knowledge={knowledge} onClose={() => setEditingTpl(null)} onSaved={() => { setEditingTpl(null); load() }}/>}
@@ -116,40 +128,87 @@ export default function TaskManager({ sp, sps, employees }) {
 }
 
 // ─── Lista modelli (knowledge base) ───────────────────────────────
-function KnowledgeView({ knowledge, onAdd, onEdit, onDelete }) {
+function KnowledgeView({ knowledge, sps = [], onAdd, onEdit, onDelete, onDuplicate }) {
   const [search, setSearch] = useState('')
-  const filtered = knowledge.filter(k => !search || k.title.toLowerCase().includes(search.toLowerCase()))
+  const [filterType, setFilterType] = useState('')        // '' | 'generic' | 'production'
+  const [filterLocale, setFilterLocale] = useState('')    // '' | nome locale
+  const [filterTag, setFilterTag] = useState('')
+  const [sortBy, setSortBy] = useState('used_desc')        // 'used_desc' | 'name_asc' | 'recent'
+
+  // Tag unici trovati nei modelli (per dropdown)
+  const allTags = useMemo(() => {
+    const s = new Set()
+    knowledge.forEach(k => (k.tags || []).forEach(t => s.add(t)))
+    return [...s].sort()
+  }, [knowledge])
+
+  const filtered = useMemo(() => {
+    let list = knowledge.filter(k => !search || k.title.toLowerCase().includes(search.toLowerCase()) || (k.description || '').toLowerCase().includes(search.toLowerCase()))
+    if (filterType) list = list.filter(k => k.type === filterType)
+    if (filterLocale === '__null__') list = list.filter(k => !k.locale)
+    else if (filterLocale) list = list.filter(k => k.locale === filterLocale)
+    if (filterTag) list = list.filter(k => (k.tags || []).includes(filterTag))
+    if (sortBy === 'name_asc') list = [...list].sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+    else if (sortBy === 'recent') list = [...list].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+    else list = [...list].sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+    return list
+  }, [knowledge, search, filterType, filterLocale, filterTag, sortBy])
+
   return <div>
     <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-      <input style={{ ...iS, flex: 1, minWidth: 200 }} placeholder="Cerca modello..." value={search} onChange={e => setSearch(e.target.value)}/>
+      <input style={{ ...iS, flex: 1, minWidth: 200 }} placeholder="Cerca per titolo o descrizione..." value={search} onChange={e => setSearch(e.target.value)}/>
+      <select style={{ ...iS, fontSize: 12 }} value={filterType} onChange={e => setFilterType(e.target.value)}>
+        <option value="">Tutti i tipi</option>
+        <option value="generic">Generica</option>
+        <option value="production">Produzione</option>
+      </select>
+      <select style={{ ...iS, fontSize: 12 }} value={filterLocale} onChange={e => setFilterLocale(e.target.value)}>
+        <option value="">Tutti i locali</option>
+        <option value="__null__">Solo condivisi (nessun locale)</option>
+        {sps.map(s => <option key={s.id} value={s.description}>{s.description}</option>)}
+      </select>
+      {allTags.length > 0 && <select style={{ ...iS, fontSize: 12 }} value={filterTag} onChange={e => setFilterTag(e.target.value)}>
+        <option value="">Tutti i tag</option>
+        {allTags.map(t => <option key={t} value={t}>#{t}</option>)}
+      </select>}
+      <select style={{ ...iS, fontSize: 12 }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+        <option value="used_desc">Più usati</option>
+        <option value="name_asc">Nome A→Z</option>
+        <option value="recent">Più recenti</option>
+      </select>
       <button onClick={onAdd} style={btnPrimary}>+ Nuovo modello</button>
     </div>
     <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, fontStyle: 'italic' }}>
-      Modelli di task riusabili. Quando crei una nuova task, puoi caricare uno di questi e descrizione/istruzioni si compilano automaticamente.
+      Modelli riusabili. Crea, duplica per varianti, modifica o elimina. Quando crei una nuova task puoi caricare un modello e descrizione/istruzioni si compilano automaticamente.
     </div>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-      {filtered.map(k => <div key={k.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', padding: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 12 }}>
+      {filtered.map(k => <div key={k.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-            {k.type === 'production' ? '' : ''} {k.title}
+            {k.title}
+            {k.type === 'production' && <span style={{ ...S.badge('#92400E', 'rgba(245,158,11,.15)'), marginLeft: 6, fontSize: 9 }}>PRODUZIONE</span>}
           </div>
-          <span style={{ fontSize: 10, color: 'var(--text3)', whiteSpace: 'nowrap' }}>×{k.usage_count}</span>
+          <span title="Numero di volte usato" style={{ fontSize: 10, color: 'var(--text3)', whiteSpace: 'nowrap', fontWeight: 600 }}>usato {k.usage_count || 0}×</span>
         </div>
-        {k.description && <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{k.description}</div>}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          <span style={S.badge('var(--text3)', 'var(--surface)')}>{k.default_priority}</span>
-          {k.requires_photo && <span style={S.badge('var(--text3)', 'var(--surface)')}></span>}
-          {k.default_duration_min && <span style={S.badge('var(--text3)', 'var(--surface)')}>{k.default_duration_min}'</span>}
+        {k.description && <div style={{ fontSize: 12, color: 'var(--text2)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{k.description}</div>}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <span style={S.badge('var(--text3)', 'var(--surface)')} title="Priorità default">{k.default_priority}</span>
+          {k.default_duration_min && <span style={S.badge('var(--text3)', 'var(--surface)')} title="Durata stimata">{k.default_duration_min} min</span>}
+          {k.requires_photo && <span style={S.badge('#92400E', 'rgba(245,158,11,.15)')} title="Richiede foto al completamento">foto richiesta</span>}
+          {k.locale && <span style={S.badge('var(--text2)', 'var(--surface)')} title="Visibile solo in questo locale">{k.locale}</span>}
           {(k.tags || []).map(t => <span key={t} style={S.badge('var(--blue-text)', 'var(--blue-bg)')}>#{t}</span>)}
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => onEdit(k)} style={btnSm}>Modifica</button>
-          <button onClick={() => onDelete(k.id)} style={btnSm}></button>
+        <div style={{ display: 'flex', gap: 6, marginTop: 'auto', paddingTop: 4 }}>
+          <button onClick={() => onEdit(k)} style={btnSm} title="Modifica modello">Modifica</button>
+          <button onClick={() => onDuplicate(k)} style={btnSm} title="Duplica come nuovo modello">Duplica</button>
+          <button onClick={() => onDelete(k)} style={{ ...btnSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,.3)' }} title="Elimina modello">Elimina</button>
         </div>
       </div>)}
     </div>
     {filtered.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: 'var(--text3)' }}>
-      {search ? 'Nessun modello trovato' : 'Nessun modello. Click "+ Nuovo modello" per crearne uno.'}
+      {search || filterType || filterLocale || filterTag
+        ? 'Nessun modello trovato con questi filtri'
+        : 'Nessun modello. Click "+ Nuovo modello" per crearne uno.'}
     </div>}
   </div>
 }
