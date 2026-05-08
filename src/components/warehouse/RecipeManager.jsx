@@ -185,14 +185,23 @@ export default function RecipeManager({ sp, sps }) {
     return 0
   }
 
-  // Calcolo food cost con conversione unità (include semilavorati)
+  // Calcolo food cost con conversione unità (include semilavorati e scarto)
+  // Scarto in UM: qty registrata e' netta. qty_lorda = qty + scarto (stessa baseUm).
   const calcCost = (ingr) => {
     let total = 0
     for (const ig of ingr) {
       const cost = ingrUnitCost(ig.nome_articolo)
       if (cost <= 0) continue
-      const { qty } = toBaseUnit(ig.quantita || 0, ig.unita || 'PZ')
-      total += qty * cost
+      const base = toBaseUnit(ig.quantita || 0, ig.unita || 'PZ')
+      let qtyLorda = base.qty
+      if (Number(ig.scarto) > 0) {
+        const sc = toBaseUnit(Number(ig.scarto), ig.scarto_unita || ig.unita)
+        if (sc.baseUm === base.baseUm) qtyLorda = base.qty + sc.qty
+      } else if (Number(ig.scarto_pct) > 0) {
+        const pct = Math.max(0, Math.min(99, Number(ig.scarto_pct)))
+        qtyLorda = base.qty / (1 - pct / 100)
+      }
+      total += qtyLorda * cost
     }
     return Math.round(total * 100) / 100
   }
@@ -371,10 +380,10 @@ export default function RecipeManager({ sp, sps }) {
         {/* Tabella ingredienti */}
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
           <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
-            {['Articolo', 'Qty', 'UM', '€/UM', 'Costo', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 9 }}>{h}</th>)}
+            {['Articolo', 'Qty', 'UM', 'Scarto', 'UM scarto', '€/UM', 'Costo', ''].map(h => <th key={h} style={{ ...S.th, fontSize: 9 }}>{h}</th>)}
           </tr></thead>
           <tbody>
-            {ingredienti.length === 0 && <tr><td colSpan={6} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center', fontSize: 12 }}>Nessun ingrediente. Cerca e aggiungi articoli.</td></tr>}
+            {ingredienti.length === 0 && <tr><td colSpan={8} style={{ ...S.td, color: 'var(--text3)', textAlign: 'center', fontSize: 12 }}>Nessun ingrediente. Cerca e aggiungi articoli.</td></tr>}
             {ingredienti.map((ig, idx) => {
               if (!ig || !ig.nome_articolo) return null
               const key = (ig.nome_articolo || '').toLowerCase()
@@ -384,7 +393,15 @@ export default function RecipeManager({ sp, sps }) {
               const prezzoUmBase = isManual ? ingrUnitCost(ig.nome_articolo) : (art?.prezzoMedio || 0)
               const igUm = ig.unita || art?.unita || (isManual ? manualByName[key].unita : 'PZ')
               const { qty: qtyBase, baseUm } = toBaseUnit(ig.quantita, igUm)
-              const costo = qtyBase * prezzoUmBase
+              let qtyLorda = qtyBase
+              if (Number(ig.scarto) > 0) {
+                const sc = toBaseUnit(Number(ig.scarto), ig.scarto_unita || igUm)
+                if (sc.baseUm === baseUm) qtyLorda = qtyBase + sc.qty
+              } else if (Number(ig.scarto_pct) > 0) {
+                const pct = Math.max(0, Math.min(99, Number(ig.scarto_pct)))
+                qtyLorda = qtyBase / (1 - pct / 100)
+              }
+              const costo = qtyLorda * prezzoUmBase
               let prezzoDisplay = '—'
               try {
                 if (prezzoUmBase > 0) {
@@ -422,6 +439,30 @@ export default function RecipeManager({ sp, sps }) {
                     <option value="PZ">PZ</option>
                   </select>
                 </td>
+                <td style={{ ...S.td, padding: '4px 6px' }}>
+                  <input type="text" inputMode="decimal"
+                    key={selected.name + '-scarto-' + idx}
+                    defaultValue={ig.scarto ? String(ig.scarto) : ''}
+                    placeholder="0"
+                    onBlur={e => {
+                      const val = parseFloat((e.target.value || '').replace(',', '.')) || 0
+                      if (val !== (Number(ig.scarto) || 0)) updateIngredient(idx, 'scarto', val)
+                    }}
+                    onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
+                    title="Quantita' di scarto (es. 50g di pelle/buccia/ossa che butti). La paghi ma non finisce nel piatto."
+                    style={{ ...iS, fontSize: 11, padding: '3px 5px', width: 60, textAlign: 'center' }} />
+                </td>
+                <td style={{ ...S.td, padding: '4px 6px' }}>
+                  <select value={ig.scarto_unita || igUm} onChange={e => updateIngredient(idx, 'scarto_unita', e.target.value)}
+                    style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, color: 'var(--text)' }}>
+                    <option value="KG">KG</option>
+                    <option value="g">g</option>
+                    <option value="LT">LT</option>
+                    <option value="cl">cl</option>
+                    <option value="ml">ml</option>
+                    <option value="PZ">PZ</option>
+                  </select>
+                </td>
                 <td style={{ ...S.td, fontSize: 10, color: 'var(--text3)' }}>{prezzoDisplay}</td>
                 <td style={{ ...S.td, fontWeight: 600, fontSize: 11, color: '#F59E0B' }}>{costo > 0 ? fmtD(Math.round(costo * 10000) / 10000) : '—'}</td>
                 <td style={{ ...S.td }}>
@@ -430,7 +471,7 @@ export default function RecipeManager({ sp, sps }) {
               </tr>
             })}
             {ingredienti.length > 0 && <tr style={{ borderTop: '2px solid var(--border)' }}>
-              <td colSpan={4} style={{ ...S.td, fontWeight: 700, textAlign: 'right', fontSize: 12 }}>Totale Food Cost</td>
+              <td colSpan={6} style={{ ...S.td, fontWeight: 700, textAlign: 'right', fontSize: 12 }}>Totale Food Cost</td>
               <td style={{ ...S.td, fontWeight: 700, fontSize: 13, color: '#F59E0B' }}>{fmtD(foodCost)}</td>
               <td />
             </tr>}

@@ -182,7 +182,7 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
 
   // Preview costo durante la modifica
   const preview = (() => {
-    const fakeArt = { unita, resa: Number(resa) || 1, ingredienti: ingr.filter(i => i.nome_articolo && Number(i.quantita) > 0) }
+    const fakeArt = { unita, resa: Number(resa) || 1, ingredienti: ingr.filter(i => i.nome_articolo && Number(i.quantita) > 0).map(i => ({ ...i, scarto: Number(i.scarto) || 0, scarto_unita: i.scarto_unita || i.unita })) }
     return costOfManualArticle(fakeArt, articlesPrice, manualByName)
   })()
 
@@ -197,6 +197,11 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
       .map(i => {
         const out = { nome_articolo: i.nome_articolo.trim(), quantita: Number(i.quantita), unita: i.unita || 'KG' }
         if (i.gratis) out.gratis = true
+        const sc = Number(i.scarto) || 0
+        if (sc > 0) {
+          out.scarto = sc
+          out.scarto_unita = i.scarto_unita || i.unita || 'KG'
+        }
         return out
       })
     const payload = {
@@ -248,8 +253,11 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>
             Ingredienti ({ingr.length})
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 60px 70px 60px 32px', gap: 6, marginBottom: 4, fontSize: 9, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
+            <div>Articolo</div><div style={{ textAlign: 'center' }}>Qty</div><div>UM</div><div style={{ textAlign: 'center' }}>Scarto</div><div>UM</div><div/>
+          </div>
           {ingr.map((it, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 80px 32px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 60px 70px 60px 32px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {it.gratis && <span title="Articolo gratuito (costo 0, non conteggiato come mancante)" style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3, background: 'rgba(59,130,246,.15)', color: '#3B82F6', letterSpacing: '.04em', flexShrink: 0 }}>GRATIS</span>}
                 <input list={it.gratis ? undefined : 'manual-ing-list'} value={it.nome_articolo}
@@ -262,6 +270,14 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
                 placeholder="Qty"
                 style={{ ...iS, fontSize: 12, textAlign: 'center' }} />
               <select value={it.unita} onChange={e => updateIngr(i, 'unita', e.target.value)} style={{ ...iS, fontSize: 12 }}>
+                {ING_UM_OPTS.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <input type="number" step="0.001" min="0" value={it.scarto ?? ''}
+                onChange={e => updateIngr(i, 'scarto', e.target.value)}
+                placeholder="0"
+                title="Quantita' di scarto (es. 50g di pelle/buccia che butti). La paghi ma non finisce nel prodotto."
+                style={{ ...iS, fontSize: 12, textAlign: 'center' }} />
+              <select value={it.scarto_unita || it.unita || 'KG'} onChange={e => updateIngr(i, 'scarto_unita', e.target.value)} style={{ ...iS, fontSize: 12 }}>
                 {ING_UM_OPTS.map(u => <option key={u} value={u}>{u}</option>)}
               </select>
               <button onClick={() => removeIngr(i)} style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: 14, cursor: 'pointer' }}>×</button>

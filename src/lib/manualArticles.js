@@ -69,7 +69,19 @@ export function costOfManualArticle(art, articlesPriceByName, manualByName, dept
     const r = unitCostOf(ingr.nome_articolo, articlesPriceByName, manualByName, depth + 1, placeholdersByName, parentKey)
     if (r.missing && r.missing.length) missing.push(...r.missing)
     if (r.stima) stimaCount++
-    totalCost += base.qty * (r.perUnit || 0)
+    // Scarto in UM (es. 50g di scarto su 200g cipolla). qty registrata e' netta;
+    // per il costo bisogna pagare anche lo scarto comprato. Se UM scarto diversa
+    // ma stessa baseUm, si converte; altrimenti scarto in percentuale legacy.
+    let qtyLorda = base.qty
+    if (ingr.scarto != null && Number(ingr.scarto) > 0) {
+      const sc = toBaseUnit(Number(ingr.scarto), ingr.scarto_unita || ingr.unita)
+      if (sc.baseUm === base.baseUm) qtyLorda = base.qty + sc.qty
+    } else if (Number(ingr.scarto_pct) > 0) {
+      // retrocompat: scarto_pct legacy
+      const pct = Math.max(0, Math.min(99, Number(ingr.scarto_pct)))
+      qtyLorda = base.qty / (1 - pct / 100)
+    }
+    totalCost += qtyLorda * (r.perUnit || 0)
   }
   // Costo per unita' base prodotta
   const baseResa = toBaseUnit(resa, art.unita)

@@ -382,8 +382,13 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
               Aggiungi gli ingredienti che servono per produrre questo articolo.
             </div>
           )}
+          {(r.ingredienti || []).length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 70px 1fr 70px auto', gap: 6, marginBottom: 4, fontSize: 9, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
+              <div>Articolo</div><div style={{ textAlign: 'center' }}>Qty (netta)</div><div>UM</div><div style={{ textAlign: 'center' }}>Scarto</div><div>UM</div><div/>
+            </div>
+          )}
           {(r.ingredienti || []).map((ing, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 80px auto', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 70px 1fr 70px auto', gap: 6, marginBottom: 6, alignItems: 'center' }}>
               <input list={`art-list-${i}`} value={ing.nome_articolo || ''}
                 onChange={e => {
                   const v = e.target.value
@@ -397,6 +402,14 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
               <input type="number" step="0.001" value={ing.quantita ?? ''} onChange={e => updIng(i, { quantita: e.target.value })}
                 placeholder="Qty" style={{ ...iS, width: '100%', textAlign: 'center' }} />
               <select value={ing.unita || ''} onChange={e => updIng(i, { unita: e.target.value })} style={{ ...iS, width: '100%', fontSize: 11 }}>
+                {['', 'KG', 'GR', 'LT', 'ML', 'CL', 'PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
+              </select>
+              <input type="number" step="0.001" min="0" value={ing.scarto ?? ''}
+                onChange={e => updIng(i, { scarto: e.target.value === '' ? null : Number(e.target.value) })}
+                placeholder="0"
+                title="Scarto in UM (es. 50g di pelle/buccia che butti). La paghi ma non finisce nel prodotto."
+                style={{ ...iS, width: '100%', textAlign: 'center', fontSize: 11 }} />
+              <select value={ing.scarto_unita || ing.unita || ''} onChange={e => updIng(i, { scarto_unita: e.target.value })} style={{ ...iS, width: '100%', fontSize: 11 }}>
                 {['', 'KG', 'GR', 'LT', 'ML', 'CL', 'PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
               </select>
               <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}>×</button>
@@ -796,12 +809,23 @@ function NuovoLotto({ recipes, allLocali, onClose, onCreated }) {
       const lotto = await generateLottoCode(user.id)
 
       // Calcola ingredienti scalati alla quantità prodotta vs resa attesa
+      // Includo scarto_pct dalla ricetta cosi' rimane traccia nel lotto produttivo
+      // (la qty registrata e' netta = quella usata; scarto_pct serve per il
+      // ricalcolo costi e per le note HACCP).
       const ratio = recipe.resa_quantita ? Number(qty) / Number(recipe.resa_quantita) : 1
-      const ingredientiUsati = (recipe.ingredienti || []).map(i => ({
-        nome_articolo: i.nome_articolo,
-        quantita: Math.round((Number(i.quantita) || 0) * ratio * 1000) / 1000,
-        unita: i.unita || '',
-      }))
+      const ingredientiUsati = (recipe.ingredienti || []).map(i => {
+        const out = {
+          nome_articolo: i.nome_articolo,
+          quantita: Math.round((Number(i.quantita) || 0) * ratio * 1000) / 1000,
+          unita: i.unita || '',
+        }
+        if (Number(i.scarto) > 0) {
+          out.scarto = Math.round(Number(i.scarto) * ratio * 1000) / 1000
+          out.scarto_unita = i.scarto_unita || i.unita || ''
+        }
+        if (i.gratis) out.gratis = true
+        return out
+      })
 
       // 1. Crea il batch
       const { data: insBatch, error: insErr } = await supabase.from('production_batches').insert({
