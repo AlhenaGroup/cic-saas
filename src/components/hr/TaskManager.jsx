@@ -412,9 +412,11 @@ function ListView({ tasks, employees, onEdit, onDispatch, onDelete }) {
               <td style={S.td}>{assigneeLabel}</td>
               <td style={S.td}>{STATUS_LABEL[t.status]}</td>
               <td style={S.td}>
-                <button onClick={() => onEdit(t)} style={btnSm}></button>{' '}
-                <button onClick={() => onDispatch(t)} style={btnSm}></button>{' '}
-                <button onClick={() => onDelete(t.id)} style={btnSm}></button>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button onClick={() => onEdit(t)} style={btnSm} title="Modifica task">Modifica</button>
+                  <button onClick={() => onDispatch(t)} style={btnSm} title="Smista a uno o pi&ugrave; dipendenti" disabled={t.is_delegable === false}>Smista</button>
+                  <button onClick={() => onDelete(t.id)} style={{ ...btnSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,.3)' }} title="Elimina task">Elimina</button>
+                </div>
               </td>
             </tr>
           })}
@@ -442,11 +444,13 @@ function TemplatesView({ templates, onEdit, onDelete }) {
             <td style={S.td}>{RECURRENCE_LABEL[t.recurrence]}</td>
             <td style={S.td}>{t.type === 'production' ? 'Produzione' : 'Generica'}</td>
             <td style={S.td}>{t.locale || '—'}</td>
-            <td style={S.td}>{t.requires_photo ? '' : '—'}</td>
-            <td style={S.td}>{t.active ? '' : '⏸'}</td>
+            <td style={S.td}>{t.requires_photo ? 'Sì' : '—'}</td>
+            <td style={S.td}>{t.active ? 'Attivo' : 'In pausa'}</td>
             <td style={S.td}>
-              <button onClick={() => onEdit(t)} style={btnSm}></button>{' '}
-              <button onClick={() => onDelete(t.id)} style={btnSm}></button>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button onClick={() => onEdit(t)} style={btnSm} title="Modifica template">Modifica</button>
+                <button onClick={() => onDelete(t.id)} style={{ ...btnSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,.3)' }} title="Elimina template">Elimina</button>
+              </div>
             </td>
           </tr>)}
         </tbody>
