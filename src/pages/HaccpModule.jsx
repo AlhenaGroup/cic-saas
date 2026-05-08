@@ -12,6 +12,7 @@
 import { useState, useEffect } from 'react'
 import SubTabsBar from '../components/SubTabsBar'
 import HaccpDocumentsTab from '../components/haccp/HaccpDocumentsTab'
+import HaccpCorsiTab from '../components/haccp/HaccpCorsiTab'
 import { Card } from '../components/shared/styles.jsx'
 import { useStaffPerms, canAccess } from '../lib/permissions'
 
@@ -35,8 +36,7 @@ export default function HaccpModule({ sps, sp }) {
     <SubTabsBar tabs={SUB_TABS} value={tab} onChange={setTab}/>
 
     {tab === 'documenti' && <HaccpDocumentsTab sps={sps} sp={sp}/>}
-    {tab === 'corsi' && <Placeholder title="Corsi & Attestati"
-      description="Per ogni dipendente: HACCP, antincendio, primo soccorso, RSPP, RLS. Caricamento attestato + scadenza. I dipendenti vedranno i propri attestati su /timbra → 'I miei attestati'."/>}
+    {tab === 'corsi' && <HaccpCorsiTab sps={sps} sp={sp}/>}
     {tab === 'registri' && <Placeholder title="Registri autocontrollo"
       description="Template di registro HACCP (temperatura frigoriferi, pulizia banco, sanificazione, ecc.). Il personale compila da /timbra; tu vedi lo storico qui."/>}
     {tab === 'lotti' && <Placeholder title="Lotti produzione"

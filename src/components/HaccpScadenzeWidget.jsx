@@ -1,8 +1,7 @@
-// Widget HACCP per la Panoramica: documenti in scadenza nei prossimi 90gg + scaduti.
+// Widget HACCP per la Panoramica: documenti & attestati in scadenza nei prossimi 90gg + scaduti.
 // Click su una riga -> apre il tab HACCP (semplice navigazione localStorage).
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { S } from './shared/styles.jsx'
 
 const CATEGORIE_LABEL = {
   dvr: 'DVR',
@@ -17,6 +16,19 @@ const CATEGORIE_LABEL = {
   disinfestazione: 'Disinfestazione',
   autorizzazioni: 'Autorizzazioni',
   contratti_servizi: 'Contratti servizi',
+  altro: 'Altro',
+}
+const TIPO_CORSO_LABEL = {
+  haccp_alimentarista: 'HACCP alimentarista',
+  haccp_responsabile: 'HACCP responsabile',
+  antincendio_basso: 'Antincendio basso',
+  antincendio_medio: 'Antincendio medio',
+  antincendio_alto: 'Antincendio alto',
+  primo_soccorso: 'Primo soccorso',
+  rspp: 'RSPP',
+  rls: 'RLS',
+  sicurezza_generale: 'Sicurezza generale',
+  sicurezza_specifica: 'Sicurezza specifica',
   altro: 'Altro',
 }
 
@@ -35,17 +47,28 @@ export default function HaccpScadenzeWidget() {
     let cancelled = false
     ;(async () => {
       setLoading(true)
-      const today = new Date().toISOString().split('T')[0]
       const in90 = new Date(Date.now() + 90*86400000).toISOString().split('T')[0]
-      const { data, error } = await supabase
-        .from('haccp_documents')
-        .select('id, categoria, titolo, locale, scadenza, responsabile, fornitore')
-        .not('scadenza', 'is', null)
-        .lte('scadenza', in90)
-        .order('scadenza', { ascending: true })
+      const [
+        { data: documenti, error: errDoc },
+        { data: certs, error: errCert },
+      ] = await Promise.all([
+        supabase.from('haccp_documents')
+          .select('id, categoria, titolo, locale, scadenza, responsabile, fornitore')
+          .not('scadenza', 'is', null).lte('scadenza', in90)
+          .order('scadenza', { ascending: true }),
+        supabase.from('employee_certificates')
+          .select('id, tipo, titolo, scadenza, employee_id, employees(nome)')
+          .not('scadenza', 'is', null).lte('scadenza', in90)
+          .order('scadenza', { ascending: true }),
+      ])
       if (cancelled) return
-      if (error) { console.error('haccp widget:', error); setDocs([]); setLoading(false); return }
-      setDocs(data || [])
+      if (errDoc) console.error('haccp widget docs:', errDoc)
+      if (errCert) console.error('haccp widget corsi:', errCert)
+      const merged = [
+        ...(documenti || []).map(d => ({ ...d, _kind: 'doc' })),
+        ...(certs || []).map(c => ({ ...c, _kind: 'cert', subtitle: c.employees?.nome || '?' })),
+      ].sort((a, b) => (a.scadenza || '').localeCompare(b.scadenza || ''))
+      setDocs(merged)
       setLoading(false)
     })()
     return () => { cancelled = true }
@@ -55,7 +78,7 @@ export default function HaccpScadenzeWidget() {
 
   if (docs.length === 0) {
     return <div style={{ padding: 16, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
-      Nessun documento HACCP in scadenza nei prossimi 90 giorni.
+      Nessun documento o attestato HACCP in scadenza nei prossimi 90 giorni.
     </div>
   }
 
@@ -91,12 +114,13 @@ function Section({ label, color, docs, onClick }) {
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {d.titolo}
+              {d._kind === 'cert' ? '👤 ' : '📄 '}{d.titolo}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-              {CATEGORIE_LABEL[d.categoria] || d.categoria}
-              {d.locale ? ' · ' + d.locale : ' · Tutti i locali'}
-              {d.fornitore ? ' · ' + d.fornitore : ''}
+              {d._kind === 'cert'
+                ? (TIPO_CORSO_LABEL[d.tipo] || d.tipo) + ' · ' + (d.subtitle || '?')
+                : (CATEGORIE_LABEL[d.categoria] || d.categoria) + (d.locale ? ' · ' + d.locale : ' · Tutti i locali') + (d.fornitore ? ' · ' + d.fornitore : '')
+              }
             </div>
           </div>
           <div style={{ textAlign: 'right', fontSize: 11, color: 'var(--text3)', whiteSpace: 'nowrap' }}>

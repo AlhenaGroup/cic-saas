@@ -257,6 +257,7 @@ export default function TimbraPage() {
     {step === 'miei-turni' && <MieiTurniPanel pin={pin} onBack={() => goTo('menu')} />}
     {step === 'mie-ore' && <MieOrePanel pin={pin} onBack={() => goTo('menu')} />}
     {step === 'mie-ferie' && <MieFeriePanel pin={pin} onBack={() => goTo('menu')} />}
+    {step === 'miei-attestati' && <MieiAttestatiPanel pin={pin} onBack={() => goTo('menu')} />}
 
     {step === 'calendario' && <TaskCalendarPanel pin={pin} employee={employee} permissions={permissions} onBack={() => goTo('menu')} />}
 
@@ -273,6 +274,7 @@ function stepLabel(s) {
     calendario: 'Calendario task',
     checklist: 'Checklist obbligatoria',
     'miei-turni': 'I miei turni', 'mie-ore': 'Le mie ore', 'mie-ferie': 'Le mie ferie',
+    'miei-attestati': 'I miei attestati',
     done: 'Fatto', error: 'Errore',
   }[s] || ''
 }
@@ -326,6 +328,7 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
   const dati = [
     { k: 'mie-ore',    label: 'Le mie ore' },
     { k: 'mie-ferie',  label: 'Le mie ferie' },
+    { k: 'miei-attestati', label: 'I miei attestati' },
   ]
 
   const toggle = (key) => setExpanded(prev => prev === key ? null : key)
@@ -1117,6 +1120,75 @@ function MieFeriePanel({ pin, onBack }) {
         })}
       </div>
     </>}
+    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '10px', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Menu</button>
+  </div>
+}
+
+const ATTESTATO_LABEL = {
+  haccp_alimentarista: 'HACCP alimentarista',
+  haccp_responsabile: 'HACCP responsabile',
+  antincendio_basso: 'Antincendio basso',
+  antincendio_medio: 'Antincendio medio',
+  antincendio_alto: 'Antincendio alto',
+  primo_soccorso: 'Primo soccorso',
+  rspp: 'RSPP',
+  rls: 'RLS',
+  sicurezza_generale: 'Sicurezza generale',
+  sicurezza_specifica: 'Sicurezza specifica',
+  altro: 'Altro',
+}
+function MieiAttestatiPanel({ pin, onBack }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+  useEffect(() => { (async () => {
+    try { const d = await apiCall({ action: 'my-certificates', pin }); setItems(d.certificates || []) }
+    catch (e) { setErr(e.message) }
+    setLoading(false)
+  })() }, [pin])
+
+  function daysTo(s) {
+    if (!s) return null
+    const t = new Date(); t.setHours(0,0,0,0)
+    const d = new Date(s + 'T12:00:00')
+    return Math.round((d - t) / 86400000)
+  }
+
+  return <div style={{ maxWidth: 400, width: '100%' }}>
+    {loading && <div style={{ color: '#F59E0B', padding: 20, textAlign: 'center' }}>Caricamento…</div>}
+    {err && <div style={{ color: '#EF4444', padding: 12 }}>{err}</div>}
+    {!loading && !err && items.length === 0 && <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 30, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
+      Nessun attestato caricato.<br/><span style={{ fontSize: 11 }}>Chiedi al titolare di caricarli.</span>
+    </div>}
+    {!loading && items.length > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {items.map(c => {
+        const dt = daysTo(c.scadenza)
+        let color = '#10B981', stato = 'Valido'
+        if (dt != null) {
+          if (dt < 0) { color = '#EF4444'; stato = `Scaduto ${Math.abs(dt)}gg fa` }
+          else if (dt <= 30) { color = '#EF4444'; stato = `Scade tra ${dt}gg` }
+          else if (dt <= 90) { color = '#F59E0B'; stato = `Scade tra ${dt}gg` }
+          else { color = '#10B981'; stato = `Scade tra ${dt}gg` }
+        }
+        return <div key={c.id} style={{ background: 'var(--surface)', borderRadius: 12, padding: 14, borderLeft: '3px solid ' + color }}>
+          <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
+            {ATTESTATO_LABEL[c.tipo] || c.tipo}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{c.titolo}</div>
+          <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 8 }}>
+            {c.data_emissione && <>Emesso: {new Date(c.data_emissione + 'T12:00:00').toLocaleDateString('it-IT')}</>}
+            {c.data_emissione && c.scadenza && ' · '}
+            {c.scadenza && <>Scadenza: {new Date(c.scadenza + 'T12:00:00').toLocaleDateString('it-IT')}</>}
+            {c.ente_erogante && <><br/>{c.ente_erogante}{c.durata_ore ? ' · ' + c.durata_ore + 'h' : ''}</>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color, background: color + '22', padding: '2px 10px', borderRadius: 10 }}>{stato}</span>
+            {c.signedUrl && <a href={c.signedUrl} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 11, color: '#3B82F6', textDecoration: 'none', fontWeight: 600 }}>📄 Apri attestato</a>}
+          </div>
+        </div>
+      })}
+    </div>}
     <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '10px', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Menu</button>
   </div>
 }

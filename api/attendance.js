@@ -1251,6 +1251,27 @@ export default async function handler(req, res) {
         });
       }
 
+      case 'my-certificates': {
+        const v = await verifyPin(req.body?.pin, null);
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        const certs = await sbQuery(`employee_certificates?employee_id=eq.${v.emp.id}&select=id,tipo,titolo,data_emissione,scadenza,durata_ore,ente_erogante,note,file_path&order=scadenza.asc.nullslast`);
+        // Genera URL firmati per ogni file (1h)
+        const items = await Promise.all((certs || []).map(async c => {
+          let signedUrl = null;
+          if (c.file_path) {
+            const r = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/documents/${c.file_path}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+              body: JSON.stringify({ expiresIn: 3600 }),
+            });
+            const j = await r.json();
+            if (j.signedURL) signedUrl = `${SUPABASE_URL}/storage/v1${j.signedURL}`;
+          }
+          return { ...c, signedUrl };
+        }));
+        return res.status(200).json({ certificates: items });
+      }
+
       // Storico timbrature di oggi per un dipendente
       case 'history': {
         const { pin, locale } = req.body || req.query;
@@ -1266,7 +1287,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, checklist-skip, prod-recipes, prod-articles, prod-recipe-create, manual-article-create, prod-start, prod-finish, my-shifts, my-hours, my-timeoff' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, checklist-skip, prod-recipes, prod-articles, prod-recipe-create, manual-article-create, prod-start, prod-finish, my-shifts, my-hours, my-timeoff, my-certificates' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);
