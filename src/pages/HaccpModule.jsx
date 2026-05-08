@@ -14,6 +14,7 @@ import SubTabsBar from '../components/SubTabsBar'
 import HaccpDocumentsTab from '../components/haccp/HaccpDocumentsTab'
 import HaccpCorsiTab from '../components/haccp/HaccpCorsiTab'
 import HaccpLottiTab from '../components/haccp/HaccpLottiTab'
+import HaccpRegistriTab from '../components/haccp/HaccpRegistriTab'
 import { Card } from '../components/shared/styles.jsx'
 import { useStaffPerms, canAccess } from '../lib/permissions'
 
@@ -38,8 +39,7 @@ export default function HaccpModule({ sps, sp }) {
 
     {tab === 'documenti' && <HaccpDocumentsTab sps={sps} sp={sp}/>}
     {tab === 'corsi' && <HaccpCorsiTab sps={sps} sp={sp}/>}
-    {tab === 'registri' && <Placeholder title="Registri autocontrollo"
-      description="Template di registro HACCP (temperatura frigoriferi, pulizia banco, sanificazione, ecc.). Il personale compila da /timbra; tu vedi lo storico qui."/>}
+    {tab === 'registri' && <HaccpRegistriTab sps={sps} sp={sp}/>}
     {tab === 'lotti' && <HaccpLottiTab sps={sps} sp={sp}/>}
     {tab === 'ispezioni' && <Placeholder title="QR ispezioni"
       description="Genera QR code per Ispettorato del lavoro (contratti+paghe+attestati), NAS/ASL (lotti+manuale HACCP+manutenzioni), Sicurezza (DVR+attestati). Lo scansionano e vedono solo i documenti che hai abilitato."/>}

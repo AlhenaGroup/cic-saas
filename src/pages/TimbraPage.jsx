@@ -258,6 +258,7 @@ export default function TimbraPage() {
     {step === 'mie-ore' && <MieOrePanel pin={pin} onBack={() => goTo('menu')} />}
     {step === 'mie-ferie' && <MieFeriePanel pin={pin} onBack={() => goTo('menu')} />}
     {step === 'miei-attestati' && <MieiAttestatiPanel pin={pin} onBack={() => goTo('menu')} />}
+    {step === 'registri' && <RegistriHaccpPanel pin={pin} onBack={() => goTo('menu')} onDone={(msg) => { setMessage(msg); setStep('done') }} />}
 
     {step === 'calendario' && <TaskCalendarPanel pin={pin} employee={employee} permissions={permissions} onBack={() => goTo('menu')} />}
 
@@ -275,6 +276,7 @@ function stepLabel(s) {
     checklist: 'Checklist obbligatoria',
     'miei-turni': 'I miei turni', 'mie-ore': 'Le mie ore', 'mie-ferie': 'Le mie ferie',
     'miei-attestati': 'I miei attestati',
+    'registri': 'Registri autocontrollo',
     done: 'Fatto', error: 'Errore',
   }[s] || ''
 }
@@ -324,6 +326,7 @@ function MainMenu({ employee, permissions, onChoose, onReset }) {
   const oggi = [
     { k: 'calendario', label: 'Calendario task' },
     { k: 'miei-turni', label: 'I miei turni' },
+    { k: 'registri',   label: 'Registri autocontrollo' },
   ]
   const dati = [
     { k: 'mie-ore',    label: 'Le mie ore' },
@@ -1190,6 +1193,143 @@ function MieiAttestatiPanel({ pin, onBack }) {
       })}
     </div>}
     <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '10px', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Menu</button>
+  </div>
+}
+
+// ─── REGISTRI AUTOCONTROLLO HACCP ────────────────────────────────────────
+function RegistriHaccpPanel({ pin, onBack, onDone }) {
+  const [templates, setTemplates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+  const [openTpl, setOpenTpl] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => { (async () => {
+    try {
+      setLoading(true)
+      const d = await apiCall({ action: 'haccp-templates', pin })
+      setTemplates(d.templates || [])
+    } catch (e) { setErr(e.message) }
+    setLoading(false)
+  })() }, [pin, reloadKey])
+
+  if (openTpl) return <CompileHaccpPanel pin={pin} tpl={openTpl}
+    onBack={() => { setOpenTpl(null); setReloadKey(k => k+1) }}
+    onDone={onDone}/>
+
+  return <div style={{ maxWidth: 400, width: '100%' }}>
+    {loading && <div style={{ color: '#F59E0B', padding: 20, textAlign: 'center' }}>Caricamento…</div>}
+    {err && <div style={{ color: '#EF4444', padding: 12 }}>{err}</div>}
+    {!loading && !err && templates.length === 0 && <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 30, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
+      Nessun registro da compilare.<br/><span style={{ fontSize: 11 }}>Il titolare non ha ancora configurato registri attivi.</span>
+    </div>}
+    {!loading && templates.length > 0 && <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {templates.map(t => {
+        const fattoOggi = (t.entriesOggi || []).length
+        return <button key={t.id} onClick={() => setOpenTpl(t)} style={{
+          background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 14, textAlign: 'left', cursor: 'pointer',
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{t.nome}</div>
+            {fattoOggi > 0 ? <span style={{ fontSize: 10, fontWeight: 700, color: '#10B981', background: 'rgba(16,185,129,.15)', padding: '2px 8px', borderRadius: 10 }}>✓ {fattoOggi} oggi</span>
+              : <span style={{ fontSize: 10, fontWeight: 700, color: '#F59E0B', background: 'rgba(245,158,11,.15)', padding: '2px 8px', borderRadius: 10 }}>DA FARE</span>}
+          </div>
+          {t.descrizione && <div style={{ fontSize: 12, color: 'var(--text3)' }}>{t.descrizione}</div>}
+          {t.entriesOggi?.length > 0 && <div style={{ fontSize: 11, color: 'var(--text3)' }}>
+            Ultime: {t.entriesOggi.slice(0, 3).map(e => (e.ora_compilazione || '').slice(0,5) + (e.anomalia ? ' ⚠' : '')).join(', ')}
+          </div>}
+        </button>
+      })}
+    </div>}
+    <button onClick={onBack} style={{ marginTop: 12, width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '10px', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Menu</button>
+  </div>
+}
+
+function CompileHaccpPanel({ pin, tpl, onBack, onDone }) {
+  const [values, setValues] = useState({})
+  const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  const checkAnom = () => {
+    for (const f of (tpl.fields || [])) {
+      if (f.type === 'number') {
+        const v = values[f.key]
+        if (v == null || v === '') continue
+        const n = Number(v)
+        if (Number.isNaN(n)) continue
+        if (f.min != null && n < Number(f.min)) return true
+        if (f.max != null && n > Number(f.max)) return true
+      }
+    }
+    return false
+  }
+
+  const submit = async () => {
+    setErr('')
+    for (const f of (tpl.fields || [])) {
+      if (f.required) {
+        const v = values[f.key]
+        if (v === undefined || v === null || v === '') {
+          setErr(`Compila il campo: ${f.label}`); return
+        }
+      }
+    }
+    setSaving(true)
+    try {
+      const r = await apiCall({ action: 'haccp-submit', pin, template_id: tpl.id, values, note: note || null })
+      onDone(r.anomalia ? '⚠ Compilato (anomalia rilevata, il titolare verrà avvisato)' : '✓ Registro compilato!')
+    } catch (e) { setErr(e.message); setSaving(false) }
+  }
+
+  return <div style={{ maxWidth: 400, width: '100%' }}>
+    <div style={{ background: 'var(--surface)', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{tpl.nome}</div>
+      {tpl.descrizione && <div style={{ fontSize: 12, color: 'var(--text3)' }}>{tpl.descrizione}</div>}
+    </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {(tpl.fields || []).map(f => <div key={f.key}>
+        <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>
+          {f.label}{f.required ? ' *' : ''}
+          {f.type === 'number' && (f.min != null || f.max != null) && <span style={{ color: 'var(--text2)' }}> (range {f.min ?? '-∞'} – {f.max ?? '+∞'})</span>}
+        </div>
+        {f.type === 'number' && <input type="number" inputMode="decimal" step="0.1"
+          value={values[f.key] ?? ''} onChange={e => setValues({ ...values, [f.key]: e.target.value })}
+          style={{ width: '100%', padding: '12px 14px', fontSize: 16, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}/>}
+        {f.type === 'text' && <textarea
+          value={values[f.key] ?? ''} onChange={e => setValues({ ...values, [f.key]: e.target.value })}
+          style={{ width: '100%', padding: '12px 14px', fontSize: 16, minHeight: 60, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}/>}
+        {f.type === 'boolean' && <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setValues({ ...values, [f.key]: true })}
+            style={{ flex: 1, padding: 14, fontSize: 14, fontWeight: 700, borderRadius: 10, cursor: 'pointer',
+              border: '1px solid ' + (values[f.key] === true ? '#10B981' : 'var(--border)'),
+              background: values[f.key] === true ? 'rgba(16,185,129,.15)' : 'var(--surface)',
+              color: values[f.key] === true ? '#10B981' : 'var(--text2)' }}>✓ Sì</button>
+          <button onClick={() => setValues({ ...values, [f.key]: false })}
+            style={{ flex: 1, padding: 14, fontSize: 14, fontWeight: 700, borderRadius: 10, cursor: 'pointer',
+              border: '1px solid ' + (values[f.key] === false ? '#EF4444' : 'var(--border)'),
+              background: values[f.key] === false ? 'rgba(239,68,68,.15)' : 'var(--surface)',
+              color: values[f.key] === false ? '#EF4444' : 'var(--text2)' }}>✗ No</button>
+        </div>}
+      </div>)}
+      <div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Note (opzionali)</div>
+        <textarea value={note} onChange={e => setNote(e.target.value)}
+          style={{ width: '100%', padding: '12px 14px', fontSize: 16, minHeight: 50, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}/>
+      </div>
+
+      {checkAnom() && <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', color: '#EF4444', padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
+        ⚠ Almeno un valore è fuori range — verrà segnato come anomalia
+      </div>}
+      {err && <div style={{ color: '#EF4444', padding: 8, fontSize: 13 }}>{err}</div>}
+
+      <button onClick={submit} disabled={saving} style={{
+        width: '100%', padding: 16, fontSize: 16, fontWeight: 700, color: '#fff', background: '#10B981',
+        border: 'none', borderRadius: 12, cursor: 'pointer', marginTop: 4,
+      }}>{saving ? 'Salvo…' : 'Salva compilazione'}</button>
+      <button onClick={onBack} style={{ width: '100%', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '10px', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Annulla</button>
+    </div>
   </div>
 }
 

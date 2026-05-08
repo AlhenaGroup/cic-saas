@@ -1251,6 +1251,62 @@ export default async function handler(req, res) {
         });
       }
 
+      case 'haccp-templates': {
+        // Lista template attivi del registro autocontrollo (filtrato per locale opzionale)
+        const v = await verifyPin(req.body?.pin, null);
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        const localeFilter = req.body?.locale;
+        let q = `haccp_log_templates?user_id=eq.${v.emp.user_id}&attivo=eq.true&select=id,nome,descrizione,locale,frequenza,fields,ordine&order=ordine.asc,nome.asc`;
+        const tpls = await sbQuery(q);
+        // Filtra lato server: includi tutti i template senza locale + quelli del locale richiesto
+        const filtered = (tpls || []).filter(t => !t.locale || (localeFilter && t.locale === localeFilter));
+        // Conta compilazioni di oggi per ogni template (per mostrare se già fatto)
+        const today = new Date().toISOString().split('T')[0];
+        const out = await Promise.all(filtered.map(async t => {
+          const entries = await sbQuery(`haccp_log_entries?template_id=eq.${t.id}&data_compilazione=eq.${today}&select=id,ora_compilazione,operatore_nome,anomalia&order=ora_compilazione.desc&limit=5`);
+          return { ...t, entriesOggi: entries || [] };
+        }));
+        return res.status(200).json({ templates: out });
+      }
+
+      case 'haccp-submit': {
+        // Compila un registro autocontrollo
+        const v = await verifyPin(req.body?.pin, null);
+        if (v.error) return res.status(v.code).json({ error: v.error });
+        const { template_id, locale, values, note } = req.body || {};
+        if (!template_id || !values) return res.status(400).json({ error: 'template_id e values richiesti' });
+        // Recupera template per validare anomalie
+        const tpls = await sbQuery(`haccp_log_templates?id=eq.${template_id}&user_id=eq.${v.emp.user_id}&select=*&limit=1`);
+        if (!tpls?.[0]) return res.status(404).json({ error: 'Template non trovato' });
+        const tpl = tpls[0];
+        let anomalia = false;
+        for (const f of (tpl.fields || [])) {
+          if (f.type === 'number') {
+            const val = values[f.key];
+            if (val == null || val === '') continue;
+            const n = Number(val);
+            if (Number.isNaN(n)) continue;
+            if (f.min != null && n < Number(f.min)) anomalia = true;
+            if (f.max != null && n > Number(f.max)) anomalia = true;
+          }
+          if (f.required && (values[f.key] === undefined || values[f.key] === null || values[f.key] === '')) {
+            return res.status(400).json({ error: `Campo obbligatorio mancante: ${f.label}` });
+          }
+        }
+        const r = await sbQuery('haccp_log_entries', 'POST', [{
+          user_id: v.emp.user_id,
+          template_id,
+          employee_id: v.emp.id,
+          operatore_nome: v.emp.nome,
+          locale: locale || tpl.locale || null,
+          values,
+          anomalia,
+          note: note || null,
+        }]);
+        if (!r.ok) return res.status(500).json({ error: 'Errore salvataggio' });
+        return res.status(200).json({ ok: true, anomalia });
+      }
+
       case 'my-certificates': {
         const v = await verifyPin(req.body?.pin, null);
         if (v.error) return res.status(v.code).json({ error: v.error });
@@ -1287,7 +1343,7 @@ export default async function handler(req, res) {
       }
 
       default:
-        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, checklist-skip, prod-recipes, prod-articles, prod-recipe-create, manual-article-create, prod-start, prod-finish, my-shifts, my-hours, my-timeoff, my-certificates' });
+        return res.status(400).json({ error: 'action richiesta: verify, timbra, history, recipes, consumo, articles, trasferimento, inv-open, inv-articles, inv-count, inv-add-article, inv-close, checklist-submit, checklist-response, checklist-skip, prod-recipes, prod-articles, prod-recipe-create, manual-article-create, prod-start, prod-finish, my-shifts, my-hours, my-timeoff, my-certificates, haccp-templates, haccp-submit' });
     }
   } catch (err) {
     console.error('[ATTENDANCE]', err.message);
