@@ -68,7 +68,7 @@ export default function ChiusureView({ from, to, sps = [] }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(null) // 'locale|data' chiave riga in salvataggio
   const [error, setError] = useState('')
-  const [view, setView] = useState(() => localStorage.getItem('chiusure_view') || 'totale') // 'totale' | 'tutti' | nome locale
+  const [view, setView] = useState(() => localStorage.getItem('chiusure_view') || '') // '' (= primo locale) | nome locale
   useEffect(() => { localStorage.setItem('chiusure_view', view) }, [view])
 
   const localesAvail = useMemo(() => (sps || []).map(s => s.description || s.name).filter(Boolean), [sps])
@@ -207,29 +207,28 @@ export default function ChiusureView({ from, to, sps = [] }) {
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     {error && <div style={{ background: 'var(--red-bg)', color: 'var(--red-text)', padding: '10px 14px', borderRadius: 8, fontSize: 13 }}>{error}</div>}
 
-    {/* Filtro vista */}
+    {/* Filtro locale */}
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-      <span style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 600, marginRight: 4 }}>Vista:</span>
-      <ViewBtn label="Totale" active={view === 'totale'} onClick={() => setView('totale')} accent="#10B981"/>
-      {localesAvail.length > 1 && (
-        <ViewBtn label="Tutti i locali" active={view === 'tutti'} onClick={() => setView('tutti')}/>
-      )}
-      {localesAvail.map(loc => (
-        <ViewBtn key={loc} label={loc} active={view === loc} onClick={() => setView(loc)}/>
-      ))}
+      <span style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 600, marginRight: 4 }}>Locale:</span>
+      {localesAvail.map(loc => {
+        const active = view === loc || (!localesAvail.includes(view) && loc === localesAvail[0])
+        return <ViewBtn key={loc} label={loc} active={active} onClick={() => setView(loc)}/>
+      })}
     </div>
 
     <Legend/>
 
-    {/* Renderizzazione in base alla vista */}
-    {view === 'totale' && <ClosureTable title="TOTALE — tutti i locali aggregati" rows={totalRows} editable={false} accent="#10B981"/>}
-    {view === 'tutti' && localesAvail.map(loc => (
-      <ClosureTable key={loc} title={loc} rows={allRows[loc] || []} editable
-        savingKey={saving} onEdit={(field, dateStr, val) => upsertCell(loc, dateStr, field, val)}/>
-    ))}
-    {localesAvail.includes(view) && (
-      <ClosureTable title={view} rows={allRows[view] || []} editable
-        savingKey={saving} onEdit={(field, dateStr, val) => upsertCell(view, dateStr, field, val)}/>
+    {/* Tabella del locale selezionato (default: primo locale) */}
+    {(() => {
+      const selected = localesAvail.includes(view) ? view : localesAvail[0]
+      if (!selected) return null
+      return <ClosureTable title={selected} rows={allRows[selected] || []} editable
+        savingKey={saving} onEdit={(field, dateStr, val) => upsertCell(selected, dateStr, field, val)}/>
+    })()}
+
+    {/* Tabella TOTALE sempre alla fine (visibile solo se piu' locali) */}
+    {localesAvail.length > 1 && (
+      <ClosureTable title="TOTALE — tutti i locali aggregati" rows={totalRows} editable={false} accent="#10B981"/>
     )}
   </div>
 }
