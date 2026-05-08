@@ -31,28 +31,33 @@ const parseEur = (v) => {
   return Number(s) || 0
 }
 
-// Estrae POS/Satispay da risposte checklist (best-effort, cerca chiavi/label che contengono pos/satispay)
-function extractFromChecklist(responses, checklist) {
-  if (!responses?.length) return { pos: null, satispay: null }
-  const items = Array.isArray(checklist?.items) ? checklist.items : []
-  let pos = null, satispay = null
+// Estrae POS/Satispay/Fatture da risposte checklist (best-effort: cerca per label).
+// Cicla su TUTTE le checklist passate (un locale puo' averne piu' d'una, es. REMEMBEER ha
+// "Sala · Chiusura" con i campi monetari e "Cucina · Chiusura" senza).
+function extractFromChecklist(responses, checklists) {
+  if (!responses?.length) return { pos: null, satispay: null, fatture: null }
+  let pos = null, satispay = null, fatture = null
+  // Indicizza items per checklist_id
+  const itemsByChecklist = {}
+  for (const c of (checklists || [])) {
+    itemsByChecklist[c.id] = Array.isArray(c.items) ? c.items : []
+  }
   for (const r of responses) {
     if (r.skipped) continue
+    const items = itemsByChecklist[r.checklist_id] || []
     const ans = r.risposte || {}
     for (const it of items) {
       const label = (it.label || '').toLowerCase()
       const id = String(it.id || '')
       const v = ans[id]
       if (v == null || v === '') continue
-      if (pos == null && /\bpos\b|carta|bancomat/i.test(label)) {
-        const n = parseEur(v); if (n > 0 || v !== '0') pos = n
-      }
-      if (satispay == null && /satispay|saty/i.test(label)) {
-        const n = parseEur(v); if (n > 0 || v !== '0') satispay = n
-      }
+      const n = parseEur(v)
+      if (pos == null && /\bpos\b|carta|bancomat/i.test(label)) pos = n
+      if (satispay == null && /satispay|saty/i.test(label)) satispay = n
+      if (fatture == null && /\bfatture?\b/i.test(label)) fatture = n
     }
   }
-  return { pos, satispay }
+  return { pos, satispay, fatture }
 }
 
 export default function ChiusureView({ from, to, sps = [] }) {
@@ -63,6 +68,8 @@ export default function ChiusureView({ from, to, sps = [] }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(null) // 'locale|data' chiave riga in salvataggio
   const [error, setError] = useState('')
+  const [view, setView] = useState(() => localStorage.getItem('chiusure_view') || 'totale') // 'totale' | 'tutti' | nome locale
+  useEffect(() => { localStorage.setItem('chiusure_view', view) }, [view])
 
   const localesAvail = useMemo(() => (sps || []).map(s => s.description || s.name).filter(Boolean), [sps])
 
@@ -98,9 +105,9 @@ export default function ChiusureView({ from, to, sps = [] }) {
   const buildRow = useCallback((locale, dateStr) => {
     const cl = closures.find(c => c.locale === locale && c.data === dateStr)
     const ds = dailyStats.find(d => d.salespoint_name === locale && d.date === dateStr)
-    const cklUscita = checklists.find(c => c.locale === locale)
+    const cklUscitaList = checklists.filter(c => c.locale === locale)
     const dayResponses = responses.filter(r => r.locale === locale && r.created_at?.startsWith(dateStr))
-    const fromChecklist = extractFromChecklist(dayResponses, cklUscita)
+    const fromChecklist = extractFromChecklist(dayResponses, cklUscitaList)
 
     // Suddivisione automatica scontrini vs fatture da receipt_details
     let corrAuto = null, fatAuto = null
@@ -123,7 +130,11 @@ export default function ChiusureView({ from, to, sps = [] }) {
     }
 
     const corrispettivo = cl?.corrispettivo != null ? Number(cl.corrispettivo) : corrAuto
-    const fatture = cl?.fatture_emesse != null ? Number(cl.fatture_emesse) : fatAuto
+    // Per le fatture: prima override, poi cassa (isInvoice), poi checklist (fallback se cassa non ne ha)
+    const fatturaCassaPresente = fatAuto != null && fatAuto > 0
+    const fatture = cl?.fatture_emesse != null
+      ? Number(cl.fatture_emesse)
+      : (fatturaCassaPresente ? fatAuto : (fromChecklist.fatture != null ? fromChecklist.fatture : fatAuto))
     const pos = cl?.pos != null ? Number(cl.pos) : (fromChecklist.pos)
     const satispay = cl?.satispay != null ? Number(cl.satispay) : (fromChecklist.satispay)
 
@@ -138,7 +149,7 @@ export default function ChiusureView({ from, to, sps = [] }) {
       corrispettivo, fatture_emesse: fatture, pos, satispay, contanti,
       // Origine dei dati per UI
       sourceCorr: cl?.corrispettivo != null ? 'manuale' : (corrAuto != null ? 'cassa' : null),
-      sourceFat:  cl?.fatture_emesse != null ? 'manuale' : (fatAuto != null && fatAuto > 0 ? 'cassa' : null),
+      sourceFat:  cl?.fatture_emesse != null ? 'manuale' : (fatturaCassaPresente ? 'cassa' : (fromChecklist.fatture != null ? 'checklist' : null)),
       sourcePos:  cl?.pos != null ? 'manuale' : (fromChecklist.pos != null ? 'checklist' : null),
       sourceSaty: cl?.satispay != null ? 'manuale' : (fromChecklist.satispay != null ? 'checklist' : null),
     }
@@ -196,15 +207,43 @@ export default function ChiusureView({ from, to, sps = [] }) {
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
     {error && <div style={{ background: 'var(--red-bg)', color: 'var(--red-text)', padding: '10px 14px', borderRadius: 8, fontSize: 13 }}>{error}</div>}
 
+    {/* Filtro vista */}
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      <span style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 600, marginRight: 4 }}>Vista:</span>
+      <ViewBtn label="Totale" active={view === 'totale'} onClick={() => setView('totale')} accent="#10B981"/>
+      {localesAvail.length > 1 && (
+        <ViewBtn label="Tutti i locali" active={view === 'tutti'} onClick={() => setView('tutti')}/>
+      )}
+      {localesAvail.map(loc => (
+        <ViewBtn key={loc} label={loc} active={view === loc} onClick={() => setView(loc)}/>
+      ))}
+    </div>
+
     <Legend/>
 
-    {localesAvail.map(loc => (
+    {/* Renderizzazione in base alla vista */}
+    {view === 'totale' && <ClosureTable title="TOTALE — tutti i locali aggregati" rows={totalRows} editable={false} accent="#10B981"/>}
+    {view === 'tutti' && localesAvail.map(loc => (
       <ClosureTable key={loc} title={loc} rows={allRows[loc] || []} editable
         savingKey={saving} onEdit={(field, dateStr, val) => upsertCell(loc, dateStr, field, val)}/>
     ))}
-
-    {localesAvail.length > 1 && <ClosureTable title="TOTALE (tutti i locali)" rows={totalRows} editable={false} accent="#10B981"/>}
+    {localesAvail.includes(view) && (
+      <ClosureTable title={view} rows={allRows[view] || []} editable
+        savingKey={saving} onEdit={(field, dateStr, val) => upsertCell(view, dateStr, field, val)}/>
+    )}
   </div>
+}
+
+function ViewBtn({ label, active, onClick, accent }) {
+  const c = accent || 'var(--text)'
+  return <button onClick={onClick}
+    style={{
+      padding: '7px 14px', fontSize: 12, fontWeight: 600,
+      background: active ? c : 'transparent',
+      color: active ? (accent ? '#0f1420' : 'var(--surface)') : 'var(--text2)',
+      border: '1px solid ' + (active ? c : 'var(--border)'),
+      borderRadius: 8, cursor: 'pointer',
+    }}>{label}</button>
 }
 
 const SOURCE_COLOR = {
