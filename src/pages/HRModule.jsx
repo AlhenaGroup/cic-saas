@@ -117,7 +117,7 @@ export default function HRModule({ staffSchedule, setStaffSchedule, saveSchedule
 
   // Se un dipendente è selezionato, mostra il profilo
   if (selectedEmp) {
-    return <EmployeeProfile employee={selectedEmp} onClose={()=>setSelectedEmp(null)} onUpdate={loadEmployees} sps={sps}/>
+    return <EmployeeProfile employee={selectedEmp} onClose={()=>setSelectedEmp(null)} onUpdate={loadEmployees} sps={sps} allEmployees={employees}/>
   }
 
   return <>

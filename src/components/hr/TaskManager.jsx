@@ -346,7 +346,8 @@ function TaskCard({ task, compact, onClick, employees }) {
   const assigneeLabel = task.assignment_kind === 'team' ? 'TEAM' :
     task.assignment_kind === 'roles' ? (task.assigned_roles || []).join(', ') :
     (task.assigned_employee_ids || []).map(id => (employees.find(e => e.id === id)?.nome || '?')).join(', ')
-  const icon = task.type === 'production' ? '' : ''
+  const tipoLabel = task.tipo === 'problema' ? 'PROBLEMA' : task.tipo === 'scadenza' ? 'SCADENZA' : null
+  const tipoColor = task.tipo === 'problema' ? '#EF4444' : task.tipo === 'scadenza' ? '#F59E0B' : null
   return <div onClick={onClick} style={{
     background: c.bg, border: '1px solid transparent', borderRadius: 8,
     padding: compact ? '6px 8px' : '10px 12px', marginBottom: 6, cursor: 'pointer',
@@ -354,7 +355,10 @@ function TaskCard({ task, compact, onClick, employees }) {
     opacity: task.status === 'fatta' ? 0.5 : 1,
     textDecoration: task.status === 'fatta' ? 'line-through' : 'none',
   }}>
-    <div style={{ fontWeight: 600 }}>{icon} {task.title}</div>
+    <div style={{ fontWeight: 600 }}>
+      {tipoLabel && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: tipoColor + '33', color: tipoColor, letterSpacing: '.04em', marginRight: 6 }}>{tipoLabel}</span>}
+      {task.title}
+    </div>
     {!compact && <div style={{ fontSize: 11, marginTop: 4, opacity: 0.8 }}>
       {task.due_time?.substring(0, 5) || ''} · {assigneeLabel}
     </div>}
@@ -459,6 +463,7 @@ function TaskEditor({ task, employees, sps, knowledge = [], onClose, onSaved }) 
     description: task.description || '',
     instructions: task.instructions || '',
     type: task.type || 'generic',
+    tipo: task.tipo || 'compito',
     priority: task.priority || 'media',
     due_date: task.due_date || new Date().toISOString().split('T')[0],
     due_time: task.due_time || '',
@@ -536,6 +541,20 @@ function TaskEditor({ task, employees, sps, knowledge = [], onClose, onSaved }) 
       </select>
     </Field>}
     <Field label="Titolo *"><input style={iS} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/></Field>
+    <Field label="Categoria">
+      <div style={{ display: 'flex', gap: 6 }}>
+        {[['compito','Compito','#3B82F6'],['problema','Problema','#EF4444'],['scadenza','Scadenza','#F59E0B']].map(([v,l,c]) => (
+          <button key={v} type="button" onClick={() => setF({ ...f, tipo: v })}
+            style={{
+              flex: 1, padding: '8px 10px', fontSize: 12, fontWeight: 600,
+              border: '1px solid ' + (f.tipo === v ? c : 'var(--border)'),
+              background: f.tipo === v ? c + '22' : 'transparent',
+              color: f.tipo === v ? c : 'var(--text2)',
+              borderRadius: 'var(--radius-control)', cursor: 'pointer',
+            }}>{l}</button>
+        ))}
+      </div>
+    </Field>
     <Field label="Tipo">
       <select style={iS} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
         <option value="generic">Generica</option><option value="production">Produzione</option>
@@ -641,6 +660,7 @@ function TemplateEditor({ tpl, employees, sps, knowledge = [], onClose, onSaved 
     description: tpl.description || '',
     instructions: tpl.instructions || '',
     type: tpl.type || 'generic',
+    tipo: tpl.tipo || 'compito',
     priority: tpl.priority || 'media',
     recurrence: tpl.recurrence || 'weekly',
     days_of_week: tpl.days_of_week || [],
@@ -703,6 +723,20 @@ function TemplateEditor({ tpl, employees, sps, knowledge = [], onClose, onSaved 
       </select>
     </Field>}
     <Field label="Titolo *"><input style={iS} value={f.title} onChange={e => setF({ ...f, title: e.target.value })}/></Field>
+    <Field label="Categoria">
+      <div style={{ display: 'flex', gap: 6 }}>
+        {[['compito','Compito','#3B82F6'],['problema','Problema','#EF4444'],['scadenza','Scadenza','#F59E0B']].map(([v,l,c]) => (
+          <button key={v} type="button" onClick={() => setF({ ...f, tipo: v })}
+            style={{
+              flex: 1, padding: '8px 10px', fontSize: 12, fontWeight: 600,
+              border: '1px solid ' + (f.tipo === v ? c : 'var(--border)'),
+              background: f.tipo === v ? c + '22' : 'transparent',
+              color: f.tipo === v ? c : 'var(--text2)',
+              borderRadius: 'var(--radius-control)', cursor: 'pointer',
+            }}>{l}</button>
+        ))}
+      </div>
+    </Field>
     <Field label="Tipo">
       <select style={iS} value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>
         <option value="generic">Generica</option><option value="production">Produzione</option>

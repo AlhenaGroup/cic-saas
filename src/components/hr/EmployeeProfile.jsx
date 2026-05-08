@@ -13,7 +13,7 @@ function calcShiftHours(inizio, fine) {
   return Math.round((endMin - startMin) / 60 * 10) / 10
 }
 
-export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] }) {
+export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [], allEmployees = [] }) {
   const [emp, setEmp] = useState(employee)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({})
@@ -158,6 +158,12 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
           <input type="date" value={form.data_nascita||''} onChange={e=>setForm(p=>({...p,data_nascita:e.target.value}))} style={formStyle} title="Data nascita"/>
           <input type="date" value={form.data_assunzione||''} onChange={e=>setForm(p=>({...p,data_assunzione:e.target.value}))} style={formStyle} title="Data assunzione"/>
           <input type="date" value={form.data_fine_contratto||''} onChange={e=>setForm(p=>({...p,data_fine_contratto:e.target.value}))} style={formStyle} title="Fine contratto"/>
+          <select value={form.manager_id||''} onChange={e=>setForm(p=>({...p,manager_id:e.target.value||null}))} style={formStyle} title="Manager diretto: chi pu\u00f2 delegargli/riassegnargli task">
+            <option value="">— Nessun manager (riporta direttamente all'imprenditore) —</option>
+            {(allEmployees||[]).filter(e=>e.id!==emp.id&&e.stato==='Attivo').map(e=>
+              <option key={e.id} value={e.id}>{e.nome}{e.ruolo?` (${e.ruolo})`:''}</option>
+            )}
+          </select>
           <textarea placeholder="Note" value={form.note||''} onChange={e=>setForm(p=>({...p,note:e.target.value}))} style={{...formStyle,gridColumn:'1/4',minHeight:60}} />
           <div style={{display:'flex',gap:8}}>
             <button onClick={saveEdit} style={{...iS,background:'#10B981',color:'#fff',border:'none',padding:'6px 16px',fontWeight:600}}>Salva</button>
@@ -169,7 +175,8 @@ export default function EmployeeProfile({ employee, onClose, onUpdate, sps = [] 
           {[['Telefono',emp.telefono],['Email',emp.email],['Codice Fiscale',emp.cf],['Indirizzo',emp.indirizzo],['IBAN',emp.iban],
             ['Tipo Contratto',emp.tipo_contratto],['Livello CCNL',emp.livello],['Ore settimanali',emp.ore_contrattuali],
             ['Costo orario',emp.costo_orario?fmtD(emp.costo_orario):null],['Retribuzione lorda',emp.retribuzione_lorda?fmtD(emp.retribuzione_lorda):null],
-            ['Data nascita',emp.data_nascita],['Data assunzione',emp.data_assunzione],['Fine contratto',emp.data_fine_contratto]
+            ['Data nascita',emp.data_nascita],['Data assunzione',emp.data_assunzione],['Fine contratto',emp.data_fine_contratto],
+            ['Manager diretto', emp.manager_id ? (allEmployees.find(e=>e.id===emp.manager_id)?.nome || '?') : null]
           ].map(([l,v])=>
             <div key={l}>
               <div style={{fontSize:10,color: 'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:4}}>{l}</div>
