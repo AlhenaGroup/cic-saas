@@ -25,6 +25,19 @@ const COLS = [
 ]
 
 const ymd = (d) => d.toISOString().split('T')[0]
+// Giornata operativa: cutoff 05:00 (Europe/Rome). Una checklist USCITA fatta
+// alle 02:30 della notte del 16 appartiene al giorno operativo 15 (chiusura serale del 15).
+// Restituisce 'YYYY-MM-DD' in fuso orario locale dopo aver sottratto 5h.
+const operatingDayLocal = (tsStr) => {
+  if (!tsStr) return null
+  const d = new Date(tsStr)
+  if (isNaN(d.getTime())) return null
+  d.setHours(d.getHours() - 5)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 const parseEur = (v) => {
   if (v == null || v === '') return 0
   const s = String(v).replace(',', '.').replace(/[^\d.\-]/g, '')
@@ -80,7 +93,12 @@ export default function ChiusureView({ from, to, sps = [] }) {
         supabase.from('closures').select('*').gte('data', from).lte('data', to),
         supabase.from('daily_stats').select('date,salespoint_name,revenue,bill_count,receipt_details').gte('date', from).lte('date', to),
         supabase.from('attendance_checklists').select('id,locale,momento,items').eq('momento', 'uscita').eq('attivo', true),
-        supabase.from('attendance_checklist_responses').select('checklist_id,locale,created_at,risposte,skipped').gte('created_at', from + 'T00:00:00').lte('created_at', to + 'T23:59:59'),
+        // Estende la finestra fino al mattino successivo a `to`: locali che chiudono dopo
+        // mezzanotte salvano la checklist USCITA con created_at del giorno dopo.
+        // Il filtro per giorno operativo viene poi applicato in buildRow.
+        supabase.from('attendance_checklist_responses').select('checklist_id,locale,created_at,risposte,skipped').gte('created_at', from + 'T00:00:00').lte('created_at', (() => {
+          const d = new Date(to + 'T00:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]
+        })() + 'T23:59:59'),
       ])
       setClosures(cl || [])
       setDailyStats(ds || [])
@@ -106,7 +124,11 @@ export default function ChiusureView({ from, to, sps = [] }) {
     const cl = closures.find(c => c.locale === locale && c.data === dateStr)
     const ds = dailyStats.find(d => d.salespoint_name === locale && d.date === dateStr)
     const cklUscitaList = checklists.filter(c => c.locale === locale)
-    const dayResponses = responses.filter(r => r.locale === locale && r.created_at?.startsWith(dateStr))
+    // Una checklist USCITA appartiene al giorno operativo basato sul cutoff 05:00.
+    // Es. response salvata il 2026-01-16T02:30 = giornata operativa 2026-01-15 (chiusura
+    // serale del 15 protrattasi oltre mezzanotte). Cosi' REMEMBEER non prende per sbaglio
+    // i valori della notte successiva attribuendoli al giorno corrente.
+    const dayResponses = responses.filter(r => r.locale === locale && operatingDayLocal(r.created_at) === dateStr)
     const fromChecklist = extractFromChecklist(dayResponses, cklUscitaList)
 
     // Suddivisione automatica scontrini vs fatture da receipt_details
