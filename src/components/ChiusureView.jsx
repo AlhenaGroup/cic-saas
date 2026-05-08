@@ -86,12 +86,18 @@ export default function ChiusureView({ from, to, sps = [] }) {
 
   const localesAvail = useMemo(() => (sps || []).map(s => s.description || s.name).filter(Boolean), [sps])
 
+  // Estende l'orizzonte fetch di +1 giorno per catturare scontrini chiusi 00:00-05:00
+  // del mattino successivo al periodo (saranno attribuiti al giorno op precedente).
+  const toPlus1 = useMemo(() => {
+    const d = new Date(to + 'T00:00:00'); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]
+  }, [to])
+
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
       const [{ data: cl }, { data: ds }, { data: ck }, { data: rsp }] = await Promise.all([
         supabase.from('closures').select('*').gte('data', from).lte('data', to),
-        supabase.from('daily_stats').select('date,salespoint_name,revenue,bill_count,receipt_details').gte('date', from).lte('date', to),
+        supabase.from('daily_stats').select('date,salespoint_name,revenue,bill_count,receipt_details').gte('date', from).lte('date', toPlus1),
         supabase.from('attendance_checklists').select('id,locale,momento,items').eq('momento', 'uscita').eq('attivo', true),
         // Estende la finestra fino al mattino successivo a `to`: locali che chiudono dopo
         // mezzanotte salvano la checklist USCITA con created_at del giorno dopo.
@@ -106,8 +112,39 @@ export default function ChiusureView({ from, to, sps = [] }) {
       setResponses(rsp || [])
     } catch (e) { setError(e.message) }
     setLoading(false)
-  }, [from, to])
+  }, [from, to, toPlus1])
   useEffect(() => { load() }, [load])
+
+  // Pre-calcola scontrini/fatture per (locale, giorno operativo) applicando cutoff 05:00.
+  // Una comanda chiusa tra 00:00 e 04:59 di X appartiene al giorno op X-1.
+  // Per i giorni con receipt_details vuoto, fallback a daily_stats.revenue.
+  const opDayTotals = useMemo(() => {
+    const m = {} // m[locale][opDate] = { sc, inv, hadRd, revenue }
+    for (const ds of dailyStats || []) {
+      const loc = ds.salespoint_name; if (!loc) continue
+      if (!m[loc]) m[loc] = {}
+      const rd = Array.isArray(ds.receipt_details) ? ds.receipt_details : []
+      if (rd.length === 0) {
+        if (!m[loc][ds.date]) m[loc][ds.date] = { sc: 0, inv: 0, hadRd: false, revenue: 0 }
+        m[loc][ds.date].revenue = Number(ds.revenue) || 0
+      } else {
+        for (const r of rd) {
+          const ch = (r.chiusuraComanda || r.aperturaComanda || '').slice(0, 5)
+          let opDate = ds.date
+          if (ch && ch < '05:00') {
+            const d = new Date(ds.date + 'T00:00:00'); d.setDate(d.getDate() - 1)
+            opDate = d.toISOString().split('T')[0]
+          }
+          if (!m[loc][opDate]) m[loc][opDate] = { sc: 0, inv: 0, hadRd: true, revenue: 0 }
+          m[loc][opDate].hadRd = true
+          const t = Number(r.totale) || 0
+          if (r.isInvoice) m[loc][opDate].inv += t
+          else m[loc][opDate].sc += t
+        }
+      }
+    }
+    return m
+  }, [dailyStats])
 
   // Genera lista date (incluse) tra from e to
   const dates = useMemo(() => {
@@ -122,7 +159,7 @@ export default function ChiusureView({ from, to, sps = [] }) {
   // CORRISPETTIVO = solo scontrini fiscali (non fatture); FATTURE = sum di receipt_details con isInvoice=true
   const buildRow = useCallback((locale, dateStr) => {
     const cl = closures.find(c => c.locale === locale && c.data === dateStr)
-    const ds = dailyStats.find(d => d.salespoint_name === locale && d.date === dateStr)
+    const opVals = opDayTotals[locale]?.[dateStr]
     const cklUscitaList = checklists.filter(c => c.locale === locale)
     // Una checklist USCITA appartiene al giorno operativo basato sul cutoff 05:00.
     // Es. response salvata il 2026-01-16T02:30 = giornata operativa 2026-01-15 (chiusura
@@ -131,24 +168,14 @@ export default function ChiusureView({ from, to, sps = [] }) {
     const dayResponses = responses.filter(r => r.locale === locale && operatingDayLocal(r.created_at) === dateStr)
     const fromChecklist = extractFromChecklist(dayResponses, cklUscitaList)
 
-    // Suddivisione automatica scontrini vs fatture da receipt_details
+    // Scontrini/fatture per giorno operativo (cutoff 05:00 applicato in opDayTotals).
+    // Per giorni vecchi senza receipt_details si usa il revenue del giorno calendario
+    // (fallback best-effort, ma se l'utente ha inserito un override in closures
+    // quello prevale comunque).
     let corrAuto = null, fatAuto = null
-    if (ds) {
-      const rd = Array.isArray(ds.receipt_details) ? ds.receipt_details : []
-      if (rd.length > 0) {
-        let sc = 0, inv = 0
-        for (const r of rd) {
-          const t = Number(r.totale) || 0
-          if (r.isInvoice) inv += t
-          else sc += t
-        }
-        corrAuto = sc
-        fatAuto = inv
-      } else {
-        // Fallback: nessun receipt_details, usa revenue come corrispettivo
-        corrAuto = Number(ds.revenue) || 0
-        fatAuto = 0
-      }
+    if (opVals) {
+      if (opVals.hadRd) { corrAuto = opVals.sc; fatAuto = opVals.inv }
+      else { corrAuto = opVals.revenue; fatAuto = 0 }
     }
 
     const corrispettivo = cl?.corrispettivo != null ? Number(cl.corrispettivo) : corrAuto
@@ -175,7 +202,7 @@ export default function ChiusureView({ from, to, sps = [] }) {
       sourcePos:  cl?.pos != null ? 'manuale' : (fromChecklist.pos != null ? 'checklist' : null),
       sourceSaty: cl?.satispay != null ? 'manuale' : (fromChecklist.satispay != null ? 'checklist' : null),
     }
-  }, [closures, dailyStats, checklists, responses])
+  }, [closures, opDayTotals, checklists, responses])
 
   const upsertCell = async (locale, dateStr, field, value) => {
     const num = value === '' || value == null ? null : parseEur(value)
