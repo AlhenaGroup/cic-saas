@@ -373,6 +373,73 @@ export default function DashboardPage({ settings }) {
     if (TABS.length > 0 && !ALLOWED_TAB_KEYS.has(tab)) setTab(TABS[0][0])
   }, [planFeatures, tab, TABS, staffEmployee, staffLoaded])
 
+  // Compatta produttivita' per widget Panoramica: solo grafico + media giornaliera.
+  // Usa le stesse closure di renderProduttivita ma in formato compatto, no toolbar.
+  const renderProduttivitaCompact = () => {
+    const prodColor = v => v < sogliaRed ? '#EF4444' : v < sogliaYel ? '#F59E0B' : '#10B981'
+    const hourKeys = new Set(ore.map(o => o.ora))
+    Object.keys(workedHoursBySlot).forEach(k => hourKeys.add(k))
+    Object.keys(staffSchedule).forEach(k => hourKeys.add(k))
+    Object.keys(ricaviBySlot).forEach(k => hourKeys.add(k))
+    const oreMap = Object.fromEntries(ore.map(o => [o.ora, o]))
+    const oreWithProd = [...hourKeys].sort().map(ora => {
+      const fallback = oreMap[ora] || { ora, ricavi: 0 }
+      const ricavi = hasReceiptDetails ? (ricaviBySlot[ora] || 0) : (fallback.ricavi || 0)
+      const oreReali = workedHoursBySlot[ora] || 0
+      const orePianif = staffSchedule[ora] || 0
+      const oreLavorate = useRealHours ? (oreReali > 0 ? oreReali : 0) : orePianif
+      const prodOraria = oreLavorate > 0 ? ricavi / oreLavorate : 0
+      return { ora, ricavi, staff: oreLavorate, prodOraria }
+    }).filter(o => o.ricavi > 0)
+    const totOreDay = oreWithProd.reduce((s,o) => s + o.staff, 0)
+    const totIncassoOre = oreWithProd.reduce((s,o) => s + o.ricavi, 0)
+    const nDays = trend.length || 1
+    const mediaGiorn = totOreDay > 0 ? (totIncassoOre / nDays) / totOreDay : 0
+
+    if (oreWithProd.length === 0) {
+      return <div style={{ padding: 16, textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
+        Nessun dato di vendita oraria per il periodo selezionato.
+      </div>
+    }
+
+    return <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10, flexWrap: 'wrap', fontSize: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: 'var(--text3)' }}>Ore:</span>
+          <button onClick={() => setUseRealHours(true)}
+            style={{ padding: '3px 8px', fontSize: 10, fontWeight: 600, cursor: 'pointer', borderRadius: 4,
+              border: '1px solid var(--border)',
+              background: useRealHours ? '#10B981' : 'transparent', color: useRealHours ? '#fff' : 'var(--text2)' }}>Reali</button>
+          <button onClick={() => setUseRealHours(false)}
+            style={{ padding: '3px 8px', fontSize: 10, fontWeight: 600, cursor: 'pointer', borderRadius: 4,
+              border: '1px solid var(--border)',
+              background: !useRealHours ? '#F59E0B' : 'transparent', color: !useRealHours ? '#fff' : 'var(--text2)' }}>Pianificate</button>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: 'var(--text3)' }}>Media giornaliera:</span>
+          <span style={{ fontSize: 18, fontWeight: 700, color: prodColor(mediaGiorn) }}>{mediaGiorn > 0 ? mediaGiorn.toFixed(1) + ' €/h' : '—'}</span>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={oreWithProd} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis dataKey="ora" tick={{ fontSize: 10, fill: 'var(--text3)' }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: 'var(--text3)' }} tickFormatter={v => v + '€'} tickLine={false} axisLine={false} width={42} />
+          <Tooltip formatter={(v, name) => name === 'prodOraria' ? v.toFixed(1) + ' €/h' : fmt(v)}
+            contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }} />
+          <Bar dataKey="ricavi" name="Ricavi" radius={[3, 3, 0, 0]}>
+            {oreWithProd.map((o, i) => <Cell key={i} fill={o.staff > 0 ? prodColor(o.prodOraria) : '#F59E0B'} />)}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <div style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 6, fontSize: 10, color: 'var(--text3)' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#10B981' }}/>≥{sogliaYel}€/h</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#F59E0B' }}/>{sogliaRed}-{sogliaYel}€/h</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#EF4444' }}/>&lt;{sogliaRed}€/h</span>
+      </div>
+    </div>
+  }
+
   // Render del blocco Produttivita' come funzione che ritorna JSX. Viene passato a
   // HRModule come prop renderProduttivita; HRModule lo invoca quando l'utente
   // sceglie il sub-tab "Produttivita'". Closures su tutti i state di DashboardPage.
@@ -684,6 +751,8 @@ export default function DashboardPage({ settings }) {
               <TaskWidget sps={sps}/> },
           { id:'briefing.haccp', label:'HACCP (documenti in scadenza)', element:
               <HaccpScadenzeWidget/> },
+          { id:'briefing.produttivita', label:'Produttività oraria (€/h)', element:
+              renderProduttivitaCompact() },
           { id:'briefing.attenzione', label:'Attenzione (allarmi)', element:
               <BriefingAttenzione sps={sps} sp={sp}/> },
         ]}/>
