@@ -115,33 +115,26 @@ export default function ChiusureView({ from, to, sps = [] }) {
   }, [from, to, toPlus1])
   useEffect(() => { load() }, [load])
 
-  // Pre-calcola scontrini/fatture per (locale, giorno operativo) applicando cutoff 05:00.
-  // Una comanda chiusa tra 00:00 e 04:59 di X appartiene al giorno op X-1.
-  // Per i giorni con receipt_details vuoto, fallback a daily_stats.revenue.
+  // Pre-calcola corrispettivo/fatture per (locale, data) usando il revenue Z fiscale.
+  // - corrispettivo = revenue (totale Z chiusura cassa) - somma fatture
+  // - fatture = somma(receipt_details.isInvoice). Le fatture sono comande emesse durante
+  //   il giorno fiscale (CiC le include nel revenue se sono fiscalmente chiuse).
+  // Niente cutoff 05:00 sul corrispettivo: CiC gia' attribuisce al giorno Z corretto.
+  // Le checklist USCITA fatte dopo mezzanotte continuano ad usare cutoff 05:00 nelle response.
   const opDayTotals = useMemo(() => {
-    const m = {} // m[locale][opDate] = { sc, inv, hadRd, revenue }
+    const m = {} // m[locale][date] = { sc, inv, hadRd, revenue }
     for (const ds of dailyStats || []) {
       const loc = ds.salespoint_name; if (!loc) continue
       if (!m[loc]) m[loc] = {}
       const rd = Array.isArray(ds.receipt_details) ? ds.receipt_details : []
-      if (rd.length === 0) {
-        if (!m[loc][ds.date]) m[loc][ds.date] = { sc: 0, inv: 0, hadRd: false, revenue: 0 }
-        m[loc][ds.date].revenue = Number(ds.revenue) || 0
-      } else {
-        for (const r of rd) {
-          const ch = (r.chiusuraComanda || r.aperturaComanda || '').slice(0, 5)
-          let opDate = ds.date
-          if (ch && ch < '05:00') {
-            const d = new Date(ds.date + 'T00:00:00'); d.setDate(d.getDate() - 1)
-            opDate = d.toISOString().split('T')[0]
-          }
-          if (!m[loc][opDate]) m[loc][opDate] = { sc: 0, inv: 0, hadRd: true, revenue: 0 }
-          m[loc][opDate].hadRd = true
-          const t = Number(r.totale) || 0
-          if (r.isInvoice) m[loc][opDate].inv += t
-          else m[loc][opDate].sc += t
-        }
+      const revenue = Number(ds.revenue) || 0
+      let inv = 0, hadRd = rd.length > 0
+      for (const r of rd) {
+        if (r.isInvoice) inv += Number(r.totale) || 0
       }
+      // Corrispettivo = totale Z fiscale meno le fatture (gli scontrini "puri")
+      const sc = Math.max(0, revenue - inv)
+      m[loc][ds.date] = { sc, inv, hadRd, revenue }
     }
     return m
   }, [dailyStats])
@@ -168,14 +161,13 @@ export default function ChiusureView({ from, to, sps = [] }) {
     const dayResponses = responses.filter(r => r.locale === locale && operatingDayLocal(r.created_at) === dateStr)
     const fromChecklist = extractFromChecklist(dayResponses, cklUscitaList)
 
-    // Scontrini/fatture per giorno operativo (cutoff 05:00 applicato in opDayTotals).
-    // Per giorni vecchi senza receipt_details si usa il revenue del giorno calendario
-    // (fallback best-effort, ma se l'utente ha inserito un override in closures
-    // quello prevale comunque).
+    // Corrispettivo da chiusura cassa (revenue Z fiscale). Fatture splittate da
+    // receipt_details.isInvoice quando disponibili, altrimenti 0 (giorni vecchi
+    // senza receipt_details: l'intero revenue conta come scontrini).
     let corrAuto = null, fatAuto = null
     if (opVals) {
-      if (opVals.hadRd) { corrAuto = opVals.sc; fatAuto = opVals.inv }
-      else { corrAuto = opVals.revenue; fatAuto = 0 }
+      corrAuto = opVals.sc        // revenue - fatture
+      fatAuto  = opVals.inv       // somma receipt_details.isInvoice
     }
 
     const corrispettivo = cl?.corrispettivo != null ? Number(cl.corrispettivo) : corrAuto
