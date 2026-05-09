@@ -25,13 +25,15 @@ function daysTo(dateStr) {
 
 const STATO_COLOR = {
   attivo: '#10B981',
+  terminato: '#3B82F6',
   esaurito: '#3B82F6',
   scaduto: '#EF4444',
   annullato: '#64748B',
 }
 const STATO_LABEL = {
   attivo: 'Attivo',
-  esaurito: 'Esaurito',
+  terminato: 'Terminato',
+  esaurito: 'Terminato',
   scaduto: 'Scaduto',
   annullato: 'Annullato',
 }
@@ -39,6 +41,7 @@ const STATO_LABEL = {
 export default function HaccpLottiTab({ sps = [] }) {
   const [batches, setBatches] = useState([])
   const [recipes, setRecipes] = useState([])
+  const [scaricoByBatch, setScaricoByBatch] = useState({}) // batch_id -> qty_scaricata totale
   const [loading, setLoading] = useState(true)
   const [openBatch, setOpenBatch] = useState(null)
   const [filterLocale, setFilterLocale] = useState('')
@@ -65,17 +68,58 @@ export default function HaccpLottiTab({ sps = [] }) {
         .order('created_at', { ascending: false }),
       supabase.from('production_recipes').select('id, nome, allergeni, conservazione').limit(500),
     ])
-    setBatches(b.data || [])
+    const batchList = b.data || []
+    setBatches(batchList)
     setRecipes(r.data || [])
+
+    // Per ogni batch calcola la qty scaricata totale (movimenti tipo='scarico')
+    // associati via production_batch_id. Permette di determinare se il lotto e'
+    // terminato/venduto vs ancora attivo.
+    const ids = batchList.map(x => x.id)
+    const scarichi = {}
+    if (ids.length > 0) {
+      const { data: movs } = await supabase.from('article_movement')
+        .select('production_batch_id, tipo, quantita')
+        .in('production_batch_id', ids)
+        .eq('tipo', 'scarico')
+      for (const m of (movs || [])) {
+        const k = m.production_batch_id; if (!k) continue
+        scarichi[k] = (scarichi[k] || 0) + (Number(m.quantita) || 0)
+      }
+    }
+    setScaricoByBatch(scarichi)
     setLoading(false)
   }, [periodoMese])
   useEffect(() => { load() }, [load])
 
   const recipeById = useMemo(() => Object.fromEntries(recipes.map(r => [r.id, r])), [recipes])
 
+  // Stato effettivo: priorita' 'annullato' > 'terminato' (qty scaricata >= prodotta)
+  // > 'scaduto' (data passata) > 'attivo'.
+  // Nota: 'terminato' batte 'scaduto' perche' un lotto venduto in tempo non e'
+  // davvero scaduto, e' solo gia' uscito dal magazzino.
+  const effectiveStatus = useCallback((b) => {
+    if (b.stato === 'annullato') return 'annullato'
+    const qtyProd = Number(b.quantita_prodotta) || 0
+    const qtyOut = Number(scaricoByBatch[b.id]) || 0
+    // tolleranza 0.001 per arrotondamenti unita' di misura
+    if (qtyProd > 0 && qtyOut >= qtyProd - 0.001) return 'terminato'
+    if (b.data_scadenza) {
+      const today = new Date(); today.setHours(0,0,0,0)
+      const d = new Date(b.data_scadenza + 'T12:00:00')
+      if (d < today) return 'scaduto'
+    }
+    return 'attivo'
+  }, [scaricoByBatch])
+
   const filtered = useMemo(() => batches.filter(b => {
     if (filterLocale && b.locale_produzione !== filterLocale && b.locale_destinazione !== filterLocale) return false
-    if (filterStato && b.stato !== filterStato) return false
+    if (filterStato) {
+      const eff = effectiveStatus(b)
+      if (filterStato === 'esaurito' || filterStato === 'terminato') {
+        if (eff !== 'terminato') return false
+      } else if (eff !== filterStato) return false
+    }
     if (search) {
       const r = recipeById[b.recipe_id]
       const haystack = `${b.lotto} ${r?.nome || ''} ${b.operatore_nome || ''}`.toLowerCase()
@@ -86,30 +130,34 @@ export default function HaccpLottiTab({ sps = [] }) {
     if (filterScad === 'in_scadenza' && (dt == null || dt < 0 || dt > 7)) return false
     if (filterScad === 'attivi' && (dt != null && dt < 0)) return false
     return true
-  }), [batches, filterLocale, filterStato, filterScad, search, recipeById])
+  }), [batches, filterLocale, filterStato, filterScad, search, recipeById, effectiveStatus])
 
   const stats = useMemo(() => {
     const today = new Date(); today.setHours(0,0,0,0)
-    let attivi = 0, scaduti = 0, in_scadenza_7gg = 0, annullati = 0
+    let attivi = 0, scaduti = 0, in_scadenza_7gg = 0, annullati = 0, terminati = 0
     for (const b of batches) {
-      if (b.stato === 'annullato') annullati++
-      else if (b.data_scadenza) {
+      const eff = effectiveStatus(b)
+      if (eff === 'annullato') { annullati++; continue }
+      if (eff === 'terminato') { terminati++; continue }
+      if (eff === 'scaduto') { scaduti++; continue }
+      // attivo: distingui in scadenza 7gg
+      if (b.data_scadenza) {
         const d = new Date(b.data_scadenza + 'T12:00:00')
         const diff = Math.round((d - today) / 86400000)
-        if (diff < 0) scaduti++
-        else if (diff <= 7) in_scadenza_7gg++
+        if (diff <= 7) in_scadenza_7gg++
         else attivi++
       } else attivi++
     }
-    return { tot: batches.length, attivi, scaduti, in_scadenza_7gg, annullati }
-  }, [batches])
+    return { tot: batches.length, attivi, terminati, scaduti, in_scadenza_7gg, annullati }
+  }, [batches, effectiveStatus])
 
   return <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
       <KPI label="Totale lotti (mese)" value={stats.tot} accent="#3B82F6"/>
       <KPI label="Attivi" value={stats.attivi} accent="#10B981"/>
       <KPI label="In scadenza (7gg)" value={stats.in_scadenza_7gg} accent="#F59E0B" onClick={() => setFilterScad('in_scadenza')}/>
-      <KPI label="Scaduti" value={stats.scaduti} accent="#EF4444" onClick={() => setFilterScad('scaduti')}/>
+      <KPI label="Terminati" value={stats.terminati} accent="#3B82F6" onClick={() => setFilterStato('terminato')}/>
+      <KPI label="Scaduti" value={stats.scaduti} accent="#EF4444" onClick={() => setFilterStato('scaduto')}/>
       <KPI label="Annullati" value={stats.annullati} accent="var(--text3)"/>
     </div>
 
@@ -125,7 +173,10 @@ export default function HaccpLottiTab({ sps = [] }) {
         </select>}
         <select value={filterStato} onChange={e => setFilterStato(e.target.value)} style={{ ...S.input, fontSize: 12, padding: '6px 10px' }}>
           <option value="">Tutti gli stati</option>
-          {Object.entries(STATO_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          <option value="attivo">Attivo</option>
+          <option value="terminato">Terminato</option>
+          <option value="scaduto">Scaduto</option>
+          <option value="annullato">Annullato</option>
         </select>
         <select value={filterScad} onChange={e => setFilterScad(e.target.value)} style={{ ...S.input, fontSize: 12, padding: '6px 10px' }}>
           <option value="">Qualsiasi scadenza</option>
@@ -156,7 +207,11 @@ export default function HaccpLottiTab({ sps = [] }) {
                 else if (dt <= 7) { scadColor = '#F59E0B'; scadLabel = `${dt}gg`; scadBg = 'rgba(245,158,11,.1)' }
                 else { scadColor = '#10B981'; scadLabel = `${dt}gg` }
               }
-              const statoColor = STATO_COLOR[b.stato] || 'var(--text3)'
+              const eff = effectiveStatus(b)
+              const statoColor = STATO_COLOR[eff] || 'var(--text3)'
+              const qtyOut = Number(scaricoByBatch[b.id]) || 0
+              const qtyProd = Number(b.quantita_prodotta) || 0
+              const pctOut = qtyProd > 0 ? Math.min(100, Math.round(qtyOut / qtyProd * 100)) : 0
               return <tr key={b.id} onClick={() => setOpenBatch(b)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                 <td style={{ ...S.td, fontFamily: 'monospace', fontSize: 12, fontWeight: 600 }}>{b.lotto}</td>
                 <td style={{ ...S.td, fontWeight: 600 }}>
@@ -181,7 +236,8 @@ export default function HaccpLottiTab({ sps = [] }) {
                   </> : <span style={{ color: 'var(--text3)' }}>—</span>}
                 </td>
                 <td style={{ ...S.td }}>
-                  <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 4, background: statoColor + '22', color: statoColor, fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>{STATO_LABEL[b.stato] || b.stato}</span>
+                  <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 4, background: statoColor + '22', color: statoColor, fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>{STATO_LABEL[eff] || eff}</span>
+                  {eff === 'attivo' && qtyProd > 0 && qtyOut > 0 && <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{pctOut}% scaricato</div>}
                 </td>
               </tr>
             })}
@@ -190,7 +246,10 @@ export default function HaccpLottiTab({ sps = [] }) {
       </div>}
     </Card>
 
-    {openBatch && <BatchDetailModal batch={openBatch} recipe={recipeById[openBatch.recipe_id]} onClose={() => setOpenBatch(null)}/>}
+    {openBatch && <BatchDetailModal batch={openBatch} recipe={recipeById[openBatch.recipe_id]}
+      effectiveStato={effectiveStatus(openBatch)}
+      qtyScaricata={Number(scaricoByBatch[openBatch.id]) || 0}
+      onClose={() => setOpenBatch(null)}/>}
   </div>
 }
 
@@ -204,7 +263,7 @@ function KPI({ label, value, accent, onClick }) {
   </div>
 }
 
-function BatchDetailModal({ batch, recipe, onClose }) {
+function BatchDetailModal({ batch, recipe, effectiveStato, qtyScaricata, onClose }) {
   const [movs, setMovs] = useState([])
   const [loadingMovs, setLoadingMovs] = useState(true)
 
@@ -241,7 +300,8 @@ function BatchDetailModal({ batch, recipe, onClose }) {
           <Row label="Operatore" value={batch.operatore_nome || '—'}/>
           <Row label="Data scadenza" value={batch.data_scadenza ? fmtDate(batch.data_scadenza) : 'Non specificata'}/>
           <Row label="Conservazione" value={batch.conservazione || recipe?.conservazione || '—'}/>
-          <Row label="Stato" value={STATO_LABEL[batch.stato] || batch.stato}/>
+          <Row label="Stato" value={<span style={{ color: STATO_COLOR[effectiveStato] || 'var(--text3)', fontWeight: 700 }}>{STATO_LABEL[effectiveStato] || effectiveStato}</span>}/>
+          {qtyScaricata > 0 && <Row label="Quantità scaricata" value={`${qtyScaricata} ${batch.unita || ''} (${Math.min(100, Math.round(qtyScaricata / (Number(batch.quantita_prodotta) || 1) * 100))}%)`}/>}
           {batch.note && <Row label="Note" value={batch.note}/>}
         </Section>
 
