@@ -195,8 +195,14 @@ export default function RecipeManager({ sp, sps }) {
       const base = toBaseUnit(ig.quantita || 0, ig.unita || 'PZ')
       let qtyLorda = base.qty
       if (Number(ig.scarto) > 0) {
-        const sc = toBaseUnit(Number(ig.scarto), ig.scarto_unita || ig.unita)
-        if (sc.baseUm === base.baseUm) qtyLorda = base.qty + sc.qty
+        const scU = (ig.scarto_unita || '').toString().trim()
+        if (scU === '%') {
+          const pct = Math.max(0, Math.min(99, Number(ig.scarto)))
+          qtyLorda = base.qty / (1 - pct / 100)
+        } else {
+          const sc = toBaseUnit(Number(ig.scarto), scU || ig.unita)
+          if (sc.baseUm === base.baseUm) qtyLorda = base.qty + sc.qty
+        }
       } else if (Number(ig.scarto_pct) > 0) {
         const pct = Math.max(0, Math.min(99, Number(ig.scarto_pct)))
         qtyLorda = base.qty / (1 - pct / 100)
@@ -395,8 +401,14 @@ export default function RecipeManager({ sp, sps }) {
               const { qty: qtyBase, baseUm } = toBaseUnit(ig.quantita, igUm)
               let qtyLorda = qtyBase
               if (Number(ig.scarto) > 0) {
-                const sc = toBaseUnit(Number(ig.scarto), ig.scarto_unita || igUm)
-                if (sc.baseUm === baseUm) qtyLorda = qtyBase + sc.qty
+                const scU = (ig.scarto_unita || '').toString().trim()
+                if (scU === '%') {
+                  const pct = Math.max(0, Math.min(99, Number(ig.scarto)))
+                  qtyLorda = qtyBase / (1 - pct / 100)
+                } else {
+                  const sc = toBaseUnit(Number(ig.scarto), scU || igUm)
+                  if (sc.baseUm === baseUm) qtyLorda = qtyBase + sc.qty
+                }
               } else if (Number(ig.scarto_pct) > 0) {
                 const pct = Math.max(0, Math.min(99, Number(ig.scarto_pct)))
                 qtyLorda = qtyBase / (1 - pct / 100)
@@ -455,6 +467,7 @@ export default function RecipeManager({ sp, sps }) {
                 <td style={{ ...S.td, padding: '4px 6px' }}>
                   <select value={ig.scarto_unita || igUm} onChange={e => updateIngredient(idx, 'scarto_unita', e.target.value)}
                     style={{ ...iS, fontSize: 10, padding: '2px 3px', width: 50, color: 'var(--text)' }}>
+                    <option value="%">%</option>
                     <option value="KG">KG</option>
                     <option value="g">g</option>
                     <option value="LT">LT</option>

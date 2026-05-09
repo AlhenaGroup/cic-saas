@@ -410,7 +410,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
                 title="Scarto in UM (es. 50g di pelle/buccia che butti). La paghi ma non finisce nel prodotto."
                 style={{ ...iS, width: '100%', textAlign: 'center', fontSize: 11 }} />
               <select value={ing.scarto_unita || ing.unita || ''} onChange={e => updIng(i, { scarto_unita: e.target.value })} style={{ ...iS, width: '100%', fontSize: 11 }}>
-                {['', 'KG', 'GR', 'LT', 'ML', 'CL', 'PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
+                {['', '%', 'KG', 'GR', 'LT', 'ML', 'CL', 'PZ'].map(u => <option key={u} value={u}>{u || '—'}</option>)}
               </select>
               <button onClick={() => rmIng(i)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: 13 }}>×</button>
             </div>

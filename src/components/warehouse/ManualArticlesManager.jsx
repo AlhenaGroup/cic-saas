@@ -6,6 +6,7 @@ import { costOfManualArticle, toBaseUnit } from '../../lib/manualArticles.js'
 const iS = S.input
 const UM_OPTS = ['KG', 'LT', 'PZ']
 const ING_UM_OPTS = ['KG', 'g', 'LT', 'cl', 'ml', 'PZ']
+const SCARTO_UM_OPTS = ['%', 'KG', 'g', 'LT', 'cl', 'ml', 'PZ']
 
 // Costruisce la mappa prezzo medio per articoli del magazzino:
 //   nome (lower) { perUnit (€/UM_base), baseUm }
@@ -278,7 +279,7 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
                 title="Quantita' di scarto (es. 50g di pelle/buccia che butti). La paghi ma non finisce nel prodotto."
                 style={{ ...iS, fontSize: 12, textAlign: 'center' }} />
               <select value={it.scarto_unita || it.unita || 'KG'} onChange={e => updateIngr(i, 'scarto_unita', e.target.value)} style={{ ...iS, fontSize: 12 }}>
-                {ING_UM_OPTS.map(u => <option key={u} value={u}>{u}</option>)}
+                {SCARTO_UM_OPTS.map(u => <option key={u} value={u}>{u}</option>)}
               </select>
               <button onClick={() => removeIngr(i)} style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: 14, cursor: 'pointer' }}>×</button>
             </div>
