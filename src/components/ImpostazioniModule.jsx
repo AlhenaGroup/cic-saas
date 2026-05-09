@@ -10,6 +10,7 @@ import SubTabsBar from './SubTabsBar'
 import DailyReportSettings from './DailyReportSettings'
 import TeamAccess from './impostazioni/TeamAccess'
 import ActivityLog from './impostazioni/ActivityLog'
+import TimbraLog from './impostazioni/TimbraLog'
 import { useStaffPerms, canAccess } from '../lib/permissions'
 
 const iS = S.input
@@ -22,6 +23,7 @@ const ALL_TABS = [
   // 'team' e 'audit' sono visibili solo all'owner (no key in permissions)
   { key: 'team',         label: 'Team / Accessi', ownerOnly: true },
   { key: 'audit',        label: 'Attività',       ownerOnly: true },
+  { key: 'log_timbra',   label: 'Log /timbra',    ownerOnly: true },
 ]
 
 export default function ImpostazioniModule({ settings, sps }) {
@@ -43,6 +45,7 @@ export default function ImpostazioniModule({ settings, sps }) {
     {tab === 'account'      && <AccountTab />}
     {tab === 'team'         && <TeamAccess sps={sps} />}
     {tab === 'audit'        && <ActivityLog />}
+    {tab === 'log_timbra'   && <TimbraLog />}
   </div>
 }
 

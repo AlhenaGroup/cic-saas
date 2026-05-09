@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import TaskCalendarPanel from '../components/timbra/TaskCalendarPanel'
 import { useTheme, ThemeIcon } from '../lib/theme.jsx'
 import Logo from '../components/Logo'
@@ -9,10 +9,67 @@ const ALL_LOCALI = ['REMEMBEER', 'CASA DE AMICIS', 'BIANCOLATTE']
 const bgColor = 'var(--bg)'
 const accent = '#F59E0B'
 
-async function apiCall(body) {
-  const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-  const d = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(d.error || 'Errore di connessione')
+// Logger best-effort: non blocca il flow. Manda via fetch normale (no sendBeacon
+// perche' vogliamo loggare anche errori sincroni, sendBeacon e' utile solo per
+// abandon su pagehide).
+async function logTimbra(entry) {
+  try {
+    const body = {
+      online: typeof navigator !== 'undefined' ? navigator.onLine : null,
+      ...entry,
+    }
+    await fetch('/api/timbra-log', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      keepalive: true, // sopravvive a navigation/close
+    })
+  } catch { /* best-effort, mai bloccante */ }
+}
+
+// Stesso ma via sendBeacon (per pagehide / beforeunload — non puo' usare async/await)
+function logTimbraBeacon(entry) {
+  try {
+    const body = JSON.stringify({ online: typeof navigator !== 'undefined' ? navigator.onLine : null, ...entry })
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      navigator.sendBeacon('/api/timbra-log', new Blob([body], { type: 'application/json' }))
+    }
+  } catch { /* */ }
+}
+
+async function apiCall(body, ctx = {}) {
+  const startedAt = Date.now()
+  let r, d
+  try {
+    r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  } catch (netErr) {
+    // Errore di rete: fetch fallisce prima di ricevere status
+    logTimbra({
+      action: body.action || 'unknown',
+      level: 'error',
+      error_type: 'network',
+      message: netErr.message || 'Network error (fetch failed)',
+      pin: body.pin, locale: body.locale,
+      step: ctx.step || null,
+      gps_status: ctx.gps_status || null,
+      payload: { duration_ms: Date.now() - startedAt },
+    })
+    throw new Error('Connessione assente. Verifica rete e riprova.')
+  }
+  try { d = await r.json() } catch { d = {} }
+  if (!r.ok) {
+    logTimbra({
+      action: body.action || 'unknown',
+      level: 'error',
+      error_type: r.status >= 500 ? 'server-5xx' : 'server-4xx',
+      message: d.error || ('HTTP ' + r.status),
+      http_status: r.status,
+      pin: body.pin, locale: body.locale,
+      step: ctx.step || null,
+      gps_status: ctx.gps_status || null,
+      payload: { duration_ms: Date.now() - startedAt },
+    })
+    throw new Error(d.error || 'Errore di connessione')
+  }
   return d
 }
 
@@ -48,9 +105,52 @@ export default function TimbraPage() {
     setGpsStatus('loading')
     navigator.geolocation.getCurrentPosition(
       pos => { setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGpsStatus('ok') },
-      () => setGpsStatus('error'),
+      err => {
+        setGpsStatus('error')
+        // PERMISSION_DENIED=1, POSITION_UNAVAILABLE=2, TIMEOUT=3
+        const map = { 1: 'denied', 2: 'unavailable', 3: 'timeout' }
+        logTimbra({
+          action: 'gps-init', level: 'warning', error_type: 'gps',
+          gps_status: map[err.code] || 'error',
+          message: err.message || ('GPS code ' + err.code),
+          locale,
+        })
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     )
+  }, [])
+
+  // Abandon detection: se l'utente lascia /timbra mentre e' in checklist o submitting,
+  // logga l'abbandono via sendBeacon (sopravvive a pagehide).
+  // pin/locale/step in ref per accedere ai valori correnti dentro l'event handler.
+  const stateRef = useRef({})
+  useEffect(() => { stateRef.current = { step, pin, locale, employee, pendingChecklist, loading, gpsStatus } })
+  useEffect(() => {
+    const onHide = () => {
+      const s = stateRef.current
+      // Logga solo step "rischiosi": checklist mid-flow o request in corso
+      if (s.step === 'checklist' || s.loading) {
+        logTimbraBeacon({
+          action: 'abandon', level: 'warning', error_type: 'abandon',
+          message: 'Pagina chiusa/nascosta durante ' + s.step,
+          step: s.step,
+          pin: s.pin,
+          locale: s.locale,
+          gps_status: s.gpsStatus,
+          payload: {
+            employee_name: s.employee?.nome || null,
+            had_pending_checklist: !!s.pendingChecklist,
+            pending_tipo: s.pendingChecklist?.tipo || null,
+            loading: !!s.loading,
+          },
+        })
+      }
+    }
+    window.addEventListener('pagehide', onHide)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') onHide()
+    })
+    return () => window.removeEventListener('pagehide', onHide)
   }, [])
 
   const handlePin = (d) => {
@@ -139,7 +239,16 @@ export default function TimbraPage() {
         setMessage(`ENTRATA registrata alle ${new Date(pendingChecklist.timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}\nChecklist completata `)
       } else {
         // USCITA: atomic timbra + response
-        if (gpsStatus !== 'ok') { setMessage('GPS non disponibile. Attiva la localizzazione.'); setLoading(false); return }
+        if (gpsStatus !== 'ok') {
+          // Logga il blocco GPS sull'uscita (importante: spiega molti "ho timbrato ma non c'e'")
+          logTimbra({
+            action: 'checklist-submit', level: 'warning', error_type: 'gps',
+            message: 'USCITA bloccata: GPS non disponibile',
+            gps_status: gpsStatus, pin, locale, step: 'gps-check',
+            payload: { employee_name: employee?.nome || null, momento: pendingChecklist.tipo },
+          })
+          setMessage('GPS non disponibile. Attiva la localizzazione.'); setLoading(false); return
+        }
         const d = await apiCall({
           action: 'checklist-submit', pin, locale,
           momento: pendingChecklist.tipo,
