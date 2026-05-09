@@ -249,6 +249,7 @@ export default function HaccpLottiTab({ sps = [] }) {
     {openBatch && <BatchDetailModal batch={openBatch} recipe={recipeById[openBatch.recipe_id]}
       effectiveStato={effectiveStatus(openBatch)}
       qtyScaricata={Number(scaricoByBatch[openBatch.id]) || 0}
+      onDeleted={() => { setOpenBatch(null); load() }}
       onClose={() => setOpenBatch(null)}/>}
   </div>
 }
@@ -263,9 +264,103 @@ function KPI({ label, value, accent, onClick }) {
   </div>
 }
 
-function BatchDetailModal({ batch, recipe, effectiveStato, qtyScaricata, onClose }) {
+function BatchDetailModal({ batch, recipe, effectiveStato, qtyScaricata, onDeleted, onClose }) {
   const [movs, setMovs] = useState([])
   const [loadingMovs, setLoadingMovs] = useState(true)
+  const [deleting, setDeleting] = useState(false)
+
+  // Elimina lotto. Chiede se ripristinare i movimenti magazzino (carico/scarico)
+  // generati al momento della creazione del batch:
+  //   - 'rollback': inverte i movimenti (ingredienti riaccreditati, prodotto finito riscaricato)
+  //                 utile se si stava rimediando a un errore di produzione
+  //   - 'no':      NON tocca il magazzino, elimina solo il record del batch
+  //                utile per cleanup di lotti test che non avevano scarichi reali
+  const eliminaLotto = async () => {
+    if (deleting) return
+    const choice = window.prompt(
+      `Eliminare il lotto ${batch.lotto}?\n\n` +
+      `Scegli cosa fare con i movimenti di magazzino collegati:\n` +
+      `  • Scrivi RIPRISTINA per ripristinarli (ingredienti riaccreditati,\n` +
+      `    prodotto finito riscaricato)\n` +
+      `  • Scrivi SOLO per eliminare solo il record del lotto\n` +
+      `    (lascia i movimenti come sono — utile per pulire lotti test)\n\n` +
+      `Scrivi vuoto o annulla per non fare nulla.`,
+      ''
+    )
+    if (!choice) return
+    const upper = choice.trim().toUpperCase()
+    if (upper !== 'RIPRISTINA' && upper !== 'SOLO') {
+      alert('Risposta non valida. Scrivi RIPRISTINA o SOLO.')
+      return
+    }
+    setDeleting(true)
+    try {
+      // 1) Trova movimenti collegati
+      let { data: linkedMovs } = await supabase.from('article_movement')
+        .select('id, tipo, quantita, unita, locale, sub_location, nome_articolo, prezzo_unitario')
+        .eq('production_batch_id', batch.id)
+      linkedMovs = linkedMovs || []
+      // fallback su riferimento_id se nessuno linkato
+      if (linkedMovs.length === 0) {
+        const { data: byRef } = await supabase.from('article_movement')
+          .select('id, tipo, quantita, unita, locale, sub_location, nome_articolo, prezzo_unitario')
+          .eq('riferimento_id', batch.id).eq('fonte', 'produzione')
+        linkedMovs = byRef || []
+      }
+
+      if (upper === 'RIPRISTINA') {
+        // Inserisce movimenti inversi per ogni movimento originale
+        const inverseTipo = { scarico: 'carico', carico: 'scarico', trasferimento_out: 'trasferimento_in', trasferimento_in: 'trasferimento_out' }
+        for (const m of linkedMovs) {
+          const tipoInv = inverseTipo[m.tipo]
+          if (!tipoInv) continue
+          // Adegua giacenze
+          const sign = tipoInv === 'carico' ? 1 : tipoInv === 'scarico' ? -1 : 0
+          // Crea movimento inverso (best-effort: usiamo direttamente article_movement insert + article_stock update via RPC se non disponibile)
+          await supabase.from('article_movement').insert({
+            user_id: batch.user_id,
+            tipo: tipoInv,
+            nome_articolo: m.nome_articolo,
+            quantita: m.quantita,
+            unita: m.unita,
+            locale: m.locale,
+            sub_location: m.sub_location,
+            prezzo_unitario: m.prezzo_unitario,
+            fonte: 'eliminazione_produzione',
+            riferimento_id: batch.id,
+            riferimento_label: 'Eliminazione lotto ' + batch.lotto,
+          })
+          // Aggiorna article_stock se possibile
+          if (sign !== 0) {
+            const { data: stk } = await supabase.from('article_stock')
+              .select('id, quantita')
+              .eq('user_id', batch.user_id).eq('locale', m.locale)
+              .eq('sub_location', m.sub_location || 'principale')
+              .eq('nome_articolo', m.nome_articolo).limit(1)
+            if (stk?.[0]) {
+              const nuova = Math.round(((Number(stk[0].quantita) || 0) + sign * (Number(m.quantita) || 0)) * 1000) / 1000
+              await supabase.from('article_stock').update({ quantita: nuova, updated_at: new Date().toISOString() }).eq('id', stk[0].id)
+            }
+          }
+        }
+      }
+
+      // 2) Disassocia i movimenti dal batch (per non bloccare il delete con FK)
+      if (linkedMovs.length > 0) {
+        await supabase.from('article_movement').update({ production_batch_id: null }).eq('production_batch_id', batch.id)
+      }
+
+      // 3) DELETE definitivo del batch
+      const { error } = await supabase.from('production_batches').delete().eq('id', batch.id)
+      if (error) throw error
+
+      onDeleted && onDeleted()
+    } catch (e) {
+      console.error('[elimina lotto]', e)
+      alert('Errore eliminazione: ' + e.message)
+      setDeleting(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -353,9 +448,15 @@ function BatchDetailModal({ batch, recipe, effectiveStato, qtyScaricata, onClose
           Il codice lotto <code style={{ background: 'var(--surface2)', padding: '1px 4px', borderRadius: 3, fontFamily: 'monospace' }}>{batch.lotto}</code> permette di rintracciare ingredienti, fornitori e movimenti.
         </div>
       </div>
-      <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={() => window.print()} style={{ padding: '8px 14px', fontSize: 13, background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>🖨 Stampa</button>
-        <button onClick={onClose} style={{ padding: '8px 18px', fontSize: 13, fontWeight: 700, background: 'var(--text)', color: 'var(--surface)', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Chiudi</button>
+      <div style={{ padding: 14, borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
+        <button onClick={eliminaLotto} disabled={deleting}
+          style={{ padding: '8px 14px', fontSize: 13, background: 'transparent', color: '#EF4444', border: '1px solid rgba(220,38,38,.3)', borderRadius: 8, cursor: deleting ? 'wait' : 'pointer' }}>
+          {deleting ? 'Elimino…' : '🗑 Elimina lotto'}
+        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => window.print()} style={{ padding: '8px 14px', fontSize: 13, background: 'transparent', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>🖨 Stampa</button>
+          <button onClick={onClose} style={{ padding: '8px 18px', fontSize: 13, fontWeight: 700, background: 'var(--text)', color: 'var(--surface)', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Chiudi</button>
+        </div>
       </div>
     </div>
   </div>
