@@ -243,6 +243,7 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
   const [articleNames, setArticleNames] = useState([])
   const [semilavorati, setSemilavorati] = useState([])
   const [showImport, setShowImport] = useState(false)
+  const [allergMap, setAllergMap] = useState({})
   const isNew = !recipe.id
 
   // Carica nomi articoli magazzino + lista semilavorati per import
@@ -258,6 +259,11 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
       })
       setArticleNames([...set.entries()].map(([nome, unita]) => ({ nome, unita })))
       setSemilavorati(mans || [])
+      // Carica mappa allergeni per auto-detect basato su configurazione
+      try {
+        const { loadAllergensMap } = await import('../../lib/allergens')
+        setAllergMap(await loadAllergensMap())
+      } catch { /* */ }
     })()
   }, [])
 
@@ -295,10 +301,32 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
       : [...(prev.allergeni || []), a],
   }))
 
-  // Aggiorna allergeni auto-rilevati ad ogni cambio ingredienti
+  // Aggiorna allergeni auto-rilevati ad ogni cambio ingredienti.
+  // Pipeline: prima la mappa configurata article_allergens, poi fallback a
+  // detectAllergeni (regex sul nome).
   const autoDetectFromIngredients = () => {
     const detected = new Set(r.allergeni || [])
+    const manualByName = Object.fromEntries(semilavorati.map(m => [(m.nome || '').trim().toLowerCase(), m]))
     ;(r.ingredienti || []).forEach(i => {
+      if (!i.nome_articolo) return
+      const key = i.nome_articolo.trim().toLowerCase()
+      // 1) Mappa configurata
+      const fromMap = allergMap[key]
+      if (fromMap?.length) {
+        fromMap.forEach(a => detected.add(a))
+        return
+      }
+      // 2) Semilavorato: ricorri sui suoi ingredienti
+      if (manualByName[key]) {
+        for (const sub of (manualByName[key].ingredienti || [])) {
+          const subKey = (sub.nome_articolo || '').trim().toLowerCase()
+          const subFromMap = allergMap[subKey]
+          if (subFromMap?.length) subFromMap.forEach(a => detected.add(a))
+          else detectAllergeni(sub.nome_articolo).forEach(a => detected.add(a))
+        }
+        return
+      }
+      // 3) Fallback regex
       detectAllergeni(i.nome_articolo).forEach(a => detected.add(a))
     })
     update('allergeni', [...detected])

@@ -13,6 +13,7 @@ import OrderManager from '../components/warehouse/OrderManager'
 import PriceAnalysis from '../components/warehouse/PriceAnalysis'
 import ManualArticlesManager from '../components/warehouse/ManualArticlesManager'
 import ProductionManager from '../components/warehouse/ProductionManager'
+import { ALLERGENI, ALLERGENI_BY_KEY, detectAllergeni, loadAllergensMap, saveArticleAllergens } from '../lib/allergens'
 
 import { useStaffPerms, canAccess } from '../lib/permissions'
 
@@ -250,6 +251,8 @@ function ArticoliTab({ sp, sps }) {
   const [magFilter, setMagFilter] = useState('tutti')
   const [search, setSearch] = useState('')
   const [editingArticle, setEditingArticle] = useState(null)
+  const [allergMap, setAllergMap] = useState({})
+  const [bulkRunning, setBulkRunning] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -296,10 +299,41 @@ function ArticoliTab({ sp, sps }) {
       ultimoPrezzo: a.prezzi.length > 0 ? a.prezzi[a.prezzi.length - 1] : 0,
     }))
     setArticles(list)
+    // Carica mappa allergeni configurati
+    try { setAllergMap(await loadAllergensMap()) } catch { /* */ }
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // Bulk auto-rileva: per ogni articolo NON ancora configurato, applica detectAllergeni
+  // dal nome e salva in article_allergens come source='auto'. Salta gli articoli con
+  // configurazione 'manual' per non sovrascrivere le scelte dell'utente.
+  const bulkAutoRileva = async () => {
+    if (bulkRunning) return
+    if (!confirm(`Auto-rilevare allergeni dal nome per tutti gli articoli non ancora configurati manualmente?\n\nN.B. gli articoli che hai gia' confermato manualmente non vengono toccati.`)) return
+    setBulkRunning(true)
+    try {
+      // Re-load mappa con source per filtrare
+      const { data: existing } = await supabase.from('article_allergens').select('nome_articolo, source')
+      const manualSet = new Set((existing || []).filter(e => e.source === 'manual').map(e => (e.nome_articolo || '').toLowerCase().trim()))
+      let count = 0
+      for (const a of articles) {
+        const key = (a.nome || '').toLowerCase().trim()
+        if (!key || manualSet.has(key)) continue
+        const detected = detectAllergeni(a.nome)
+        if (detected.length > 0) {
+          await saveArticleAllergens(a.nome, detected, 'auto')
+          count++
+        }
+      }
+      alert(`${count} articoli aggiornati con allergeni auto-rilevati.`)
+      await load()
+    } catch (e) {
+      alert('Errore: ' + e.message)
+    }
+    setBulkRunning(false)
+  }
 
   const filtered = useMemo(() => {
     let list = [...articles]
@@ -321,6 +355,11 @@ function ArticoliTab({ sp, sps }) {
 
   return <Card title="Articoli acquistati" badge={loading ? '...' : filtered.length + ' articoli'} extra={
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      <button onClick={bulkAutoRileva} disabled={bulkRunning || loading}
+        title="Per ogni articolo non ancora configurato manualmente, rileva automaticamente gli allergeni dal nome"
+        style={{ ...S.input, fontSize: 11, padding: '4px 10px', background: 'rgba(245,158,11,.15)', color: '#F59E0B', border: '1px solid rgba(245,158,11,.3)', fontWeight: 600, cursor: bulkRunning ? 'wait' : 'pointer' }}>
+        {bulkRunning ? '…' : '⚠ Auto-rileva allergeni'}
+      </button>
       <input placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...S.input, fontSize: 11, padding: '4px 8px', width: 140 }} />
       <select value={magFilter} onChange={e => setMagFilter(e.target.value)} style={{ ...S.input, fontSize: 10, padding: '4px 6px' }}>
         {MAG_FILTERS.map(m => <option key={m} value={m}>{m === 'tutti' ? 'Tutti i mag.' : m}</option>)}
@@ -342,7 +381,7 @@ function ArticoliTab({ sp, sps }) {
       <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
-          {['Nome articolo', 'Mag.', 'UM', 'Fornitori', 'Acquisti', 'Tot. qty', '€/UM medio', 'Ultimo €/UM', 'Spesa tot.', 'Ultimo acq.'].map(h => <th key={h} style={{ ...S.th, fontSize: 9 }}>{h}</th>)}
+          {['Nome articolo', 'Mag.', 'UM', 'Allergeni', 'Fornitori', 'Acquisti', 'Tot. qty', '€/UM medio', 'Ultimo €/UM', 'Spesa tot.', 'Ultimo acq.'].map(h => <th key={h} style={{ ...S.th, fontSize: 9 }}>{h}</th>)}
         </tr></thead>
         <tbody>
           {filtered.map((a, i) => (
@@ -361,6 +400,16 @@ function ArticoliTab({ sp, sps }) {
                 a.magazzino === 'beverage' ? 'rgba(59,130,246,.12)' : a.magazzino === 'food' ? 'rgba(245,158,11,.12)' : a.magazzino === 'materiali' ? 'rgba(139,92,246,.12)' : a.magazzino === 'attrezzatura' ? 'rgba(16,185,129,.12)' : 'rgba(100,116,139,.12)'
               )}>{a.magazzino}</span></td>
               <td style={{ ...S.td, fontSize: 11, color: 'var(--text2)' }}>{a.unita}</td>
+              <td style={{ ...S.td, fontSize: 10, color: 'var(--text2)', maxWidth: 180 }}>
+                {(() => {
+                  const list = allergMap[(a.nome || '').toLowerCase().trim()] || []
+                  if (list.length === 0) return <span style={{ color: 'var(--text3)', fontSize: 10 }}>—</span>
+                  return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                    {list.slice(0, 3).map(k => <span key={k} style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 8, background: 'rgba(245,158,11,.15)', color: '#F59E0B' }}>{ALLERGENI_BY_KEY[k]?.l || k}</span>)}
+                    {list.length > 3 && <span style={{ fontSize: 9, color: 'var(--text3)' }}>+{list.length - 3}</span>}
+                  </div>
+                })()}
+              </td>
               <td style={{ ...S.td, fontSize: 10, color: 'var(--text2)', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.fornitori}</td>
               <td style={{ ...S.td, fontSize: 11, textAlign: 'center' }}>{a.acquisti}</td>
               <td style={{ ...S.td, fontSize: 11, fontWeight: 500 }}>{a.totUm > 0 ? (Number.isInteger(a.totUm) ? a.totUm : a.totUm.toFixed(1)) : fmtN(a.totQty)} {a.unita}</td>
@@ -390,6 +439,8 @@ function ArticleEditModal({ article, onClose, onSaved }) {
   const [touchedEscludi, setTouchedEscludi] = useState(false)
   const [escludiStaff, setEscludiStaff] = useState(false)
   const [touchedEscludiStaff, setTouchedEscludiStaff] = useState(false)
+  const [allergeni, setAllergeni] = useState([])
+  const [allergeniSource, setAllergeniSource] = useState('manual')
   const [rows, setRows] = useState([])
   const [loadingRows, setLoadingRows] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -399,22 +450,43 @@ function ArticleEditModal({ article, onClose, onSaved }) {
     let cancelled = false
     ;(async () => {
       setLoadingRows(true)
-      const { data } = await supabase.from('warehouse_invoice_items')
-        .select('id, nome_articolo, nome_fattura, unita, quantita, totale_um, qty_singola, prezzo_totale, magazzino, escludi_magazzino, escludi_inventario_staff, tipo_confezione, warehouse_invoices!inner(data, fornitore, locale)')
-        .eq('nome_articolo', article.nome)
-        .order('id', { ascending: false })
+      const [{ data: rd }, { data: ad }] = await Promise.all([
+        supabase.from('warehouse_invoice_items')
+          .select('id, nome_articolo, nome_fattura, unita, quantita, totale_um, qty_singola, prezzo_totale, magazzino, escludi_magazzino, escludi_inventario_staff, tipo_confezione, warehouse_invoices!inner(data, fornitore, locale)')
+          .eq('nome_articolo', article.nome)
+          .order('id', { ascending: false }),
+        supabase.from('article_allergens')
+          .select('allergeni, source')
+          .eq('nome_articolo', article.nome).limit(1),
+      ])
       if (!cancelled) {
-        setRows(data || [])
+        setRows(rd || [])
         setLoadingRows(false)
-        // Pre-set escludi al valore prevalente
-        const allExcl = (data || []).every(r => r.escludi_magazzino)
+        const allExcl = (rd || []).every(r => r.escludi_magazzino)
         setEscludi(allExcl)
-        const anyHidden = (data || []).some(r => r.escludi_inventario_staff)
+        const anyHidden = (rd || []).some(r => r.escludi_inventario_staff)
         setEscludiStaff(anyHidden)
+        if (ad?.[0]) {
+          setAllergeni(ad[0].allergeni || [])
+          setAllergeniSource(ad[0].source || 'manual')
+        } else {
+          // Nessuna config: pre-popola con auto-detect dal nome (l'utente puo' confermare/modificare)
+          setAllergeni(detectAllergeni(article.nome))
+          setAllergeniSource('auto')
+        }
       }
     })()
     return () => { cancelled = true }
   }, [article.nome])
+
+  const toggleAllergene = (key) => {
+    setAllergeni(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key])
+    setAllergeniSource('manual') // touched -> diventa manual
+  }
+  const autoRileva = () => {
+    setAllergeni(detectAllergeni(nome || article.nome))
+    setAllergeniSource('auto')
+  }
 
   const save = async () => {
     setSaving(true); setErr('')
@@ -425,6 +497,8 @@ function ArticleEditModal({ article, onClose, onSaved }) {
       const { error } = await supabase.from('warehouse_invoice_items')
         .update(updates).eq('nome_articolo', article.nome)
       if (error) throw error
+      // Salva allergeni nella tabella article_allergens
+      await saveArticleAllergens(nome.trim(), allergeni, allergeniSource)
       onSaved()
     } catch (e) { setErr(e.message); setSaving(false) }
   }
@@ -498,6 +572,36 @@ function ArticleEditModal({ article, onClose, onSaved }) {
             {touchedEscludiStaff && <span style={{ fontSize: 10, marginLeft: 6, color: '#F59E0B' }}>· verrà aggiornato</span>}
           </span>
         </label>
+
+        {/* Allergeni */}
+        <div style={{ marginTop: 14, padding: 12, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Allergeni</div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
+                Verranno propagati automaticamente a ricette, semilavorati e schede produzione che usano questo articolo.
+                {allergeniSource === 'auto' && <span style={{ color: '#F59E0B', marginLeft: 6, fontWeight: 600 }}>· Rilevati automaticamente</span>}
+                {allergeniSource === 'manual' && <span style={{ color: '#10B981', marginLeft: 6, fontWeight: 600 }}>· Confermati manualmente</span>}
+              </div>
+            </div>
+            <button onClick={autoRileva}
+              style={{ padding: '4px 10px', fontSize: 11, fontWeight: 600, color: '#3B82F6', background: 'transparent', border: '1px solid rgba(59,130,246,.3)', borderRadius: 6, cursor: 'pointer' }}>
+              Auto-rileva da nome
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {ALLERGENI.map(a => {
+              const active = allergeni.includes(a.v)
+              return <button key={a.v} onClick={() => toggleAllergene(a.v)}
+                style={{ padding: '4px 10px', fontSize: 11, fontWeight: 600, borderRadius: 14, cursor: 'pointer',
+                  border: '1px solid ' + (active ? '#F59E0B' : 'var(--border)'),
+                  background: active ? 'rgba(245,158,11,.15)' : 'transparent',
+                  color: active ? '#F59E0B' : 'var(--text3)' }}>
+                {active ? '✓ ' : ''}{a.l}
+              </button>
+            })}
+          </div>
+        </div>
 
         {err && <div style={{ color: '#EF4444', fontSize: 12, marginTop: 10 }}>{err}</div>}
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, Card, fmt, fmtD, fmtN } from '../shared/styles.jsx'
+import { ALLERGENI_BY_KEY, aggregateAllergens, loadAllergensMap } from '../../lib/allergens'
 
 const iS = S.input
 
@@ -16,6 +17,8 @@ export default function RecipeManager({ sp, sps }) {
   const [articles, setArticles] = useState([])
   // Semilavorati (manual_articles) — ingredienti prodotti internamente
   const [manualArticles, setManualArticles] = useState([])
+  // Mappa allergeni per articolo (configurati in Magazzino → Articoli)
+  const [allergMap, setAllergMap] = useState({})
   // Ricette salvate
   const [recipes, setRecipes] = useState({}) // nome_prodotto recipe
   const [loading, setLoading] = useState(false)
@@ -112,6 +115,9 @@ export default function RecipeManager({ sp, sps }) {
     // 2.5. Semilavorati (manual_articles)
     const { data: mans } = await supabase.from('manual_articles').select('*')
     setManualArticles(mans || [])
+
+    // 2.6. Mappa allergeni configurati per articolo
+    try { setAllergMap(await loadAllergensMap()) } catch { /* */ }
 
     // 3. Ricette salvate
     const { data: recs } = await supabase.from('recipes').select('*')
@@ -382,6 +388,20 @@ export default function RecipeManager({ sp, sps }) {
             <div style={{ fontSize: 16, fontWeight: 700, color: '#10B981', marginTop: 2 }}>{fmtD(selected.avgPrice - foodCost)}</div>
           </div>
         </div>
+
+        {/* Allergeni (read-only, calcolati dagli ingredienti) */}
+        {(() => {
+          const all = aggregateAllergens(ingredienti, allergMap, manualByName)
+          return <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: 10, marginBottom: 14 }}>
+            <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6, fontWeight: 600 }}>
+              Allergeni {all.length > 0 && <span style={{ color: '#F59E0B', textTransform: 'none', letterSpacing: 0, fontWeight: 600 }}>· calcolati automaticamente dagli ingredienti</span>}
+            </div>
+            {all.length === 0 ? <span style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>Nessun allergene rilevato (configura gli allergeni degli articoli in Magazzino → Articoli)</span>
+              : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {all.map(k => <span key={k} style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 10, background: 'rgba(245,158,11,.15)', color: '#F59E0B' }}>⚠ {ALLERGENI_BY_KEY[k]?.l || k}</span>)}
+              </div>}
+          </div>
+        })()}
 
         {/* Tabella ingredienti */}
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>

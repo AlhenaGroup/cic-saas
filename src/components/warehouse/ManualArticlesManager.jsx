@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, Card, fmtD } from '../shared/styles.jsx'
 import { costOfManualArticle, toBaseUnit } from '../../lib/manualArticles.js'
+import { ALLERGENI_BY_KEY, aggregateAllergens, loadAllergensMap } from '../../lib/allergens'
 
 const iS = S.input
 const UM_OPTS = ['KG', 'LT', 'PZ']
@@ -40,6 +41,7 @@ export default function ManualArticlesManager({ sp, sps }) {
   const [editing, setEditing] = useState(null) // null | 'new' | id
   const [articlesPrice, setArticlesPrice] = useState({})
   const [allArticleNames, setAllArticleNames] = useState([])
+  const [allergMap, setAllergMap] = useState({})
 
   const localeName = sp === 'all' ? null : sps?.find(s => String(s.id) === String(sp))?.description || sps?.find(s => String(s.id) === String(sp))?.name || null
 
@@ -73,6 +75,7 @@ export default function ManualArticlesManager({ sp, sps }) {
     ;(items || []).forEach(it => { if (it.nome_articolo && !it.escludi_magazzino) names.add(it.nome_articolo.trim()) })
     ;(rows || []).forEach(r => names.add(r.nome))
     setAllArticleNames([...names].sort((a, b) => a.localeCompare(b)))
+    try { setAllergMap(await loadAllergensMap()) } catch { /* */ }
     setLoading(false)
   }, [])
   useEffect(() => { load() }, [load])
@@ -159,6 +162,7 @@ export default function ManualArticlesManager({ sp, sps }) {
       allArticleNames={allArticleNames}
       articlesPrice={articlesPrice}
       manualByName={manualByName}
+      allergMap={allergMap}
       sps={sps}
       defaultLocale={localeName}
       onClose={() => setEditing(null)}
@@ -167,7 +171,7 @@ export default function ManualArticlesManager({ sp, sps }) {
   </Card>
 }
 
-function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sps, defaultLocale, onClose, onSaved }) {
+function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, allergMap = {}, sps, defaultLocale, onClose, onSaved }) {
   const [nome, setNome] = useState(article?.nome || '')
   const [unita, setUnita] = useState(article?.unita || 'KG')
   const [resa, setResa] = useState(article?.resa || '1')
@@ -310,6 +314,21 @@ function ArticleForm({ article, allArticleNames, articlesPrice, manualByName, sp
           {preview.missing.length > 0 && <div style={{ fontSize: 11, color: '#EF4444', marginTop: 4 }}>
             Ingredienti senza prezzo: {preview.missing.join(', ')}
           </div>}
+          {/* Allergeni calcolati */}
+          {(() => {
+            const ingsForAll = ingr.filter(i => i.nome_articolo && Number(i.quantita) > 0)
+            const all = aggregateAllergens(ingsForAll, allergMap, manualByName)
+            return <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed var(--border)' }}>
+              <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4, fontWeight: 600 }}>
+                Allergeni · auto dagli ingredienti
+              </div>
+              {all.length === 0
+                ? <span style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>Nessuno rilevato</span>
+                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {all.map(k => <span key={k} style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 8, background: 'rgba(245,158,11,.15)', color: '#F59E0B' }}>⚠ {ALLERGENI_BY_KEY[k]?.l || k}</span>)}
+                </div>}
+            </div>
+          })()}
         </div>
 
         <Field label="Note (opz.)">
