@@ -11,6 +11,7 @@ import DailyReportSettings from './DailyReportSettings'
 import TeamAccess from './impostazioni/TeamAccess'
 import ActivityLog from './impostazioni/ActivityLog'
 import TimbraLog from './impostazioni/TimbraLog'
+import ApiKeys from './impostazioni/ApiKeys'
 import { useStaffPerms, canAccess } from '../lib/permissions'
 
 const iS = S.input
@@ -24,6 +25,7 @@ const ALL_TABS = [
   { key: 'team',         label: 'Team / Accessi', ownerOnly: true },
   { key: 'audit',        label: 'Attività',       ownerOnly: true },
   { key: 'log_timbra',   label: 'Log /timbra',    ownerOnly: true },
+  { key: 'api_keys',     label: 'API Keys',       ownerOnly: true },
 ]
 
 export default function ImpostazioniModule({ settings, sps }) {
@@ -46,6 +48,7 @@ export default function ImpostazioniModule({ settings, sps }) {
     {tab === 'team'         && <TeamAccess sps={sps} />}
     {tab === 'audit'        && <ActivityLog />}
     {tab === 'log_timbra'   && <TimbraLog />}
+    {tab === 'api_keys'     && <ApiKeys sps={sps} />}
   </div>
 }
 
