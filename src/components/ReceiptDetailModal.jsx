@@ -9,7 +9,10 @@ export default function ReceiptDetailModal({ receipt, onClose }) {
 
   const items = receipt.itemsList || []
   const totItems = items.reduce((s, it) => s + (Number(it.qty) || 0), 0)
-  const subtotale = items.reduce((s, it) => s + ((Number(it.qty) || 0) * (Number(it.prezzo) || 0)), 0)
+  // NB: it.prezzo viene gia' salvato dal sync come totale-riga (price * quantity).
+  // Quindi NON va rimoltiplicato per qty: serve solo sommarlo per il subtotale.
+  // Il prezzo unitario, se ci serve mostrarlo, e' prezzo / qty.
+  const subtotale = items.reduce((s, it) => s + (Number(it.prezzo) || 0), 0)
 
   // Ricavo da raw extra info se disponibile
   const raw = receipt.rawReceipt || {}
@@ -59,12 +62,16 @@ export default function ReceiptDetailModal({ receipt, onClose }) {
     <th class="right">Tot.</th>
   </tr></thead>
   <tbody>
-    ${items.map(it => `<tr class="item">
+    ${items.map(it => {
+      const qty = Number(it.qty) || 1
+      const tot = Number(it.prezzo) || 0
+      const unit = qty > 0 ? tot / qty : tot
+      return `<tr class="item">
       <td>${escHtml(it.nome || '')}${it.reparto ? `<br><small style="color:#666">${escHtml(it.reparto)}</small>` : ''}</td>
-      <td class="right">${escHtml(it.qty || 1)}</td>
-      <td class="right">${fmt(it.prezzo || 0)}</td>
-      <td class="right">${fmt((Number(it.qty) || 1) * (Number(it.prezzo) || 0))}</td>
-    </tr>`).join('')}
+      <td class="right">${escHtml(qty)}</td>
+      <td class="right">${fmt(unit)}</td>
+      <td class="right">${fmt(tot)}</td>
+    </tr>`}).join('')}
   </tbody>
   <tfoot>
     ${sconto ? `<tr><td colspan="3">Sconto</td><td class="right">-${fmt(sconto)}</td></tr>` : ''}
@@ -128,14 +135,16 @@ export default function ReceiptDetailModal({ receipt, onClose }) {
                 </thead>
                 <tbody>
                   {items.map((it, idx) => {
-                    const tot = (Number(it.qty) || 1) * (Number(it.prezzo) || 0)
+                    const qty = Number(it.qty) || 1
+                    const tot = Number(it.prezzo) || 0   // prezzo = totale riga (gia' moltiplicato dal sync)
+                    const unit = qty > 0 ? tot / qty : tot
                     return <tr key={idx} style={{ borderBottom: '1px solid #1a1f2e' }}>
                       <td style={{ ...S.td, fontWeight: 500 }}>
                         {it.nome || it.description || '—'}
                         {it.reparto && <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{it.reparto}{it.categoria ? ' · ' + it.categoria : ''}</div>}
                       </td>
-                      <td style={{ ...S.td, textAlign: 'right', color: 'var(--text2)' }}>{it.qty || 1}</td>
-                      <td style={{ ...S.td, textAlign: 'right' }}>{fmt(it.prezzo || 0)}</td>
+                      <td style={{ ...S.td, textAlign: 'right', color: 'var(--text2)' }}>{qty}</td>
+                      <td style={{ ...S.td, textAlign: 'right' }}>{fmt(unit)}</td>
                       <td style={{ ...S.td, textAlign: 'right', fontWeight: 600 }}>{fmt(tot)}</td>
                     </tr>
                   })}
