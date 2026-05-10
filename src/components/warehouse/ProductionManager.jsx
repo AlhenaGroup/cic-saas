@@ -241,20 +241,51 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const [articleNames, setArticleNames] = useState([])
+  const [semilavorati, setSemilavorati] = useState([])
+  const [showImport, setShowImport] = useState(false)
   const isNew = !recipe.id
 
-  // Carica nomi articoli magazzino per autocomplete ingredienti
+  // Carica nomi articoli magazzino + lista semilavorati per import
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('warehouse_invoice_items')
-        .select('nome_articolo, unita').not('nome_articolo', 'is', null).limit(2000)
+      const [{ data: items }, { data: mans }] = await Promise.all([
+        supabase.from('warehouse_invoice_items').select('nome_articolo, unita').not('nome_articolo', 'is', null).limit(2000),
+        supabase.from('manual_articles').select('id, nome, unita, resa, ingredienti, locale, note').order('nome'),
+      ])
       const set = new Map()
-      ;(data || []).forEach(it => {
+      ;(items || []).forEach(it => {
         if (it.nome_articolo && !set.has(it.nome_articolo)) set.set(it.nome_articolo, it.unita || '')
       })
       setArticleNames([...set.entries()].map(([nome, unita]) => ({ nome, unita })))
+      setSemilavorati(mans || [])
     })()
   }, [])
+
+  // Importa da semilavorato: copia nome, unita, resa, ingredienti.
+  // Se la scheda ha gia' nome/ingredienti, sovrascrive solo se l'utente conferma.
+  const importFromSemilavorato = (man) => {
+    const hasContent = (r.nome && r.nome.trim()) || (r.ingredienti && r.ingredienti.length > 0)
+    if (hasContent) {
+      if (!confirm(`Sovrascrivere i dati attuali con il semilavorato "${man.nome}"?\n\nNome, unita', resa e ingredienti verranno sostituiti.`)) return
+    }
+    // Mappa unita semilavorato (KG/LT/PZ) ai valori usati in production_recipes (KG/GR/LT/ML/CL/PZ)
+    const ingredientiMapped = (man.ingredienti || []).map(i => ({
+      nome_articolo: i.nome_articolo || '',
+      quantita: i.quantita || 0,
+      unita: (i.unita || '').toUpperCase() === 'G' ? 'GR' : (i.unita || '').toUpperCase() === 'ML' ? 'ML' : (i.unita || '').toUpperCase() === 'CL' ? 'CL' : (i.unita || '').toUpperCase(),
+      ...(Number(i.scarto) > 0 ? { scarto: i.scarto, scarto_unita: i.scarto_unita || i.unita } : {}),
+      ...(i.gratis ? { gratis: true } : {}),
+    }))
+    setR(prev => ({
+      ...prev,
+      nome: prev.nome && hasContent ? prev.nome : man.nome,  // se l'utente aveva gia' messo nome, lo lasciamo
+      unita: man.unita || prev.unita,
+      resa_quantita: man.resa || prev.resa_quantita,
+      ingredienti: ingredientiMapped,
+      ...(man.note && !prev.descrizione ? { descrizione: man.note } : {}),
+    }))
+    setShowImport(false)
+  }
 
   const update = (k, v) => setR(prev => ({ ...prev, [k]: v }))
   const toggleAllergen = (a) => setR(prev => ({
@@ -315,9 +346,37 @@ function SchedaEditor({ recipe, allLocali, onClose, onSaved }) {
     <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, width: '100%', maxWidth: 760 }}>
       <div style={{ padding: 16, borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>{isNew ? 'Nuova scheda produzione' : '' + r.nome}</h3>
-        <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {semilavorati.length > 0 && <button onClick={() => setShowImport(s => !s)}
+            style={{ ...iS, background: 'rgba(16,185,129,.15)', color: '#10B981', border: '1px solid rgba(16,185,129,.3)', padding: '6px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', borderRadius: 6 }}
+            title="Copia ingredienti da una ricetta semilavorato esistente">
+            🥣 Importa da semilavorato
+          </button>}
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 18 }}>×</button>
+        </div>
       </div>
       <div style={{ padding: 20 }}>
+        {/* Selettore import semilavorato */}
+        {showImport && <div style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8, fontWeight: 600 }}>
+            Importa nome, resa e ingredienti da un semilavorato esistente:
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 240, overflowY: 'auto' }}>
+            {semilavorati.map(m => <button key={m.id} onClick={() => importFromSemilavorato(m)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', fontSize: 12, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', textAlign: 'left' }}>
+              <div>
+                <div style={{ fontWeight: 600, color: 'var(--text)' }}>{m.nome}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
+                  Resa: {m.resa} {m.unita} · {(m.ingredienti || []).length} ingredienti
+                  {m.locale && ' · ' + m.locale}
+                </div>
+              </div>
+              <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>Importa →</span>
+            </button>)}
+          </div>
+          <button onClick={() => setShowImport(false)} style={{ ...iS, marginTop: 8, background: 'transparent', color: 'var(--text3)', border: 'none', padding: '4px 8px', fontSize: 11, cursor: 'pointer' }}>Annulla</button>
+        </div>}
+
         {/* Anagrafica */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
           <label>
