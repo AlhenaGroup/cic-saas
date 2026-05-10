@@ -60,7 +60,7 @@ export default function WarehouseModule({ sp, sps, from, to }) {
 
     {tab === 'cruscotto'  && <WarehouseDashboard sp={sp} sps={sps} />}
     {tab === 'fatture'    && <InvoiceManager sp={sp} sps={sps} />}
-    {tab === 'prodotti'   && <ProdottiCiC sp={sp} sps={sps} />}
+    {tab === 'prodotti'   && <ProdottiCiC sp={sp} sps={sps} from={from} to={to} />}
     {tab === 'articoli'   && <ArticoliTab sp={sp} sps={sps} />}
     {tab === 'semilavorati' && <ManualArticlesManager sp={sp} sps={sps} />}
     {tab === 'ricette'    && <RecipeManager sp={sp} sps={sps} />}
@@ -86,7 +86,7 @@ const SORT_OPTIONS = [
   { key: 'name_asc', label: 'Nome AZ' },
 ]
 
-function ProdottiCiC({ sp, sps }) {
+function ProdottiCiC({ sp, sps, from, to }) {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(false)
   const [sortBy, setSortBy] = useState('qty_desc')
@@ -95,7 +95,9 @@ function ProdottiCiC({ sp, sps }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    let query = supabase.from('daily_stats').select('receipt_details, cat_records, salespoint_name')
+    let query = supabase.from('daily_stats').select('receipt_details, cat_records, salespoint_name, date')
+    if (from) query = query.gte('date', from)
+    if (to) query = query.lte('date', to)
     if (sp && sp !== 'all') {
       const asNum = Number(sp)
       if (!Number.isNaN(asNum) && String(asNum) === String(sp)) query = query.eq('salespoint_id', asNum)
@@ -129,7 +131,7 @@ function ProdottiCiC({ sp, sps }) {
     })
     setProducts(Object.values(prodMap).filter(p => p.qty > 0))
     setLoading(false)
-  }, [sp, selectedLocaleName])
+  }, [sp, selectedLocaleName, from, to])
 
   useEffect(() => { load() }, [load])
 
