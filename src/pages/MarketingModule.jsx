@@ -7,6 +7,7 @@ import CustomersManager from '../components/marketing/CustomersManager'
 import PromotionsManager from '../components/marketing/PromotionsManager'
 import FidelityManager from '../components/marketing/FidelityManager'
 import ReservationsManager from '../components/marketing/ReservationsManager'
+import PublicWidgetManager from '../components/marketing/PublicWidgetManager'
 import CentralinoManager from '../components/marketing/CentralinoManager'
 import CampaignsManager from '../components/marketing/CampaignsManager'
 import ReviewsManager from '../components/marketing/ReviewsManager'
@@ -16,6 +17,7 @@ import { useStaffPerms, canAccess } from '../lib/permissions'
 
 const ALL_SUBTABS = [
   { key: 'prenotaz',   label: 'Prenotazioni' },
+  { key: 'widget',     label: 'Widget pubblico' },
   { key: 'clienti',    label: 'Clienti' },
   { key: 'automazioni', label: 'Automazioni' },
   { key: 'campagne',   label: 'Campagne' },
@@ -47,6 +49,7 @@ export default function MarketingModule({ sp, sps }) {
     </div>
 
     {tab === 'prenotaz'    && <ReservationsManager sp={sp} sps={sps} />}
+    {tab === 'widget'      && <PublicWidgetManager sp={sp} sps={sps} />}
     {tab === 'clienti'     && <CustomersManager sp={sp} sps={sps} />}
     {tab === 'automazioni' && <AutomationsManager sp={sp} sps={sps} />}
     {tab === 'campagne'    && <CampaignsManager sp={sp} sps={sps} />}
