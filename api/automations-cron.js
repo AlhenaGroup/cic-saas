@@ -419,18 +419,26 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2) Execute pending steps with schedule_at <= now
+    // 2) Execute pending steps with schedule_at <= now — parallelo con concurrency limit
+    //    per non saturare upstream (Twilio/Gmail) e restare entro il timeout Vercel.
     const { data: steps } = await sb.from('automation_run_steps').select('*')
       .eq('stato', 'pending').lte('schedule_at', new Date().toISOString())
       .order('schedule_at').limit(200)
 
-    let executed = 0
-    for (const s of (steps || [])) {
-      await executeStep(s)
-      executed++
+    const CONCURRENCY = 8
+    let executed = 0, failed = 0
+    const queue = [...(steps || [])]
+    async function worker() {
+      while (queue.length) {
+        const s = queue.shift()
+        if (!s) return
+        try { await executeStep(s); executed++ }
+        catch (e) { failed++; console.error('step error', s.id, e) }
+      }
     }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, worker))
 
-    return res.status(200).json({ ok: true, events_processed: events?.length || 0, steps_executed: executed })
+    return res.status(200).json({ ok: true, events_processed: events?.length || 0, steps_executed: executed, steps_failed: failed })
   } catch (e) {
     return res.status(500).json({ error: e.message || String(e) })
   }

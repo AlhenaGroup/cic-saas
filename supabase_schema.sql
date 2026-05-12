@@ -109,10 +109,13 @@ CREATE TABLE IF NOT EXISTS public.google_tokens (
   refresh_token text NOT NULL,
   token_expiry timestamp with time zone NOT NULL,
   calendar_id text DEFAULT 'primary'::text,
+  email text,  -- email Google dell'account connesso (From per invio Gmail)
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   UNIQUE(user_id)
 );
+-- Migrazione per DB esistenti:
+ALTER TABLE public.google_tokens ADD COLUMN IF NOT EXISTS email text;
 
 CREATE TABLE IF NOT EXISTS public.item_rules (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,

@@ -192,6 +192,17 @@ export default async function handler(req, res) {
         // update last_seen_at on customer
         await sb.from('customers').update({ last_seen_at: new Date().toISOString() }).eq('id', customer_id)
 
+        // Emetti evento iscrizione_fidelity solo al primo accumulate (welcome bonus presente).
+        // Nota: 'conto_ricevuto' è emesso da promotions.redeem; non duplichiamo qui per evitare doppi trigger.
+        // TODO: in futuro consolidare 'conto_ricevuto' in un unico punto (POS checkout) con dedup per scontrino_id.
+        if (punti_welcome > 0) {
+          await sb.from('automation_events_queue').insert({
+            user_id, locale, evento: 'iscrizione_fidelity',
+            customer_id,
+            payload: { program_id: prog.id, punti_iscrizione: punti_welcome },
+          })
+        }
+
         return res.status(200).json({
           ok: true,
           accumulated: punti_spesa + punti_visita + punti_welcome,

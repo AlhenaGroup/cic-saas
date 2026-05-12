@@ -53,15 +53,16 @@ export default async function handler(req, res) {
     }
 
     if (l) {
-      // Click su link
+      // Click su link.
+      // Postgres jsonb @> con `{token: {}}` matcha qualsiasi oggetto che abbia quella chiave
+      // (un oggetto vuoto è subset di qualsiasi oggetto). Supabase espone @> tramite .contains().
       const { data: rows } = await sb.from('campaign_messages')
         .select('id, campaign_id, click_at, click_count, link_tokens')
-        .filter('link_tokens', 'cs', JSON.stringify({ [l]: {} }))
+        .contains('link_tokens', { [l]: {} })
         .limit(1)
-      // Postgres "contains" check non è perfetto per chiave dinamica; fallback con scansione filtri:
       let msg = (rows && rows[0]) || null
       if (!msg) {
-        // fallback: ricerca per chiave nel jsonb (rps con SQL custom non supportato qui, scan limitato)
+        // Fallback raro: scansione limitata sugli invii recenti.
         const { data: candidates } = await sb.from('campaign_messages')
           .select('id, campaign_id, click_at, click_count, link_tokens')
           .not('link_tokens', 'is', null)

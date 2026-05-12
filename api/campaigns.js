@@ -240,6 +240,28 @@ async function getGmailAccessToken(user_id) {
 }
 
 // ─── Send loop ──────────────────────────────────────────────────────
+// Rate limit per canale (req/sec). Conservativi: Gmail 250/utente/sec, Twilio 1 msg/sec default per long-code.
+const RATE_DELAY_MS = { email: 200, sms: 1100, whatsapp: 1100 }
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+// Retry semplice con exponential backoff per errori transitori (5xx, network, 429).
+function isTransientError(errMsg) {
+  if (!errMsg) return false
+  const m = String(errMsg).toLowerCase()
+  return /\b(429|500|502|503|504|timeout|rate.?limit|temporar|econnreset|fetch failed)\b/.test(m)
+}
+async function withRetry(fn, maxAttempts = 3) {
+  let lastErr = null
+  for (let i = 0; i < maxAttempts; i++) {
+    const r = await fn()
+    if (!r || !r.error) return r
+    lastErr = r.error
+    if (!isTransientError(lastErr) || i === maxAttempts - 1) return r
+    await sleep(500 * Math.pow(2, i))  // 500ms, 1s, 2s
+  }
+  return { error: lastErr }
+}
+
 async function sendCampaign(user_id, campaign) {
   const audience = await buildAudience(user_id, campaign.locale, campaign)
 
@@ -258,6 +280,7 @@ async function sendCampaign(user_id, campaign) {
 
   // baseUrl per i link tracking (fallback su env, poi su domain Vercel di default)
   const baseUrl = process.env.PUBLIC_BASE_URL || 'https://cic-saas.vercel.app'
+  const delayMs = RATE_DELAY_MS[campaign.canale] || 1000
 
   for (const cust of audience) {
     const dest = campaign.canale === 'email' ? cust.email : cust.telefono
@@ -268,6 +291,7 @@ async function sendCampaign(user_id, campaign) {
     try {
       if (campaign.canale === 'email') {
         if (!gmail) { r = { error: 'Gmail non connesso' } }
+        else if (!gmail.email) { r = { error: 'Gmail account senza email (riconnetti)' } }
         else {
           // Se la campaign ha blocks, render HTML completo, poi inietta tracking
           let html, isHtml = false
@@ -288,12 +312,12 @@ async function sendCampaign(user_id, campaign) {
           const tracked = buildTrackedHtml(html, baseUrl, isHtml)
           pixel_token = tracked.pixel_token
           link_tokens = tracked.link_tokens
-          r = await sendGmail(gmail.token, gmail.email, dest, subj, tracked.html)
+          r = await withRetry(() => sendGmail(gmail.token, gmail.email, dest, subj, tracked.html))
         }
       } else if (campaign.canale === 'sms') {
-        r = await sendTwilioSms(dest, body)
+        r = await withRetry(() => sendTwilioSms(dest, body))
       } else if (campaign.canale === 'whatsapp') {
-        r = await sendTwilioWhatsApp(dest, body)
+        r = await withRetry(() => sendTwilioWhatsApp(dest, body))
       } else {
         r = { error: 'canale invalido' }
       }
@@ -318,6 +342,9 @@ async function sendCampaign(user_id, campaign) {
       link_tokens: link_tokens || {},
     })
     if (ok) inviati++; else falliti++
+
+    // Rate limit: pausa tra invii (solo se ci sono altri in coda)
+    if (delayMs > 0) await sleep(delayMs)
   }
 
   await sb.from('campaigns').update({
