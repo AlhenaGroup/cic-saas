@@ -9,6 +9,7 @@ import SetPasswordPage from './pages/SetPasswordPage'
 import LottoPage from './pages/LottoPage'
 import SurveyPage from './pages/SurveyPage'
 import HaccpQrPublicPage from './pages/HaccpQrPublicPage'
+import PublicReservationPage from './pages/PublicReservationPage'
 
 // Detect magic link arrivato dal supabase auth redirect (invite o recovery).
 // Nel hash dopo '#' c'e' qualcosa tipo: access_token=...&type=invite&...
@@ -40,6 +41,11 @@ export default function App() {
   if (window.location.pathname.startsWith('/haccp/qr/')) {
     const token = decodeURIComponent(window.location.pathname.slice('/haccp/qr/'.length).split('/')[0])
     return <HaccpQrPublicPage token={token} />
+  }
+  // Routing: /prenota/<slug> widget pubblico prenotazioni (embed sito ristorante)
+  if (window.location.pathname.startsWith('/prenota/')) {
+    const slug = decodeURIComponent(window.location.pathname.slice('/prenota/'.length).split('/')[0])
+    return <PublicReservationPage slug={slug} />
   }
   // Routing: /admin pagina admin (richiede login + flag is_admin)
   const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/')

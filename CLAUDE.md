@@ -119,6 +119,28 @@ Cache in memoria con TTL per evitare refetch al remount (vedi `RecipeManager.jsx
 5. Aggiorna la roadmap qui sopra quando completi sprint o li cambi
 6. Se c'è un bug o comportamento strano, **chiedi sempre** il contesto (cosa vede l'utente, console errors) prima di tirare a indovinare
 
+## Widget pubblico prenotazioni (`/prenota/<slug>`)
+
+Pagina pubblica embed-abile sul sito del ristorante (alternativa al widget Plateform).
+- Frontend: `src/pages/PublicReservationPage.jsx` (no auth, mobile-first, branding via colore primario)
+- API: `api/reservations-public.js` (GET settings, POST prenotazione con honeypot + rate-limit IP)
+- Tabella: `public_widget_settings` (slug UNIQUE, mappa a user_id+locale)
+- Routing: vercel.json rewrite `/prenota/:slug*` → `/index.html`; routing in `App.jsx`
+
+**Per attivare un locale** (finché non c'è la UI dashboard, da Supabase Studio):
+```sql
+INSERT INTO public_widget_settings (user_id, locale, slug, nome_visualizzato, occasioni)
+VALUES ('4bedef4d-cf04-4c34-b614-dd0b78b496be', 'BIANCOLATTE', 'biancolatte',
+        'Biancolatte Pinerolo', ARRAY['Compleanno','Anniversario','Cena di lavoro']);
+```
+URL pubblico risultante: `https://cic-saas.vercel.app/prenota/biancolatte`
+
+Comportamento:
+- POST crea/aggiorna customer (dedup per email→telefono), insert reservation (stato `pending`, source `public_widget`)
+- Emette evento `nuova_prenotazione` su `automation_events_queue` → triggera automazioni (es. email conferma via SendGrid, WA conferma)
+- Honeypot field `hp` (campo invisibile) → bot detection
+- Rate-limit in-memory: 3 invii / 10 min per (IP+slug)
+
 ## Provider esterni (marketing/CRM)
 
 Architettura **all-Twilio** (decisione 2026-05-12) per scalabilità SaaS:

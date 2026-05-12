@@ -945,6 +945,28 @@ CREATE TABLE IF NOT EXISTS public.reservations (
   updated_at timestamptz DEFAULT now()
 );
 
+-- Settings widget prenotazioni pubblico (embed-abile sul sito ristorante via /prenota/<slug>)
+CREATE TABLE IF NOT EXISTS public.public_widget_settings (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL,
+  locale text NOT NULL,
+  slug text NOT NULL UNIQUE,
+  nome_visualizzato text,                         -- es. "Biancolatte Pinerolo"
+  attivo boolean NOT NULL DEFAULT true,
+  pax_max int NOT NULL DEFAULT 12,
+  durata_default_min int NOT NULL DEFAULT 90,
+  gdpr_text text,                                 -- testo opt-in marketing custom
+  messaggio_benvenuto text,                       -- mostrato in cima al form
+  colore_primario text DEFAULT '#F59E0B',         -- branding
+  occasioni text[] DEFAULT '{}',                  -- es. compleanno, anniversario, business
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, locale)
+);
+ALTER TABLE public.public_widget_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_public_widget_settings" ON public.public_widget_settings
+  FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 CREATE TABLE IF NOT EXISTS public.centralino_config (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid NOT NULL,
