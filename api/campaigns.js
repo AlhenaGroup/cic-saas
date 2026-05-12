@@ -14,8 +14,9 @@ const TW_SID = process.env.TWILIO_ACCOUNT_SID || ''
 const TW_TOKEN = process.env.TWILIO_AUTH_TOKEN || ''
 const TW_WA_FROM = process.env.TWILIO_WHATSAPP_FROM || ''
 const TW_SMS_FROM = process.env.TWILIO_SMS_FROM || ''
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
+const SG_API_KEY = process.env.SENDGRID_API_KEY || ''
+const SG_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'mail@cic-saas.it'
+const SG_FROM_NAME = process.env.SENDGRID_FROM_NAME || 'CIC SaaS'
 
 async function requireUser(req) {
   const auth = req.headers['authorization'] || ''
@@ -110,41 +111,38 @@ async function sendTwilioWhatsApp(to, body) {
   return { sid: j.sid }
 }
 
-async function refreshGoogleToken(refreshToken) {
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) throw new Error('Google OAuth non configurato')
-  const r = await fetch('https://oauth2.googleapis.com/token', {
+// Invio email via SendGrid v3 API.
+// Sender: env globale (override futuro per-locale via marketing_settings).
+// DKIM: configurato lato SendGrid per `SG_FROM_EMAIL` (vedi CLAUDE.md sezione "Provider email").
+async function sendSendGrid(toEmail, subject, htmlReady, opts = {}) {
+  if (!SG_API_KEY) return { error: 'SendGrid non configurato (SENDGRID_API_KEY mancante)' }
+  const fromEmail = opts.fromEmail || SG_FROM_EMAIL
+  const fromName = opts.fromName || SG_FROM_NAME
+  const r = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID,
-      client_secret: GOOGLE_CLIENT_SECRET,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
+    headers: {
+      Authorization: 'Bearer ' + SG_API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: toEmail }] }],
+      from: { email: fromEmail, name: fromName },
+      subject: subject || '(senza oggetto)',
+      content: [{ type: 'text/html', value: htmlReady }],
+      // Disabilita tracking SendGrid (usiamo il nostro pixel + link rewrite per metriche coerenti col DB)
+      tracking_settings: {
+        click_tracking: { enable: false, enable_text: false },
+        open_tracking: { enable: false },
+        subscription_tracking: { enable: false },
+      },
     }),
   })
-  if (!r.ok) throw new Error('refresh_token failed')
-  return (await r.json()).access_token
-}
-
-async function sendGmail(accessToken, fromEmail, toEmail, subject, htmlReady) {
-  const raw = [
-    `From: ${fromEmail}`,
-    `To: ${toEmail}`,
-    `Subject: =?UTF-8?B?${Buffer.from(subject || '').toString('base64')}?=`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=UTF-8',
-    '',
-    htmlReady,
-  ].join('\r\n')
-  const encoded = Buffer.from(raw).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-  const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw: encoded }),
-  })
-  const j = await r.json().catch(() => ({}))
-  if (!r.ok) return { error: j.error?.message || 'gmail failed' }
-  return { sid: j.id }
+  if (r.status >= 200 && r.status < 300) {
+    // SendGrid restituisce X-Message-Id come header su 202
+    return { sid: r.headers.get('x-message-id') || null }
+  }
+  const errText = await r.text().catch(() => '')
+  return { error: `sendgrid ${r.status}: ${errText.slice(0, 200)}` }
 }
 
 // Render dei blocchi del builder in HTML email-safe (table-based).
@@ -226,22 +224,11 @@ function buildTrackedHtml(input, baseUrl, isHtml = false) {
   return { html, pixel_token, link_tokens }
 }
 
-async function getGmailAccessToken(user_id) {
-  const { data: tk } = await sb.from('google_tokens')
-    .select('access_token, refresh_token, token_expiry, email')
-    .eq('user_id', user_id).maybeSingle()
-  if (!tk) return null
-  if (tk.token_expiry && new Date(tk.token_expiry) > new Date(Date.now() + 60000)) {
-    return { token: tk.access_token, email: tk.email }
-  }
-  if (!tk.refresh_token) return null
-  const newToken = await refreshGoogleToken(tk.refresh_token)
-  return { token: newToken, email: tk.email }
-}
-
 // ─── Send loop ──────────────────────────────────────────────────────
-// Rate limit per canale (req/sec). Conservativi: Gmail 250/utente/sec, Twilio 1 msg/sec default per long-code.
-const RATE_DELAY_MS = { email: 200, sms: 1100, whatsapp: 1100 }
+// Rate limit per canale (delay tra invii in ms).
+// SendGrid free/essentials: 100 email/sec → 10ms basta. Conservativi a 100ms.
+// Twilio long-code: 1 msg/sec → 1100ms.
+const RATE_DELAY_MS = { email: 100, sms: 1100, whatsapp: 1100 }
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 // Retry semplice con exponential backoff per errori transitori (5xx, network, 429).
@@ -273,10 +260,6 @@ async function sendCampaign(user_id, campaign) {
   }).eq('id', campaign.id)
 
   let inviati = 0, falliti = 0
-  let gmail = null
-  if (campaign.canale === 'email') {
-    try { gmail = await getGmailAccessToken(user_id) } catch (e) { /* gestito sotto */ }
-  }
 
   // baseUrl per i link tracking (fallback su env, poi su domain Vercel di default)
   const baseUrl = process.env.PUBLIC_BASE_URL || 'https://cic-saas.vercel.app'
@@ -290,13 +273,11 @@ async function sendCampaign(user_id, campaign) {
     let r, pixel_token = null, link_tokens = null
     try {
       if (campaign.canale === 'email') {
-        if (!gmail) { r = { error: 'Gmail non connesso' } }
-        else if (!gmail.email) { r = { error: 'Gmail account senza email (riconnetti)' } }
+        if (!SG_API_KEY) { r = { error: 'SendGrid non configurato (SENDGRID_API_KEY mancante)' } }
         else {
           // Se la campaign ha blocks, render HTML completo, poi inietta tracking
           let html, isHtml = false
           if (Array.isArray(campaign.blocks) && campaign.blocks.length > 0) {
-            // Sostituisci placeholder NEL render dei blocks (mutando deep)
             const customBlocks = campaign.blocks.map(b => {
               const np = { ...(b.props || {}) }
               for (const k of ['text', 'html', 'alt']) {
@@ -312,7 +293,7 @@ async function sendCampaign(user_id, campaign) {
           const tracked = buildTrackedHtml(html, baseUrl, isHtml)
           pixel_token = tracked.pixel_token
           link_tokens = tracked.link_tokens
-          r = await withRetry(() => sendGmail(gmail.token, gmail.email, dest, subj, tracked.html))
+          r = await withRetry(() => sendSendGrid(dest, subj, tracked.html))
         }
       } else if (campaign.canale === 'sms') {
         r = await withRetry(() => sendTwilioSms(dest, body))

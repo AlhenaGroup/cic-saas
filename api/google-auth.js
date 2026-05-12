@@ -1,9 +1,6 @@
-// OAuth Google: authorize → callback → salva tokens + email in google_tokens.
+// OAuth Google: authorize → callback → salva tokens in google_tokens.
+// Usato SOLO per Google Calendar (sync turni HR). Per invio email usiamo SendGrid (vedi campaigns.js).
 // + azioni di gestione: status (connesso?), disconnect.
-//
-// IMPORTANTE: prima di usare il flow Gmail send, eseguire UNA TANTUM su Supabase:
-//   ALTER TABLE public.google_tokens ADD COLUMN IF NOT EXISTS email text;
-// (campaigns.js e automations-cron.js leggono tk.email per il From dell'email)
 //
 // Env vars richieste:
 //   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
@@ -49,12 +46,8 @@ export default async function handler(req, res) {
 
   switch (action) {
     case 'authorize': {
-      // Scope: calendar.events (HR) + gmail.send (campagne) + userinfo.email (per ottenere From e mostrarlo)
-      const scopes = [
-        'https://www.googleapis.com/auth/calendar.events',
-        'https://www.googleapis.com/auth/gmail.send',
-        'https://www.googleapis.com/auth/userinfo.email',
-      ]
+      // Scope: solo calendar.events (sync turni HR). Per invio email usiamo SendGrid.
+      const scopes = ['https://www.googleapis.com/auth/calendar.events']
       const scope = encodeURIComponent(scopes.join(' '))
       const userId = req.query.state || ''
       const redirect = encodeURIComponent(getRedirectUri())
@@ -66,7 +59,6 @@ export default async function handler(req, res) {
       const code = req.query.code
       if (!code) return res.status(400).json({ error: 'No code' })
 
-      // 1) Scambia code → tokens
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,19 +75,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Token exchange failed', details: tokens })
       }
 
-      // 2) Recupera email account (necessaria per Gmail send From)
-      let email = null
-      try {
-        const uiRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-          headers: { Authorization: 'Bearer ' + tokens.access_token },
-        })
-        if (uiRes.ok) {
-          const ui = await uiRes.json()
-          email = ui.email || null
-        }
-      } catch (_e) { /* email resta null, ma logghiamo sotto */ }
-
-      // 3) Salva tokens (upsert su user_id grazie a UNIQUE)
       const userId = req.query.state || null
       if (userId) {
         const payload = {
@@ -104,9 +83,7 @@ export default async function handler(req, res) {
           token_expiry: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
           updated_at: new Date().toISOString(),
         }
-        // refresh_token c'è solo al primo consent (prompt=consent lo forza, ma proteggiamoci)
         if (tokens.refresh_token) payload.refresh_token = tokens.refresh_token
-        if (email) payload.email = email
 
         const { error } = await sb.from('google_tokens')
           .upsert(payload, { onConflict: 'user_id' })
@@ -118,17 +95,16 @@ export default async function handler(req, res) {
       return res.redirect(302, '/?tab=hr&gcal=connected')
     }
 
-    // ─── STATUS: l'app chiede "sono connesso a Google?" ────────────────
+    // ─── STATUS: l'app chiede "sono connesso a Google Calendar?" ───────
     case 'status': {
       const auth = await requireUser(req)
       if (auth.error) return res.status(401).json({ error: auth.error })
       const { data } = await sb.from('google_tokens')
-        .select('email, token_expiry, refresh_token, updated_at')
+        .select('token_expiry, refresh_token, updated_at')
         .eq('user_id', auth.user.id).maybeSingle()
       if (!data) return res.status(200).json({ connected: false })
       return res.status(200).json({
         connected: !!data.refresh_token,
-        email: data.email || null,
         token_expiry: data.token_expiry,
         updated_at: data.updated_at,
       })

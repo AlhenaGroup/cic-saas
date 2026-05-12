@@ -21,8 +21,9 @@ const TW_SID = process.env.TWILIO_ACCOUNT_SID || ''
 const TW_TOKEN = process.env.TWILIO_AUTH_TOKEN || ''
 const TW_WA_FROM = process.env.TWILIO_WHATSAPP_FROM || ''
 const TW_SMS_FROM = process.env.TWILIO_SMS_FROM || ''
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
+const SG_API_KEY = process.env.SENDGRID_API_KEY || ''
+const SG_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'mail@cic-saas.it'
+const SG_FROM_NAME = process.env.SENDGRID_FROM_NAME || 'CIC SaaS'
 
 // ─── Helpers ────────────────────────────────────────────────────────
 function applyPlaceholders(tpl, ctx) {
@@ -60,42 +61,29 @@ async function sendTwilioWhatsApp(to, body) {
   return { sid: j.sid }
 }
 
-async function refreshGoogleToken(refreshToken) {
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) throw new Error('Google OAuth non configurato')
-  const r = await fetch('https://oauth2.googleapis.com/token', {
+// Invio email via SendGrid v3 API.
+// user_id presente per uniformità di firma (verrà usato quando avremo sender per-locale).
+async function sendEmail(_user_id, toEmail, subject, body) {
+  if (!SG_API_KEY) return { error: 'SendGrid non configurato (SENDGRID_API_KEY mancante)' }
+  const html = String(body || '').replace(/\n/g, '<br>')
+  const r = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
-      refresh_token: refreshToken, grant_type: 'refresh_token',
+    headers: {
+      Authorization: 'Bearer ' + SG_API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: toEmail }] }],
+      from: { email: SG_FROM_EMAIL, name: SG_FROM_NAME },
+      subject: subject || '(senza oggetto)',
+      content: [{ type: 'text/html', value: html }],
     }),
   })
-  if (!r.ok) throw new Error('refresh_token failed')
-  return (await r.json()).access_token
-}
-
-async function sendGmail(user_id, toEmail, subject, body) {
-  const { data: tk } = await sb.from('google_tokens').select('access_token, refresh_token, token_expiry, email').eq('user_id', user_id).maybeSingle()
-  if (!tk || !tk.refresh_token) return { error: 'Gmail non connesso' }
-  let accessToken = tk.access_token
-  if (!tk.token_expiry || new Date(tk.token_expiry) <= new Date(Date.now() + 60000)) {
-    accessToken = await refreshGoogleToken(tk.refresh_token)
+  if (r.status >= 200 && r.status < 300) {
+    return { sid: r.headers.get('x-message-id') || null }
   }
-  const html = String(body || '').replace(/\n/g, '<br>')
-  const raw = [
-    `From: ${tk.email}`, `To: ${toEmail}`,
-    `Subject: =?UTF-8?B?${Buffer.from(subject || '').toString('base64')}?=`,
-    'MIME-Version: 1.0', 'Content-Type: text/html; charset=UTF-8', '', html,
-  ].join('\r\n')
-  const encoded = Buffer.from(raw).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-  const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw: encoded }),
-  })
-  const j = await r.json().catch(() => ({}))
-  if (!r.ok) return { error: j.error?.message || 'gmail failed' }
-  return { sid: j.id }
+  const errText = await r.text().catch(() => '')
+  return { error: `sendgrid ${r.status}: ${errText.slice(0, 200)}` }
 }
 
 // ─── Match filtri evento contro automazione ────────────────────────
@@ -208,7 +196,7 @@ async function executeStep(step) {
         else {
           const subject = applyPlaceholders(node.config?.oggetto || '', fullCtx)
           const bodyText = applyPlaceholders(node.config?.contenuto || '', fullCtx)
-          const r = await sendGmail(run.user_id, customer.email, subject, bodyText)
+          const r = await sendEmail(run.user_id, customer.email, subject, bodyText)
           if (r.error) { ok = false; errore = r.error } else { output = { sid: r.sid } }
         }
         await scheduleNextSteps(run, node)
@@ -331,7 +319,7 @@ async function executeStep(step) {
           const canale = cfg.canale || (customer.telefono ? 'whatsapp' : 'email')
           if (canale === 'email' && customer.email) {
             const subj = applyPlaceholders(cfg.oggetto || 'Il tuo feedback è importante', fullCtx)
-            const r = await sendGmail(run.user_id, customer.email, subj, text)
+            const r = await sendEmail(run.user_id, customer.email, subj, text)
             if (r.error) { ok = false; errore = r.error } else output = { sid: r.sid, link }
           } else if (customer.telefono) {
             const r = await sendTwilioWhatsApp(customer.telefono, text)

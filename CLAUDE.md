@@ -119,6 +119,24 @@ Cache in memoria con TTL per evitare refetch al remount (vedi `RecipeManager.jsx
 5. Aggiorna la roadmap qui sopra quando completi sprint o li cambi
 6. Se c'è un bug o comportamento strano, **chiedi sempre** il contesto (cosa vede l'utente, console errors) prima di tirare a indovinare
 
+## Provider esterni (marketing/CRM)
+
+Architettura **all-Twilio** (decisione 2026-05-12) per scalabilità SaaS:
+
+| Modulo | Provider | Env vars Vercel |
+|---|---|---|
+| Voice / IVR / parallel ring / segreteria | **Twilio Voice** | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (numero IT comprato su console) |
+| WhatsApp (utility + marketing) | **Twilio WhatsApp** | `TWILIO_WHATSAPP_FROM` (es. `whatsapp:+14155238886` sandbox, o numero approvato Meta) |
+| Email transactional + mass | **SendGrid** (gruppo Twilio) | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME` |
+| SMS | — | skip |
+| Google Calendar (sync turni HR) | Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PUBLIC_BASE_URL` |
+
+**Email/DKIM**: di default mittente globale via env (`SENDGRID_FROM_EMAIL`). Per DKIM custom per cliente (`prenotazioni@biancolatte.it`) usare SendGrid "Domain Authentication" + 3 record CNAME sul DNS del dominio cliente.
+
+**Webhook Twilio IVR**: `https://cic-saas.vercel.app/api/twilio-webhook?step=voice` (settare in Twilio Console sul numero comprato).
+
+**NB**: Gmail send NON è più usato — il flusso Google OAuth resta SOLO per Calendar. La colonna `email` su `google_tokens` è legacy ma innocua.
+
 ## Riferimenti rapidi
 
 - Repo GitHub: https://github.com/AlhenaGroup/cic-saas
