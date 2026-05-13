@@ -1,5 +1,7 @@
 // Centralino — config IVR + log chiamate.
-// Backoffice della logica Twilio. Le chiamate reali sono gestite da /api/twilio-webhook.
+// Backoffice della logica IVR (3CX o altro PBX). Le chiamate reali sono gestite da /api/centralino-3cx
+// (webhook chiamato dal PBX quando arriva una chiamata, gestisce digit 1 = WhatsApp, digit 2 = parallel ring).
+// Voice è in "fase 2" del pilota: in attesa di setup webhook 3CX con Plateform/installatore.
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { S } from '../shared/styles'
@@ -48,7 +50,7 @@ function fmtDur(s) {
   return m > 0 ? `${m}m ${r}s` : `${r}s`
 }
 
-const WEBHOOK_URL = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/twilio-webhook?step=voice'
+const WEBHOOK_URL = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/centralino-3cx?step=voice'
 
 export default function CentralinoManager({ sp, sps }) {
   const localesAvail = useMemo(() => { const raw = sps && sps.length ? sps.map(s => s.name) : ["REMEMBEER", "CASA DE AMICIS", "BIANCOLATTE", "LABORATORIO"]; return [...new Set(raw)] }, [sps])
@@ -129,7 +131,8 @@ export default function CentralinoManager({ sp, sps }) {
   return <div style={S.card}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginBottom: 14 }}>
       <h2 style={{ margin: 0, fontSize: 18 }}>Centralino</h2>
-      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· IVR Twilio + WhatsApp + parallel ring</span>
+      <span style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600 }}>fase 2</span>
+      <span style={{ fontSize: 12, color: 'var(--text2)' }}>· IVR via 3CX + WhatsApp + parallel ring</span>
       <div style={{ flex: 1 }} />
       <select value={locale} onChange={e => setLocale(e.target.value)} style={{ ...S.input, padding: '7px 10px' }}>
         {localesAvail.map(l => <option key={l} value={l}>{l}</option>)}
@@ -138,13 +141,18 @@ export default function CentralinoManager({ sp, sps }) {
     </div>
 
     {showHelp && <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 14, fontSize: 12, color: 'var(--text)' }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Setup centralino — passi necessari</div>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Setup centralino — fase 2 pilota</div>
+      <p style={{ margin: '6px 0', color: 'var(--text2)' }}>
+        Voice/IVR è in <strong>fase 2</strong>: in attesa del setup webhook lato PBX 3CX
+        (collaborazione con installatore/Plateform). Configurare qui sotto i parametri (greeting,
+        link prenotazione, numeri parallel ring, orari) per essere pronti.
+      </p>
       <ol style={{ marginLeft: 20, lineHeight: 1.7 }}>
-        <li>Acquistare un numero Twilio italiano (da Twilio Console) o portarne uno esistente.</li>
-        <li>Configurare le variabili ambiente Vercel: <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code>, <code>TWILIO_WHATSAPP_FROM</code> (es. <code>whatsapp:+14155238886</code>).</li>
-        <li>In Twilio Console, sul numero acquistato, impostare il webhook "A CALL COMES IN" (HTTP POST) su:<br /><code style={{ background: 'var(--surface)', padding: '2px 8px', borderRadius: 4 }}>{WEBHOOK_URL}</code></li>
-        <li>Configurare qui sotto: greeting, link prenotazione, numeri da far squillare, orari attivi.</li>
-        <li>Attivare il toggle "Centralino attivo".</li>
+        <li>Configurare qui sotto i parametri del centralino (greeting, link prenotazione, numeri da far squillare, orari attivi).</li>
+        <li>Sul PBX 3CX (lato Plateform o installatore di fiducia): creare un Call Flow che fa HTTP POST a:<br /><code style={{ background: 'var(--surface)', padding: '2px 8px', borderRadius: 4 }}>{WEBHOOK_URL}</code></li>
+        <li>Body atteso: <code style={{ background: 'var(--surface)', padding: '2px 6px', borderRadius: 4 }}>&#123; call_sid, from, to, step, digit &#125;</code></li>
+        <li>Variabili ambiente Vercel da configurare (lato dashboard): <code>D360_API_KEY</code>, <code>D360_BASE_URL</code> per invio WhatsApp via 360dialog.</li>
+        <li>Attivare il toggle "Centralino attivo" una volta verificato il flow end-to-end.</li>
       </ol>
     </div>}
 

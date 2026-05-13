@@ -137,27 +137,29 @@ URL pubblico risultante: `https://cic-saas.vercel.app/prenota/biancolatte`
 
 Comportamento:
 - POST crea/aggiorna customer (dedup per email→telefono), insert reservation (stato `pending`, source `public_widget`)
-- Emette evento `nuova_prenotazione` su `automation_events_queue` → triggera automazioni (es. email conferma via SendGrid, WA conferma)
+- Emette evento `nuova_prenotazione` su `automation_events_queue` → triggera automazioni (es. email conferma via Brevo, WA conferma via 360dialog)
 - Honeypot field `hp` (campo invisibile) → bot detection
 - Rate-limit in-memory: 3 invii / 10 min per (IP+slug)
 
 ## Provider esterni (marketing/CRM)
 
-Architettura **all-Twilio** (decisione 2026-05-12) per scalabilità SaaS:
+Architettura definitiva (decisione 2026-05-13, dopo aver scartato Twilio per problemi pool numeri italiani):
 
-| Modulo | Provider | Env vars Vercel |
-|---|---|---|
-| Voice / IVR / parallel ring / segreteria | **Twilio Voice** | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` (numero IT comprato su console) |
-| WhatsApp (utility + marketing) | **Twilio WhatsApp** | `TWILIO_WHATSAPP_FROM` (es. `whatsapp:+14155238886` sandbox, o numero approvato Meta) |
-| Email transactional + mass | **SendGrid** (gruppo Twilio) | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_FROM_NAME` |
-| SMS | — | skip |
-| Google Calendar (sync turni HR) | Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PUBLIC_BASE_URL` |
+| Modulo | Provider | Stato | Env vars Vercel |
+|---|---|---|---|
+| Email transactional + mass | **Brevo** (ex Sendinblue, italiano) | Fase 1 ✅ | `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `BREVO_FROM_NAME` |
+| WhatsApp (utility + marketing) | **360dialog** (BSP italiano de-facto) | Fase 1 ✅ | `D360_API_KEY`, `D360_BASE_URL` (default `https://waba-v2.360dialog.io`; sandbox = `https://waba-sandbox.messagepipe.io`) |
+| Voice / IVR / parallel ring / segreteria | **3CX esistente Alhena** (fornito da Plateform) → webhook a nostro `/api/centralino-3cx` | Fase 2 ⏸ | — |
+| SMS | — | Skip | (clienti italiani usano WhatsApp) |
+| Google Calendar (sync turni HR) | Google OAuth | ✅ esistente | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PUBLIC_BASE_URL` |
 
-**Email/DKIM**: di default mittente globale via env (`SENDGRID_FROM_EMAIL`). Per DKIM custom per cliente (`prenotazioni@biancolatte.it`) usare SendGrid "Domain Authentication" + 3 record CNAME sul DNS del dominio cliente.
+**Email/DKIM**: di default mittente globale via env (`BREVO_FROM_EMAIL`). Per DKIM custom per cliente (`prenotazioni@biancolatte.it`) usare Brevo Senders & Domains → Authenticate Domain + 3 record DNS (DKIM + Brevo-code + DMARC).
 
-**Webhook Twilio IVR**: `https://cic-saas.vercel.app/api/twilio-webhook?step=voice` (settare in Twilio Console sul numero comprato).
+**WhatsApp**: i messaggi outbound proattivi (compleanno, conferma prenotazione, sondaggi) richiedono **template Meta-approved**. Il nodo automation `invia_whatsapp` accetta `config.template_name`, `config.template_lang` (default `it`), `config.template_components`. Messaggi free-text funzionano solo entro 24h dalla risposta del cliente.
 
-**NB**: Gmail send NON è più usato — il flusso Google OAuth resta SOLO per Calendar. La colonna `email` su `google_tokens` è legacy ma innocua.
+**Webhook 3CX IVR** (fase 2): `https://cic-saas.vercel.app/api/centralino-3cx?step=voice` (settare lato 3CX Call Flow Designer in collaborazione con Plateform/installatore).
+
+**NB**: Gmail send NON è usato (Brevo lo sostituisce). Il flusso Google OAuth resta SOLO per Calendar HR. Twilio è stato scartato (pool numeri italiani limitato, tempi onboarding 4-8 sett incompatibili con SaaS).
 
 ## Riferimenti rapidi
 

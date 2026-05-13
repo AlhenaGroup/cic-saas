@@ -1,6 +1,12 @@
 // API campagne marketing — segmenta clienti per tag/visite/inattività/compleanno
-// e invia messaggi via Gmail (email), Twilio Programmable SMS (sms) o Twilio WhatsApp (whatsapp).
+// e invia messaggi via Brevo (email) o 360dialog (WhatsApp Business API).
 // Auth: Bearer JWT del ristoratore. Multi-tenant via RLS.
+//
+// Decisione architetturale (2026-05-13):
+//   - Email: Brevo (italiano, sub-accounts API per multi-tenancy SaaS)
+//   - WhatsApp: 360dialog (BSP italiano de-facto, integrazione 3CX nativa)
+//   - SMS: skip per ora (i clienti italiani usano WhatsApp)
+//   - Voice/IVR: skip per ora, future integrazione con 3CX esistente Alhena
 
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'node:crypto'
@@ -10,13 +16,16 @@ const SB_SERVICE = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY 
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZG9jaHJqYm14bmh2aWlkenBiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDkzMzk5MSwiZXhwIjoyMDkwNTA5OTkxfQ.odgLZGS_W1j5mSngmL3MGlJOKTzfAm3RjsdXhi5MEEA'
 const sb = createClient(SB_URL, SB_SERVICE)
 
-const TW_SID = process.env.TWILIO_ACCOUNT_SID || ''
-const TW_TOKEN = process.env.TWILIO_AUTH_TOKEN || ''
-const TW_WA_FROM = process.env.TWILIO_WHATSAPP_FROM || ''
-const TW_SMS_FROM = process.env.TWILIO_SMS_FROM || ''
-const SG_API_KEY = process.env.SENDGRID_API_KEY || ''
-const SG_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'mail@cic-saas.it'
-const SG_FROM_NAME = process.env.SENDGRID_FROM_NAME || 'CIC SaaS'
+// Brevo (email)
+const BREVO_API_KEY = process.env.BREVO_API_KEY || ''
+const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'mail@cic-saas.it'
+const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'CIC SaaS'
+
+// 360dialog (WhatsApp Business API)
+const D360_API_KEY = process.env.D360_API_KEY || ''
+const D360_BASE_URL = process.env.D360_BASE_URL || 'https://waba-v2.360dialog.io'  // production
+// per Sandbox usare: https://waba-sandbox.messagepipe.io
+const D360_NAMESPACE = process.env.D360_NAMESPACE || ''  // template namespace, per messaggi template marketing
 
 async function requireUser(req) {
   const auth = req.headers['authorization'] || ''
@@ -78,71 +87,90 @@ function applyPlaceholders(tpl, customer, ctx = {}) {
 }
 
 // ─── Senders ────────────────────────────────────────────────────────
-async function sendTwilioSms(to, body) {
-  if (!TW_SID || !TW_TOKEN || !TW_SMS_FROM) return { error: 'Twilio SMS non configurato' }
-  const params = new URLSearchParams({ From: TW_SMS_FROM, To: to, Body: body })
-  const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: 'Basic ' + Buffer.from(`${TW_SID}:${TW_TOKEN}`).toString('base64'),
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: params.toString(),
-  })
-  const j = await r.json().catch(() => ({}))
-  if (!r.ok) return { error: j.message || 'send failed' }
-  return { sid: j.sid }
+
+// Normalizza numero telefono in formato E.164 senza il + (atteso da 360dialog).
+// Es: "+39 351 1234567" → "393511234567"
+function normalizePhone(phone) {
+  if (!phone) return null
+  let p = String(phone).replace(/[\s\-().]/g, '')
+  if (p.startsWith('+')) p = p.slice(1)
+  if (!/^\d{8,15}$/.test(p)) return null
+  return p
 }
 
-async function sendTwilioWhatsApp(to, body) {
-  if (!TW_SID || !TW_TOKEN || !TW_WA_FROM) return { error: 'Twilio WhatsApp non configurato' }
-  const tw = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`
-  const params = new URLSearchParams({ From: TW_WA_FROM, To: tw, Body: body })
-  const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: 'Basic ' + Buffer.from(`${TW_SID}:${TW_TOKEN}`).toString('base64'),
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: params.toString(),
-  })
-  const j = await r.json().catch(() => ({}))
-  if (!r.ok) return { error: j.message || 'send failed' }
-  return { sid: j.sid }
-}
+// Invio WhatsApp via 360dialog API v2 (Cloud API compatibile).
+// In demo mode senza template approvati, mandiamo "text" che funziona solo dentro la 24h window
+// (cioè dopo che il customer ci ha scritto). Per messaggi proattivi marketing, serve template approvato.
+async function sendDialog360(to, body, opts = {}) {
+  if (!D360_API_KEY) return { error: '360dialog non configurato (D360_API_KEY mancante)' }
+  const phone = normalizePhone(to)
+  if (!phone) return { error: 'numero telefono non valido' }
 
-// Invio email via SendGrid v3 API.
-// Sender: env globale (override futuro per-locale via marketing_settings).
-// DKIM: configurato lato SendGrid per `SG_FROM_EMAIL` (vedi CLAUDE.md sezione "Provider email").
-async function sendSendGrid(toEmail, subject, htmlReady, opts = {}) {
-  if (!SG_API_KEY) return { error: 'SendGrid non configurato (SENDGRID_API_KEY mancante)' }
-  const fromEmail = opts.fromEmail || SG_FROM_EMAIL
-  const fromName = opts.fromName || SG_FROM_NAME
-  const r = await fetch('https://api.sendgrid.com/v3/mail/send', {
+  let payload
+  if (opts.templateName) {
+    // Messaggio template approvato (per marketing outbound oltre 24h window)
+    payload = {
+      messaging_product: 'whatsapp',
+      to: phone,
+      type: 'template',
+      template: {
+        name: opts.templateName,
+        language: { code: opts.templateLang || 'it' },
+        components: opts.templateComponents || [],
+      },
+    }
+  } else {
+    // Messaggio testo libero (solo entro 24h window dalla risposta cliente)
+    payload = {
+      messaging_product: 'whatsapp',
+      to: phone,
+      type: 'text',
+      text: { body },
+    }
+  }
+
+  const r = await fetch(`${D360_BASE_URL}/messages`, {
     method: 'POST',
     headers: {
-      Authorization: 'Bearer ' + SG_API_KEY,
+      'D360-API-KEY': D360_API_KEY,
       'Content-Type': 'application/json',
     },
+    body: JSON.stringify(payload),
+  })
+  const j = await r.json().catch(() => ({}))
+  if (!r.ok) return { error: j.error?.message || j.message || `360dialog ${r.status}` }
+  // 360dialog ritorna { messages: [{id}] }
+  return { sid: j.messages?.[0]?.id || null }
+}
+
+// Invio email via Brevo (ex Sendinblue) — leader email Italia, sub-accounts API per multi-tenancy SaaS.
+// Sender: env globale (override futuro per-locale via marketing_settings).
+// DKIM: configurato lato Brevo per il dominio del sender (Senders, Domains & Dedicated IPs).
+async function sendBrevo(toEmail, subject, htmlReady, opts = {}) {
+  if (!BREVO_API_KEY) return { error: 'Brevo non configurato (BREVO_API_KEY mancante)' }
+  const fromEmail = opts.fromEmail || BREVO_FROM_EMAIL
+  const fromName = opts.fromName || BREVO_FROM_NAME
+  const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': BREVO_API_KEY,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
     body: JSON.stringify({
-      personalizations: [{ to: [{ email: toEmail }] }],
-      from: { email: fromEmail, name: fromName },
+      sender: { email: fromEmail, name: fromName },
+      to: [{ email: toEmail }],
       subject: subject || '(senza oggetto)',
-      content: [{ type: 'text/html', value: htmlReady }],
-      // Disabilita tracking SendGrid (usiamo il nostro pixel + link rewrite per metriche coerenti col DB)
-      tracking_settings: {
-        click_tracking: { enable: false, enable_text: false },
-        open_tracking: { enable: false },
-        subscription_tracking: { enable: false },
-      },
+      htmlContent: htmlReady,
+      // Disabilitiamo tracking Brevo: usiamo il nostro pixel + link rewrite per coerenza dati nel DB
+      headers: { 'X-Mailin-disable-tracking': '1' },
     }),
   })
+  const j = await r.json().catch(() => ({}))
   if (r.status >= 200 && r.status < 300) {
-    // SendGrid restituisce X-Message-Id come header su 202
-    return { sid: r.headers.get('x-message-id') || null }
+    return { sid: j.messageId || null }
   }
-  const errText = await r.text().catch(() => '')
-  return { error: `sendgrid ${r.status}: ${errText.slice(0, 200)}` }
+  return { error: `brevo ${r.status}: ${j.message || j.code || 'unknown'}` }
 }
 
 // Render dei blocchi del builder in HTML email-safe (table-based).
@@ -273,7 +301,7 @@ async function sendCampaign(user_id, campaign) {
     let r, pixel_token = null, link_tokens = null
     try {
       if (campaign.canale === 'email') {
-        if (!SG_API_KEY) { r = { error: 'SendGrid non configurato (SENDGRID_API_KEY mancante)' } }
+        if (!BREVO_API_KEY) { r = { error: 'Brevo non configurato (BREVO_API_KEY mancante)' } }
         else {
           // Se la campaign ha blocks, render HTML completo, poi inietta tracking
           let html, isHtml = false
@@ -293,12 +321,21 @@ async function sendCampaign(user_id, campaign) {
           const tracked = buildTrackedHtml(html, baseUrl, isHtml)
           pixel_token = tracked.pixel_token
           link_tokens = tracked.link_tokens
-          r = await withRetry(() => sendSendGrid(dest, subj, tracked.html))
+          r = await withRetry(() => sendBrevo(dest, subj, tracked.html))
         }
-      } else if (campaign.canale === 'sms') {
-        r = await withRetry(() => sendTwilioSms(dest, body))
       } else if (campaign.canale === 'whatsapp') {
-        r = await withRetry(() => sendTwilioWhatsApp(dest, body))
+        // Per messaggi marketing (campagne broadcast) di solito serve template approvato.
+        // La campaign può specificare templateName / templateLang / templateComponents nel campo "meta".
+        const tpl = campaign.meta?.whatsapp_template
+        const opts = tpl ? {
+          templateName: tpl.name,
+          templateLang: tpl.lang || 'it',
+          templateComponents: tpl.components || [],
+        } : {}
+        r = await withRetry(() => sendDialog360(dest, body, opts))
+      } else if (campaign.canale === 'sms') {
+        // SMS disabilitato — i clienti italiani usano WhatsApp. Re-attivare in futuro se serve.
+        r = { error: 'canale SMS non attivo' }
       } else {
         r = { error: 'canale invalido' }
       }

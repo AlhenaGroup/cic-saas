@@ -17,13 +17,14 @@ const SB_SERVICE = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY 
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmZG9jaHJqYm14bmh2aWlkenBiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDkzMzk5MSwiZXhwIjoyMDkwNTA5OTkxfQ.odgLZGS_W1j5mSngmL3MGlJOKTzfAm3RjsdXhi5MEEA'
 const sb = createClient(SB_URL, SB_SERVICE)
 
-const TW_SID = process.env.TWILIO_ACCOUNT_SID || ''
-const TW_TOKEN = process.env.TWILIO_AUTH_TOKEN || ''
-const TW_WA_FROM = process.env.TWILIO_WHATSAPP_FROM || ''
-const TW_SMS_FROM = process.env.TWILIO_SMS_FROM || ''
-const SG_API_KEY = process.env.SENDGRID_API_KEY || ''
-const SG_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'mail@cic-saas.it'
-const SG_FROM_NAME = process.env.SENDGRID_FROM_NAME || 'CIC SaaS'
+// Brevo (email)
+const BREVO_API_KEY = process.env.BREVO_API_KEY || ''
+const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'mail@cic-saas.it'
+const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'CIC SaaS'
+
+// 360dialog (WhatsApp Business API)
+const D360_API_KEY = process.env.D360_API_KEY || ''
+const D360_BASE_URL = process.env.D360_BASE_URL || 'https://waba-v2.360dialog.io'
 
 // ─── Helpers ────────────────────────────────────────────────────────
 function applyPlaceholders(tpl, ctx) {
@@ -34,56 +35,77 @@ function applyPlaceholders(tpl, ctx) {
     .replace(/\{punti\}/g, ctx.punti != null ? String(ctx.punti) : '')
 }
 
-async function sendTwilioSms(to, body) {
-  if (!TW_SID || !TW_TOKEN || !TW_SMS_FROM) return { error: 'Twilio SMS non configurato' }
-  const params = new URLSearchParams({ From: TW_SMS_FROM, To: to, Body: body })
-  const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
-    method: 'POST',
-    headers: { Authorization: 'Basic ' + Buffer.from(`${TW_SID}:${TW_TOKEN}`).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
-  })
-  const j = await r.json().catch(() => ({}))
-  if (!r.ok) return { error: j.message || 'send failed' }
-  return { sid: j.sid }
+// Normalizza numero in formato E.164 senza +. Usato da 360dialog.
+function normalizePhone(phone) {
+  if (!phone) return null
+  let p = String(phone).replace(/[\s\-().]/g, '')
+  if (p.startsWith('+')) p = p.slice(1)
+  if (!/^\d{8,15}$/.test(p)) return null
+  return p
 }
 
-async function sendTwilioWhatsApp(to, body) {
-  if (!TW_SID || !TW_TOKEN || !TW_WA_FROM) return { error: 'Twilio WA non configurato' }
-  const tw = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`
-  const params = new URLSearchParams({ From: TW_WA_FROM, To: tw, Body: body })
-  const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
+// Invio WhatsApp via 360dialog. Per messaggi automation outbound serve template approvato
+// passato nel config del nodo (opts.templateName).
+async function sendWhatsApp(to, body, opts = {}) {
+  if (!D360_API_KEY) return { error: '360dialog non configurato (D360_API_KEY mancante)' }
+  const phone = normalizePhone(to)
+  if (!phone) return { error: 'numero telefono non valido' }
+
+  let payload
+  if (opts.templateName) {
+    payload = {
+      messaging_product: 'whatsapp',
+      to: phone,
+      type: 'template',
+      template: {
+        name: opts.templateName,
+        language: { code: opts.templateLang || 'it' },
+        components: opts.templateComponents || [],
+      },
+    }
+  } else {
+    payload = {
+      messaging_product: 'whatsapp',
+      to: phone,
+      type: 'text',
+      text: { body },
+    }
+  }
+
+  const r = await fetch(`${D360_BASE_URL}/messages`, {
     method: 'POST',
-    headers: { Authorization: 'Basic ' + Buffer.from(`${TW_SID}:${TW_TOKEN}`).toString('base64'), 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
+    headers: { 'D360-API-KEY': D360_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   })
   const j = await r.json().catch(() => ({}))
-  if (!r.ok) return { error: j.message || 'send failed' }
-  return { sid: j.sid }
+  if (!r.ok) return { error: j.error?.message || j.message || `360dialog ${r.status}` }
+  return { sid: j.messages?.[0]?.id || null }
 }
 
-// Invio email via SendGrid v3 API.
-// user_id presente per uniformità di firma (verrà usato quando avremo sender per-locale).
+// Invio email via Brevo. user_id presente per uniformità di firma (per-locale futuro).
 async function sendEmail(_user_id, toEmail, subject, body) {
-  if (!SG_API_KEY) return { error: 'SendGrid non configurato (SENDGRID_API_KEY mancante)' }
+  if (!BREVO_API_KEY) return { error: 'Brevo non configurato (BREVO_API_KEY mancante)' }
   const html = String(body || '').replace(/\n/g, '<br>')
-  const r = await fetch('https://api.sendgrid.com/v3/mail/send', {
+  const r = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      Authorization: 'Bearer ' + SG_API_KEY,
+      'api-key': BREVO_API_KEY,
       'Content-Type': 'application/json',
+      Accept: 'application/json',
     },
     body: JSON.stringify({
-      personalizations: [{ to: [{ email: toEmail }] }],
-      from: { email: SG_FROM_EMAIL, name: SG_FROM_NAME },
+      sender: { email: BREVO_FROM_EMAIL, name: BREVO_FROM_NAME },
+      to: [{ email: toEmail }],
       subject: subject || '(senza oggetto)',
-      content: [{ type: 'text/html', value: html }],
+      htmlContent: html,
+      headers: { 'X-Mailin-disable-tracking': '1' },
     }),
   })
+  const j = await r.json().catch(() => ({}))
   if (r.status >= 200 && r.status < 300) {
-    return { sid: r.headers.get('x-message-id') || null }
+    return { sid: j.messageId || null }
   }
-  const errText = await r.text().catch(() => '')
-  return { error: `sendgrid ${r.status}: ${errText.slice(0, 200)}` }
+  return { error: `brevo ${r.status}: ${j.message || j.code || 'unknown'}` }
 }
 
 // ─── Match filtri evento contro automazione ────────────────────────
@@ -207,7 +229,13 @@ async function executeStep(step) {
         if (!customer?.telefono) { ok = false; errore = 'cliente senza telefono' }
         else {
           const text = applyPlaceholders(node.config?.contenuto || '', fullCtx)
-          const r = await sendTwilioWhatsApp(customer.telefono, text)
+          // Se il nodo specifica template_name, lo usiamo (richiesto per outbound oltre 24h window)
+          const opts = node.config?.template_name ? {
+            templateName: node.config.template_name,
+            templateLang: node.config.template_lang || 'it',
+            templateComponents: node.config.template_components || [],
+          } : {}
+          const r = await sendWhatsApp(customer.telefono, text, opts)
           if (r.error) { ok = false; errore = r.error } else { output = { sid: r.sid } }
         }
         await scheduleNextSteps(run, node)
@@ -215,12 +243,9 @@ async function executeStep(step) {
       }
 
       case 'invia_sms': {
-        if (!customer?.telefono) { ok = false; errore = 'cliente senza telefono' }
-        else {
-          const text = applyPlaceholders(node.config?.contenuto || '', fullCtx)
-          const r = await sendTwilioSms(customer.telefono, text)
-          if (r.error) { ok = false; errore = r.error } else { output = { sid: r.sid } }
-        }
+        // SMS disabilitato (Italia: i clienti usano WhatsApp).
+        // Per riattivare: re-introdurre provider SMS (Twilio o italiano dedicato).
+        ok = false; errore = 'canale SMS non attivo'
         await scheduleNextSteps(run, node)
         break
       }
@@ -322,7 +347,7 @@ async function executeStep(step) {
             const r = await sendEmail(run.user_id, customer.email, subj, text)
             if (r.error) { ok = false; errore = r.error } else output = { sid: r.sid, link }
           } else if (customer.telefono) {
-            const r = await sendTwilioWhatsApp(customer.telefono, text)
+            const r = await sendWhatsApp(customer.telefono, text)
             if (r.error) { ok = false; errore = r.error } else output = { sid: r.sid, link }
           } else { ok = false; errore = 'cliente senza email/telefono' }
         }
@@ -408,7 +433,7 @@ export default async function handler(req, res) {
     }
 
     // 2) Execute pending steps with schedule_at <= now — parallelo con concurrency limit
-    //    per non saturare upstream (Twilio/Gmail) e restare entro il timeout Vercel.
+    //    per non saturare upstream (360dialog/Brevo) e restare entro il timeout Vercel.
     const { data: steps } = await sb.from('automation_run_steps').select('*')
       .eq('stato', 'pending').lte('schedule_at', new Date().toISOString())
       .order('schedule_at').limit(200)
