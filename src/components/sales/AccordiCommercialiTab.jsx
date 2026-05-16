@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { S, KPI, Card, fmt, fmtN } from '../shared/styles.jsx'
+import { S, KPI, Card, fmtN } from '../shared/styles.jsx'
 import AccordoWizard from './AccordoWizard'
 import AccordoDetail from './AccordoDetail'
 
@@ -80,10 +80,11 @@ export default function AccordiCommercialiTab() {
   const stats = useMemo(() => {
     const active = agreements.filter((a) => a.status === 'active').length
     const atRisk = agreements.filter((a) => ['at_risk', 'off_track'].includes(a.progress?.status_indicator)).length
-    const totReward = agreements
-      .filter((a) => a.status === 'active' && a.reward_value)
-      .reduce((s, a) => s + Number(a.reward_value || 0), 0)
-    return { active, atRisk, totReward }
+    const closeToWin = agreements.filter((a) => {
+      const p = a.progress
+      return a.status === 'active' && p && p.percentage_complete >= 80 && p.percentage_complete < 100
+    }).length
+    return { active, atRisk, closeToWin }
   }, [agreements])
 
   const filtered = useMemo(() => {
@@ -115,9 +116,9 @@ export default function AccordiCommercialiTab() {
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: '1.25rem' }}>
-        <KPI label="Attivi"            value={fmtN(stats.active)}   sub="accordi in corso" accent='var(--blue)' />
-        <KPI label="A rischio"         value={fmtN(stats.atRisk)}   sub="proiezione sotto target" accent='#F59E0B' />
-        <KPI label="Premi in palio"    value={fmt(stats.totReward)} sub="valore dichiarato" accent='#10B981' />
+        <KPI label="Attivi"            value={fmtN(stats.active)}      sub="accordi in corso"           accent='var(--blue)' />
+        <KPI label="A rischio"         value={fmtN(stats.atRisk)}      sub="proiezione sotto target"    accent='#F59E0B' />
+        <KPI label="Quasi conquistati" value={fmtN(stats.closeToWin)}  sub="≥80% del target, sblocca premio" accent='#10B981' />
       </div>
 
       <Card
