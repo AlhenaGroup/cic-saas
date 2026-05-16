@@ -27,6 +27,7 @@ import AvvisiModule from '../components/AvvisiModule'
 import { useUserPlan } from '../lib/features'
 import { canAccess, isStaffSession, loadStaffEmployee, StaffPermsProvider } from '../lib/permissions'
 import AccordiCommercialiTab from '../components/sales/AccordiCommercialiTab'
+import AccordiWidget from '../components/sales/AccordiWidget'
 
 // ─── Preset periodo globali (validi per tutti i moduli) ────────────────────
 const _ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
@@ -756,6 +757,8 @@ export default function DashboardPage({ settings }) {
               renderProduttivitaCompact() },
           { id:'briefing.attenzione', label:'Attenzione (allarmi)', element:
               <BriefingAttenzione sps={sps} sp={sp}/> },
+          { id:'briefing.accordi', label:'Accordi commerciali', element:
+              <AccordiWidget /> },
         ]}/>
 
         {/* Giorno migliore / peggiore */}

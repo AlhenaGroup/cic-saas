@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { S, Card } from '../shared/styles.jsx'
+import { AGREEMENT_TEMPLATES } from './agreementTemplates'
 
 async function apiCall(action, body = {}) {
   const { data: session } = await supabase.auth.getSession()
@@ -23,7 +24,8 @@ async function apiCall(action, body = {}) {
 }
 
 export default function AccordoWizard({ editId, onCancel, onSaved }) {
-  const [step, setStep] = useState(1)
+  // step 0 = scelta template (solo per nuovi); 1-4 = wizard standard
+  const [step, setStep] = useState(editId ? 1 : 0)
   const [suppliers, setSuppliers] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -44,6 +46,19 @@ export default function AccordoWizard({ editId, onCancel, onSaved }) {
     tiers: [],
     items: [{ item_type: 'all' }],
   })
+
+  function pickTemplate(t) {
+    if (t.preset) {
+      setAgr((cur) => ({
+        ...cur,
+        ...t.preset,
+        // mantieni supplier_id se l'utente l'ha già scelto
+        supplier_id: cur.supplier_id || '',
+        items: cur.items?.length ? cur.items : [{ item_type: 'all' }],
+      }))
+    }
+    setStep(1)
+  }
 
   useEffect(() => {
     apiCall('suppliers-list').then((j) => setSuppliers(j.suppliers || [])).catch(() => {})
@@ -88,17 +103,49 @@ export default function AccordoWizard({ editId, onCancel, onSaved }) {
         </h2>
       </div>
 
-      {/* Step indicator */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {[1, 2, 3, 4].map((n) => (
-          <div key={n} style={{
-            flex: 1, height: 4, borderRadius: 2,
-            background: n <= step ? 'var(--blue)' : 'var(--border)',
-          }} />
-        ))}
-      </div>
+      {/* Step indicator (mostrato solo dopo aver scelto il template) */}
+      {step > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} style={{
+              flex: 1, height: 4, borderRadius: 2,
+              background: n <= step ? 'var(--blue)' : 'var(--border)',
+            }} />
+          ))}
+        </div>
+      )}
 
       {error && <div style={{ padding: 12, background: 'var(--red-bg)', color: 'var(--red)', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>{error}</div>}
+
+      {step === 0 && (
+        <Card title="Parti da un esempio">
+          <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text2)' }}>
+            Scegli il tipo di accordo che assomiglia di più al tuo. I valori saranno solo un punto di partenza — modifichi tutto nei passi successivi.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            {AGREEMENT_TEMPLATES.map((t) => (
+              <button key={t.key} onClick={() => pickTemplate(t)}
+                style={{
+                  textAlign: 'left', background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 10, padding: 14, cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', gap: 6, transition: 'border-color .15s, transform .1s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--blue)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 22 }}>{t.icon}</span>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{t.category}</div>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{t.title}</div>
+                <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>{t.summary}</div>
+                {t.example && (
+                  <div style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic', marginTop: 4 }}>{t.example}</div>
+                )}
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {step === 1 && (
         <Card title="Passo 1 di 4 — Dati base">
@@ -231,12 +278,13 @@ export default function AccordoWizard({ editId, onCancel, onSaved }) {
         </Card>
       )}
 
-      {/* Nav buttons */}
+      {/* Nav buttons (nascosti durante scelta template) */}
+      {step > 0 && (
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
         <button
-          onClick={() => step > 1 ? setStep(step - 1) : onCancel()}
+          onClick={() => step > 1 ? setStep(step - 1) : (editId ? onCancel() : setStep(0))}
           style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 14px', fontSize: 13, cursor: 'pointer' }}>
-          {step > 1 ? '← Indietro' : 'Annulla'}
+          {step > 1 ? '← Indietro' : (editId ? 'Annulla' : '← Cambia template')}
         </button>
         {step < 4 ? (
           <button
@@ -262,6 +310,7 @@ export default function AccordoWizard({ editId, onCancel, onSaved }) {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

@@ -123,3 +123,4 @@ export default function App() {
   if (!settings?.cic_api_key) return <WaitingPage email={session.user.email} />
   return <DashboardPage settings={settings} />
 }
+
