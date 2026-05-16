@@ -26,6 +26,7 @@ import ReceiptDetailModal from '../components/ReceiptDetailModal'
 import AvvisiModule from '../components/AvvisiModule'
 import { useUserPlan } from '../lib/features'
 import { canAccess, isStaffSession, loadStaffEmployee, StaffPermsProvider } from '../lib/permissions'
+import AccordiCommercialiTab from '../components/sales/AccordiCommercialiTab'
 
 // ─── Preset periodo globali (validi per tutti i moduli) ────────────────────
 const _ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
@@ -808,6 +809,7 @@ export default function DashboardPage({ settings }) {
             { key: 'scontrini', label: 'Scontrini' },
             { key: 'cat',       label: 'Categorie' },
             { key: 'rep',       label: 'Reparti' },
+            { key: 'accordi',   label: 'Accordi commerciali' },
           ].filter(t => !staffPerms || canAccess(staffPerms, 'vendite.' + t.key, false))}
           value={vendSubTab}
           onChange={setVendSubTab}
@@ -935,6 +937,8 @@ export default function DashboardPage({ settings }) {
           </ResponsiveContainer>
         </Card>
       </>}
+
+      {tab==='vendite' && vendSubTab==='accordi'&&<AccordiCommercialiTab />}
 
 
       {false&&(()=>{ return null

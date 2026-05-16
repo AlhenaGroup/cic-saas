@@ -41,6 +41,7 @@ export const SUB_TABS = {
     ['scontrini', 'Scontrini'],
     ['cat', 'Categorie'],
     ['rep', 'Reparti'],
+    ['accordi', 'Accordi commerciali'],
   ],
   mag: [
     ['cruscotto', 'Cruscotto'],
